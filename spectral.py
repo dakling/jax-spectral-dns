@@ -181,7 +181,7 @@ def optimize_spectral():
                 strikes += 1
             elif old_gain and old_gain/gain < 1.2:
                 print("only slow improvement in gain detected; increasing step size.")
-            eps *= 1.5
+                eps *= 1.5
             else:
                 strikes = 0
             u0_corr = jax.grad(gain_func)(u0_vec[-1])
