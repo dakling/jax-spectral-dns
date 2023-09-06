@@ -10,21 +10,7 @@ import numpy as np
 import seaborn
 import xarray
 
-def simple_stuff():
-    ## very simple stuff
-    def test(x, y):
-        return x**3 + jnp.sin(y)
-
-    test2 = lambda x, y: (x**4 - jnp.cos(y))**test(x/100, y/100)
-
-    print(jax.grad(test, 0)(3.0, 0.0))
-    print(jax.grad(test, 1)(3.0, 0.0))
-
-
-    print(jax.grad(test2, 0)(3.0, 0.0))
-    print(jax.grad(test2, 1)(3.0, jnp.pi/2))
-
-## taken from demo worksheet
+## adapted from demo worksheet
 def run_flow_sim(v0, grid, ii=-1):
     density = 1.
     viscosity = 1e-3
@@ -45,20 +31,6 @@ def run_flow_sim(v0, grid, ii=-1):
         steps=inner_steps)
     rollout_fn = jax.jit(cfd.funcutils.trajectory(step_fn, outer_steps))
     _, trajectory = jax.device_get(rollout_fn(v0))
-
-    # JAX-CFD uses GridVariable objects for input/output. These objects contain:
-    #  - array data
-    #  - an "offset" that documents the position on the unit-cell where the data
-    #    values are located
-    #  - grid properties
-    #  - boundary conditions on the variable
-    # with np.printoptions(edgeitems=1):
-    #     for i, u in enumerate(trajectory):
-    #         print(f'Component {i}: {u}')
-
-    # def vorticity(ds):
-    #     return (ds.v.differentiate('x') - ds.u.differentiate('y')).rename('vorticity')
-
 
     def energy_field(ds):
         return (0.5*(ds.u**2 + ds.v**2)).rename('energy')
@@ -92,15 +64,17 @@ def run_flow_sim(v0, grid, ii=-1):
         plt = (ds.pipe(lambda ds: ds.u).thin(time=20)
         .plot.imshow(col='time', cmap=seaborn.cm.icefire, robust=True, col_wrap=5));
         plt.fig.savefig("plot_u_" + str(ii) + ".pdf")
+        plt.fig.savefig("plot_u_" "latest" + ".pdf")
         plt = (ds.pipe(lambda ds: ds.v).thin(time=20)
         .plot.imshow(col='time', cmap=seaborn.cm.icefire, robust=True, col_wrap=5));
         plt.fig.savefig("plot_v_" + str(ii) + ".pdf")
+        plt.fig.savefig("plot_v_" "latest" + ".pdf")
         plt = (ds.pipe(energy_field).thin(time=20)
         .plot.imshow(col='time', cmap=seaborn.cm.icefire, robust=True, col_wrap=5));
         plt.fig.savefig("plot_energy_" + str(ii) + ".pdf")
+        plt.fig.savefig("plot_energy_" "latest" + ".pdf")
 
     return gain()
-    # return u[0]
 
 def energy(var):
     x, y = var[0].grid.axes()
@@ -158,15 +132,19 @@ def main():
         print("gain:")
         print(gain)
         if old_gain and old_gain > gain:
-            print("decrease in gain detected; decreasing step size and redoing iteration")
+            print("decrease in gain detected; decreasing step size and redoing iteration.")
             eps *= 0.7
             strikes += 1
         else:
+            if old_gain and  jnp.abs(old_gain - gain) < 1e-5:
+                print("no significant improvement in gain detected; if this continues, I am stopping the iteration.")
+                strikes += 1
+            else:
+                strikes = 0
             u0_corr = jax.grad(gain_func)(u0_vec[-1])
             u0_new_unnormalized = linCombGridVars(u0_vec[-1], 1.0, u0_corr, eps)
             e0 = energy(u0_new_unnormalized)
             u0_vec.append(linCombGridVars(u0_new_unnormalized, jnp.sqrt(E0/e0)))
-            strikes = 0
             # eps *= 1.2
         old_gain = gain
         i += 1
