@@ -159,7 +159,7 @@ def optimize_spectral():
     gain_func = lambda v0: run_flow_sim_spectral(v0, grid)
     gain_func_with_postprocessing = lambda v0, ii: run_flow_sim_spectral(v0, grid, ii)
 
-    eps = 10.0 # TODO introduce more sophisticated adaptive eps
+    eps = 100.0 # TODO introduce more sophisticated adaptive eps
     u0_vec = [u0]
     old_gain = None
     i = 0
@@ -176,9 +176,12 @@ def optimize_spectral():
             eps *= 0.7
             strikes += 1
         else:
-            if old_gain and  jnp.abs(old_gain - gain) < 1e-5:
+            if old_gain and jnp.abs(old_gain - gain) < 1e-5:
                 print("no significant improvement in gain detected; if this continues, I am stopping the iteration.")
                 strikes += 1
+            elif old_gain and old_gain/gain < 1.2:
+                print("only slow improvement in gain detected; increasing step size.")
+            eps *= 1.5
             else:
                 strikes = 0
             u0_corr = jax.grad(gain_func)(u0_vec[-1])
