@@ -29,8 +29,8 @@ from spectral import optimize_spectral
 
 
 def main():
-    optimize_fd()
-    # optimize_spectral()
+    # optimize_fd()
+    optimize_spectral()
 
 main()
 
