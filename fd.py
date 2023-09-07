@@ -12,7 +12,6 @@ import numpy as np
 import seaborn as sns
 import xarray
 
-# from .equation import MyNavierStokes2D, MyForcedNavierStokes2D
 ## adapted from demo worksheet
 def run_flow_sim_fd(v0, grid, ii=-1):
     density = 1.

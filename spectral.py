@@ -7,7 +7,7 @@ import jax_cfd
 import jax_cfd.base as cfd
 import jax_cfd.spectral as spectral
 from jax_cfd.spectral import utils as spectral_utils
-from jax_cfd.base.grids import GridVariable
+from jax_cfd.base.grids import GridArray, GridVariable
 from jax_cfd.spectral.equations import NavierStokes2D
 import numpy as np
 import seaborn as sns
@@ -45,38 +45,43 @@ def run_flow_sim_spectral(v0, grid, ii=-1):
     #     cfd.equations.semi_implicit_navier_stokes(
     #         density=density, viscosity=viscosity, dt=dt, grid=grid),
     #     steps=inner_steps)
-    # step_fn = spectral.time_stepping.crank_nicolson_rk4(
-    #     NavierStokes2D(viscosity, grid, smooth=True), dt)
-
     step_fn = spectral.time_stepping.crank_nicolson_rk4(
-        jax_cfd.spectral.equations.NavierStokes2D(viscosity, grid, smooth=True), dt)
+        NavierStokes3D(viscosity, grid, smooth=True), dt)
+
+    # step_fn = spectral.time_stepping.crank_nicolson_rk4(
+    #     jax_cfd.spectral.equations.NavierStokes2D(viscosity, grid, smooth=True), dt)
 
     trajectory_fn = cfd.funcutils.trajectory(
         cfd.funcutils.repeated(step_fn, inner_steps), outer_steps)
 
-    # vx_hat, vy_hat, vz_hat = jnp.fft.rfftn(v0[0], v0[1], v0[2])
+    # vorticity0 = cfd.finite_differences.curl_2d(v0).data
+    # vorticity_hat0 = jnp.fft.rfftn(vorticity0)
+    # _, trajectory = trajectory_fn(vorticity_hat0)
 
-    vorticity0 = cfd.finite_differences.curl_2d(v0).data
-    vorticity_hat0 = jnp.fft.rfftn(vorticity0)
-    # _, trajectory = trajectory_fn(vx_hat, vy_hat, vz_hat)
-    _, trajectory = trajectory_fn(vorticity_hat0)
+    # vx_hat, vy_hat, vz_hat = jnp.fft.rfftn(v0[0]), jnp.fft.rfftn(v0[1]), jnp.fft.rfftn(v0[2])
+    vx_hat = jnp.fft.rfftn(v0[0].data)
+    vy_hat = jnp.fft.rfftn(v0[1].data)
+    vz_hat = jnp.fft.rfftn(v0[2].data)
+    v0_hat = (vx_hat, vy_hat, vz_hat)
+    _, trajectory = trajectory_fn(v0_hat)
 
     def vel_field(da, time_index):
-        x, y = grid.axes()
-        uhat, vhat = spectral_utils.vorticity_to_velocity(grid)(da[time_index])
-        u, v = jnp.fft.irfftn(uhat), jnp.fft.irfftn(vhat)
-        return (u, v)
+        x, y, z = grid.axes()
+        uhat, vhat, what = da[time_index]
+        u, v, w = jnp.fft.irfftn(uhat), jnp.fft.irfftn(vhat), jnp.fft.irfftn(what)
+        return (u, v, w)
 
     def energy_field(da, time_index):
-        u, v = vel_field(da, time_index)
-        return (0.5*(u**2 + v**2))
+        u, v, w = vel_field(da, time_index)
+        return 0.5*(u**2 + v**2 + w**2)
 
     def energy_at_time(time_index):
-        x, y = grid.axes()
-        uhat, vhat = spectral_utils.vorticity_to_velocity(grid)(trajectory[time_index])
-        u, v = jnp.fft.irfftn(uhat), jnp.fft.irfftn(vhat)
-        energy_field = 0.5 * (u**2 + v**2)
-        energy = jnp.trapz(jnp.trapz(energy_field, x, axis=0), y, axis=0)
+        x, y, z = grid.axes()
+        # uhat, vhat = spectral_utils.vorticity_to_velocity(grid)(trajectory[time_index])
+        uhat, vhat, what = da[time_index]
+        u, v, w = jnp.fft.irfftn(uhat), jnp.fft.irfftn(vhat), jnp.fft.irfftn(what)
+        energy_field = 0.5 * (u**2 + v**2 + w**2)
+        energy = jnp.trapz(jnp.trapz(jnp.trapz(energy_field, x, axis=0), y, axis=0), z, axix=0)
         return energy
 
     def gain():
@@ -84,31 +89,6 @@ def run_flow_sim_spectral(v0, grid, ii=-1):
 
     # load into xarray for visualization and analysis
     if ii >= 0:
-    # if True:
-        # ds = xarray.Dataset(
-        #     {
-        #         'u': (('time', 'x', 'y'), trajectory[0].data),
-        #         'v': (('time', 'x', 'y'), trajectory[1].data),
-        #     },
-        #     coords={
-        #         'x': grid.axes()[0],
-        #         'y': grid.axes()[1],
-        #         'time': dt * inner_steps * np.arange(outer_steps)
-        #     }
-        # )
-
-        # plt = (ds.pipe(lambda ds: ds.u).thin(time=20)
-        # .plot.imshow(col='time', cmap=seaborn.cm.icefire, robust=True, col_wrap=5));
-        # plt.fig.savefig("plot_u_" + str(ii) + ".pdf")
-        # plt.fig.savefig("plot_u_" "latest" + ".pdf")
-        # plt = (ds.pipe(lambda ds: ds.v).thin(time=20)
-        # .plot.imshow(col='time', cmap=seaborn.cm.icefire, robust=True, col_wrap=5));
-        # plt.fig.savefig("plot_v_" + str(ii) + ".pdf")
-        # plt.fig.savefig("plot_v_" "latest" + ".pdf")
-        # plt = (ds.pipe(energy_field).thin(time=20)
-        # .plot.imshow(col='time', cmap=seaborn.cm.icefire, robust=True, col_wrap=5));
-        # plt.fig.savefig("plot_energy_" + str(ii) + ".pdf")
-        # plt.fig.savefig("plot_energy_" "latest" + ".pdf")
 
         spatial_coord = jnp.arange(grid.shape[0]) * 2 * jnp.pi / grid.shape[0] # same for x and y
         coords = {
@@ -132,25 +112,28 @@ def run_flow_sim_spectral(v0, grid, ii=-1):
 #     energy = jnp.trapz(jnp.trapz(energy_field, x, axis=0), y, axis=0)
 #     return energy
 def energy(var):
-    x, y = var[0].grid.axes()
+    # x, y = var[0].grid.axes()
+    # u = var[0].data
+    # v = var[1].data
+    # data = jnp.array(0.5 * (u**2 + v**2))
+    # energy = jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0)
+    x, y, z = var[0].grid.axes()
     u = var[0].data
     v = var[1].data
-    data = jnp.array(0.5 * (u**2 + v**2))
-    energy = jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0)
+    w = var[2].data
+    data = jnp.array(0.5 * (u**2 + v**2 + w**2))
+    energy = jnp.trapz(jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0), z, axis=0)
     return energy
 
 def linCombGridVars(var1, a1, var2=None, a2=0.0):
     # TODO generalize dimensions
     if var2:
-        return (GridVariable(a1 * var1[0].array + a2 * var2[0].array, var1[0].bc), GridVariable(a1 * var1[1].array + a2 * var2[1].array, var1[1].bc))
+        # return (GridVariable(a1 * var1[0].array + a2 * var2[0].array, var1[0].bc), GridVariable(a1 * var1[1].array + a2 * var2[1].array, var1[1].bc))
+        return (GridVariable(a1 * var1[0].array + a2 * var2[0].array, var1[0].bc), GridVariable(a1 * var1[1].array + a2 * var2[1].array, var1[1].bc) , GridVariable(a1 * var1[2].array + a2 * var2[2].array, var1[2].bc))
     else:
-        return (GridVariable(a1 * var1[0].array, var1[0].bc), GridVariable(a1 * var1[1].array, var1[1].bc))
+        # return (GridVariable(a1 * var1[0].array, var1[0].bc), GridVariable(a1 * var1[1].array, var1[1].bc))
+        return (GridVariable(a1 * var1[0].array, var1[0].bc), GridVariable(a1 * var1[1].array, var1[1].bc), GridVariable(a1 * var1[2].array, var1[2].bc))
 
-# def read_gain_from_file():
-#     f = open("gain.dat", "r")
-#     p = re.compile('Traced<ConcreteArray\([0-9]*')
-#     m = p.match(f)
-#     print(m.group())
 def write_eps(eps):
     with open("eps.txt", "w+") as eps_file:
         eps_file.write('%d' % eps)
@@ -183,8 +166,10 @@ def plot_state(v0, grid, ii):
     run_flow_sim_spectral(v0, grid, ii)
 
 def create_grid():
-    size = 256
-    return cfd.grids.Grid((size, size), domain=((0, 2 * jnp.pi), (0, 2 * jnp.pi)))
+    # size = 256
+    # return cfd.grids.Grid((size, size), domain=((0, 2 * jnp.pi), (0, 2 * jnp.pi)))
+    size = 10
+    return cfd.grids.Grid((size, size, size), domain=((0, 2 * jnp.pi), (0, 2 * jnp.pi), (0, 2 * jnp.pi)))
 
 def optimize_spectral():
 
@@ -205,9 +190,14 @@ def optimize_spectral():
     e0 = energy(u0_unnormalized)
     # e0 = 0.1
 
-    u0 = linCombGridVars(u0_unnormalized, jnp.sqrt(E0/e0))
+    # u0 = linCombGridVars(u0_unnormalized, jnp.sqrt(E0/e0))
+    u0 = u0_unnormalized
 
-    u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y :0, lambda x, y: 0), grid)
+    run_flow_sim_spectral(u0, grid)
+    return
+
+    # u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y :0, lambda x, y: 0), grid)
+    u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y, z :0, lambda x, y, z: 0, lambda x, y, z: 0), grid)
 
     # gain_func = lambda v0: run_flow_sim_spectral(v0, grid)
     gain_func = lambda v0, ii: run_flow_sim_spectral(v0, grid, ii)

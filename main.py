@@ -27,9 +27,16 @@ except:
     pass
 from spectral import optimize_spectral
 
+try:
+    reload(sys.modules["channel"])
+except:
+    pass
+from channel import optimize_channel
+
 def main():
     # optimize_fd()
-    optimize_spectral()
+    # optimize_spectral()
+    optimize_channel()
     # test_list = [0]
     # print(test_list)
     # test_fun(test_list)

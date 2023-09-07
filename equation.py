@@ -39,26 +39,32 @@ class NavierStokes3D(time_stepping.ImplicitExplicitODE):
 
   def __post_init__(self):
     self.kx, self.ky, self.kz = self.grid.rfft_mesh()
-    self.laplace = (jnp.pi * 2j)**2 * (self.kx**2 + self.ky**2 + self.kz**2)
+    self.laplace = (jnp.pi * 2j)**3 * (self.kx**2 + self.ky**2 + self.kz**2)
     # self.filter_ = spectral_utils.brick_wall_filter_2d(self.grid)
-    self.linear_term = self.viscosity * self.laplace # WARNING assumes constant viscosity
+    self.linear_term = self.viscosity * self.laplace
 
-  def explicit_terms(self, vxhat, vyhat, vzhat):
+  def explicit_terms(self, vhat):
+    vxhat, vyhat, vzhat = vhat
     vx, vy, vz = jnp.fft.irfftn(vxhat), jnp.fft.irfftn(vyhat), jnp.fft.irfftn(vzhat)
+    print(vxhat.shape)
+    print(vx.shape)
 
-    # grad_x_hat = 2j * jnp.pi * self.kx * vorticity_hat
-    # grad_y_hat = 2j * jnp.pi * self.ky * vorticity_hat
-    # grad_x, grad_y = jnp.fft.irfftn(grad_x_hat), jnp.fft.irfftn(grad_y_hat)
-    grad_vxx, grad_vxy, grad_vxz = cfd.finite_differences.central_difference(vx, 0),cfd.finite_differences.central_difference(vx, 1),  cfd.finite_differences.central_difference(vx, 2)
-    grad_vyx, grad_vyy, grad_vyz = cfd.finite_differences.central_difference(vy, 0),cfd.finite_differences.central_difference(vy, 1),  cfd.finite_differences.central_difference(vy, 2)
-    grad_vzx, grad_vzy, grad_vzz = cfd.finite_differences.central_difference(vz, 0),cfd.finite_differences.central_difference(vz, 1),  cfd.finite_differences.central_difference(vz, 2)
-    grad_x = jnp.array([grad_vxx, grad_vyx, grad_vzx])
-    grad_y = jnp.array([grad_vxy, grad_vyy, grad_vzy])
-    grad_z = jnp.array([grad_vxz, grad_vyz, grad_vzz])
+    grad_x_hat = 2j * jnp.pi * self.kx * vxhat
+    grad_y_hat = 2j * jnp.pi * self.ky * vyhat
+    grad_z_hat = 2j * jnp.pi * self.kz * vzhat
+    grad_x, grad_y, grad_z = jnp.fft.irfftn(grad_x_hat), jnp.fft.irfftn(grad_y_hat), jnp.fft.irfftn(grad_z_hat)
 
+    # print(grad_x.shape)
+    # print(vx.shape)
+    # print(grad_y.shape)
+    # print(vy.shape)
+    # print(grad_z.shape)
+    # print(vz.shape)
     advection = -(grad_x * vx + grad_y * vy + grad_z * vz)
+    # print(advection.shape)
     advection_hat = jnp.fft.rfftn(advection)
 
+    # print(advection_hat.shape)
     # if self.smooth is not None:
     #   advection_hat *= self.filter_
 
@@ -66,8 +72,10 @@ class NavierStokes3D(time_stepping.ImplicitExplicitODE):
 
     return terms
 
-  def implicit_terms(self, vxhat, vyhat, vzhat):
+  def implicit_terms(self, vhat):
+    vxhat, vyhat, vzhat = vhat
     return self.linear_term * jnp.array(vxhat, vyhat, vzhat)
 
-  def implicit_solve(self, vxhat, vyhat, vzhat, time_step):
+  def implicit_solve(self, vhat, time_step):
+    vxhat, vyhat, vzhat = vhat
     return 1 / (1 - time_step * self.linear_term) * jnp.array(vxhat, vyhat, vzhat)
