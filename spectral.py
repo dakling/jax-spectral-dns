@@ -12,6 +12,7 @@ import numpy as np
 import seaborn as sns
 import xarray
 import re
+import pickle
 
 from importlib import reload
 import sys
@@ -170,12 +171,12 @@ def read_max_iter():
     return max_iter
 
 def write_state(u0):
-    with open("state.txt", "w") as f:
-        f.write('\n'.join(str(i) for i in u0))
+    with open("state", "wb") as f:
+        pickle.dump(u0, f)
 
 def read_state():
-    with open("state.txt", "r") as f:
-        u0 = f.readlines()
+    with open("state", "rb") as f:
+        u0 = pickle.load(f)
     return u0
 
 
@@ -219,7 +220,7 @@ def optimize_spectral():
     i = 0
     strikes = 0
     max_iter = 200
-    plot_interval = 5
+    plot_interval = None
     write_max_iter(max_iter)
     while strikes < 6 and i < max_iter:
         print("iteration: ", i)
@@ -254,7 +255,7 @@ def optimize_spectral():
         max_iter = read_max_iter()
         eps = read_eps()
         write_state(u0_vec)
-        if i % plot_interval == 0:
+        if plot_interval and i % plot_interval == 0:
             plot_state(u0_vec[-1], grid, i)
 
     # post-processing
