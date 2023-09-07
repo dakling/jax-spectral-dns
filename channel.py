@@ -43,8 +43,8 @@ def plot_state(v0, grid, ii):
     run_flow_sim_channel(v0, grid, ii)
 
 def create_grid():
-    size = (512, 128)
-    domain = ((0, 8), (-1, 1))
+    size = (20, 10, 10)
+    domain = ((0, 8), (-1, 1), (-1, 1))
     return cfd.grids.Grid(size, domain=domain)
 
 ## adapted from demo worksheet
@@ -53,11 +53,6 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     density = 1.
     viscosity = 1e-3  # kinematic visocity
     pressure_gradient = 2e-3  # uniform dP/dx
-
-    # Specify zero velocity initial conditions
-    vx_fn = lambda x, y: jnp.zeros_like(x + y)
-    vy_fn = lambda x, y: jnp.zeros_like(x + y)
-    vz_fn = lambda x, y: jnp.zeros_like(x + y)
 
     # Specify a fixed time step based on the convection and diffusion scales
     max_velocity = 1  # value selected from known equilibirum profile
@@ -68,7 +63,7 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     def pressure_gradient_forcing(pressure_gradient: float):
 
         def forcing(v):
-            force_vector = (pressure_gradient, 0)
+            force_vector = (pressure_gradient, 0, 0)
             return tuple(cfd.grids.GridArray(f * jnp.ones_like(u.data), u.offset, u.grid)
                         for f, u in zip(force_vector, v))
 
@@ -102,15 +97,16 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     _, trajectory = jax.device_get(rollout_fn(v0))
 
     def energy_field(ds):
-        return (0.5*(ds.u**2 + ds.v**2)).rename('energy')
+        return (0.5*(ds.u**2 + ds.v**2 + ds.w**2)).rename('energy')
 
 
     def energy_at_time(time_index):
-        x, y = grid.axes()
+        x, y, z = grid.axes()
         u = trajectory[0].data
         v = trajectory[1].data
-        data = jnp.array(0.5 * (u[time_index]**2 + v[time_index]**2))
-        energy = jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0)
+        w = trajectory[2].data
+        data = jnp.array(0.5 * (u[time_index]**2 + v[time_index]**2 + w[time_index]**2))
+        energy = jnp.trapz(jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0), z, axis=0)
         return energy
 
     def gain():
@@ -120,12 +116,14 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     if ii >= 0:
         ds = xarray.Dataset(
             {
-                'u': (('time', 'x', 'y'), trajectory[0].data),
-                'v': (('time', 'x', 'y'), trajectory[1].data),
+                'u': (('time', 'x', 'y', 'z'), trajectory[0].data),
+                'v': (('time', 'x', 'y', 'z'), trajectory[1].data),
+                'w': (('time', 'x', 'y', 'z'), trajectory[2].data),
             },
             coords={
                 'x': grid.axes()[0],
                 'y': grid.axes()[1],
+                'z': grid.axes()[2],
                 'time': dt * inner_steps * np.arange(outer_steps)
             }
         )
@@ -138,6 +136,10 @@ def run_flow_sim_channel(v0, grid, ii=-1):
         .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
         plt.fig.savefig("plot_v_" + str(ii) + ".pdf")
         plt.fig.savefig("plot_v_" "latest" + ".pdf")
+        plt = (ds.pipe(lambda ds: ds.w)#.thin(time=20)
+        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        plt.fig.savefig("plot_w_" + str(ii) + ".pdf")
+        plt.fig.savefig("plot_w_" "latest" + ".pdf")
         plt = (ds.pipe(energy_field)#.thin(time=20)
         .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
         plt.fig.savefig("plot_energy_" + str(ii) + ".pdf")
@@ -146,11 +148,12 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     return gain()
 
 def energy(var):
-    x, y = var[0].grid.axes()
+    x, y, z = var[0].grid.axes()
     u = var[0].data
     v = var[1].data
-    data = jnp.array(0.5 * (u**2 + v**2))
-    energy = jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0)
+    w = var[2].data
+    data = jnp.array(0.5 * (u**2 + v**2 + w**2))
+    energy = jnp.trapz(jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0), z, axis=0)
     return energy
 
 def linCombGridVars(var1, a1, var2=None, a2=0.0):
@@ -174,15 +177,18 @@ def optimize_channel():
     #     pressure_solve=cfd.pressure.solve_fast_diag_channel_flow,
     #     iterations=5)
 
-    velocity_bc = (cfd.boundaries.channel_flow_boundary_conditions(ndim=2),
-               cfd.boundaries.channel_flow_boundary_conditions(ndim=2))
+    velocity_bc = (cfd.boundaries.channel_flow_boundary_conditions(ndim=3),
+               cfd.boundaries.channel_flow_boundary_conditions(ndim=3),
+               cfd.boundaries.channel_flow_boundary_conditions(ndim=3))
     # vx_fn = lambda x, y: jnp.sin(y * jnp.pi) * (1 + y) * (1 - y)
     # vy_fn = lambda x, y: 0
-    vx_fn = lambda x, y: jnp.ones_like(x + y) * jnp.sin(y * jnp.pi) * (1 + y) * (1 - y)
-    vy_fn = lambda x, y: jnp.ones_like(x + y) * 0
+    vx_fn = lambda x, y, z: jnp.ones_like(x + y + z) * jnp.sin(y * jnp.pi) * (1 + y) * (1 - y)
+    vy_fn = lambda x, y, z: jnp.ones_like(x + y + z) * 0
+    vz_fn = lambda x, y, z: jnp.ones_like(x + y + z) * 0
+
 
     u0_unnormalized = cfd.initial_conditions.initial_velocity_field(
-        velocity_fns=(vx_fn, vy_fn),
+        velocity_fns=(vx_fn, vy_fn, vz_fn),
         grid=grid,
         velocity_bc=velocity_bc,
         pressure_solve=cfd.pressure.solve_fast_diag_channel_flow,
@@ -196,7 +202,7 @@ def optimize_channel():
 
     u0 = linCombGridVars(u0_unnormalized, jnp.sqrt(E0/e0))
 
-    u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y :0, lambda x, y: 0), grid)
+    u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y, z :0, lambda x, y, z: 0, lambda x, y, z: 0), grid)
 
     gain_func = lambda v0, ii: run_flow_sim_channel(v0, grid, ii)
 
@@ -215,7 +221,7 @@ def optimize_channel():
 
     plot_interval = 1
 
-    plot_state(u0_vec[-1], grid, 0)
+    # plot_state(u0_vec[-1], grid, 0)
     while strikes < 6 and i < max_iter:
         print("iteration: ", i)
         gain, u0_corr = jax.value_and_grad(gain_func, argnums=0)(u0_vec[-1], -1)
