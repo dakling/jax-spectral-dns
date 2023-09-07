@@ -45,18 +45,21 @@ def run_flow_sim_spectral(v0, grid, ii=-1):
     #     cfd.equations.semi_implicit_navier_stokes(
     #         density=density, viscosity=viscosity, dt=dt, grid=grid),
     #     steps=inner_steps)
-    step_fn = spectral.time_stepping.crank_nicolson_rk4(
-        NavierStokes2D(viscosity, grid, smooth=True), dt)
-
     # step_fn = spectral.time_stepping.crank_nicolson_rk4(
-    #     jax_cfd.spectral.equations.NavierStokes2D(viscosity, grid, smooth=True), dt)
+    #     NavierStokes2D(viscosity, grid, smooth=True), dt)
+
+    step_fn = spectral.time_stepping.crank_nicolson_rk4(
+        jax_cfd.spectral.equations.NavierStokes2D(viscosity, grid, smooth=True), dt)
 
     trajectory_fn = cfd.funcutils.trajectory(
         cfd.funcutils.repeated(step_fn, inner_steps), outer_steps)
 
-    vx_hat, vy_hat, vz_hat = jnp.fft.rfftn(v0[0], v0[1], v0[2])
+    # vx_hat, vy_hat, vz_hat = jnp.fft.rfftn(v0[0], v0[1], v0[2])
 
-    _, trajectory = trajectory_fn(vx_hat, vy_hat, vz_hat)
+    vorticity0 = cfd.finite_differences.curl_2d(v0).data
+    vorticity_hat0 = jnp.fft.rfftn(vorticity0)
+    # _, trajectory = trajectory_fn(vx_hat, vy_hat, vz_hat)
+    _, trajectory = trajectory_fn(vorticity_hat0)
 
     def vel_field(da, time_index):
         x, y = grid.axes()
