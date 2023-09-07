@@ -173,8 +173,18 @@ def write_state(u0):
     with open("state.txt", "w") as f:
         f.write('\n'.join(str(i) for i in u0))
 
+def read_state():
+    with open("state.txt", "r") as f:
+        u0 = f.readlines()
+    return u0
+
+
 def plot_state(v0, grid, ii):
     run_flow_sim_spectral(v0, grid, ii)
+
+def create_grid():
+    size = 256
+    return cfd.grids.Grid((size, size), domain=((0, 2 * jnp.pi), (0, 2 * jnp.pi)))
 
 def optimize_spectral():
 
@@ -182,11 +192,8 @@ def optimize_spectral():
 
     max_velocity = 2.0
 
-    size = 256
-    # size = 20
-
     # Define the physical dimensions of the simulation.
-    grid = cfd.grids.Grid((size, size), domain=((0, 2 * jnp.pi), (0, 2 * jnp.pi)))
+    grid = create_grid()
 
     # Construct a random initial velocity. The `filtered_velocity_field` function
     # ensures that the initial velocity is divergence free and it filters out
