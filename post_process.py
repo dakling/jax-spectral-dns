@@ -28,7 +28,7 @@ def plot():
     u0_vec = read_state()
     for i in range(len(u0_vec)):
         if i % plot_interval == 0:
-            plot_state(u0_vec, grid, i)
+            plot_state(u0_vec[i], grid, i)
 
 
 plot()
