@@ -170,7 +170,7 @@ def read_max_iter():
     return max_iter
 
 def write_state(u0):
-    with open("max_iter.txt", "w") as f:
+    with open("state.txt", "w") as f:
         f.write('\n'.join(str(i) for i in u0))
 
 def plot_state(v0, grid, ii):
