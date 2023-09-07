@@ -8,6 +8,7 @@ import jax_cfd.base as cfd
 import jax_cfd.spectral as spectral
 from jax_cfd.spectral import utils as spectral_utils
 from jax_cfd.base.grids import GridVariable
+from jax_cfd.spectral.equations import NavierStokes2D
 import numpy as np
 import seaborn as sns
 import xarray
@@ -44,19 +45,18 @@ def run_flow_sim_spectral(v0, grid, ii=-1):
     #     cfd.equations.semi_implicit_navier_stokes(
     #         density=density, viscosity=viscosity, dt=dt, grid=grid),
     #     steps=inner_steps)
-    # step_fn = spectral.time_stepping.crank_nicolson_rk4(
-    #     MyNavierStokes2D(viscosity, grid, smooth=True), dt)
-
     step_fn = spectral.time_stepping.crank_nicolson_rk4(
-        jax_cfd.spectral.equations.NavierStokes2D(viscosity, grid, smooth=True), dt)
+        NavierStokes2D(viscosity, grid, smooth=True), dt)
+
+    # step_fn = spectral.time_stepping.crank_nicolson_rk4(
+    #     jax_cfd.spectral.equations.NavierStokes2D(viscosity, grid, smooth=True), dt)
 
     trajectory_fn = cfd.funcutils.trajectory(
         cfd.funcutils.repeated(step_fn, inner_steps), outer_steps)
 
-    vorticity0 = cfd.finite_differences.curl_2d(v0).data
-    vorticity_hat0 = jnp.fft.rfftn(vorticity0)
+    vx_hat, vy_hat, vz_hat = jnp.fft.rfftn(v0[0], v0[1], v0[2])
 
-    _, trajectory = trajectory_fn(vorticity_hat0)
+    _, trajectory = trajectory_fn(vx_hat, vy_hat, vz_hat)
 
     def vel_field(da, time_index):
         x, y = grid.axes()
@@ -119,11 +119,7 @@ def run_flow_sim_spectral(v0, grid, ii=-1):
         plt.savefig("plot_vort_" + str(ii) + ".pdf")
         plt.savefig("plot_vort_" "latest" + ".pdf")
 
-    f = open("gain.dat", "w+")
-    gain_ = gain()
-    print(gain_, file=f)
-
-    return gain_
+    return gain()
 
 # def energy_at_time(time_index):
 #     x, y = grid.axes()
@@ -216,6 +212,8 @@ def optimize_spectral():
     eps = 50.0 # TODO introduce more sophisticated adaptive eps
     write_eps(eps)
     u0_vec = [u0]
+    write_state(u0_vec)
+
     old_gain = None
     i = 0
     strikes = 0
@@ -249,12 +247,12 @@ def optimize_spectral():
             u0_new_unnormalized = linCombGridVars(u0_vec[-1], 1.0, u0_corr, eps)
             e0 = energy(u0_new_unnormalized)
             u0_vec.append(linCombGridVars(u0_new_unnormalized, jnp.sqrt(E0/e0)))
+            write_state(u0_vec)
             # eps *= 1.2
             old_gain = gain
         i += 1
         max_iter = read_max_iter()
         eps = read_eps()
-        write_state(u0_vec)
         if plot_interval and i % plot_interval == 0:
             plot_state(u0_vec[-1], grid, i)
 
