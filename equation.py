@@ -4,7 +4,7 @@ import dataclasses
 from typing import Callable, Optional
 
 import jax.numpy as jnp
-# from jax_cfd.base import boundaries
+import jax_cfd.base as cfd
 from jax_cfd.base import forcings
 from jax_cfd.base import grids
 # from jax_cfd.spectral import forcings as spectral_forcings
@@ -13,13 +13,14 @@ from jax_cfd.spectral import types
 from jax_cfd.spectral import utils as spectral_utils
 
 
+
 TimeDependentForcingFn = Callable[[float], types.Array]
 RandomSeed = int
 ForcingModule = Callable[[grids.Grid, RandomSeed], TimeDependentForcingFn]
 
 
 @dataclasses.dataclass
-class MyNavierStokes2D(time_stepping.ImplicitExplicitODE):
+class NavierStokes3D(time_stepping.ImplicitExplicitODE):
   """Breaks the Navier-Stokes equation into implicit and explicit parts.
 
   Implicit parts are the linear terms and explicit parts are the non-linear
@@ -34,79 +35,39 @@ class MyNavierStokes2D(time_stepping.ImplicitExplicitODE):
   """
   viscosity: float
   grid: grids.Grid
-  drag: float = 0.
   smooth: bool = True
-  forcing_fn: Optional[Callable[[grids.Grid], forcings.ForcingFn]] = None
-  _forcing_fn_with_grid = None
 
   def __post_init__(self):
-    self.kx, self.ky = self.grid.rfft_mesh()
-    self.laplace = (jnp.pi * 2j)**2 * (self.kx**2 + self.ky**2)
-    self.filter_ = spectral_utils.brick_wall_filter_2d(self.grid)
-    self.linear_term = self.viscosity * self.laplace - self.drag
+    self.kx, self.ky, self.kz = self.grid.rfft_mesh()
+    self.laplace = (jnp.pi * 2j)**2 * (self.kx**2 + self.ky**2 + self.kz**2)
+    # self.filter_ = spectral_utils.brick_wall_filter_2d(self.grid)
+    self.linear_term = self.viscosity * self.laplace # WARNING assumes constant viscosity
 
-    # setup the forcing function with the caller-specified grid.
-    if self.forcing_fn is not None:
-      self._forcing_fn_with_grid = self.forcing_fn(self.grid)
+  def explicit_terms(self, vxhat, vyhat, vzhat):
+    vx, vy, vz = jnp.fft.irfftn(vxhat), jnp.fft.irfftn(vyhat), jnp.fft.irfftn(vzhat)
 
-  def explicit_terms(self, vorticity_hat):
-    velocity_solve = spectral_utils.vorticity_to_velocity(self.grid)
-    vxhat, vyhat = velocity_solve(vorticity_hat)
-    vx, vy = jnp.fft.irfftn(vxhat), jnp.fft.irfftn(vyhat)
+    # grad_x_hat = 2j * jnp.pi * self.kx * vorticity_hat
+    # grad_y_hat = 2j * jnp.pi * self.ky * vorticity_hat
+    # grad_x, grad_y = jnp.fft.irfftn(grad_x_hat), jnp.fft.irfftn(grad_y_hat)
+    grad_vxx, grad_vxy, grad_vxz = cfd.finite_differences.central_difference(vx, 0),cfd.finite_differences.central_difference(vx, 1),  cfd.finite_differences.central_difference(vx, 2)
+    grad_vyx, grad_vyy, grad_vyz = cfd.finite_differences.central_difference(vy, 0),cfd.finite_differences.central_difference(vy, 1),  cfd.finite_differences.central_difference(vy, 2)
+    grad_vzx, grad_vzy, grad_vzz = cfd.finite_differences.central_difference(vz, 0),cfd.finite_differences.central_difference(vz, 1),  cfd.finite_differences.central_difference(vz, 2)
+    grad_x = jnp.array([grad_vxx, grad_vyx, grad_vzx])
+    grad_y = jnp.array([grad_vxy, grad_vyy, grad_vzy])
+    grad_z = jnp.array([grad_vxz, grad_vyz, grad_vzz])
 
-    grad_x_hat = 2j * jnp.pi * self.kx * vorticity_hat
-    grad_y_hat = 2j * jnp.pi * self.ky * vorticity_hat
-    grad_x, grad_y = jnp.fft.irfftn(grad_x_hat), jnp.fft.irfftn(grad_y_hat)
-
-    advection = -(grad_x * vx + grad_y * vy)
+    advection = -(grad_x * vx + grad_y * vy + grad_z * vz)
     advection_hat = jnp.fft.rfftn(advection)
 
-    if self.smooth is not None:
-      advection_hat *= self.filter_
+    # if self.smooth is not None:
+    #   advection_hat *= self.filter_
 
     terms = advection_hat
 
-    if self.forcing_fn is not None:
-      fx, fy = self._forcing_fn_with_grid((_get_grid_variable(vx, self.grid),
-                                           _get_grid_variable(vy, self.grid)))
-      fx_hat, fy_hat = jnp.fft.rfft2(fx.data), jnp.fft.rfft2(fy.data)
-      terms += spectral_utils.spectral_curl_2d((self.kx, self.ky),
-                                               (fx_hat, fy_hat))
-
     return terms
 
-  def implicit_terms(self, vorticity_hat):
-    return self.linear_term * vorticity_hat
+  def implicit_terms(self, vxhat, vyhat, vzhat):
+    return self.linear_term * jnp.array(vxhat, vyhat, vzhat)
 
-  def implicit_solve(self, vorticity_hat, time_step):
-    return 1 / (1 - time_step * self.linear_term) * vorticity_hat
-
-
-# pylint: disable=g-doc-args,g-doc-return-or-yield,invalid-name
-def MyForcedNavierStokes2D(viscosity, grid, smooth):
-  """Sets up the flow that is used in Kochkov et al. [1].
-
-  The authors of [1] based their work on Boffetta et al. [2].
-
-  References:
-    [1] Machine learning–accelerated computational fluid dynamics. Dmitrii
-    Kochkov, Jamie A. Smith, Ayya Alieva, Qing Wang, Michael P. Brenner, Stephan
-    Hoyer Proceedings of the National Academy of Sciences May 2021, 118 (21)
-    e2101784118; DOI: 10.1073/pnas.2101784118.
-    https://doi.org/10.1073/pnas.2101784118
-
-    [2] Boffetta, Guido, and Robert E. Ecke. "Two-dimensional turbulence."
-    Annual review of fluid mechanics 44 (2012): 427-451.
-    https://doi.org/10.1146/annurev-fluid-120710-101240
-  """
-  wave_number = 4
-  offsets = ((0, 0), (0, 0))
-  # pylint: disable=g-long-lambda
-  forcing_fn = lambda grid: forcings.kolmogorov_forcing(
-      grid, k=wave_number, offsets=offsets)
-  return MyNavierStokes2D(
-      viscosity,
-      grid,
-      drag=0.1,
-      smooth=smooth,
-      forcing_fn=forcing_fn)
+  def implicit_solve(self, vxhat, vyhat, vzhat, time_step):
+    return 1 / (1 - time_step * self.linear_term) * jnp.array(vxhat, vyhat, vzhat)

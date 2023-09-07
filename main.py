@@ -27,10 +27,14 @@ except:
     pass
 from spectral import optimize_spectral
 
-
 def main():
     # optimize_fd()
     optimize_spectral()
+    # test_list = [0]
+    # print(test_list)
+    # test_fun(test_list)
+    # print(test_list)
+
 
 main()
 
