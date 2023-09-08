@@ -43,7 +43,7 @@ def plot_state(v0, grid, ii):
     run_flow_sim_channel(v0, grid, ii)
 
 def create_grid():
-    size = (20, 10, 10)
+    size = (100, 50, 50)
     domain = ((0, 8), (-1, 1), (-1, 1))
     return cfd.grids.Grid(size, domain=domain)
 
@@ -116,12 +116,12 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     if ii >= 0:
         ds = xarray.Dataset(
             {
-                'u': (('time', 'x', 'y', 'z'), trajectory[0].data),
-                'v': (('time', 'x', 'y', 'z'), trajectory[1].data),
-                'w': (('time', 'x', 'y', 'z'), trajectory[2].data),
+                'u': (('time', 'y', 'z'), trajectory[0].data[:,-1,:,:]),
+                # 'v': (('time', 'x', 'y', 'z'), trajectory[1].data),
+                # 'w': (('time', 'x', 'y', 'z'), trajectory[2].data),
             },
             coords={
-                'x': grid.axes()[0],
+                # 'x': grid.axes()[0],
                 'y': grid.axes()[1],
                 'z': grid.axes()[2],
                 'time': dt * inner_steps * np.arange(outer_steps)
@@ -132,18 +132,18 @@ def run_flow_sim_channel(v0, grid, ii=-1):
         .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
         plt.fig.savefig("plot_u_" + str(ii) + ".pdf")
         plt.fig.savefig("plot_u_" "latest" + ".pdf")
-        plt = (ds.pipe(lambda ds: ds.v)#.thin(time=20)
-        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        plt.fig.savefig("plot_v_" + str(ii) + ".pdf")
-        plt.fig.savefig("plot_v_" "latest" + ".pdf")
-        plt = (ds.pipe(lambda ds: ds.w)#.thin(time=20)
-        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        plt.fig.savefig("plot_w_" + str(ii) + ".pdf")
-        plt.fig.savefig("plot_w_" "latest" + ".pdf")
-        plt = (ds.pipe(energy_field)#.thin(time=20)
-        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        plt.fig.savefig("plot_energy_" + str(ii) + ".pdf")
-        plt.fig.savefig("plot_energy_" "latest" + ".pdf")
+        # plt = (ds.pipe(lambda ds: ds.v)#.thin(time=20)
+        # .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        # plt.fig.savefig("plot_v_" + str(ii) + ".pdf")
+        # plt.fig.savefig("plot_v_" "latest" + ".pdf")
+        # plt = (ds.pipe(lambda ds: ds.w)#.thin(time=20)
+        # .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        # plt.fig.savefig("plot_w_" + str(ii) + ".pdf")
+        # plt.fig.savefig("plot_w_" "latest" + ".pdf")
+        # plt = (ds.pipe(energy_field)#.thin(time=20)
+        # .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        # plt.fig.savefig("plot_energy_" + str(ii) + ".pdf")
+        # plt.fig.savefig("plot_energy_" "latest" + ".pdf")
 
     return gain()
 
