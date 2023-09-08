@@ -112,13 +112,43 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     def gain():
         return energy_at_time(-1)/energy_at_time(0)
 
+    tLen, xLen, yLen, zLen = trajectory[0].data.shape
     # load into xarray for visualization and analysis
     if ii >= 0:
-        ds = xarray.Dataset(
+        dsxy = xarray.Dataset(
+            {
+                'u': (('time', 'y', 'z'), trajectory[0].data[:,:,:,zLen//2]),
+                'v': (('time', 'x', 'y', 'z'), trajectory[1].data[:,:,:,zLen//2]),
+                'w': (('time', 'x', 'y', 'z'), trajectory[2].data[:,:,:,zLen//2]),
+            },
+            coords={
+                'x': grid.axes()[0],
+                'y': grid.axes()[1],
+                # 'z': grid.axes()[2],
+                'time': dt * inner_steps * np.arange(outer_steps)
+            }
+        )
+
+        dsxz = xarray.Dataset(
+            {
+                'u': (('time', 'y', 'z'), trajectory[0].data[:,:,yLen//4,:]),
+                'v': (('time', 'x', 'y', 'z'), trajectory[1].data[:,:,yLen//4,:]),
+                'w': (('time', 'x', 'y', 'z'), trajectory[2].data[:,:,yLen//4,:]),
+            },
+            coords={
+                'x': grid.axes()[0],
+                # 'y': grid.axes()[1],
+                'z': grid.axes()[2],
+                'time': dt * inner_steps * np.arange(outer_steps)
+            }
+        )
+
+
+        dsyz = xarray.Dataset(
             {
                 'u': (('time', 'y', 'z'), trajectory[0].data[:,-1,:,:]),
-                # 'v': (('time', 'x', 'y', 'z'), trajectory[1].data),
-                # 'w': (('time', 'x', 'y', 'z'), trajectory[2].data),
+                'v': (('time', 'x', 'y', 'z'), trajectory[1].data[:,-1,:,:]),
+                'w': (('time', 'x', 'y', 'z'), trajectory[2].data[:,-1,:,:]),
             },
             coords={
                 # 'x': grid.axes()[0],
@@ -128,22 +158,23 @@ def run_flow_sim_channel(v0, grid, ii=-1):
             }
         )
 
-        plt = (ds.pipe(lambda ds: ds.u)#.thin(time=20)
-        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        plt.fig.savefig("plot_u_" + str(ii) + ".pdf")
-        plt.fig.savefig("plot_u_" "latest" + ".pdf")
-        # plt = (ds.pipe(lambda ds: ds.v)#.thin(time=20)
-        # .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        # plt.fig.savefig("plot_v_" + str(ii) + ".pdf")
-        # plt.fig.savefig("plot_v_" "latest" + ".pdf")
-        # plt = (ds.pipe(lambda ds: ds.w)#.thin(time=20)
-        # .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        # plt.fig.savefig("plot_w_" + str(ii) + ".pdf")
-        # plt.fig.savefig("plot_w_" "latest" + ".pdf")
-        # plt = (ds.pipe(energy_field)#.thin(time=20)
-        # .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-        # plt.fig.savefig("plot_energy_" + str(ii) + ".pdf")
-        # plt.fig.savefig("plot_energy_" "latest" + ".pdf")
+        for ds, app in [dsxy, dsxz, dsyz], ["xy", "xz", "yz"]:
+            plt = (ds.pipe(lambda ds: ds.u)#.thin(time=20)
+            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+            plt.fig.savefig("plot_u_" + app + str(ii) + ".pdf")
+            plt.fig.savefig("plot_u_" + app + "latest" + ".pdf")
+            plt = (ds.pipe(lambda ds: ds.v)#.thin(time=20)
+            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+            plt.fig.savefig("plot_v_" + app + str(ii) + ".pdf")
+            plt.fig.savefig("plot_v_" + app + "latest" + ".pdf")
+            plt = (ds.pipe(lambda ds: ds.w)#.thin(time=20)
+            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+            plt.fig.savefig("plot_w_" + app + str(ii) + ".pdf")
+            plt.fig.savefig("plot_w_" + app + "latest" + ".pdf")
+            plt = (ds.pipe(energy_field)#.thin(time=20)
+            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+            plt.fig.savefig("plot_energy_" + app + str(ii) + ".pdf")
+            plt.fig.savefig("plot_energy_" + app + "latest" + ".pdf")
 
     return gain()
 
