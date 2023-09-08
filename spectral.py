@@ -19,10 +19,10 @@ from importlib import reload
 import sys
 
 try:
-    reload(sys.modules["equation"])
+    reload(sys.modules["equation_spectral"])
 except:
     pass
-from equation import NavierStokes3D
+from equation_spectral import NavierStokes3D
 
 ## adapted from demo worksheet
 def run_flow_sim_spectral(v0, grid, ii=-1):

@@ -49,7 +49,7 @@ def read_state():
 
 
 def plot_state(v0,u_base, grid, ii):
-    run_flow_sim_channel(v0, u_base, grid, ii)
+    run_flow_sim_channel_2d(v0, u_base, grid, ii)
 
 def create_grid():
     size = (10, 15, 12)
@@ -57,7 +57,7 @@ def create_grid():
     return cfd.grids.Grid(size, domain=domain)
 
 ## adapted from demo worksheet
-def run_flow_sim_channel(v0, u_base, grid, ii=-1):
+def run_flow_sim_channel_2d(v0, u_base, grid, ii=-1):
 
     density = 1.
     viscosity = 1e-3  # kinematic visocity
@@ -192,7 +192,7 @@ def linCombGridVars(var1, a1, var2=None, a2=0.0):
         return tuple(GridVariable(a1 * var1[d].array, var1[d].bc) for d in range(dim))
 
 
-def optimize_channel():
+def optimize_channel_2d():
 
     # Define the physical dimensions of the simulation.
     grid = create_grid()
@@ -253,7 +253,7 @@ def optimize_channel():
 
     u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y, z :0, lambda x, y, z: 0, lambda x, y, z: 0), grid)
 
-    gain_func = lambda v0, ii: run_flow_sim_channel(v0, u_base, grid, ii)
+    gain_func = lambda v0, ii: run_flow_sim_channel_2d(v0, u_base, grid, ii)
 
     eps = 500.0 # TODO introduce more sophisticated adaptive eps
     write_eps(eps)
