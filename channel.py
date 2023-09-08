@@ -117,9 +117,9 @@ def run_flow_sim_channel(v0, grid, ii=-1):
     if ii >= 0:
         dsxy = xarray.Dataset(
             {
-                'u': (('time', 'y', 'z'), trajectory[0].data[:,:,:,zLen//2]),
-                'v': (('time', 'x', 'y', 'z'), trajectory[1].data[:,:,:,zLen//2]),
-                'w': (('time', 'x', 'y', 'z'), trajectory[2].data[:,:,:,zLen//2]),
+                'u': (('time', 'x', 'y'), trajectory[0].data[:,:,:,zLen//2]),
+                'v': (('time', 'x', 'y'), trajectory[1].data[:,:,:,zLen//2]),
+                'w': (('time', 'x', 'y'), trajectory[2].data[:,:,:,zLen//2]),
             },
             coords={
                 'x': grid.axes()[0],
@@ -131,9 +131,9 @@ def run_flow_sim_channel(v0, grid, ii=-1):
 
         dsxz = xarray.Dataset(
             {
-                'u': (('time', 'y', 'z'), trajectory[0].data[:,:,yLen//4,:]),
-                'v': (('time', 'x', 'y', 'z'), trajectory[1].data[:,:,yLen//4,:]),
-                'w': (('time', 'x', 'y', 'z'), trajectory[2].data[:,:,yLen//4,:]),
+                'u': (('time', 'x', 'z'), trajectory[0].data[:,:,yLen//4,:]),
+                'v': (('time', 'x', 'z'), trajectory[1].data[:,:,yLen//4,:]),
+                'w': (('time', 'x', 'z'), trajectory[2].data[:,:,yLen//4,:]),
             },
             coords={
                 'x': grid.axes()[0],
@@ -147,8 +147,8 @@ def run_flow_sim_channel(v0, grid, ii=-1):
         dsyz = xarray.Dataset(
             {
                 'u': (('time', 'y', 'z'), trajectory[0].data[:,-1,:,:]),
-                'v': (('time', 'x', 'y', 'z'), trajectory[1].data[:,-1,:,:]),
-                'w': (('time', 'x', 'y', 'z'), trajectory[2].data[:,-1,:,:]),
+                'v': (('time', 'y', 'z'), trajectory[1].data[:,-1,:,:]),
+                'w': (('time', 'y', 'z'), trajectory[2].data[:,-1,:,:]),
             },
             coords={
                 # 'x': grid.axes()[0],
@@ -158,7 +158,7 @@ def run_flow_sim_channel(v0, grid, ii=-1):
             }
         )
 
-        for ds, app in [dsxy, dsxz, dsyz], ["xy", "xz", "yz"]:
+        for ds, app in zip([dsxy, dsxz, dsyz], ["xy", "xz", "yz"]):
             plt = (ds.pipe(lambda ds: ds.u)#.thin(time=20)
             .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
             plt.fig.savefig("plot_u_" + app + str(ii) + ".pdf")
