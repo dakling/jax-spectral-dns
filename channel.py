@@ -247,10 +247,9 @@ def optimize_channel():
     strikes = 0
     max_iter = 200
     # max_iter = 2
-    # plot_interval = None
+    plot_interval = None
     write_max_iter(max_iter)
 
-    plot_interval = 1
 
     # plot_state(u0_vec[-1], grid, 0)
     while strikes < 6 and i < max_iter:
