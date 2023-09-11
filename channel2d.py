@@ -22,7 +22,7 @@ from equation import semi_implicit_navier_stokes_pertubation
 
 def write_eps(eps):
     with open("eps.txt", "w+") as eps_file:
-        eps_file.write('%d' % eps)
+        eps_file.write('%f' % eps)
 
 def read_eps():
     with open("eps.txt", "r") as eps_file:
@@ -48,12 +48,12 @@ def read_state():
     return u0
 
 
-def plot_state(v0,u_base, grid, ii):
+def plot_state_2d(v0,u_base, grid, ii):
     run_flow_sim_channel_2d(v0, u_base, grid, ii)
 
-def create_grid():
-    size = (10, 15, 12)
-    domain = ((0, 2), (-1, 1), (-1, 1))
+def create_grid_2d():
+    size = (128, 64)
+    domain = ((0, 10), (-1, 1))
     return cfd.grids.Grid(size, domain=domain)
 
 ## adapted from demo worksheet
@@ -93,94 +93,57 @@ def run_flow_sim_channel_2d(v0, u_base, grid, ii=-1):
     _, trajectory = jax.device_get(rollout_fn(v0))
 
     def energy_field(ds):
-        return (0.5*(ds.u**2 + ds.v**2 + ds.w**2)).rename('energy')
+        return (0.5*(ds.u**2 + ds.v**2)).rename('energy')
 
 
     def energy_at_time(time_index):
-        x, y, z = grid.axes()
+        x, y = grid.axes()
         u = trajectory[0].data
         v = trajectory[1].data
-        w = trajectory[2].data
-        data = jnp.array(0.5 * (u[time_index]**2 + v[time_index]**2 + w[time_index]**2))
-        energy = jnp.trapz(jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0), z, axis=0)
+        data = jnp.array(0.5 * (u[time_index]**2 + v[time_index]**2))
+        energy = jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0)
         return energy
 
     def gain():
         return energy_at_time(-1)/energy_at_time(0)
 
-    tLen, xLen, yLen, zLen = trajectory[0].data.shape
+    tLen, xLen, yLen = trajectory[0].data.shape
     # load into xarray for visualization and analysis
     if ii >= 0:
-        dsxy = xarray.Dataset(
+        ds = xarray.Dataset(
             {
-                'u': (('time', 'x', 'y'), trajectory[0].data[:,:,:,zLen//2]),
-                'v': (('time', 'x', 'y'), trajectory[1].data[:,:,:,zLen//2]),
-                'w': (('time', 'x', 'y'), trajectory[2].data[:,:,:,zLen//2]),
+                'u': (('time', 'x', 'y'), trajectory[0].data),
+                'v': (('time', 'x', 'y'), trajectory[1].data),
             },
             coords={
                 'x': grid.axes()[0],
                 'y': grid.axes()[1],
-                # 'z': grid.axes()[2],
                 'time': dt * inner_steps * np.arange(outer_steps)
             }
         )
 
-        dsxz = xarray.Dataset(
-            {
-                'u': (('time', 'x', 'z'), trajectory[0].data[:,:,yLen//4,:]),
-                'v': (('time', 'x', 'z'), trajectory[1].data[:,:,yLen//4,:]),
-                'w': (('time', 'x', 'z'), trajectory[2].data[:,:,yLen//4,:]),
-            },
-            coords={
-                'x': grid.axes()[0],
-                # 'y': grid.axes()[1],
-                'z': grid.axes()[2],
-                'time': dt * inner_steps * np.arange(outer_steps)
-            }
-        )
-
-
-        dsyz = xarray.Dataset(
-            {
-                'u': (('time', 'y', 'z'), trajectory[0].data[:,-1,:,:]),
-                'v': (('time', 'y', 'z'), trajectory[1].data[:,-1,:,:]),
-                'w': (('time', 'y', 'z'), trajectory[2].data[:,-1,:,:]),
-            },
-            coords={
-                # 'x': grid.axes()[0],
-                'y': grid.axes()[1],
-                'z': grid.axes()[2],
-                'time': dt * inner_steps * np.arange(outer_steps)
-            }
-        )
-
-        for ds, app in zip([dsxy, dsxz, dsyz], ["xy", "xz", "yz"]):
-            plt = (ds.pipe(lambda ds: ds.u)#.thin(time=20)
-            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-            plt.fig.savefig("plot_u_" + app + str(ii) + ".pdf")
-            plt.fig.savefig("plot_u_" + app + "latest" + ".pdf")
-            plt = (ds.pipe(lambda ds: ds.v)#.thin(time=20)
-            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-            plt.fig.savefig("plot_v_" + app + str(ii) + ".pdf")
-            plt.fig.savefig("plot_v_" + app + "latest" + ".pdf")
-            plt = (ds.pipe(lambda ds: ds.w)#.thin(time=20)
-            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-            plt.fig.savefig("plot_w_" + app + str(ii) + ".pdf")
-            plt.fig.savefig("plot_w_" + app + "latest" + ".pdf")
-            plt = (ds.pipe(energy_field)#.thin(time=20)
-            .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
-            plt.fig.savefig("plot_energy_" + app + str(ii) + ".pdf")
-            plt.fig.savefig("plot_energy_" + app + "latest" + ".pdf")
+        app = "2d"
+        plt = (ds.pipe(lambda ds: ds.u)#.thin(time=20)
+        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        plt.fig.savefig("plot_u_" + app + str(ii) + ".pdf")
+        plt.fig.savefig("plot_u_" + app + "latest" + ".pdf")
+        plt = (ds.pipe(lambda ds: ds.v)#.thin(time=20)
+        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        plt.fig.savefig("plot_v_" + app + str(ii) + ".pdf")
+        plt.fig.savefig("plot_v_" + app + "latest" + ".pdf")
+        plt = (ds.pipe(energy_field)#.thin(time=20)
+        .plot.imshow(col='time', cmap=sns.cm.icefire, robust=True, col_wrap=5));
+        plt.fig.savefig("plot_energy_" + app + str(ii) + ".pdf")
+        plt.fig.savefig("plot_energy_" + app + "latest" + ".pdf")
 
     return gain()
 
 def energy(var):
-    x, y, z = var[0].grid.axes()
+    x, y = var[0].grid.axes()
     u = var[0].data
     v = var[1].data
-    w = var[2].data
-    data = jnp.array(0.5 * (u**2 + v**2 + w**2))
-    energy = jnp.trapz(jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0), z, axis=0)
+    data = jnp.array(0.5 * (u**2 + v**2))
+    energy = jnp.trapz(jnp.trapz(data, x, axis=0), y, axis=0)
     return energy
 
 def linCombGridVars(var1, a1, var2=None, a2=0.0):
@@ -191,11 +154,10 @@ def linCombGridVars(var1, a1, var2=None, a2=0.0):
     else:
         return tuple(GridVariable(a1 * var1[d].array, var1[d].bc) for d in range(dim))
 
-
 def optimize_channel_2d():
 
     # Define the physical dimensions of the simulation.
-    grid = create_grid()
+    grid = create_grid_2d()
 
     # u0_unnormalized = cfd.initial_conditions.initial_velocity_field(
     #     velocity_fns=(vx_fn, vy_fn),
@@ -205,43 +167,31 @@ def optimize_channel_2d():
     #     iterations=5)
 
     # base flow
-    # u_base = GridArray(
-    #     data=0.0,
-    #     offset=(0.5, 0.5, 0.5),
-    #     grid=grid)
-    vx_base_fn = lambda x, y, z: jnp.ones_like(x + y + z) * (1 + y) * (1 - y)
-    vy_base_fn = lambda x, y, z: jnp.ones_like(x + y + z) * 0
-    vz_base_fn = lambda x, y, z: jnp.ones_like(x + y + z) * 0
+    vx_base_fn = lambda x, y: jnp.ones_like(x + y) * (1 + y) * (1 - y)
+    vy_base_fn = lambda x, y: jnp.ones_like(x + y) * 0
 
-    # velocity_bc_base = (cfd.boundaries.channel_flow_boundary_conditions(ndim=3),
-    #            cfd.boundaries.channel_flow_boundary_conditions(ndim=3),
-    #            cfd.boundaries.channel_flow_boundary_conditions(ndim=3))
-
-    u_base_var = cfd.initial_conditions.initial_velocity_field(
-        velocity_fns=(vx_base_fn, vy_base_fn, vz_base_fn),
-        # velocity_bc=velocity_bc_base,
-        # pressure_solve=cfd.pressure.solve_fast_diag_channel_flow,
+    u_base = cfd.initial_conditions.initial_velocity_field(
+        velocity_fns=(vx_base_fn, vy_base_fn),
         grid=grid)
-    # u_base = (ub.array for ub in u_base_var)
-    u_base = u_base_var
 
-    velocity_bc = (cfd.boundaries.channel_flow_boundary_conditions(ndim=3),
-               cfd.boundaries.channel_flow_boundary_conditions(ndim=3),
-               cfd.boundaries.channel_flow_boundary_conditions(ndim=3))
+    # velocity_bc = (cfd.boundaries.channel_flow_boundary_conditions(ndim=2),
+    #            cfd.boundaries.channel_flow_boundary_conditions(ndim=2))
     # vx_fn = lambda x, y: jnp.sin(y * jnp.pi) * (1 + y) * (1 - y)
     # vy_fn = lambda x, y: 0
-    pert = 0.1
-    vx_fn = lambda x, y, z: jnp.ones_like(x + y + z) * pert * jnp.sin(y * jnp.pi) * (1 + y) * (1 - y)
-    vy_fn = lambda x, y, z: jnp.ones_like(x + y + z) * pert * 0
-    vz_fn = lambda x, y, z: jnp.ones_like(x + y + z) * pert * 0
+    # pert = 0.1
+    # vx_fn = lambda x, y: jnp.ones_like(x + y) * pert * jnp.sin(y * jnp.pi) * (1 + y) * (1 - y)
+    # vy_fn = lambda x, y: jnp.ones_like(x + y) * pert * 0
 
 
-    u0_unnormalized = cfd.initial_conditions.initial_velocity_field(
-        velocity_fns=(vx_fn, vy_fn, vz_fn),
-        grid=grid,
-        velocity_bc=velocity_bc,
-        pressure_solve=cfd.pressure.solve_fast_diag_channel_flow,
-        iterations=5)
+    # u0_unnormalized = cfd.initial_conditions.initial_velocity_field(
+    #     velocity_fns=(vx_fn, vy_fn),
+    #     grid=grid,
+    #     velocity_bc=velocity_bc,
+    #     pressure_solve=cfd.pressure.solve_fast_diag_channel_flow,
+    #     iterations=5)
+
+    max_velocity=2
+    u0_unnormalized = cfd.initial_conditions.filtered_velocity_field(jax.random.PRNGKey(42), grid, max_velocity, 4)
     # Construct a random initial velocity. The `filtered_velocity_field` function
     # ensures that the initial velocity is divergence free and it filters out
     # high frequency fluctuations.
@@ -251,11 +201,11 @@ def optimize_channel_2d():
 
     u0 = linCombGridVars(u0_unnormalized, jnp.sqrt(E0/e0))
 
-    u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y, z :0, lambda x, y, z: 0, lambda x, y, z: 0), grid)
+    u0_corr = cfd.initial_conditions.initial_velocity_field((lambda x, y: 0, lambda x, y: 0), grid)
 
     gain_func = lambda v0, ii: run_flow_sim_channel_2d(v0, u_base, grid, ii)
 
-    eps = 500.0 # TODO introduce more sophisticated adaptive eps
+    eps = 0.8 # TODO introduce more sophisticated adaptive eps
     write_eps(eps)
     u0_vec = [u0]
     write_state(u0_vec)
@@ -263,15 +213,15 @@ def optimize_channel_2d():
     old_gain = None
     i = 0
     strikes = 0
-    # max_iter = 200
-    max_iter = 2
+    max_iter = 200
+    # max_iter = 2
     write_max_iter(max_iter)
 
     # plot_interval = None
-    plot_interval = 1
+    plot_interval = 3
 
     # plot_state(u0_vec[-1], grid, 0)
-    while strikes < 6 and i < max_iter:
+    while eps < 0.9999 and i < max_iter:
         print("iteration: ", i)
         gain, u0_corr = jax.value_and_grad(gain_func, argnums=0)(u0_vec[-1], -1)
         print("initial energy:")
@@ -280,13 +230,13 @@ def optimize_channel_2d():
         print(gain)
         if old_gain and old_gain > gain:
             print("decrease in gain detected; decreasing step size and redoing iteration.")
-            eps *= 0.7
+            eps = jnp.sqrt(eps)
             write_eps(eps)
             # strikes += 1
-            gain = old_gain
+            u0_vec.pop()
         else:
             if plot_interval and i % plot_interval == 0:
-                plot_state(u0_vec[-1], u_base, grid, i)
+                plot_state_2d(u0_vec[-1], u_base, grid, i)
             if old_gain and jnp.abs(old_gain - gain) < 1e-5:
                 pass
                 # print("no significant improvement in gain detected; if this continues, I am stopping the iteration.")
@@ -298,16 +248,20 @@ def optimize_channel_2d():
             else:
                 pass
                 # strikes = 0
-            u0_new_unnormalized = linCombGridVars(u0_vec[-1], 1.0, u0_corr, eps)
-            e0 = energy(u0_new_unnormalized)
-            u0_vec.append(linCombGridVars(u0_new_unnormalized, jnp.sqrt(E0/e0)))
+            # TODO this could probably be done in fewer steps
+            e0 = energy(u0_vec[-1])
+            u0_normalized = linCombGridVars(u0_vec[-1], jnp.sqrt(E0/e0))
+            e_corr = energy(u0_corr)
+            u_corr_normalized = linCombGridVars(u0_corr, jnp.sqrt(E0/e_corr))
+            u0_new_unnormalized = linCombGridVars(u0_normalized, eps, u_corr_normalized, (1-eps))
+            e_new = energy(u0_new_unnormalized)
+            u0_vec.append(linCombGridVars(u0_new_unnormalized, jnp.sqrt(E0/e_new)))
             write_state(u0_vec)
-            # eps *= 1.2
             old_gain = gain
         i += 1
         max_iter = read_max_iter()
         eps = read_eps()
 
     # post-processing
-    plot_state(u0_vec[0], u_base, grid, 0)
-    plot_state(u0_vec[-1], u_base, grid, i)
+    plot_state_2d(u0_vec[0], u_base, grid, 0)
+    plot_state_2d(u0_vec[-1], u_base, grid, i)

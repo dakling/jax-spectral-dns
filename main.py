@@ -33,14 +33,24 @@ except:
     pass
 from channel import optimize_channel
 
+try:
+    reload(sys.modules["channel2d"])
+except:
+    pass
+from channel2d import optimize_channel_2d
+
+try:
+    reload(sys.modules["spectral_channel_solver"])
+except:
+    pass
+from spectral_channel_solver import main as mn
+
 def main():
     # optimize_fd()
     # optimize_spectral()
-    optimize_channel()
-    # test_list = [0]
-    # print(test_list)
-    # test_fun(test_list)
-    # print(test_list)
+    # optimize_channel()
+    # optimize_channel_2d()
+    mn()
 
 
 main()
