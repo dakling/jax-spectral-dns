@@ -12,7 +12,7 @@ def cheb(n):
         return ch[n]
     return ret
 
-def fct(u, x):
+def fct(u):
     # adapted from https://en.wikipedia.org/wiki/Discrete_Chebyshev_transform
     # TODO use a different basis to enforce BCs (or manipulate matrix?)
     N = len(u)
@@ -20,13 +20,13 @@ def fct(u, x):
     u_cheb = jnp.sqrt(2/N) * jsc.fft.dct(uFlipped, norm="ortho") * jnp.array([1/jnp.sqrt(2) if i == 0 else 1 for i in range(N)])
     return jnp.array(u_cheb)
 
-def ifct(u_cheb, k):
+def ifct(u_cheb):
     # adapted from https://en.wikipedia.org/wiki/Discrete_Chebyshev_transform
     N = len(u_cheb)
     u = jsc.fft.idct(jnp.sqrt(N/2) * u_cheb * jnp.array([jnp.sqrt(2) if i == 0 else 1 for i in range(N)]), norm="ortho")
     return u
 
-def diffCheb(u, x, order=1):
+def diffCheb(u, order=1):
     N = len(u)
     # TODO save matrix for better performance at some point
     ret = [[0.0 for j in range(N)] for i in range(N)]
@@ -51,12 +51,11 @@ def eqF(u, x):
     eq = diffFourier(uF, k, 2)
     return jnp.fft.ifft(eq)
 
-def eqCheb(u, x):
+def eqCheb(u):
     N = len(u)
-    uCheb = fct(u, x)
-    k = fct(x, x)
-    eqCheb = diffCheb(uCheb, k, 2)
-    eq = ifct(eqCheb, k)
+    uCheb = fct(u)
+    eqCheb = diffCheb(uCheb, 2)
+    eq = ifct(eqCheb)
     return eq
 
 def perform_timestep(u, x, dt):
