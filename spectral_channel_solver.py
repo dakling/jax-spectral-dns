@@ -65,7 +65,10 @@ def sct(u, Tinv=None):
         N = len(u)
         xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
         T_raw = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N+2)] for n in range(N)]))
-        T = T_raw[:,2:] - T_raw[:,:-2]
+        E = jnp.identity(N+4)
+        M = (jnp.stack([(E[:,2:] - E[:,:-2]).transpose() for _ in range(N)]))[:, 0:, 0:-2]
+        M_formatted = M[:, :-2, :]
+        T = (M_formatted @ T_raw.reshape(N, N+2, 1)).reshape(N, N)
         Tinv = jnp.linalg.inv(T)
     return Tinv @ u
 
@@ -91,7 +94,7 @@ def isct(u_cheb, T=None):
     # return T @ u_cheb
 
 def assembleChebDiffMat(N, order=1):
-    matL = [[0.0 for j in range(N+2)] for i in range(N)]
+    matL = [[0.0 for j in range(N+2)] for i in range(N+2)]
     for i in range(N+2):
         if i % 2 == 0: # even
             for j in range(0, i, 2):
@@ -101,18 +104,23 @@ def assembleChebDiffMat(N, order=1):
             matL[0][i] = i
             for j in range(2, i, 2):
                 matL[j][i] = 2.0 * i
+    E = jnp.identity(N+4)
+    # M = (jnp.stack([(E[:,2:] - E[:,:-2]).transpose() for _ in range(N)]))[:, 0:, 0:-2]
+    M = (E[:,2:] - E[:,:-2]).transpose()[:, :-2]
+    # M_formatted = M[:, :-2, :]
+    Minv = jnp.linalg.inv(M)
     mat_raw = jnp.vstack(jnp.array(matL))
-    print("hello")
-    print(mat_raw)
-    mat = mat_raw[:, 2:] - mat_raw[:, :-2]
-    print(mat)
-    return jnp.linalg.matrix_power(mat, order)
+    # mat = mat_raw[:, 2:] - mat_raw[:, :-2]
+    mat = jnp.linalg.matrix_power(mat_raw, order) @ Minv
+    # return jnp.linalg.matrix_power(mat, order)
+    return jnp.stack([mat for _ in range(N)])
 
 def diffCheb(u, order=1, mat=None):
     N = len(u)
     if type(mat) == NoneType:
         mat = assembleChebDiffMat(N, order)
-    return jnp.linalg.matrix_power(mat, order) @ u
+    u_ext = jnp.block([u, 0, 0]) # TODO
+    return jnp.linalg.matrix_power(mat, order) @ u_ext
 
 
 def diffFourier(u, k, order=1):
@@ -141,7 +149,10 @@ def perform_simulation(u0, x, dt, number_of_steps):
     N = len(u0)
     xs = x
     T_raw = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N+2)] for n in range(N)], dtype=float))
-    T = T_raw[:,2:] - T_raw[:,:-2]
+    E = jnp.eye((N, N, N+2))
+    M = E[:,:,2:] - E[:,:,:-2]
+    T = E @ T_raw
+    T_alt = T_raw[:,2:] - T_raw[:,:-2]
     Tinv = jnp.linalg.inv(T)
     mat = assembleChebDiffMat(N, 1)
     print("Done with matrix assembly")
@@ -151,7 +162,7 @@ def perform_simulation(u0, x, dt, number_of_steps):
     return us
 
 def main():
-    N = 3
+    N = 5
     # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
     xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
     # xs = jnp.cos(jnp.pi*jnp.linspace(N,0,N+1)/N) # gauss-lobatto points with boundaries
