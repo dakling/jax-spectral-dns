@@ -16,27 +16,25 @@ def cheb(n):
         return ch[n]
     return ret
 
-def jct_coeff_0(u):
-    N = len(u)
-    xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-    out = 0.0
-    for i in range(N):
-        out += u[i] * (2 * cheb(i+2)(xs[i]) - cheb(i)(xs[i]))
-        # out += u_cheb[i] * (cheb(i)(x))
-    p = 1
-    # return  p * jnp.sqrt(2/N) * out
-    # return  p / N * out
-    return  out
+def get_xs(N):
+    return jnp.array([jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
 
-def dct_coeff(u, m):
+def get_xs_with_bnd(N):
+    return jnp.array([jnp.cos(jnp.pi / (N-1) * i) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
+
+def cheb_fft_diff(u):
+    # adapted from Trefethen
     N = len(u)
-    # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-    out = 0
-    for n in range(N):
-        # out += p_m * u[n] * cheb(m)(xs[n])
-        # out += p_m * u[n] * cheb(m)(xs[n])
-        out += u[n] * jnp.cos(jnp.pi/N * (n+1/2) * m)
-    return out * jnp.sqrt(2/N)
+    xs = get_xs_with_bnd(N)
+    ii = jnp.arange(0, N, 1)
+    II = jnp.block([ii[:-1], 0, -jnp.flip(ii[1:-1])])
+    V = jnp.block([u, jnp.flip(u[1:-1])])
+    U = jnp.sqrt(len(V)) * jnp.fft.fft(V, norm="ortho").real
+    W = jnp.fft.ifft((0+1j * II) * U / jnp.sqrt(len(V)), norm="ortho").real
+    w_0 = jnp.sum(ii**2 * U[ii] / (N-1) + 0.5 * N * U[N-1])
+    w_end = jnp.sum((-1)**(ii+1.0) * ii**2 * U[ii] / (N-1) + 0.5 * (-1)**(N) * (N - 1) * U[N-1])
+    w = jnp.block([w_0, -W[1:N-1] / jnp.array([jnp.sqrt(1-x**2) for x in xs[1:N-1]]), w_end])
+    return w
 
 def fct(u):
     # adapted from https://en.wikipedia.org/wiki/Discrete_Chebyshev_transform
@@ -64,11 +62,7 @@ def sct(u, Tinv=None):
     if type(Tinv) == NoneType:
         N = len(u)
         xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-        T_raw = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N+2)] for n in range(N)]))
-        E = jnp.identity(N+4)
-        M = (jnp.stack([(E[:,2:] - E[:,:-2]).transpose() for _ in range(N)]))[:, 0:, 0:-2]
-        M_formatted = M[:, :-2, :]
-        T = (M_formatted @ T_raw.reshape(N, N+2, 1)).reshape(N, N)
+        T = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N)] for n in range(N)]))
         Tinv = jnp.linalg.inv(T)
     return Tinv @ u
 
@@ -76,17 +70,7 @@ def isct(u_cheb, T=None):
     if type(T) == NoneType:
         N = len(u_cheb)
         xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-        T_raw = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N+2)] for n in range(N)]))
-        T = T_raw[:,2:] - T_raw[:,:-2]
-        # N = len(u_cheb)
-        # def ret(x):
-        #     out = 0
-        #     for i in range(N):
-        #         out += u_cheb[i] * (cheb(i+2)(x) - cheb(i)(x))
-        #         # out += u_cheb[i] * (cheb(i)(x))
-        #     return out
-        # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-        # u = jnp.array([ret(xs[i]) for i in range(N)])
+        T = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N)] for n in range(N)]))
     return T @ u_cheb
 
     # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
@@ -94,8 +78,8 @@ def isct(u_cheb, T=None):
     # return T @ u_cheb
 
 def assembleChebDiffMat(N, order=1):
-    matL = [[0.0 for j in range(N+2)] for i in range(N+2)]
-    for i in range(N+2):
+    matL = [[0.0 for j in range(N)] for i in range(N)]
+    for i in range(N):
         if i % 2 == 0: # even
             for j in range(0, i, 2):
                 if j+1 < len(matL):
@@ -104,16 +88,8 @@ def assembleChebDiffMat(N, order=1):
             matL[0][i] = i
             for j in range(2, i, 2):
                 matL[j][i] = 2.0 * i
-    E = jnp.identity(N+4)
-    # M = (jnp.stack([(E[:,2:] - E[:,:-2]).transpose() for _ in range(N)]))[:, 0:, 0:-2]
-    M = (E[:,2:] - E[:,:-2]).transpose()[:, :-2]
-    # M_formatted = M[:, :-2, :]
-    Minv = jnp.linalg.inv(M)
-    mat_raw = jnp.vstack(jnp.array(matL))
-    # mat = mat_raw[:, 2:] - mat_raw[:, :-2]
-    mat = jnp.linalg.matrix_power(mat_raw, order) @ Minv
-    # return jnp.linalg.matrix_power(mat, order)
-    return jnp.stack([mat for _ in range(N)])
+    mat = jnp.vstack(jnp.array(matL))
+    return jnp.linalg.matrix_power(mat, order)
 
 def diffCheb(u, order=1, mat=None):
     N = len(u)
@@ -134,11 +110,11 @@ def eqF(u, x):
 
 def eqCheb(u, T=None, Tinv=None, mat=None):
     # uCheb = fct(u)
-    uCheb = sct(u, Tinv)
-    eqCheb = diffCheb(uCheb, 2, mat)
+    # uCheb = sct(u, Tinv)
+    eq = cheb_fft_diff(cheb_fft_diff(u))
     # eq = ifct(eqCheb)
-    eq = isct(eqCheb, T)
-    return eq
+    # eq = isct(eqCheb, T)
+    return jnp.block([0.0, eq[1:-1], 0.0])
 
 def perform_timestep(u, x, dt, T=None, Tinv=None, mat=None):
     _ = x
@@ -146,51 +122,49 @@ def perform_timestep(u, x, dt, T=None, Tinv=None, mat=None):
     # return u + eqF(u, x) * dt
 
 def perform_simulation(u0, x, dt, number_of_steps):
-    N = len(u0)
-    xs = x
-    T_raw = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N+2)] for n in range(N)], dtype=float))
-    E = jnp.eye((N, N, N+2))
-    M = E[:,:,2:] - E[:,:,:-2]
-    T = E @ T_raw
-    T_alt = T_raw[:,2:] - T_raw[:,:-2]
-    Tinv = jnp.linalg.inv(T)
-    mat = assembleChebDiffMat(N, 1)
-    print("Done with matrix assembly")
     us = [u0]
     for _ in range(number_of_steps):
-        us.append(perform_timestep(us[-1], x, dt, T, Tinv, mat))
+        us.append(perform_timestep(us[-1], x, dt))
     return us
 
 def main():
-    N = 5
+    N = 10
     # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-    xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
+    # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
+    xs = get_xs_with_bnd(N)
     # xs = jnp.cos(jnp.pi*jnp.linspace(N,0,N+1)/N) # gauss-lobatto points with boundaries
     # print(xs)
     # u = jnp.array([1 - x**2 for x in xs])
     # u = jnp.array([4 * x for x in xs])
     # u = jnp.array([jnp.cos(x * jnp.pi) for x in xs])
-    u = jnp.array([2*x**2 - 2 for x in xs])
-    # u = jnp.array([1-x**2 for x in xs])
-    # u = jnp.array([1 for x in xs])
-    print(u)
+    # u = jnp.array([2*x**2 - 2 for x in xs])
+    u = jnp.array([1-x**2 for x in xs])
+    # u = jnp.array([x for x in xs])
+    # du = cheb_fft_diff(u)
+    # ddu = cheb_fft_diff(du)
+    # print(u)
+    # print(du)
+    # print(ddu)
     # uCheb = fct(u)
-    uCheb = sct(u)
+    # uCheb = sct(u)
     # uCheb = jnp.array([1.0 if i == 0 else 0.0 for i in range(N)])
-    print(uCheb)
+    # print(uCheb)
     # uu = ifct(uCheb)
-    duCheb = diffCheb(uCheb)
-    print(duCheb)
-    uu = isct(uCheb)
-    du = isct(duCheb)
-    print(du)
-    # us = perform_simulation(u, xs, 5e-5, 40)
-    # print(us[-1])
+    # duCheb = diffCheb(uCheb)
+    # duCheb = cheb_fft_diff(uCheb, 1)
+    # uu = isct(uCheb)
+    # du = isct(duCheb)
+    # print(du)
+    us = perform_simulation(u, xs, 5e-5, 500)
+    print(max(us[0]))
+    print(us[0])
+    print(max(us[-1]))
+    print(us[-1])
     fig, ax = plt.subplots(1,1)
-    # for u in us:
-    #     ax.plot(xs, u)
-    ax.plot(xs, u)
-    ax.plot(xs, uu)
-    ax.plot(xs, du)
+    for u in us:
+        ax.plot(xs, u)
+    # ax.plot(xs, u)
+    # ax.plot(xs, uu)
+    # ax.plot(xs, du)
 
     fig.savefig("plot.pdf")
