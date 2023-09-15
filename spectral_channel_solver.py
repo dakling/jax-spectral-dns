@@ -111,8 +111,7 @@ def assembleChebDiffMat(N_, order=1):
     X = jnp.repeat(xs, N_).reshape(N_, N_)
     dX = X - jnp.transpose(X)
     D_ = jnp.transpose((jnp.transpose(1/c) @ c)) / (dX + jnp.eye(N_))
-    D = D_ - jnp.diag(sum(jnp.transpose(D_)))
-    return jnp.linalg.matrix_power(D, order)
+    return D_ - jnp.diag(sum(jnp.transpose(D_)))
 
 def assembleFourierDiffMat(N, order=1):
     if N % 2 != 0:
@@ -121,60 +120,44 @@ def assembleFourierDiffMat(N, order=1):
     column = jnp.block([0, .5*(-1)**jnp.arange(1,N) * 1/jnp.tan(jnp.arange(1,N) * h/2)])
     column2 = jnp.block([column[0], jnp.flip(column[1:])])
     print(column2)
-    return jsc.linalg.toeplitz(column, column2)
+    return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
 
 def diffCheb(u, order=1, mat=None):
     N = len(u)
     if type(mat) == NoneType:
         mat = assembleChebDiffMat(N, order)
-    return jnp.linalg.matrix_power(mat, order) @ u
+    return mat @ u
 
 def diffFourier(u, order=1, mat=None):
     if type(mat) == NoneType:
         mat = assembleFourierDiffMat(len(u), order)
-    return jnp.linalg.matrix_power(mat, order) @ u
+    return mat @ u
 
-# def diffFourier(u, k, order=1):
-#     return u * k ** order
+def eqCheb(u, mat=None):
+    return diffCheb(u, mat=mat)
 
-def eqF(u, x):
-    uF = jnp.fft.fft(u)
-    k = jnp.fft.fft(x)
-    eq = diffFourier(uF, k, 2)
-    return jnp.fft.ifft(eq)
-
-def eqCheb(u, T=None, Tinv=None, mat=None):
-    # uCheb = fct(u)
-    uCheb = sct(u, Tinv)
-    eqCheb = diffCheb(uCheb, 2, mat)
-    # eq = ifct(eqCheb)
-    eq = isct(eqCheb, T)
-    return eq
-
-def perform_timestep(u, x, dt, T=None, Tinv=None, mat=None):
+def perform_timestep(u, x, dt, mat=None):
     _ = x
-    return u + eqCheb(u, T, Tinv, mat) * dt
+    new_u = u + eqCheb(u, mat) * dt
+    new_u_bc = jnp.block([0.0, new_u[1:-1], 0.0])
+    return new_u_bc
     # return u + eqF(u, x) * dt
 
 def perform_simulation(u0, x, dt, number_of_steps):
     N = len(u0)
-    xs = x
-    T_raw = jnp.vstack(jnp.array([[ cheb(m)(xs[n]) for m in range(N+2)] for n in range(N)], dtype=float))
-    E = jnp.eye((N, N, N+2))
-    M = E[:,:,2:] - E[:,:,:-2]
-    T = E @ T_raw
-    T_alt = T_raw[:,2:] - T_raw[:,:-2]
-    Tinv = jnp.linalg.inv(T)
-    mat = assembleChebDiffMat(N, 1)
+    cheb_mat_1 = assembleChebDiffMat(N, 1)
+    cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
+    # fourier_mat_1 = assembleChebDiffMat(N, 1)
+    # fourier_mat_2 = jnp.linalg.matrix_power(fourier_mat_1, 2)
     print("Done with matrix assembly")
     us = [u0]
     for _ in range(number_of_steps):
-        us.append(perform_timestep(us[-1], x, dt, T, Tinv, mat))
+        us.append(perform_timestep(us[-1], x, dt, cheb_mat_2))
     return us
 
 def main():
     Nx = 10
-    Ny = 6
+    Ny = 24
     # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
     xs = get_fourier_grid(Nx)
     # xs = jnp.linspace(0.0, 2*jnp.pi, Nx+1)[:-1]
@@ -186,11 +169,18 @@ def main():
     # print(ys)
     # u = jnp.array([1 for x in ys])
     # du_ = jnp.array([0 for x in ys])
-    u = jnp.array([x**2 for x in ys])
-    du_ = jnp.array([2*x for x in ys])
-    D = assembleChebDiffMat(Ny)
-    print(D)
-    du = diffCheb(u)
+
+    # u = jnp.array([1 - x**2 for x in ys])
+    u = jnp.array([jnp.cos(x * jnp.pi/2) for x in ys])
+
+    # u = jnp.array([1 - x**2 for x in ys])
+    # du_ = jnp.array([2*x for x in ys])
+    # ddu_ = jnp.array([2 for x in ys])
+    # D = assembleChebDiffMat(Ny)
+    # print(D)
+    # du = diffCheb(u)
+    # ddu = diffCheb(u, 2)
+    # ddu = diffCheb(du)
 
 
     # u = jnp.array([jnp.exp(jnp.sin(x)) for x in xs])
@@ -200,17 +190,21 @@ def main():
     # ddu = diffFourier(u, 2)
 
 
-    # us = perform_simulation(u, xs, 5e-5, 40)
-    # print(us[-1])
+    steps = 1000
+    dt = 5e-5
+    us = perform_simulation(u, ys, dt, steps)
+    print(us[-1])
     fig, ax = plt.subplots(1,1)
-    # # for u in us:
-    # #     ax.plot(xs, u)
+    for u in us:
+        ax.plot(ys, u)
+    final_time = steps*dt
+    ax.plot(ys, list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys)))
     # fig.legend()
-    ax.plot(ys, u, label="u")
-    ax.plot(ys, du_, label="du_")
-    ax.plot(ys, du, "--", label="du")
-    # # ax.plot(xs, ddu_, label="du_")
-    # # ax.plot(xs, ddu, "--", label="du")
-    fig.legend()
+    # ax.plot(ys, u, label="u")
+    # ax.plot(ys, du_, label="du_")
+    # ax.plot(ys, du, "--", label="du")
+    # ax.plot(ys, ddu_, label="du_")
+    # ax.plot(ys, ddu, "--", label="du")
+    # fig.legend()
 
     fig.savefig("plot.pdf")
