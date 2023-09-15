@@ -17,7 +17,10 @@ def get_fourier_grid(N):
     if N % 2 != 0:
         print("Warning: Only even number of points supported for Fourier basis, making the domain larger by one.")
         N += 1
-    return jnp.linspace(0.0, 2*jnp.pi, N+1)[1:]
+    # TODO look into the differences here
+    # return jnp.linspace(0.0, 2*jnp.pi, N+1)[1:] # this is what Trefethen usees
+    # return jnp.linspace(0.0, 2*jnp.pi, N+1)[:-1] # this seems to work better for 1D
+    return jnp.linspace(0.0, 2*jnp.pi, N) # this seems to work better for 2D mixed cheb formulation
 
 def cheb(n):
     def ret(x):
@@ -201,9 +204,10 @@ def run_fourier_sim_1D():
 
     steps = 10000
     dt = 5e-6
+    number_of_plots = steps//10
 
     final_time = steps*dt
-    us = perform_simulation_fourier_1D(u, dt, steps)
+    us = perform_simulation_fourier_1D(u, dt, steps)[0::number_of_plots]
     # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x), xs))
     print("maximum of final profile: " + str(max(us[-1])))
     # print("analytical: " + str(max(u_ana)))
@@ -282,13 +286,13 @@ def run_cheb_cheb_sim_2D():
 
 def eq_cheb_fourier_2D(u, mat):
     return mat@u
-    # return lap_u
+    # return jsc.linalg.matmul_toeplitz(mat, u ) # seems to be not implemented in jax yet
 
 def perform_timestep_cheb_fourier_2D (u, dt, mat):
     new_u = u + eq_cheb_fourier_2D(u, mat) * dt
     N = int(jnp.sqrt(len(new_u)))
-    new_u_bc = (pad_mat_with_zeros(new_u.reshape((N, N))[:,1:-1])[1:-1,:]).flatten()
-    return new_u_bc
+    new_u_bc = (pad_mat_with_zeros(new_u.reshape((N, N))[:,1:-1])[1:-1,:])
+    return new_u_bc.flatten()
 
 def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
     Nx = int(jnp.sqrt(u0.shape[0]))
@@ -306,11 +310,12 @@ def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
     us = [u0]
     for _ in range(number_of_steps):
         us.append(perform_timestep_cheb_fourier_2D (us[-1], dt, lap_mat))
+    print("Done with simulation")
     return us
 
 def run_cheb_fourier_sim_2D():
     Nx = 24
-    Ny = Nx
+    Ny = Nx # only quadratic grids currently supported, I haven't bothered to implement nonquadratic ones yet
     xs = get_fourier_grid(Nx)
     ys = get_cheb_grid(Ny)
 
@@ -318,28 +323,31 @@ def run_cheb_fourier_sim_2D():
     XX = jnp.transpose(XX_).flatten()
     YY = jnp.transpose(YY_).flatten()
 
-    # u = jnp.array([1 - x**2 for x in ys])
     u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
-    # u = jnp.array([10*jnp.sin(8*x*(y-1)) for (x,y) in zip(XX, YY)])
 
-    steps = 100
+    steps = 500
     dt = 5e-6
+    plot_interval = steps//10
 
     # final_time = steps*dt
-    us = perform_simulation_cheb_fourier_2D(u, dt, steps)
+    us = perform_simulation_cheb_fourier_2D(u, dt, steps)[0::plot_interval]
     # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys))
-    # print("maximum of final profile: " + str(max(us[-1])))
-    # print("analytical: " + str(max(u_ana)))
     fig, ax = plt.subplots(1,1)
+    i = 0
     for u in us:
-        ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :])
+        ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :], label=str(i))
+        i+=1
     # ax.plot(ys, u_ana)
+    fig.legend()
     fig.savefig("plot_y.pdf")
 
     fig, ax = plt.subplots(1,1)
+    i=0
     for u in us:
-        ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2])
+        ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2], label=str(i))
+        i+=1
     # ax.plot(ys, u_ana)
+    fig.legend()
     fig.savefig("plot_x.pdf")
 
     fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
@@ -347,6 +355,7 @@ def run_cheb_fourier_sim_2D():
     ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
     # ax.plot(ys, u_ana)
     fig.savefig("plot3d.pdf")
+    print("Done with plotting")
 
 
 def main():
