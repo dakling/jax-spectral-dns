@@ -291,7 +291,8 @@ def eq_cheb_fourier_2D(u, mat):
 def perform_timestep_cheb_fourier_2D (u, dt, mat):
     new_u = u + eq_cheb_fourier_2D(u, mat) * dt
     N = int(jnp.sqrt(len(new_u)))
-    new_u_bc = (pad_mat_with_zeros(new_u.reshape((N, N))[:,1:-1])[1:-1,:])
+    # new_u_bc = (pad_mat_with_zeros(new_u.reshape((N, N))[:,1:-1])[1:-1,:])
+    new_u_bc = new_u.reshape((N, N))
     return new_u_bc.flatten()
 
 def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
@@ -299,13 +300,14 @@ def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
     Ny = Nx
     cheb_mat_1 = assembleChebDiffMat(Ny, 1)
     cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
-    four_mat_1 = assembleChebDiffMat(Nx, 1)
+    four_mat_1 = assembleFourierDiffMat(Nx, 1)
     four_mat_2 = jnp.linalg.matrix_power(four_mat_1, 2)
     id_x = jnp.eye(Nx)
     id_y = jnp.eye(Ny)
     four_mat_xx = jnp.kron(id_x, four_mat_2)
     cheb_mat_yy = jnp.kron(cheb_mat_2, id_y)
-    lap_mat = four_mat_xx + cheb_mat_yy
+    # lap_mat = four_mat_xx + cheb_mat_yy
+    lap_mat = four_mat_xx
     print("Done with matrix assembly")
     us = [u0]
     for _ in range(number_of_steps):
@@ -323,39 +325,60 @@ def run_cheb_fourier_sim_2D():
     XX = jnp.transpose(XX_).flatten()
     YY = jnp.transpose(YY_).flatten()
 
-    u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
+    # u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
+    u = jnp.array([jnp.cos(x) for (x,y) in zip(XX, YY)])
 
-    steps = 500
-    dt = 5e-6
+    steps = 10000
+    dt = 5e-5
     plot_interval = steps//10
 
-    # final_time = steps*dt
-    us = perform_simulation_cheb_fourier_2D(u, dt, steps)[0::plot_interval]
-    # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys))
-    fig, ax = plt.subplots(1,1)
-    i = 0
-    for u in us:
-        ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :], label=str(i))
-        i+=1
-    # ax.plot(ys, u_ana)
-    fig.legend()
-    fig.savefig("plot_y.pdf")
+    cheb_mat_1 = assembleChebDiffMat(Ny, 1)
+    cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
+    four_mat_1 = assembleFourierDiffMat(Nx, 1)
+    four_mat_2 = jnp.linalg.matrix_power(four_mat_1, 2)
+    id_x = jnp.eye(Nx)
+    id_y = jnp.eye(Ny)
+    four_mat_x = jnp.kron(id_x, four_mat_1)
+    four_mat_xx = jnp.kron(id_x, four_mat_2)
+    cheb_mat_yy = jnp.kron(cheb_mat_2, id_y)
+    # lap_mat = four_mat_xx + cheb_mat_yy
+    lap_mat = four_mat_xx
+
+    # TODO these two are currently zero - look into this
+    du = four_mat_x @ u
+    ddu = lap_mat @ u
+
+    # # final_time = steps*dt
+    # us = perform_simulation_cheb_fourier_2D(u, dt, steps)[0::plot_interval]
+    # # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys))
+    # fig, ax = plt.subplots(1,1)
+    # i = 0
+    # for u in us:
+    #     ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :], label=str(i))
+    #     i+=1
+    # # ax.plot(ys, u_ana)
+    # fig.legend()
+    # fig.savefig("plot_y.pdf")
 
     fig, ax = plt.subplots(1,1)
-    i=0
-    for u in us:
-        ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2], label=str(i))
-        i+=1
-    # ax.plot(ys, u_ana)
-    fig.legend()
-    fig.savefig("plot_x.pdf")
+    ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2])
+    ax.plot(xs, du.reshape((Nx,Ny))[:, Ny//2])
+    ax.plot(xs, ddu.reshape((Nx,Ny))[:, Ny//2])
+    fig.savefig("plot.pdf")
+    # i=0
+    # for u in us:
+    #     ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2], label=str(i))
+    #     i+=1
+    # # ax.plot(ys, u_ana)
+    # fig.legend()
+    # fig.savefig("plot_x.pdf")
 
-    fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
-    ax[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
-    ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
-    # ax.plot(ys, u_ana)
-    fig.savefig("plot3d.pdf")
-    print("Done with plotting")
+    # fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
+    # ax[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
+    # ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
+    # # ax.plot(ys, u_ana)
+    # fig.savefig("plot3d.pdf")
+    # print("Done with plotting")
 
 
 def main():
