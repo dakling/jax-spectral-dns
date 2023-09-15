@@ -27,6 +27,9 @@ def cheb(n):
         return ch[n]
     return ret
 
+def pad_mat_with_zeros(mat):
+    return jnp.block([[jnp.zeros((1, mat.shape[1]+2))], [jnp.zeros((mat.shape[0], 1)), mat, jnp.zeros((mat.shape[0], 1))], [jnp.zeros((1, mat.shape[1]+2))]])
+
 def jct_coeff_0(u):
     N = len(u)
     xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
@@ -135,9 +138,6 @@ def diffFourier(u, order=1, mat=None):
 def eq_cheb(u, mat=None):
     return diffCheb(u, 2, mat=mat)
 
-def eq_fourier(u, mat=None):
-    return diffFourier(u, 2, mat=mat)
-
 def perform_timestep_cheb_1D (u, dt, mat=None):
     new_u = u + eq_cheb(u, mat) * dt
     new_u_bc = jnp.block([0.0, new_u[1:-1], 0.0])
@@ -176,6 +176,9 @@ def run_cheb_sim_1D():
     ax.plot(ys, u_ana)
     fig.savefig("plot.pdf")
 
+def eq_fourier(u, mat=None):
+    return diffFourier(u, 2, mat=mat)
+
 def perform_timestep_fourier_1D (u, dt, mat=None):
     new_u = u + eq_fourier(u, mat) * dt
     return new_u
@@ -201,16 +204,83 @@ def run_fourier_sim_1D():
 
     final_time = steps*dt
     us = perform_simulation_fourier_1D(u, dt, steps)
-    u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x), xs))
+    # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x), xs))
     print("maximum of final profile: " + str(max(us[-1])))
-    print("analytical: " + str(max(u_ana)))
+    # print("analytical: " + str(max(u_ana)))
     fig, ax = plt.subplots(1,1)
     for u in us:
         ax.plot(xs, u)
-    ax.plot(xs, u_ana)
+    # ax.plot(xs, u_ana)
     fig.savefig("plot.pdf")
 
+def eq_cheb_2D(u, mat=None):
+    return mat@u
+    # return lap_u
+
+def perform_timestep_cheb_2D (u, dt, mat):
+    new_u = u + eq_cheb_2D(u, mat) * dt
+    N = int(jnp.sqrt(len(new_u)))
+    new_u_bc = (pad_mat_with_zeros(new_u.reshape((N, N))[1:-1,1:-1])).flatten()
+    return new_u_bc
+
+def perform_simulation_cheb_2D(u0, dt, number_of_steps):
+    Nx = int(jnp.sqrt(u0.shape[0]))
+    Ny = Nx
+    cheb_mat_1 = assembleChebDiffMat(Nx, 1)
+    cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
+    id_x = jnp.eye(Nx)
+    id_y = jnp.eye(Ny)
+    cheb_mat_xx = jnp.kron(id_x, cheb_mat_2)
+    cheb_mat_yy = jnp.kron(cheb_mat_2, id_y)
+    lap_mat = cheb_mat_xx + cheb_mat_yy
+    print("Done with matrix assembly")
+    us = [u0]
+    for _ in range(number_of_steps):
+        us.append(perform_timestep_cheb_2D (us[-1], dt, lap_mat))
+    return us
+
+def run_cheb_cheb_sim_2D():
+    Nx = 24
+    Ny = Nx
+    xs = get_cheb_grid(Nx)
+    # ys = get_cheb_grid(Ny)
+    ys = xs
+
+    XX_, YY_ = jnp.meshgrid(xs, ys)
+    XX = jnp.transpose(XX_).flatten()
+    YY = jnp.transpose(YY_).flatten()
+
+    # u = jnp.array([1 - x**2 for x in ys])
+    u = jnp.array([(1 - y**8) * jnp.cos(x * jnp.pi/2) for (x,y) in zip(XX, YY)])
+    # u = jnp.array([10*jnp.sin(8*x*(y-1)) for (x,y) in zip(XX, YY)])
+
+    steps = 1000
+    dt = 5e-5
+
+    # final_time = steps*dt
+    us = perform_simulation_cheb_2D(u, dt, steps)
+    # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys))
+    # print("maximum of final profile: " + str(max(us[-1])))
+    # print("analytical: " + str(max(u_ana)))
+    fig, ax = plt.subplots(1,1)
+    for u in us:
+        ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :])
+    # ax.plot(ys, u_ana)
+    fig.savefig("plot_y.pdf")
+
+    fig, ax = plt.subplots(1,1)
+    for u in us:
+        ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2])
+    # ax.plot(ys, u_ana)
+    fig.savefig("plot_x.pdf")
+
+    fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
+    ax[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
+    ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
+    # ax.plot(ys, u_ana)
+    fig.savefig("plot3d.pdf")
 
 def main():
     # run_cheb_sim_1D()
-    run_fourier_sim_1D()
+    # run_fourier_sim_1D()
+    run_cheb_cheb_sim_2D()
