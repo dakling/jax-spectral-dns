@@ -95,17 +95,18 @@ def isct(u_cheb, T=None):
     # return T @ u_cheb
 
 def assembleChebDiffMat(N, order=1):
-    mat = [[0.0 for j in range(N)] for i in range(N)]
+    mat_lst = [[0.0 for j in range(N)] for i in range(N)]
     for i in range(N):
         if i % 2 == 0: # even
             for j in range(0, i, 2):
-                if j+1 < len(mat):
-                    mat[j + 1][i] = 2.0 * i
+                if j+1 < len(mat_lst):
+                    mat_lst[j + 1][i] = 2.0 * i
         else: # odd
-            mat[0][i] = i
+            mat_lst[0][i] = i
             for j in range(2, i, 2):
-                mat[j][i] = 2.0 * i
+                mat_lst[j][i] = 2.0 * i
     # mat = mat_raw[:, 2:] - mat_raw[:, :-2]
+    mat = jnp.array(mat_lst)
     return jnp.linalg.matrix_power(mat, order)
 
 def assembleFourierDiffMat(N, order=1):
@@ -121,8 +122,7 @@ def diffCheb(u, order=1, mat=None):
     N = len(u)
     if type(mat) == NoneType:
         mat = assembleChebDiffMat(N, order)
-    u_ext = jnp.block([u, 0, 0]) # TODO
-    return jnp.linalg.matrix_power(mat, order) @ u_ext
+    return jnp.linalg.matrix_power(mat, order) @ u
 
 def diffFourier(u, order=1, mat=None):
     if type(mat) == NoneType:
@@ -168,7 +168,7 @@ def perform_simulation(u0, x, dt, number_of_steps):
     return us
 
 def main():
-    Nx = 22
+    Nx = 10
     Ny = 5
     # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
     xs = jnp.linspace(0.0, 2*jnp.pi, Nx+1)[1:]
@@ -179,25 +179,31 @@ def main():
     # xs = jnp.cos(jnp.pi*jnp.linspace(N,0,N+1)/N) # gauss-lobatto points with boundaries
     # print(xs)
     # print(ys)
-    # u = jnp.array([1 for x in xs])
-    u = jnp.array([jnp.exp(jnp.sin(x)) for x in xs])
-    du_ = jnp.array([jnp.cos(x) * jnp.exp(jnp.sin(x)) for x in xs])
-    ddu_ = jnp.array([(jnp.cos(x)**2 - jnp.sin(x)) * jnp.exp(jnp.sin(x)) for x in xs])
-    # du_ = jnp.array([0 for x in xs])
-    # u = jnp.array([x for x in xs])
-    du = diffFourier(u)
-    ddu = diffFourier(u, 2)
+    u = jnp.array([1 for x in ys])
+    du_ = jnp.array([0 for x in ys])
+    D = assembleChebDiffMat(Nx)
+    print(D)
+    du = diffCheb(u)
+
+
+    # u = jnp.array([jnp.exp(jnp.sin(x)) for x in xs])
+    # du_ = jnp.array([jnp.cos(x) * jnp.exp(jnp.sin(x)) for x in xs])
+    # ddu_ = jnp.array([(jnp.cos(x)**2 - jnp.sin(x)) * jnp.exp(jnp.sin(x)) for x in xs])
+    # du = diffFourier(u)
+    # ddu = diffFourier(u, 2)
+
+
     # us = perform_simulation(u, xs, 5e-5, 40)
     # print(us[-1])
     fig, ax = plt.subplots(1,1)
     # for u in us:
     #     ax.plot(xs, u)
     fig.legend()
-    ax.plot(xs, u, label="u")
-    ax.plot(xs, du_, label="du_")
-    ax.plot(xs, du, "--", label="du")
-    ax.plot(xs, ddu_, label="du_")
-    ax.plot(xs, ddu, "--", label="du")
+    ax.plot(ys, u, label="u")
+    ax.plot(ys, du_, label="du_")
+    ax.plot(ys, du, "--", label="du")
+    # ax.plot(xs, ddu_, label="du_")
+    # ax.plot(xs, ddu, "--", label="du")
     fig.legend()
 
     fig.savefig("plot.pdf")
