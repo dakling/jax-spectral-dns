@@ -9,6 +9,16 @@ from matplotlib import legend
 from numpy import float128
 import scipy as sc
 
+def get_cheb_grid(N):
+    # return jnp.array([jnp.cos(jnp.pi / (N) * i) for i in range(N+1)]) # gauss-lobatto points with endpoints
+    return jnp.array([jnp.cos(jnp.pi / (N-1) * i) for i in range(N)]) # gauss-lobatto points with endpoints
+
+def get_fourier_grid(N):
+    if N % 2 != 0:
+        print("Warning: Only even number of points supported for Fourier basis, making the domain larger by one.")
+        N += 1
+    return jnp.linspace(0.0, 2*jnp.pi, N+1)[1:]
+
 def cheb(n):
     def ret(x):
         ch = [1, x]
@@ -94,20 +104,15 @@ def isct(u_cheb, T=None):
     # T = jnp.array([[ cheb(m)(xs[n]) for n in range(N)] for m in range(N)])
     # return T @ u_cheb
 
-def assembleChebDiffMat(N, order=1):
-    mat_lst = [[0.0 for j in range(N)] for i in range(N)]
-    for i in range(N):
-        if i % 2 == 0: # even
-            for j in range(0, i, 2):
-                if j+1 < len(mat_lst):
-                    mat_lst[j + 1][i] = 2.0 * i
-        else: # odd
-            mat_lst[0][i] = i
-            for j in range(2, i, 2):
-                mat_lst[j][i] = 2.0 * i
-    # mat = mat_raw[:, 2:] - mat_raw[:, :-2]
-    mat = jnp.array(mat_lst)
-    return jnp.linalg.matrix_power(mat, order)
+def assembleChebDiffMat(N_, order=1):
+    xs = get_cheb_grid(N_)
+    N_ = len(xs)
+    c = jnp.block([2.0, jnp.ones((1, N_-2))*1.0, 2.0]) * (-1)**jnp.arange(0,N_)
+    X = jnp.repeat(xs, N_).reshape(N_, N_)
+    dX = X - jnp.transpose(X)
+    D_ = jnp.transpose((jnp.transpose(1/c) @ c)) / (dX + jnp.eye(N_))
+    D = D_ - jnp.diag(sum(jnp.transpose(D_)))
+    return jnp.linalg.matrix_power(D, order)
 
 def assembleFourierDiffMat(N, order=1):
     if N % 2 != 0:
@@ -169,19 +174,21 @@ def perform_simulation(u0, x, dt, number_of_steps):
 
 def main():
     Nx = 10
-    Ny = 5
+    Ny = 6
     # xs = jnp.array([- jnp.cos(jnp.pi / N * (i + 1/2)) for i in range(N)]) # gauss-lobatto points (SH2001, p. 488)
-    xs = jnp.linspace(0.0, 2*jnp.pi, Nx+1)[1:]
+    xs = get_fourier_grid(Nx)
     # xs = jnp.linspace(0.0, 2*jnp.pi, Nx+1)[:-1]
     # xs = jnp.linspace(0.0, 2*jnp.pi, Nx)
     # ys = jnp.array([- jnp.cos(jnp.pi / Ny * (i + 1/2)) for i in range(Ny)]) # gauss-lobatto points (SH2001, p. 488)
-    ys = jnp.array([- jnp.cos(jnp.pi / (Ny-1) * i) for i in range(Ny)]) # gauss-lobatto points with endpoints
+    ys = get_cheb_grid(Ny)
     # xs = jnp.cos(jnp.pi*jnp.linspace(N,0,N+1)/N) # gauss-lobatto points with boundaries
     # print(xs)
     # print(ys)
-    u = jnp.array([1 for x in ys])
-    du_ = jnp.array([0 for x in ys])
-    D = assembleChebDiffMat(Nx)
+    # u = jnp.array([1 for x in ys])
+    # du_ = jnp.array([0 for x in ys])
+    u = jnp.array([x**2 for x in ys])
+    du_ = jnp.array([2*x for x in ys])
+    D = assembleChebDiffMat(Ny)
     print(D)
     du = diffCheb(u)
 
@@ -196,14 +203,14 @@ def main():
     # us = perform_simulation(u, xs, 5e-5, 40)
     # print(us[-1])
     fig, ax = plt.subplots(1,1)
-    # for u in us:
-    #     ax.plot(xs, u)
-    fig.legend()
+    # # for u in us:
+    # #     ax.plot(xs, u)
+    # fig.legend()
     ax.plot(ys, u, label="u")
     ax.plot(ys, du_, label="du_")
     ax.plot(ys, du, "--", label="du")
-    # ax.plot(xs, ddu_, label="du_")
-    # ax.plot(xs, ddu, "--", label="du")
+    # # ax.plot(xs, ddu_, label="du_")
+    # # ax.plot(xs, ddu, "--", label="du")
     fig.legend()
 
     fig.savefig("plot.pdf")
