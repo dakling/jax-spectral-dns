@@ -19,8 +19,8 @@ def get_fourier_grid(N):
         N += 1
     # TODO look into the differences here
     # return jnp.linspace(0.0, 2*jnp.pi, N+1)[1:] # this is what Trefethen usees
-    # return jnp.linspace(0.0, 2*jnp.pi, N+1)[:-1] # this seems to work better for 1D
-    return jnp.linspace(0.0, 2*jnp.pi, N) # this seems to work better for 2D mixed cheb formulation
+    return jnp.linspace(0.0, 2*jnp.pi, N+1)[:-1] # this seems to work better for 1D
+    # return jnp.linspace(0.0, 2*jnp.pi, N) # this seems to work better for 2D mixed cheb formulation
 
 def cheb(n):
     def ret(x):
@@ -234,8 +234,8 @@ def perform_simulation_cheb_2D(u0, dt, number_of_steps):
     cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
     id_x = jnp.eye(Nx)
     id_y = jnp.eye(Ny)
-    cheb_mat_xx = jnp.kron(id_x, cheb_mat_2)
-    cheb_mat_yy = jnp.kron(cheb_mat_2, id_y)
+    cheb_mat_xx = jnp.kron(cheb_mat_2, id_x)
+    cheb_mat_yy = jnp.kron(id_y, cheb_mat_2)
     lap_mat = cheb_mat_xx + cheb_mat_yy
     print("Done with matrix assembly")
     us = [u0]
@@ -304,8 +304,8 @@ def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
     four_mat_2 = jnp.linalg.matrix_power(four_mat_1, 2)
     id_x = jnp.eye(Nx)
     id_y = jnp.eye(Ny)
-    four_mat_xx = jnp.kron(id_x, four_mat_2)
-    cheb_mat_yy = jnp.kron(cheb_mat_2, id_y)
+    four_mat_xx = jnp.kron(four_mat_2, id_x)
+    cheb_mat_yy = jnp.kron(id_y, cheb_mat_2)
     # lap_mat = four_mat_xx + cheb_mat_yy
     lap_mat = four_mat_xx
     print("Done with matrix assembly")
@@ -325,60 +325,41 @@ def run_cheb_fourier_sim_2D():
     XX = jnp.transpose(XX_).flatten()
     YY = jnp.transpose(YY_).flatten()
 
-    # u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
-    u = jnp.array([jnp.cos(x) for (x,y) in zip(XX, YY)])
+    u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
+    # u = jnp.array([jnp.cos(x) for (x,y) in zip(XX, YY)])
+    # u = jnp.array([jnp.cos(y*jnp.pi/2) for (x,y) in zip(XX, YY)])
 
     steps = 10000
     dt = 5e-5
     plot_interval = steps//10
 
-    cheb_mat_1 = assembleChebDiffMat(Ny, 1)
-    cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
-    four_mat_1 = assembleFourierDiffMat(Nx, 1)
-    four_mat_2 = jnp.linalg.matrix_power(four_mat_1, 2)
-    id_x = jnp.eye(Nx)
-    id_y = jnp.eye(Ny)
-    four_mat_x = jnp.kron(id_x, four_mat_1)
-    four_mat_xx = jnp.kron(id_x, four_mat_2)
-    cheb_mat_yy = jnp.kron(cheb_mat_2, id_y)
-    # lap_mat = four_mat_xx + cheb_mat_yy
-    lap_mat = four_mat_xx
-
-    # TODO these two are currently zero - look into this
-    du = four_mat_x @ u
-    ddu = lap_mat @ u
-
     # # final_time = steps*dt
-    # us = perform_simulation_cheb_fourier_2D(u, dt, steps)[0::plot_interval]
+    us = perform_simulation_cheb_fourier_2D(u, dt, steps)[0::plot_interval]
     # # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys))
-    # fig, ax = plt.subplots(1,1)
-    # i = 0
-    # for u in us:
-    #     ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :], label=str(i))
-    #     i+=1
-    # # ax.plot(ys, u_ana)
-    # fig.legend()
-    # fig.savefig("plot_y.pdf")
+    fig, ax = plt.subplots(1,1)
+    i = 0
+    for u in us:
+        ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :], label=str(i))
+        i+=1
+    # ax.plot(ys, u_ana)
+    fig.legend()
+    fig.savefig("plot_y.pdf")
 
     fig, ax = plt.subplots(1,1)
-    ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2])
-    ax.plot(xs, du.reshape((Nx,Ny))[:, Ny//2])
-    ax.plot(xs, ddu.reshape((Nx,Ny))[:, Ny//2])
-    fig.savefig("plot.pdf")
-    # i=0
-    # for u in us:
-    #     ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2], label=str(i))
-    #     i+=1
-    # # ax.plot(ys, u_ana)
-    # fig.legend()
-    # fig.savefig("plot_x.pdf")
+    i=0
+    for u in us:
+        ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2], label=str(i))
+        i+=1
+    # ax.plot(ys, u_ana)
+    fig.legend()
+    fig.savefig("plot_x.pdf")
 
-    # fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
-    # ax[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
-    # ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
-    # # ax.plot(ys, u_ana)
-    # fig.savefig("plot3d.pdf")
-    # print("Done with plotting")
+    fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
+    ax[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
+    ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
+    # ax.plot(ys, u_ana)
+    fig.savefig("plot3d.pdf")
+    print("Done with plotting")
 
 
 def main():
