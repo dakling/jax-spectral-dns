@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 
 from types import NoneType
+import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
 from matplotlib import legend
 import matplotlib.pyplot as plt
 from matplotlib import legend
 from numpy import float128
+import scipy as sc
+
+import numpy as np
 import scipy as sc
 
 def get_cheb_grid(N):
@@ -17,10 +21,7 @@ def get_fourier_grid(N):
     if N % 2 != 0:
         print("Warning: Only even number of points supported for Fourier basis, making the domain larger by one.")
         N += 1
-    # TODO look into the differences here
-    # return jnp.linspace(0.0, 2*jnp.pi, N+1)[1:] # this is what Trefethen usees
-    return jnp.linspace(0.0, 2*jnp.pi, N+1)[:-1] # this seems to work better for 1D
-    # return jnp.linspace(0.0, 2*jnp.pi, N) # this seems to work better for 2D mixed cheb formulation
+    return jnp.linspace(0.0, 2*jnp.pi, N+1)[:-1]
 
 def cheb(n):
     def ret(x):
@@ -315,7 +316,7 @@ def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
     print("Done with simulation")
     return us
 
-def run_cheb_fourier_sim_2D():
+def run_cheb_fourier_sim_2D(u, ax_x=None, ax_y=None, ax_3d=None):
     Nx = 24
     Ny = Nx # only quadratic grids currently supported, I haven't bothered to implement nonquadratic ones yet
     xs = get_fourier_grid(Nx)
@@ -325,45 +326,87 @@ def run_cheb_fourier_sim_2D():
     XX = jnp.transpose(XX_).flatten()
     YY = jnp.transpose(YY_).flatten()
 
-    u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
-    # u = jnp.array([jnp.cos(x) for (x,y) in zip(XX, YY)])
-    # u = jnp.array([jnp.cos(y*jnp.pi/2) for (x,y) in zip(XX, YY)])
-
     steps = 10000
     dt = 5e-5
     plot_interval = steps//10
 
     # # final_time = steps*dt
-    us = perform_simulation_cheb_fourier_2D(u, dt, steps)[0::plot_interval]
+    us = perform_simulation_cheb_fourier_2D(u, dt, steps)
     # # u_ana = list(map(lambda x: jnp.exp(-jnp.pi**2 * final_time/4) * jnp.cos(x * jnp.pi/2), ys))
-    fig, ax = plt.subplots(1,1)
+    if type(ax_x) != NoneType:
+        i = 0
+        for u_ in us[0::plot_interval]:
+            ax_x.plot(ys, u_.reshape((Nx,Ny))[Nx//2, :], label=str(i))
+            i+=1
+        # ax.plot(ys, u_ana)
+
+    if type(ax_y) != NoneType:
+        i=0
+        for u_ in us[0::plot_interval]:
+            ax_y.plot(xs, u_.reshape((Nx,Ny))[:, Ny//2], label=str(i))
+            i+=1
+        # ax.plot(ys, u_ana)
+
+    if type(ax_3d) != NoneType:
+        ax_3d[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
+        ax_3d[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
+        # ax.plot(ys, u_ana)
+        print("Done with plotting")
+
+    energy_at_midpoint_gain = us[-1].reshape((Nx,Ny)).transpose()[Nx//2, Ny//2]/us[0].reshape((Nx,Ny)).transpose()[Nx//2, Ny//2]
+    # energy_at_midpoint_gain = us[-1].reshape((Nx,Ny)).transpose()[Nx//2, Ny//2]
+    # energy_at_midpoint_gain = jnp.max(us[0])
+    return energy_at_midpoint_gain
+
+
+def optimize_cheb_fourier_sim_2D():
+    Nx = 24
+    Ny = Nx # only quadratic grids currently supported, I haven't bothered to implement nonquadratic ones yet
+    xs = get_fourier_grid(Nx)
+    ys = get_cheb_grid(Ny)
+
+    XX_, YY_ = jnp.meshgrid(xs, ys)
+    XX = jnp.transpose(XX_).flatten()
+    YY = jnp.transpose(YY_).flatten()
+    u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
+    gain_func = lambda v0: run_cheb_fourier_sim_2D(v0)
+
+    eps = 1.0 # TODO introduce more sophisticated adaptive eps
+    old_gain = None
     i = 0
-    for u in us:
-        ax.plot(ys, u.reshape((Nx,Ny))[Nx//2, :], label=str(i))
-        i+=1
-    # ax.plot(ys, u_ana)
-    fig.legend()
-    fig.savefig("plot_y.pdf")
+    # max_iter = 200
+    max_iter = 6
 
-    fig, ax = plt.subplots(1,1)
-    i=0
-    for u in us:
-        ax.plot(xs, u.reshape((Nx,Ny))[:, Ny//2], label=str(i))
-        i+=1
-    # ax.plot(ys, u_ana)
-    fig.legend()
-    fig.savefig("plot_x.pdf")
+    # plot_interval = None
+    plot_interval = 3
+    fig_x, ax_x = plt.subplots(1, max_iter//plot_interval)
+    fig_y, ax_y = plt.subplots(1, max_iter//plot_interval)
+    fig_3d, ax_3d = plt.subplots(max_iter//plot_interval, 2, subplot_kw={"projection": "3d"})
+    plot_i = 0
 
-    fig, ax = plt.subplots(1,2, subplot_kw={"projection": "3d"})
-    ax[0].plot_surface(XX_, YY_, us[0].reshape((Nx,Ny)).transpose())
-    ax[1].plot_surface(XX_, YY_, us[-1].reshape((Nx,Ny)).transpose())
-    # ax.plot(ys, u_ana)
-    fig.savefig("plot3d.pdf")
-    print("Done with plotting")
-
+    u0_vec = [u]
+    # plot_state(u0_vec[-1], grid, 0)
+    while i < max_iter:
+        print("iteration: ", i)
+        gain, u0_corr = jax.value_and_grad(gain_func)(u0_vec[-1])
+        print("gain:")
+        print(gain)
+        u0_new_unnormalized = u0_vec[-1] + u0_corr * eps
+        u0_vec.append(u0_new_unnormalized)
+        if plot_interval and i % plot_interval == 0:
+            run_cheb_fourier_sim_2D(u0_vec[-1], ax_x[plot_i], ax_y[plot_i], ax_3d[plot_i,:])
+            fig_x.legend()
+            fig_y.legend()
+            fig_3d.legend()
+            fig_x.savefig("plot_x.pdf")
+            fig_y.savefig("plot_y.pdf")
+            fig_3d.savefig("plot_3d.pdf")
+            plot_i = plot_i + 1
+        i += 1
 
 def main():
     # run_cheb_sim_1D()
     # run_fourier_sim_1D()
     # run_cheb_cheb_sim_2D()
-    run_cheb_fourier_sim_2D()
+    # run_cheb_fourier_sim_2D(None)
+    optimize_cheb_fourier_sim_2D()
