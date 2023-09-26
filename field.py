@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import math
+import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
@@ -21,9 +22,23 @@ class Field():
         field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
         return cls(domain, field, name)
 
-    def __repr__(self) -> str:
+    @classmethod
+    def FromRandom(cls, domain, seed=0, interval=(-0.1,0.1), name="field"):
+        # TODO generate "nice" random fields
+        key = jax.random.PRNGKey(seed)
+        zero_field = Field.FromFunc(domain)
+        rands = []
+        for i in range(zero_field.number_of_dofs()):
+            key, subkey = jax.random.split(key)
+            rands.append(jax.random.uniform(subkey, minval=interval[0], maxval=interval[1]))
+        field = jnp.array(rands).reshape(zero_field.domain.shape)
+        return cls(domain, field, name)
+        pass
+
+    def __repr__(self):
         # fig, ax = plt.subplots(1,1)
         # ax.plot(self.mgrid[0], self.field)
+        self.plot()
         return str(self.field)
 
     def __neg__(self):
@@ -75,7 +90,7 @@ class Field():
         return jnp.linalg.norm(self.field)/self.number_of_dofs() # TODO use integration or something more sophisticated
 
     def number_of_dofs(self):
-        return math.prod(self.domain.shape)
+        return int(math.prod(self.domain.shape))
 
     def plot_center(self, dimension, *other_fields):
         if self.domain.number_of_dimensions == 1:
