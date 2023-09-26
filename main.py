@@ -11,6 +11,7 @@ from jax_cfd.base.grids import GridVariable
 import numpy as np
 import seaborn as sns
 import xarray
+import time
 
 from importlib import reload
 import sys
@@ -45,12 +46,30 @@ except:
     pass
 from spectral_channel_solver import main as mn
 
+try:
+    reload(sys.modules["heat_eq"])
+except:
+    pass
+from heat_eq import perform_simulation_cheb_fourier_2D_no_mat
+
 def main():
     # optimize_fd()
     # optimize_spectral()
     # optimize_channel()
     # optimize_channel_2d()
-    mn()
+
+    # mn()
+    perform_simulation_cheb_fourier_2D_no_mat()
+
+    # N = int(64 * 180 * 64)
+    # N = int(64 * 90 * 64)
+    # print(N)
+    # A = np.ones((N, N), dtype=np.float)
+    # x = np.ones((N,))
+    # start_time = time.time()
+    # b = A@x
+    # end_time = time.time()
+    # print(end_time - start_time)
 
 
 main()

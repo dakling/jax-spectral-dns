@@ -15,19 +15,19 @@ import numpy as np
 class Domain():
     def __init__(self, shape, periodic_directions=None):
         self.number_of_dimensions = len(shape)
+        self.periodic_directions = periodic_directions or [False for _ in range(self.number_of_dimensions)]
+        self.shape = shape
         self.grid = []
-        self.cheb_mat = None
-        self.fourier_mat = None
         self.diff_mats = []
         for dim in range(self.number_of_dimensions):
-            if type(periodic_directions) != NoneType and periodic_directions[dim]:
+            if type(periodic_directions) != NoneType and self.periodic_directions[dim]:
                 self.grid.append(self.get_fourier_grid(shape[dim]))
-                self.cheb_mat = self.assemble_cheb_diff_mat(shape[dim])
-                self.diff_mats[dim] = self.assemble_diff_mat(dim, self.cheb_mat)
+                self.diff_mats.append(self.assemble_fourier_diff_mat(shape[dim]))
             else:
                 self.grid.append(self.get_cheb_grid(shape[dim]))
-                self.fourier_mat = self.assemble_fourier_diff_mat(shape[dim])
-                self.diff_mats[dim] = self.assemble_diff_mat(dim, self.fourier_mat)
+                self.diff_mats.append(self.assemble_cheb_diff_mat(shape[dim]))
+        self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
+        # self.mgrid = jnp.meshgrid(*self.grid, indexing="xy")
 
     def get_cheb_grid(self, N):
         return jnp.array([jnp.cos(jnp.pi / (N-1) * i) for i in range(N)]) # gauss-lobatto points with endpoints
@@ -44,7 +44,7 @@ class Domain():
         X = jnp.repeat(xs, N).reshape(N, N)
         dX = X - jnp.transpose(X)
         D_ = jnp.transpose((jnp.transpose(1/c) @ c)) / (dX + jnp.eye(N))
-        return D_ - jnp.diag(sum(jnp.transpose(D_)))
+        return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
 
     def assemble_fourier_diff_mat(self, N, order=1):
         if N % 2 != 0:
@@ -63,5 +63,7 @@ class Domain():
             return out
         return nkron([mat if i == dim else jnp.eye(len(self.grid[i])) for i in range(self.number_of_dimensions)])
 
-    def diff(self, field, direction):
-        return self.diff_mats[direction] * field
+    def diff(self, field, direction, order=1):
+        f = jnp.moveaxis(field, direction, 0)
+        f_diff = jnp.dot(jnp.linalg.matrix_power(self.diff_mats[direction], order), f)
+        return jnp.moveaxis(f_diff, 0, direction)

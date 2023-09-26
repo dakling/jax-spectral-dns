@@ -52,7 +52,7 @@ def plot_state(v0,u_base, grid, ii):
     run_flow_sim_channel(v0, u_base, grid, ii)
 
 def create_grid():
-    size = (10, 15, 12)
+    size = (30, 90, 30)
     domain = ((0, 2), (-1, 1), (-1, 1))
     return cfd.grids.Grid(size, domain=domain)
 

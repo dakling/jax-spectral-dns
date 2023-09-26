@@ -111,16 +111,15 @@ def isct(u_cheb, T=None):
     # T = jnp.array([[ cheb(m)(xs[n]) for n in range(N)] for m in range(N)])
     # return T @ u_cheb
 
-def assembleChebDiffMat(N_, order=1):
-    xs = get_cheb_grid(N_)
-    N_ = len(xs)
-    c = jnp.block([2.0, jnp.ones((1, N_-2))*1.0, 2.0]) * (-1)**jnp.arange(0,N_)
-    X = jnp.repeat(xs, N_).reshape(N_, N_)
+def make_cheb_diff_mat(N, order=1):
+    xs = get_cheb_grid(N)
+    c = jnp.block([2.0, jnp.ones((1, N-2))*1.0, 2.0]) * (-1)**jnp.arange(0,N)
+    X = jnp.repeat(xs, N).reshape(N, N)
     dX = X - jnp.transpose(X)
-    D_ = jnp.transpose((jnp.transpose(1/c) @ c)) / (dX + jnp.eye(N_))
-    return D_ - jnp.diag(sum(jnp.transpose(D_)))
+    D_ = jnp.transpose((jnp.transpose(1/c) @ c)) / (dX + jnp.eye(N))
+    return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
 
-def assembleFourierDiffMat(N, order=1):
+def make_fourier_diff_mat(N, order=1):
     if N % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
     h = 2*jnp.pi/N;
@@ -131,12 +130,12 @@ def assembleFourierDiffMat(N, order=1):
 def diffCheb(u, order=1, mat=None):
     N = len(u)
     if type(mat) == NoneType:
-        mat = assembleChebDiffMat(N, order)
+        mat = make_cheb_diff_mat(N, order)
     return mat @ u
 
 def diffFourier(u, order=1, mat=None):
     if type(mat) == NoneType:
-        mat = assembleFourierDiffMat(len(u), order)
+        mat = make_fourier_diff_mat(len(u), order)
     return mat @ u
 
 def eq_cheb(u, mat=None):
@@ -150,7 +149,7 @@ def perform_timestep_cheb_1D (u, dt, mat=None):
 
 def perform_simulation_cheb_1D(u0, dt, number_of_steps):
     N = len(u0)
-    cheb_mat_1 = assembleChebDiffMat(N, 1)
+    cheb_mat_1 = make_cheb_diff_mat(N, 1)
     cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
     # fourier_mat_1 = assembleChebDiffMat(N, 1)
     # fourier_mat_2 = jnp.linalg.matrix_power(fourier_mat_1, 2)
@@ -190,7 +189,7 @@ def perform_timestep_fourier_1D (u, dt, mat=None):
 
 def perform_simulation_fourier_1D(u0, dt, number_of_steps):
     N = len(u0)
-    mat_1 = assembleFourierDiffMat(N, 1)
+    mat_1 = make_fourier_diff_mat(N, 1)
     mat_2 = jnp.linalg.matrix_power(mat_1, 2)
     print("Done with matrix assembly")
     us = [u0]
@@ -231,7 +230,7 @@ def perform_timestep_cheb_2D (u, dt, mat):
 def perform_simulation_cheb_2D(u0, dt, number_of_steps):
     Nx = int(jnp.sqrt(u0.shape[0]))
     Ny = Nx
-    cheb_mat_1 = assembleChebDiffMat(Nx, 1)
+    cheb_mat_1 = make_cheb_diff_mat(Nx, 1)
     cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
     id_x = jnp.eye(Nx)
     id_y = jnp.eye(Ny)
@@ -299,9 +298,9 @@ def perform_timestep_cheb_fourier_2D (u, dt, mat):
 def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
     Nx = int(jnp.sqrt(u0.shape[0]))
     Ny = Nx
-    cheb_mat_1 = assembleChebDiffMat(Ny, 1)
+    cheb_mat_1 = make_cheb_diff_mat(Ny, 1)
     cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
-    four_mat_1 = assembleFourierDiffMat(Nx, 1)
+    four_mat_1 = make_fourier_diff_mat(Nx, 1)
     four_mat_2 = jnp.linalg.matrix_power(four_mat_1, 2)
     id_x = jnp.eye(Nx)
     id_y = jnp.eye(Ny)
@@ -315,6 +314,64 @@ def perform_simulation_cheb_fourier_2D(u0, dt, number_of_steps):
         us.append(perform_timestep_cheb_fourier_2D (us[-1], dt, lap_mat))
     print("Done with simulation")
     return us
+
+def perform_simulation_cheb_fourier_2D_no_mat():
+    Nx = 24
+    Ny = Nx
+    cheb_mat_1 = make_cheb_diff_mat(Ny, 1)
+    # cheb_mat_2 = jnp.linalg.matrix_power(cheb_mat_1, 2)
+    cheb_mat_2 = make_cheb_diff_mat(Ny, 2)
+    four_mat_1 = make_fourier_diff_mat(Ny, 1)
+    four_mat_2 = make_fourier_diff_mat(Ny, 2)
+
+    xs = get_fourier_grid(Nx)
+    ys = get_cheb_grid(Ny)
+
+    ks = np.concatenate((np.arange(int(Nx/2 + 1)), np.arange(int(-Nx/2 + 1),0,1)))
+
+    XX, YY = jnp.meshgrid(xs, ys, indexing="ij")
+    # XX = jnp.transpose(XX_).flatten()
+    # YY = jnp.transpose(YY_).flatten()
+    u = jnp.array([jnp.cos(x) * jnp.cos(y * jnp.pi/2) for (x,y) in zip(XX, YY)])
+
+    u_hat = jnp.fft.fft(u, axis=0)
+    u_xx_hat = u_hat @ jnp.linalg.matrix_power((1j*jnp.diag(ks)), 2)
+    # u_yy_hat = (cheb_mat_2 @ u_hat.T).T
+    u_yy_hat = u_hat @ cheb_mat_2.T # TODO how does this generalize to 3D?
+
+    # u_x = four_mat_1 @ u
+    # u_xx = four_mat_2 @ u
+    # u_y = (cheb_mat_1 @ u.T).T
+    # u_yy = (cheb_mat_2 @ u.T).T
+
+    Nt = 5000
+    us_hat = [u_hat]
+    # us = [u]
+    dt = 5e-5
+    for _ in range(Nt):
+        # new_u = us[-1] + (u_xx + u_yy) * dt
+        # new_u_bc = (pad_mat_with_zeros(new_u[:,1:-1])[1:-1,:])
+        new_u_hat = us_hat[-1] + (u_xx_hat + u_yy_hat) * dt
+        new_u_hat_bc = (pad_mat_with_zeros(new_u_hat[:,1:-1])[1:-1,:])
+        # us.append(new_u_bc)
+        us_hat.append(new_u_hat_bc)
+        u_xx_hat = jnp.linalg.matrix_power((1j*jnp.diag(ks)), 2) @ new_u_hat_bc
+        u_yy_hat = (cheb_mat_2 @ new_u_hat_bc.T).T
+        # u_xx = (four_mat_2 @ new_u_bc)
+        # u_yy = (cheb_mat_2 @ new_u_bc.T).T
+    u_final = jnp.fft.ifft(us_hat[-1], axis=0)
+    # u_final = us[-1]
+    fig, ax = plt.subplots(1,2)
+    ax[0].plot(xs, u[:, Ny//2])
+    # ax[0].plot(xs, u_x[:, Ny//2])
+    # ax[0].plot(xs, u_xx[:, Ny//2])
+    ax[1].plot(ys, u[Nx//2, :])
+    # ax[1].plot(ys, u_y[Nx//2, :])
+    # ax[1].plot(ys, u_yy[Nx//2, :])
+    ax[0].plot(xs, u_final[:, Ny//2])
+    ax[1].plot(ys, u_final[Nx//2, :])
+    fig.savefig("plot.pdf")
+
 
 def run_cheb_fourier_sim_2D(u, ax_x=None, ax_y=None, ax_3d=None):
     Nx = 24
@@ -375,7 +432,7 @@ def optimize_cheb_fourier_sim_2D():
     old_gain = None
     i = 0
     # max_iter = 200
-    max_iter = 6
+    max_iter = 3
 
     # plot_interval = None
     plot_interval = 3
@@ -409,4 +466,5 @@ def main():
     # run_fourier_sim_1D()
     # run_cheb_cheb_sim_2D()
     # run_cheb_fourier_sim_2D(None)
-    optimize_cheb_fourier_sim_2D()
+    perform_simulation_cheb_fourier_2D_no_mat()
+    # optimize_cheb_fourier_sim_2D()
