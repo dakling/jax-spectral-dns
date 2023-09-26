@@ -26,29 +26,16 @@ except:
     pass
 from field import Field
 
-def perform_simulation_cheb_fourier_2D_no_mat():
+def perform_simulation_cheb_fourier_2D():
     Nx = 24
     Ny = Nx
 
     domain = Domain((Nx, Ny), (True, False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi/2)
-    # u = Field(domain, func=u_fn, name="u")
     u = Field.FromFunc(domain, func=u_fn, name="u_0")
 
-    # u.update_boundary_conditions() # TODO direction
-    # return
-
-    # u_hat = u.hat()
-    # u_xx_hat = u_hat.diff(0, order=2)
-    # return
-    # u_yy_hat = (cheb_mat_2 @ u_hat.T).T
-    # u_yy_hat = u_hat.diff(1, order=2)
-
-    # u_x = four_mat_1 @ u
-    # u_xx = four_mat_2 @ u
-    # u_y = (cheb_mat_1 @ u.T).T
-    # u_yy = (cheb_mat_2 @ u.T).T
+    u.update_boundary_conditions()
     u_xx = u.diff(0, order=2)
     u_yy = u.diff(1, order=2)
 
@@ -63,3 +50,29 @@ def perform_simulation_cheb_fourier_2D_no_mat():
     # u_final = jnp.fft.ifft(us_hat[-1], axis=0)
     # u_final = us[-1]
     u.plot(us[-1])
+
+def perform_simulation_cheb_fourier_3D():
+    Nx = 24
+    Ny = Nx
+    Nz = Nx
+
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
+
+    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
+    u = Field.FromFunc(domain, func=u_fn, name="u_0")
+
+    u.update_boundary_conditions()
+    u_xx = u.diff(0, order=2)
+    u_yy = u.diff(1, order=2)
+    u_zz = u.diff(2, order=2)
+
+    Nt = 5000
+    us = [u]
+    dt = 5e-5
+    for i in range(1,Nt+1):
+        us.append(us[-1].perform_time_step(u_xx + u_yy + u_zz, dt, i))
+        u_xx = us[-1].diff(0, order=2)
+        u_yy = us[-1].diff(1, order=2)
+    u.plot_center(0, us[-1])
+    u.plot_center(1, us[-1])
+    u.plot_center(2, us[-1])

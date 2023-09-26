@@ -91,7 +91,6 @@ class Field():
         elif self.domain.number_of_dimensions == 3:
             fig, ax = plt.subplots(1,1)
             other_dim = [ i for i in self.all_dimensions() if i != dimension ]
-            print(other_dim)
             N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
             ax.plot(self.domain.grid[dimension], self.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=self.name)
             for other_field in other_fields:

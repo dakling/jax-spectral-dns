@@ -50,7 +50,7 @@ try:
     reload(sys.modules["heat_eq"])
 except:
     pass
-from heat_eq import perform_simulation_cheb_fourier_2D_no_mat
+from heat_eq import perform_simulation_cheb_fourier_2D, perform_simulation_cheb_fourier_3D
 
 try:
     reload(sys.modules["test"])
@@ -66,7 +66,8 @@ def main():
     # run_all_tests()
 
     # mn()
-    perform_simulation_cheb_fourier_2D_no_mat()
+    # perform_simulation_cheb_fourier_2D()
+    perform_simulation_cheb_fourier_3D()
 
     # N = int(64 * 180 * 64)
     # N = int(64 * 90 * 64)
