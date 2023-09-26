@@ -53,6 +53,12 @@ except:
 from heat_eq import perform_simulation_cheb_fourier_2D, perform_simulation_cheb_fourier_3D
 
 try:
+    reload(sys.modules["navier_stokes"])
+except:
+    pass
+from navier_stokes import perform_channel_simulation_cheb_fourier_3D
+
+try:
     reload(sys.modules["test"])
 except:
     pass
@@ -67,7 +73,9 @@ def main():
 
     # mn()
     # perform_simulation_cheb_fourier_2D()
-    perform_simulation_cheb_fourier_3D()
+    # perform_simulation_cheb_fourier_3D()
+
+    perform_channel_simulation_cheb_fourier_3D()
 
     # N = int(64 * 180 * 64)
     # N = int(64 * 90 * 64)

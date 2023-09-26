@@ -1,26 +1,8 @@
 #!/usr/bin/env python3
 
-from types import NoneType
 import math
-import jax
 import jax.numpy as jnp
-import jax.scipy as jsc
-from matplotlib import legend
 import matplotlib.pyplot as plt
-from matplotlib import legend
-from numpy import float128
-import scipy as sc
-
-import numpy as np
-
-from importlib import reload
-import sys
-
-try:
-    reload(sys.modules["domain"])
-except:
-    pass
-from domain import Domain
 
 class Field():
 
@@ -35,7 +17,7 @@ class Field():
     @classmethod
     def FromFunc(cls, domain, func=None, name="field"):
         if not func:
-            func = lambda _: 0.0
+            func = lambda x: 0.0 * math.prod(x)
         field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
         return cls(domain, field, name)
 
@@ -54,16 +36,20 @@ class Field():
     def __sub__(self, other):
         return self + other*(-1.0)
 
-    def __mul__(self, number):
-        if number >= 0:
-            new_name = str(number) + self.name
-        elif number == 1:
-            new_name = self.name
-        elif number == -1:
-            new_name = "-" + self.name
+    def __mul__(self, other):
+        if type(other) == Field:
+            new_name = self.name + " * " + other.name
+            return Field(self.domain, self.field * other.field, name=new_name)
         else:
-            new_name = "(" + str(number) + ") " + self.name
-        return Field(self.domain, self.field * number, name=new_name)
+            if other >= 0:
+                new_name = str(other) + self.name
+            elif other == 1:
+                new_name = self.name
+            elif other == -1:
+                new_name = "-" + self.name
+            else:
+                new_name = "(" + str(other) + ") " + self.name
+            return Field(self.domain, self.field * other, name=new_name)
 
     def __abs__(self):
         return jnp.linalg.norm(self.field)/self.number_of_dofs() # TODO use integration or something more sophisticated
@@ -117,6 +103,16 @@ class Field():
                     ax3d.plot_surface(self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field)
                 fig.legend()
                 fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
+        elif self.domain.number_of_dimensions == 3:
+            fig, ax = plt.subplots(1,3, figsize=(15,5))
+            for dimension in self.all_dimensions():
+                other_dim = [ i for i in self.all_dimensions() if i != dimension ]
+                N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
+                ax[dimension].plot(self.domain.grid[dimension], self.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=self.name)
+                for other_field in other_fields:
+                    ax[dimension].plot(self.domain.grid[dimension], other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=other_field.name)
+            fig.legend()
+            fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
         else:
             raise Exception("Not implemented yet")
 
@@ -154,6 +150,53 @@ class Field():
 
     def perform_time_step(self, eq, dt, i):
         return self.perform_explicit_euler_step(eq, dt, i)
+
+class VectorField:
+    def __init__(self, elements):
+            self.elements = elements
+    def __getattr__(self, attr):
+        def on_all(*args, **kwargs):
+            acc = []
+            for obj in self.elements:
+                acc += [getattr(obj, attr)(*args, **kwargs)]
+            return acc
+        return on_all
+    def __getitem__(self,index):
+         return self.elements[index]
+    def __iter__(self):
+        return iter(self.elements)
+    def append(self, element):
+        return self.elements.append(element)
+    def __len__(self):
+        return len(self.elements)
+    def __str__(self):
+        out = ""
+        for elem in self.elements:
+            out += str(elem)
+        return out
+
+    def cross_product(self, other):
+        out_0 = self[2] * other[1] - self[1] * other[2]
+        out_1 = self[0] * other[2] - self[2] * other[0]
+        out_2 = self[1] * other[0] - self[0] * other[1]
+        return VectorField([out_0, out_1, out_2])
+
+    def curl(self):
+        assert len(self) == 3, "rotation only defined in 3 dimensions"
+        for f in self:
+            assert f.domain.number_of_dimensions == 3, "rotation only defined in 3 dimensions"
+        u_y = self[0].diff(1)
+        u_z = self[0].diff(2)
+        v_x = self[1].diff(0)
+        v_z = self[1].diff(2)
+        w_x = self[2].diff(0)
+        w_y = self[2].diff(1)
+
+        curl_0 = w_y - v_z
+        curl_1 = u_z - w_x
+        curl_2 = v_x - u_y
+
+        return VectorField([curl_0, curl_1, curl_2])
 
 # class FourierField(Field):
 #     def __init__(self, field):

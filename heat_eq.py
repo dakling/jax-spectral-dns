@@ -1,16 +1,6 @@
 #!/usr/bin/env python3
 
-from types import NoneType
-import jax
 import jax.numpy as jnp
-import jax.scipy as jsc
-from matplotlib import legend
-import matplotlib.pyplot as plt
-from matplotlib import legend
-from numpy import float128
-import scipy as sc
-
-import numpy as np
 
 from importlib import reload
 import sys
