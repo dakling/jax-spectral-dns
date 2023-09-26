@@ -27,7 +27,6 @@ class Domain():
                 self.grid.append(self.get_cheb_grid(shape[dim]))
                 self.diff_mats.append(self.assemble_cheb_diff_mat(shape[dim]))
         self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
-        # self.mgrid = jnp.meshgrid(*self.grid, indexing="xy")
 
     def get_cheb_grid(self, N):
         return jnp.array([jnp.cos(jnp.pi / (N-1) * i) for i in range(N)]) # gauss-lobatto points with endpoints

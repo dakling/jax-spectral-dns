@@ -97,19 +97,19 @@ class Field():
             self.field = jnp.take(self.field, jnp.array(list(range(len(self.domain.grid[dim]))))[1:-1], axis=dim)
             self.field = jnp.pad(self.field, [(0, 0) if self.domain.periodic_directions[d] else (1,1) for d in self.all_dimensions()], mode="constant", constant_values=0.0)
 
-    def hat(self):
-        self.field_hat = FourierField(self)
-        return self.field_hat
+    # def hat(self):
+    #     self.field_hat = FourierField(self)
+    #     return self.field_hat
 
     def diff(self, direction, order=1):
         name_suffix = "".join([["x", "y", "z"][direction] for _ in range(order)])
         return Field(self.domain, self.domain.diff(self.field, direction, order), self.name + "_" + name_suffix)
 
-class FourierField(Field):
-    def __init__(self, field):
-        self.domain = field.domain # TODO
-        self.name = field.name + "_hat"
-        self.field = field.field
-        for i in range(self.domain.number_of_dimensions):
-            if self.domain.periodic_directions[i]:
-                self.field = jnp.fft.fft(self.field, axis=i)
+# class FourierField(Field):
+#     def __init__(self, field):
+#         self.domain = field.domain # TODO
+#         self.name = field.name + "_hat"
+#         self.field = field.field
+#         for i in range(self.domain.number_of_dimensions):
+#             if self.domain.periodic_directions[i]:
+#                 self.field = jnp.fft.fft(self.field, axis=i)
