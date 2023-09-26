@@ -31,42 +31,54 @@ def perform_channel_simulation_cheb_fourier_3D():
     Ny = Nx
     Nz = Nx
 
+    Re = 1.8e2
+
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = lambda X: 0.1 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
 
-    vel_x = Field.FromFunc(domain, func=vel_x_fn, name="u1")
-    vel_y = Field.FromFunc(domain, name="u2")
-    vel_z = Field.FromFunc(domain, name="u3")
+    vel_x = Field.FromFunc(domain, func=vel_x_fn, name="u0")
+    vel_y = Field.FromFunc(domain, name="u1")
+    vel_z = Field.FromFunc(domain, name="u2")
 
     vel_y.update_boundary_conditions()
 
     vel = VectorField([vel_x, vel_y, vel_z])
-    vel.plot()
 
     # return
     vort = vel.curl()
     for i in range(3):
         vort[i].name = "vort_" + str(i)
-    vort.plot()
 
     hel = vel.cross_product(vort)
     for i in range(3):
         hel[i].name = "hel_" + str(i)
-    hel.plot()
-    return
-    # vort.update_boundary_conditions()
-    u_xx = u.diff(0, order=2)
-    u_yy = u.diff(1, order=2)
 
-    Nt = 5000
-    # us_hat = [u_hat]
-    us = [u]
+    vy_lap = vel[1].laplacian()
+
+    vort_1 = vort[1]
+
+    h_v = - (hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
+    h_g = hel[0].diff(2) - hel[2].diff(0)
+
+    Nt = 500
+    vy_laps = [vy_lap]
+    vort_1_s = [vort_1]
     dt = 5e-5
     for i in range(1,Nt+1):
-        us.append(us[-1].perform_time_step(u_xx + u_yy, dt, i))
-        u_xx = us[-1].diff(0, order=2)
-        u_yy = us[-1].diff(1, order=2)
+        vy_laps.append(vy_laps[-1].perform_time_step(-h_v + vy_laps[-1].laplacian() * (1/Re) , dt, i))
+        vort_1_s.append(vort_1_s[-1].perform_time_step(-h_g + vort_1_s[-1].laplacian() * (1/Re), dt, i))
+
+        vy_laps[-1].name = "vy_lap_" + str(i)
+        vort_1_s[-1].name = "vort_1_" + str(i)
+
+        vort = vel.curl()
+        hel = vel.cross_product(vort)
+
+        h_v = - (hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
+        h_g = hel[0].diff(2) - hel[2].diff(0)
+
     # u_final = jnp.fft.ifft(us_hat[-1], axis=0)
     # u_final = us[-1]
-    u.plot(us[-1])
+    vy_lap.plot(vy_laps[-1])
+    vort_1.plot(vort_1_s[-1])

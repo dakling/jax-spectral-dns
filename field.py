@@ -26,6 +26,9 @@ class Field():
         # ax.plot(self.mgrid[0], self.field)
         return str(self.field)
 
+    def __neg__(self):
+        return self * (-1.0)
+
     def __add__(self, other):
         if other.name[0] == "-":
             new_name = self.name + " - " + other.name[1:]
@@ -49,6 +52,23 @@ class Field():
                 new_name = "-" + self.name
             else:
                 new_name = "(" + str(other) + ") " + self.name
+            return Field(self.domain, self.field * other, name=new_name)
+
+    __rmul__ = __mul__
+    __lmul__ = __mul__
+
+    def __div__(self, other):
+        if type(other) == Field:
+            raise Exception("Don't know how to divide by another field")
+        else:
+            if other >= 0:
+                new_name = self.name + "/" + other
+            elif other == 1:
+                new_name = self.name
+            elif other == -1:
+                new_name = "-" + self.name
+            else:
+                new_name = self.name + "/ (" + str(other) + ") "
             return Field(self.domain, self.field * other, name=new_name)
 
     def __abs__(self):
@@ -141,6 +161,21 @@ class Field():
     def diff(self, direction, order=1):
         name_suffix = "".join([["x", "y", "z"][direction] for _ in range(order)])
         return Field(self.domain, self.domain.diff(self.field, direction, order), self.name + "_" + name_suffix)
+
+    def nabla(self):
+        out = [self.diff(0)]
+        out[0].name = "nabla_" + self.name + "_" + str(0)
+        for dim in self.all_dimensions()[1:]:
+            out.append(self.diff(dim))
+            out[dim].name = "nabla_" + self.name + "_" + str(dim)
+        return VectorField(out)
+
+    def laplacian(self):
+        out = self.diff(0,2)
+        for dim in self.all_dimensions()[1:]:
+            out += self.diff(dim, 2)
+        out.name = "lap_" + self.name
+        return out
 
     def perform_explicit_euler_step(self, eq, dt, i):
         new_u = self + eq * dt
