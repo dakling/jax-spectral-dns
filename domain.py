@@ -53,16 +53,12 @@ class Domain():
         column2 = jnp.block([column[0], jnp.flip(column[1:])])
         return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
 
-    def assemble_diff_mat(self, dim, mat):
-        def nkron(mat_list):
-            out = mat_list[0]
-            if len(mat_list > 1):
-                for mat in mat_list[1:]:
-                    out = jnp.kron(out, mat)
-            return out
-        return nkron([mat if i == dim else jnp.eye(len(self.grid[i])) for i in range(self.number_of_dimensions)])
-
     def diff(self, field, direction, order=1):
-        f = jnp.moveaxis(field, direction, 0)
-        f_diff = jnp.dot(jnp.linalg.matrix_power(self.diff_mats[direction], order), f)
-        return jnp.moveaxis(f_diff, 0, direction)
+        inds = "ijk"
+        diff_mat_ind = "l" + inds[direction]
+        other_inds = "".join([ind for ind in inds[0:self.number_of_dimensions] if ind != inds[direction]])
+        target_inds = other_inds[:direction] + "l" + other_inds[direction:]
+        field_ind = inds[0:self.number_of_dimensions]
+        ind = field_ind + "," + diff_mat_ind + "->" + target_inds
+        f_diff = jnp.einsum(ind, field, jnp.linalg.matrix_power(self.diff_mats[direction], order))
+        return f_diff

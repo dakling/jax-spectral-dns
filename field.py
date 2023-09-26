@@ -23,6 +23,9 @@ except:
 from domain import Domain
 
 class Field():
+
+    plotting_dir = "./plots/"
+
     def __init__(self, domain, field, name="field"):
         self.domain = domain
         self.field = field
@@ -69,15 +72,54 @@ class Field():
         return math.prod(self.domain.shape)
 
     def plot_center(self, dimension, *other_fields):
-        # TODO generalize to 3D
-        fig, ax = plt.subplots(1,1)
-        N_c = len(self.domain.grid[dimension]) // 2
-        other_dim = [ i for i in self.all_dimensions() if i != dimension ][0] # TODO only for 2D
-        ax.plot(self.domain.grid[dimension], self.field.take(indices=N_c, axis=other_dim), label=self.name)
-        for other_field in other_fields:
-            ax.plot(self.domain.grid[dimension], other_field.field.take(indices=N_c, axis=other_dim), label=other_field.name)
-        fig.legend()
-        fig.savefig("plot_cl_" + self.name + "_" + ["x", "y", "z"][dimension] + ".pdf")
+        if self.domain.number_of_dimensions == 1:
+            fig, ax = plt.subplots(1,1)
+            ax.plot(self.domain.grid[0], self.field, label=self.name)
+            for other_field in other_fields:
+                ax.plot(self.domain.grid[dimension], other_field.field, label=other_field.name)
+            fig.legend()
+            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + ".pdf")
+        elif self.domain.number_of_dimensions == 2:
+            fig, ax = plt.subplots(1,1)
+            other_dim = [ i for i in self.all_dimensions() if i != dimension ][0]
+            N_c = len(self.domain.grid[other_dim]) // 2
+            ax.plot(self.domain.grid[dimension], self.field.take(indices=N_c, axis=other_dim), label=self.name)
+            for other_field in other_fields:
+                ax.plot(self.domain.grid[dimension], other_field.field.take(indices=N_c, axis=other_dim), label=other_field.name)
+            fig.legend()
+            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_" + ["x", "y"][dimension] + ".pdf")
+        elif self.domain.number_of_dimensions == 3:
+            fig, ax = plt.subplots(1,1)
+            other_dim = [ i for i in self.all_dimensions() if i != dimension ]
+            print(other_dim)
+            N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
+            ax.plot(self.domain.grid[dimension], self.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=self.name)
+            for other_field in other_fields:
+                ax.plot(self.domain.grid[dimension], other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=other_field.name)
+            fig.legend()
+            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_" + ["x", "y", "z"][dimension] + ".pdf")
+        else:
+            raise Exception("Not implemented yet")
+
+    def plot(self, *other_fields):
+        if self.domain.number_of_dimensions == 1:
+            pass
+        elif self.domain.number_of_dimensions == 2:
+            fig = plt.figure(figsize=(15,5))
+            ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1,3,2)]
+            ax3d = fig.add_subplot(1,3,3, projection="3d")
+            for dimension in self.all_dimensions():
+                other_dim = [ i for i in self.all_dimensions() if i != dimension ][0]
+                N_c = len(self.domain.grid[other_dim]) // 2
+                ax[dimension].plot(self.domain.grid[dimension], self.field.take(indices=N_c, axis=other_dim), label=self.name)
+                ax3d.plot_surface(self.domain.mgrid[0], (self.domain.mgrid[1]), self.field)
+                for other_field in other_fields:
+                    ax[dimension].plot(self.domain.grid[dimension], other_field.field.take(indices=N_c, axis=other_dim), label=other_field.name)
+                    ax3d.plot_surface(self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field)
+                fig.legend()
+                fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
+        else:
+            raise Exception("Not implemented yet")
 
     def all_dimensions(self):
         return range(self.domain.number_of_dimensions)
@@ -104,6 +146,15 @@ class Field():
     def diff(self, direction, order=1):
         name_suffix = "".join([["x", "y", "z"][direction] for _ in range(order)])
         return Field(self.domain, self.domain.diff(self.field, direction, order), self.name + "_" + name_suffix)
+
+    def perform_explicit_euler_step(self, eq, dt, i):
+        new_u = self + eq * dt
+        new_u.update_boundary_conditions()
+        new_u.name = "u_" + str(i)
+        return new_u
+
+    def perform_time_step(self, eq, dt, i):
+        return self.perform_explicit_euler_step(eq, dt, i)
 
 # class FourierField(Field):
 #     def __init__(self, field):

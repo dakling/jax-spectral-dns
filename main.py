@@ -52,11 +52,18 @@ except:
     pass
 from heat_eq import perform_simulation_cheb_fourier_2D_no_mat
 
+try:
+    reload(sys.modules["test"])
+except:
+    pass
+from test import run_all_tests
+
 def main():
     # optimize_fd()
     # optimize_spectral()
     # optimize_channel()
     # optimize_channel_2d()
+    # run_all_tests()
 
     # mn()
     perform_simulation_cheb_fourier_2D_no_mat()

@@ -26,32 +26,6 @@ except:
     pass
 from field import Field
 
-def test():
-    Nx = 48
-    Ny = Nx
-    domain = Domain((Nx, Ny), (True, False))
-
-    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi/2)
-    u = Field.FromFunc(domain, func=u_fn, name="u")
-    u.update_boundary_conditions()
-    u_x = u.diff(0, 1)
-    u_xx = u.diff(0, 2)
-    u_y = u.diff(1, 1)
-    u_yy = u.diff(1, 2)
-
-    u_x_ana = Field.FromFunc(domain, func=lambda X: - jnp.sin(X[0]) * jnp.cos(X[1] * jnp.pi/2), name="u_x_ana")
-    u_xx_ana = Field.FromFunc(domain, func=lambda X: - jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi/2), name="u_xx_ana")
-    u_y_ana = Field.FromFunc(domain, func=lambda X: - jnp.cos(X[0]) * jnp.pi/2 * jnp.sin(X[1] * jnp.pi/2), name="u_y_ana")
-    u_yy_ana = Field.FromFunc(domain, func=lambda X: - jnp.cos(X[0]) * (jnp.pi/2)**2 * jnp.cos(X[1] * jnp.pi/2), name="u_yy_ana")
-
-    u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana, u_x - u_x_ana)
-    u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
-    tol = 5e-5
-    assert abs(u_x - u_x_ana) < tol
-    assert abs(u_xx - u_xx_ana) < tol
-    assert abs(u_y - u_y_ana) < tol
-    assert abs(u_yy - u_yy_ana) < tol
-
 def perform_simulation_cheb_fourier_2D_no_mat():
     Nx = 24
     Ny = Nx
@@ -83,13 +57,9 @@ def perform_simulation_cheb_fourier_2D_no_mat():
     us = [u]
     dt = 5e-5
     for i in range(1,Nt+1):
-        new_u = us[-1] + (u_xx + u_yy) * dt
-        new_u.update_boundary_conditions()
-        new_u.name = "u_" + str(i)
-        us.append(new_u)
-        u_xx = new_u.diff(0, order=2)
-        u_yy = new_u.diff(1, order=2)
+        us.append(us[-1].perform_time_step(u_xx + u_yy, dt, i))
+        u_xx = us[-1].diff(0, order=2)
+        u_yy = us[-1].diff(1, order=2)
     # u_final = jnp.fft.ifft(us_hat[-1], axis=0)
     # u_final = us[-1]
-    u.plot_center(0, us[-1])
-    u.plot_center(1, us[-1])
+    u.plot(us[-1])
