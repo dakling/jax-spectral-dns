@@ -44,9 +44,7 @@ class NavierStokesVelVort(Equation):
         for i in range(3):
             hel[i].name = "hel_" + str(i)
 
-        vy_lap = velocity_field[1].laplacian()
-        vy_lap.name = "vy_lap"
-        return cls(domain, velocity_field, vort, hel, vy_lap, Re=Re)
+        return cls(domain, velocity_field, vort, hel, Re=Re)
 
     @classmethod
     def FromRandom(cls, domain, Re):
@@ -58,10 +56,13 @@ class NavierStokesVelVort(Equation):
         return cls.FromVelocityField(domain, vel, Re)
 
     def perform_runge_kutta_step(self):
+        Re = self.Re
         vort = self.get_latest_field("vort")
         hel = self.get_latest_field("hel")
         vel = self.get_latest_field("velocity")
         vort_1 = vort[1]
+        vy_lap = vel[1].laplacian()
+        vy_lap.name = "vy_lap"
 
         h_v = -(hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
         h_g = hel[0].diff(2) - hel[2].diff(0)

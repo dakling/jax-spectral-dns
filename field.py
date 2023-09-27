@@ -165,7 +165,21 @@ class Field:
 
     def plot(self, *other_fields):
         if self.domain.number_of_dimensions == 1:
-            pass
+            fig, ax = plt.subplots(1, 1)
+            ax.plot(
+                self.domain.grid[0],
+                self.field,
+                label=self.name,
+            )
+            for other_field in other_fields:
+                ax.plot(
+                    self.domain.grid[0],
+                    other_field.field,
+                    label=other_field.name,
+                )
+            fig.legend()
+            fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
+
         elif self.domain.number_of_dimensions == 2:
             fig = plt.figure(figsize=(15, 5))
             ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
@@ -265,9 +279,9 @@ class Field:
                 constant_values=0.0,
             )
 
-    # def hat(self):
-    #     self.field_hat = FourierField(self)
-    #     return self.field_hat
+    def hat(self):
+        # self.field_hat = FourierField.FromField(self)
+        return FourierField.FromField(self)
 
     def diff(self, direction, order=1):
         name_suffix = "".join([["x", "y", "z"][direction] for _ in range(order)])
@@ -291,6 +305,19 @@ class Field:
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
         return out
+
+    def solve_poisson(self, directions, rhs):
+        # if len(directions) == 1:
+        #     rhs_int_1 = rhs.diff(directions[0], -1)
+        #     rhs_int_1.update_boundary_conditions()
+        #     rhs_int_2 = rhs_int_1.diff(directions[0], -1)
+        #     rhs_int_2.update_boundary_conditions()
+        #     return rhs_int_2
+        # else:
+        #     raise NotImplementedError()
+        rhs_hat = rhs.hat()
+        sol_hat = rhs_hat.integrate(2)
+        return sol_hat.nohat()
 
     def perform_explicit_euler_step(self, eq, dt, i):
         new_u = self + eq * dt
@@ -360,11 +387,47 @@ class VectorField:
         return VectorField([curl_0, curl_1, curl_2])
 
 
-# class FourierField(Field):
-#     def __init__(self, field):
-#         self.domain = field.domain # TODO
-#         self.name = field.name + "_hat"
-#         self.field = field.field
-#         for i in range(self.domain.number_of_dimensions):
-#             if self.domain.periodic_directions[i]:
-#                 self.field = jnp.fft.fft(self.field, axis=i)
+class FourierField(Field):
+    def __init__(self, domain, field, name="field_hat"):
+        super().__init__(domain, field, name)
+        self.domain_no_hat = domain
+        self.domain = domain.hat()
+
+    @classmethod
+    def FromField(cls, field):
+        out = cls(field.domain, field.field, field.name + "_hat")
+        out.domain_no_hat = field.domain
+        out.domain = field.domain.hat()
+        out.field = jnp.fft.fftn(
+            field.field, axes=out.all_periodic_dimensions(), norm="ortho"
+        )
+        return out
+
+    def diff(self, direction, order=1):
+        N = 1
+        for i in self.all_periodic_dimensions():
+            N *= len(self.domain.grid[i])
+        return FourierField(
+            self.domain_no_hat,
+            (1j * self.domain.grid[direction]) ** order * self.field,
+            name=self.name + "_diff_" + str(order),
+        )
+
+    def integrate(self, order=1):
+        N = 1
+        for i in self.all_periodic_dimensions():
+            N *= len(self.domain.grid[i])
+        denom = 0
+        for i in self.all_periodic_dimensions():
+            denom += (1j * self.domain.grid[i][1:]) ** order
+        out_0 = 0.0
+        out_field = jnp.block([out_0, self.field[1:] / denom])
+        return FourierField(
+            self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
+        )
+
+    def no_hat(self):
+        out = jnp.fft.ifftn(
+            self.field, axes=self.all_periodic_dimensions(), norm="ortho"
+        )
+        return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))

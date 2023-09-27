@@ -20,16 +20,34 @@ class Domain:
             False for _ in range(self.number_of_dimensions)
         ]
         self.shape = shape
-        self.grid = []
+        grid = []
         self.diff_mats = []
         for dim in range(self.number_of_dimensions):
             if type(periodic_directions) != NoneType and self.periodic_directions[dim]:
-                self.grid.append(self.get_fourier_grid(shape[dim]))
+                grid.append(self.get_fourier_grid(shape[dim]))
                 self.diff_mats.append(self.assemble_fourier_diff_mat(shape[dim]))
             else:
-                self.grid.append(self.get_cheb_grid(shape[dim]))
+                grid.append(self.get_cheb_grid(shape[dim]))
                 self.diff_mats.append(self.assemble_cheb_diff_mat(shape[dim]))
+        self.grid = jnp.array(grid)
         self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
+
+    def all_dimensions(self):
+        return range(self.number_of_dimensions)
+
+    def all_periodic_dimensions(self):
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if self.periodic_directions[d]
+        ]
+
+    def all_nonperiodic_dimensions(self):
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if not self.periodic_directions[d]
+        ]
 
     def get_cheb_grid(self, N):
         return jnp.array(
@@ -43,6 +61,20 @@ class Domain:
             )
             N += 1
         return jnp.linspace(0.0, 2 * jnp.pi, N + 1)[:-1]
+
+    def hat(self):
+        def fftshift(inp):
+            N = len(inp)
+            return jnp.block([inp[N//2:], inp[:N//2]]) - N//2
+        Ns = []
+        for i in self.all_periodic_dimensions():
+            Ns.append(len(self.grid[i]))
+        Ns_arr = jnp.array(Ns)
+        fourier_grid = jnp.fft.fftn(self.grid, axes=self.all_periodic_dimensions(), norm="ortho")/(2 * jnp.pi) * Ns_arr
+        fourier_grid_shifted = jnp.array(list(map(fftshift, fourier_grid)))
+        out = FourierDomain(self.shape, self.periodic_directions)
+        out.grid = fourier_grid_shifted
+        return out
 
     def assemble_cheb_diff_mat(self, N, order=1):
         xs = self.get_cheb_grid(N)
@@ -79,3 +111,7 @@ class Domain:
             ind, field, jnp.linalg.matrix_power(self.diff_mats[direction], order)
         )
         return f_diff
+
+
+class FourierDomain(Domain):
+    pass

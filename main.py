@@ -40,13 +40,13 @@ def main():
     # optimize_spectral()
     # optimize_channel()
     # optimize_channel_2d()
-    # run_all_tests()
+    run_all_tests()
 
     # mn()
     # solve_heat_eq_2D()
     # solve_heat_eq_3D()
 
-    solve_navier_stokes_3D_channel()
+    # solve_navier_stokes_3D_channel()
 
     # N = int(64 * 180 * 64)
     # N = int(64 * 90 * 64)
