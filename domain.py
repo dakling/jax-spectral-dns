@@ -69,11 +69,13 @@ class Domain:
         Ns = []
         for i in self.all_periodic_dimensions():
             Ns.append(len(self.grid[i]))
-        Ns_arr = jnp.array(Ns)
-        fourier_grid = jnp.fft.fftn(self.grid, axes=self.all_periodic_dimensions(), norm="ortho")/(2 * jnp.pi) * Ns_arr
+        fourier_grid = []
+        for i in self.all_periodic_dimensions():
+            fourier_grid.append(jnp.linspace(0, Ns[i]-1, Ns[i]))
         fourier_grid_shifted = jnp.array(list(map(fftshift, fourier_grid)))
         out = FourierDomain(self.shape, self.periodic_directions)
         out.grid = fourier_grid_shifted
+        out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
         return out
 
     def assemble_cheb_diff_mat(self, N, order=1):

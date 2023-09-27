@@ -404,24 +404,29 @@ class FourierField(Field):
         return out
 
     def diff(self, direction, order=1):
-        N = 1
-        for i in self.all_periodic_dimensions():
-            N *= len(self.domain.grid[i])
         return FourierField(
             self.domain_no_hat,
-            (1j * self.domain.grid[direction]) ** order * self.field,
+            (1j * self.domain.mgrid[direction]) ** order * self.field,
             name=self.name + "_diff_" + str(order),
         )
 
-    def integrate(self, order=1):
-        N = 1
-        for i in self.all_periodic_dimensions():
-            N *= len(self.domain.grid[i])
-        denom = 0
-        for i in self.all_periodic_dimensions():
-            denom += (1j * self.domain.grid[i][1:]) ** order
+    def integrate(self, direction, order=1):
+        mgrid = self.domain.mgrid[direction]
+        field = self.field
+        for i in reversed(self.all_periodic_dimensions()):
+            N = mgrid.shape[i]
+            inds = jnp.array(list(range(1, N)))
+            mgrid = mgrid.take(indices=inds, axis=i)
+            field = field.take(indices=inds, axis=i)
+
+        denom = (1j * mgrid) ** order
         out_0 = 0.0
-        out_field = jnp.block([out_0, self.field[1:] / denom])
+        out_field = jnp.pad(
+            field / denom,
+            [(1, 0) for _ in self.all_periodic_dimensions()],
+            mode="constant",
+            constant_values=out_0,
+        )
         return FourierField(
             self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
         )

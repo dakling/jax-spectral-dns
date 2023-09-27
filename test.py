@@ -49,8 +49,8 @@ def test_1D_cheb():
 
     u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
     tol = 5e-4
-    print(abs(u_x - u_x_ana))
-    print(abs(u_xx - u_xx_ana))
+    # print(abs(u_x - u_x_ana))
+    # print(abs(u_xx - u_xx_ana))
     assert abs(u_x - u_x_ana) < tol
     assert abs(u_xx - u_xx_ana) < tol
 
@@ -70,8 +70,8 @@ def test_1D_periodic():
 
     u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
     tol = 5e-5
-    print(abs(u_x - u_x_ana))
-    print(abs(u_xx - u_xx_ana))
+    # print(abs(u_x - u_x_ana))
+    # print(abs(u_xx - u_xx_ana))
     assert abs(u_x - u_x_ana) < tol
     assert abs(u_xx - u_xx_ana) < tol
 
@@ -181,12 +181,12 @@ def test_3D():
     u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
     u.plot_center(2, u_z, u_zz, u_z_ana, u_zz_ana)
 
-    print(abs(u_x - u_x_ana))
-    print(abs(u_xx - u_xx_ana))
-    print(abs(u_y - u_y_ana))
-    print(abs(u_yy - u_yy_ana))
-    print(abs(u_z - u_z_ana))
-    print(abs(u_zz - u_zz_ana))
+    # print(abs(u_x - u_x_ana))
+    # print(abs(u_xx - u_xx_ana))
+    # print(abs(u_y - u_y_ana))
+    # print(abs(u_yy - u_yy_ana))
+    # print(abs(u_z - u_z_ana))
+    # print(abs(u_zz - u_zz_ana))
     tol = 5e-5
     assert abs(u_x - u_x_ana) < tol
     assert abs(u_xx - u_xx_ana) < tol
@@ -231,17 +231,13 @@ def test_fourier_1D():
     u_int_fn_2 = lambda X: -jnp.cos(X[0])
     u_int_ana_2 = Field.FromFunc(domain, func=u_int_fn_2, name="u_1d_int_2_ana")
 
-    u_hat_int = u_hat.integrate()
+    u_hat_int = u_hat.integrate(0)
     u_int = u_hat_int.no_hat()
     u_int.name = "u_1d_int"
-    u_hat_int_2 = u_hat.integrate(2)
+    u_hat_int_2 = u_hat.integrate(0,2)
     u_int_2 = u_hat_int_2.no_hat()
     u_int_2.name = "u_1d_int_2"
     tol = 1e-6
-    # print(abs(u_int - u_int_ana))
-    # print(abs(u_int_2 - u_int_ana_2))
-    assert abs(u_int - u_int_ana) < tol
-    assert abs(u_int_2 - u_int_ana_2) < tol
 
     u_hat_diff = u_hat.diff(0, 1)
     u_hat_diff_2 = u_hat.diff(0, 2)
@@ -250,14 +246,93 @@ def test_fourier_1D():
     u_diff_2 = u_hat_diff_2.no_hat()
     u_diff_2.name = "u_1d_diff_2"
     u.plot(u_diff, u_diff_2, u_int, u_int_2)
+    # print(abs(u_int - u_int_ana))
+    # print(abs(u_int_2 - u_int_ana_2))
     # print(abs(u_diff - u_diff_ana))
     # print(abs(u_diff_2 - u_diff_ana_2))
+    assert abs(u_int - u_int_ana) < tol
+    assert abs(u_int_2 - u_int_ana_2) < tol
     assert abs(u_diff - u_diff_ana) < tol
     assert abs(u_diff_2 - u_diff_ana_2) < tol
 
+def test_fourier_2D():
+    Nx = 24
+    Ny = Nx
+    domain = Domain((Nx,Ny), (True,True))
+
+    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1])
+    u = Field.FromFunc(domain, func=u_fn, name="u_2d")
+
+    u_x_fn = lambda X: - jnp.sin(X[0]) * jnp.cos(X[1])
+    u_x_ana = Field.FromFunc(domain, func=u_x_fn, name="u_2d_x_ana")
+    u_xx_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_xx_ana = Field.FromFunc(domain, func=u_xx_fn, name="u_2d_xx_ana")
+
+    u_y_fn = lambda X: - jnp.cos(X[0]) * jnp.sin(X[1])
+    u_y_ana = Field.FromFunc(domain, func=u_y_fn, name="u_2d_y_ana")
+    u_yy_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_yy_ana = Field.FromFunc(domain, func=u_yy_fn, name="u_2d_yy_ana")
+
+    u_int_x_fn = lambda X: jnp.sin(X[0]) * jnp.cos(X[1])
+    u_int_x_ana = Field.FromFunc(domain, func=u_int_x_fn, name="u_2d_int_x_ana")
+    u_int_xx_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_int_xx_ana = Field.FromFunc(domain, func=u_int_xx_fn, name="u_2d_int_xx_ana")
+
+    u_int_y_fn = lambda X: jnp.cos(X[0]) * jnp.sin(X[1])
+    u_int_y_ana = Field.FromFunc(domain, func=u_int_y_fn, name="u_2d_int_y_ana")
+    u_int_yy_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_int_yy_ana = Field.FromFunc(domain, func=u_int_yy_fn, name="u_2d_int_yy_ana")
+
+    u_hat = u.hat()
+
+    u_hat_int_x = u_hat.integrate(0, 1)
+    u_hat_int_xx = u_hat.integrate(0, 2)
+    u_hat_int_y = u_hat.integrate(1, 1)
+    u_hat_int_yy = u_hat.integrate(1, 2)
+
+    u_int_x = u_hat_int_x.no_hat()
+    u_int_xx = u_hat_int_xx.no_hat()
+    u_int_y = u_hat_int_y.no_hat()
+    u_int_yy = u_hat_int_yy.no_hat()
+
+    u_hat_x = u_hat.diff(0, 1)
+    u_hat_x_2 = u_hat.diff(0, 2)
+    u_hat_y = u_hat.diff(1, 1)
+    u_hat_y_2 = u_hat.diff(1, 2)
+    u_x = u_hat_x.no_hat()
+    u_x.name = "u_2d_x"
+    u_x_2 = u_hat_x_2.no_hat()
+    u_x_2.name = "u_2d_x_2"
+    u_y = u_hat_y.no_hat()
+    u_y.name = "u_2d_y"
+    u_y_2 = u_hat_y_2.no_hat()
+    u_y_2.name = "u_2d_y_2"
+    u_x.plot()
+    u_y.plot()
+    u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
+    u.plot_center(1, u_y, u_y_2, u_int_y, u_int_yy)
+    tol = 2e-7
+    # print(abs(u_x - u_x_ana))
+    # print(abs(u_x_2 - u_xx_ana))
+    # print(abs(u_y - u_y_ana))
+    # print(abs(u_y_2 - u_yy_ana))
+    # print(abs(u_int_x - u_int_x_ana))
+    # print(abs(u_int_xx - u_int_xx_ana))
+    # print(abs(u_int_y - u_int_y_ana))
+    # print(abs(u_int_yy - u_int_yy_ana))
+    assert abs(u_x - u_x_ana) < tol
+    assert abs(u_x_2 - u_xx_ana) < tol
+    assert abs(u_y - u_y_ana) < tol
+    assert abs(u_y_2 - u_yy_ana) < tol
+    assert abs(u_int_x - u_int_x_ana) < tol
+    assert abs(u_int_xx - u_int_xx_ana) < tol
+    assert abs(u_int_y - u_int_y_ana) < tol
+    assert abs(u_int_yy - u_int_yy_ana) < tol
+
 def run_all_tests():
-    # test_1D_periodic()
-    # test_1D_cheb()
-    # test_2D()
-    # test_3D()
+    test_1D_periodic()
+    test_1D_cheb()
+    test_2D()
+    test_3D()
     test_fourier_1D()
+    test_fourier_2D()
