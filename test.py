@@ -337,9 +337,10 @@ def test_poisson():
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1])
     u = Field.FromFunc(domain, func=u_fn, name="u_2d")
     rhs = Field.FromFunc(domain, func=u_fn, name="rhs_2d")
-    poisson = u.solve_poisson(u.all_periodic_dimensions(), rhs)
-    poisson.plot_center(0)
-    poisson.plot_center(1)
+    u.solve_poisson(u.all_periodic_dimensions(), rhs)
+    u.plot_center(0)
+    u.plot_center(1)
+    u.plot()
 
 def run_all_tests():
     # test_1D_periodic()

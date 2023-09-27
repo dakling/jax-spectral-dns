@@ -307,12 +307,13 @@ class Field:
         return out
 
     def solve_poisson(self, directions, rhs):
-        if len(directions) == 1:
-            rhs_hat = rhs.hat()
-            sol_hat = rhs_hat.integrate(0, 2)
-            sol = sol_hat.no_hat()
-            return sol
-        else:
+        # if len(directions) == 1:
+        #     rhs_hat = rhs.hat()
+        #     sol_hat = rhs_hat.integrate(0, 2)
+        #     sol = sol_hat.no_hat()
+        #     return sol
+        # else:
+        if True:
             rhs_hat = rhs.hat()
             denom = 0.0
             for direction in self.all_periodic_dimensions():
@@ -324,7 +325,7 @@ class Field:
 
                 denom += (1j * mgrid) ** 2
             out_0 = 0.0
-            field = self.field
+            field = rhs_hat.field
             for i in reversed(self.all_periodic_dimensions()):
                 N = field.shape[i]
                 inds = jnp.array(list(range(1, N)))
@@ -338,6 +339,7 @@ class Field:
             out_fourier = FourierField(
                 self.domain, out_field, name=self.name + "_poisson"
             )
+            self.field = out_fourier.no_hat().field
             return out_fourier.no_hat()
 
     def perform_explicit_euler_step(self, eq, dt, i):
