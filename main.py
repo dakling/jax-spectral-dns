@@ -17,52 +17,23 @@ from importlib import reload
 import sys
 
 try:
-    reload(sys.modules["fd"])
-except:
-    pass
-from fd import optimize_fd
-
-try:
-    reload(sys.modules["spectral"])
-except:
-    pass
-from spectral import optimize_spectral
-
-try:
-    reload(sys.modules["channel"])
-except:
-    pass
-from channel import optimize_channel
-
-try:
-    reload(sys.modules["channel2d"])
-except:
-    pass
-from channel2d import optimize_channel_2d
-
-try:
-    reload(sys.modules["spectral_channel_solver"])
-except:
-    pass
-from spectral_channel_solver import main as mn
-
-try:
     reload(sys.modules["heat_eq"])
 except:
     pass
-from heat_eq import perform_simulation_cheb_fourier_2D, perform_simulation_cheb_fourier_3D
+from heat_eq import solve_heat_eq_2D, solve_heat_eq_3D
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
     pass
-from navier_stokes import perform_channel_simulation_cheb_fourier_3D
+from navier_stokes import solve_navier_stokes_3D_channel
 
 try:
     reload(sys.modules["test"])
 except:
     pass
 from test import run_all_tests
+
 
 def main():
     # optimize_fd()
@@ -72,10 +43,10 @@ def main():
     # run_all_tests()
 
     # mn()
-    # perform_simulation_cheb_fourier_2D()
-    # perform_simulation_cheb_fourier_3D()
+    # solve_heat_eq_2D()
+    # solve_heat_eq_3D()
 
-    perform_channel_simulation_cheb_fourier_3D()
+    solve_navier_stokes_3D_channel()
 
     # N = int(64 * 180 * 64)
     # N = int(64 * 90 * 64)
@@ -89,4 +60,3 @@ def main():
 
 
 main()
-

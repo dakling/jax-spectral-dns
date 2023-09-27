@@ -5,8 +5,8 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-class Field():
 
+class Field:
     plotting_dir = "./plots/"
 
     def __init__(self, domain, field, name="field"):
@@ -23,14 +23,16 @@ class Field():
         return cls(domain, field, name)
 
     @classmethod
-    def FromRandom(cls, domain, seed=0, interval=(-0.1,0.1), name="field"):
+    def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
         zero_field = Field.FromFunc(domain)
         rands = []
         for i in range(zero_field.number_of_dofs()):
             key, subkey = jax.random.split(key)
-            rands.append(jax.random.uniform(subkey, minval=interval[0], maxval=interval[1]))
+            rands.append(
+                jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
+            )
         field = jnp.array(rands).reshape(zero_field.domain.shape)
         return cls(domain, field, name)
         pass
@@ -52,7 +54,7 @@ class Field():
         return Field(self.domain, self.field + other.field, name=new_name)
 
     def __sub__(self, other):
-        return self + other*(-1.0)
+        return self + other * (-1.0)
 
     def __mul__(self, other):
         if type(other) == Field:
@@ -87,37 +89,77 @@ class Field():
             return Field(self.domain, self.field * other, name=new_name)
 
     def __abs__(self):
-        return jnp.linalg.norm(self.field)/self.number_of_dofs() # TODO use integration or something more sophisticated
+        return (
+            jnp.linalg.norm(self.field) / self.number_of_dofs()
+        )  # TODO use integration or something more sophisticated
 
     def number_of_dofs(self):
         return int(math.prod(self.domain.shape))
 
     def plot_center(self, dimension, *other_fields):
         if self.domain.number_of_dimensions == 1:
-            fig, ax = plt.subplots(1,1)
+            fig, ax = plt.subplots(1, 1)
             ax.plot(self.domain.grid[0], self.field, label=self.name)
             for other_field in other_fields:
-                ax.plot(self.domain.grid[dimension], other_field.field, label=other_field.name)
+                ax.plot(
+                    self.domain.grid[dimension],
+                    other_field.field,
+                    label=other_field.name,
+                )
             fig.legend()
             fig.savefig(self.plotting_dir + "plot_cl_" + self.name + ".pdf")
         elif self.domain.number_of_dimensions == 2:
-            fig, ax = plt.subplots(1,1)
-            other_dim = [ i for i in self.all_dimensions() if i != dimension ][0]
+            fig, ax = plt.subplots(1, 1)
+            other_dim = [i for i in self.all_dimensions() if i != dimension][0]
             N_c = len(self.domain.grid[other_dim]) // 2
-            ax.plot(self.domain.grid[dimension], self.field.take(indices=N_c, axis=other_dim), label=self.name)
+            ax.plot(
+                self.domain.grid[dimension],
+                self.field.take(indices=N_c, axis=other_dim),
+                label=self.name,
+            )
             for other_field in other_fields:
-                ax.plot(self.domain.grid[dimension], other_field.field.take(indices=N_c, axis=other_dim), label=other_field.name)
+                ax.plot(
+                    self.domain.grid[dimension],
+                    other_field.field.take(indices=N_c, axis=other_dim),
+                    label=other_field.name,
+                )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_" + ["x", "y"][dimension] + ".pdf")
+            fig.savefig(
+                self.plotting_dir
+                + "plot_cl_"
+                + self.name
+                + "_"
+                + ["x", "y"][dimension]
+                + ".pdf"
+            )
         elif self.domain.number_of_dimensions == 3:
-            fig, ax = plt.subplots(1,1)
-            other_dim = [ i for i in self.all_dimensions() if i != dimension ]
+            fig, ax = plt.subplots(1, 1)
+            other_dim = [i for i in self.all_dimensions() if i != dimension]
             N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
-            ax.plot(self.domain.grid[dimension], self.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=self.name)
+            ax.plot(
+                self.domain.grid[dimension],
+                self.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                    indices=N_c[0], axis=other_dim[0]
+                ),
+                label=self.name,
+            )
             for other_field in other_fields:
-                ax.plot(self.domain.grid[dimension], other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=other_field.name)
+                ax.plot(
+                    self.domain.grid[dimension],
+                    other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                        indices=N_c[0], axis=other_dim[0]
+                    ),
+                    label=other_field.name,
+                )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_" + ["x", "y", "z"][dimension] + ".pdf")
+            fig.savefig(
+                self.plotting_dir
+                + "plot_cl_"
+                + self.name
+                + "_"
+                + ["x", "y", "z"][dimension]
+                + ".pdf"
+            )
         else:
             raise Exception("Not implemented yet")
 
@@ -125,27 +167,51 @@ class Field():
         if self.domain.number_of_dimensions == 1:
             pass
         elif self.domain.number_of_dimensions == 2:
-            fig = plt.figure(figsize=(15,5))
-            ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1,3,2)]
-            ax3d = fig.add_subplot(1,3,3, projection="3d")
+            fig = plt.figure(figsize=(15, 5))
+            ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
+            ax3d = fig.add_subplot(1, 3, 3, projection="3d")
             for dimension in self.all_dimensions():
-                other_dim = [ i for i in self.all_dimensions() if i != dimension ][0]
+                other_dim = [i for i in self.all_dimensions() if i != dimension][0]
                 N_c = len(self.domain.grid[other_dim]) // 2
-                ax[dimension].plot(self.domain.grid[dimension], self.field.take(indices=N_c, axis=other_dim), label=self.name)
-                ax3d.plot_surface(self.domain.mgrid[0], (self.domain.mgrid[1]), self.field)
+                ax[dimension].plot(
+                    self.domain.grid[dimension],
+                    self.field.take(indices=N_c, axis=other_dim),
+                    label=self.name,
+                )
+                ax3d.plot_surface(
+                    self.domain.mgrid[0], (self.domain.mgrid[1]), self.field
+                )
                 for other_field in other_fields:
-                    ax[dimension].plot(self.domain.grid[dimension], other_field.field.take(indices=N_c, axis=other_dim), label=other_field.name)
-                    ax3d.plot_surface(self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field)
+                    ax[dimension].plot(
+                        self.domain.grid[dimension],
+                        other_field.field.take(indices=N_c, axis=other_dim),
+                        label=other_field.name,
+                    )
+                    ax3d.plot_surface(
+                        self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field
+                    )
                 fig.legend()
                 fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
         elif self.domain.number_of_dimensions == 3:
-            fig, ax = plt.subplots(1,3, figsize=(15,5))
+            fig, ax = plt.subplots(1, 3, figsize=(15, 5))
             for dimension in self.all_dimensions():
-                other_dim = [ i for i in self.all_dimensions() if i != dimension ]
+                other_dim = [i for i in self.all_dimensions() if i != dimension]
                 N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
-                ax[dimension].plot(self.domain.grid[dimension], self.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=self.name)
+                ax[dimension].plot(
+                    self.domain.grid[dimension],
+                    self.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                        indices=N_c[0], axis=other_dim[0]
+                    ),
+                    label=self.name,
+                )
                 for other_field in other_fields:
-                    ax[dimension].plot(self.domain.grid[dimension], other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(indices=N_c[0], axis=other_dim[0]), label=other_field.name)
+                    ax[dimension].plot(
+                        self.domain.grid[dimension],
+                        other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                            indices=N_c[0], axis=other_dim[0]
+                        ),
+                        label=other_field.name,
+                    )
             fig.legend()
             fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
         else:
@@ -155,19 +221,49 @@ class Field():
         return range(self.domain.number_of_dimensions)
 
     def all_periodic_dimensions(self):
-        return [self.all_dimensions()[d] for d in self.all_dimensions() if self.domain.periodic_directions[d]]
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if self.domain.periodic_directions[d]
+        ]
 
     def all_nonperiodic_dimensions(self):
-        return [self.all_dimensions()[d] for d in self.all_dimensions() if not self.domain.periodic_directions[d]]
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if not self.domain.periodic_directions[d]
+        ]
 
     def pad_mat_with_zeros(self):
-        return jnp.block([[jnp.zeros((1, self.field.shape[1]+2))], [jnp.zeros((self.field.shape[0], 1)), self.field, jnp.zeros((self.field.shape[0], 1))], [jnp.zeros((1, self.field.shape[1]+2))]])
+        return jnp.block(
+            [
+                [jnp.zeros((1, self.field.shape[1] + 2))],
+                [
+                    jnp.zeros((self.field.shape[0], 1)),
+                    self.field,
+                    jnp.zeros((self.field.shape[0], 1)),
+                ],
+                [jnp.zeros((1, self.field.shape[1] + 2))],
+            ]
+        )
 
     def update_boundary_conditions(self):
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
         for dim in self.all_nonperiodic_dimensions():
-            self.field = jnp.take(self.field, jnp.array(list(range(len(self.domain.grid[dim]))))[1:-1], axis=dim)
-            self.field = jnp.pad(self.field, [(0, 0) if self.domain.periodic_directions[d] else (1,1) for d in self.all_dimensions()], mode="constant", constant_values=0.0)
+            self.field = jnp.take(
+                self.field,
+                jnp.array(list(range(len(self.domain.grid[dim]))))[1:-1],
+                axis=dim,
+            )
+            self.field = jnp.pad(
+                self.field,
+                [
+                    (0, 0) if self.domain.periodic_directions[d] else (1, 1)
+                    for d in self.all_dimensions()
+                ],
+                mode="constant",
+                constant_values=0.0,
+            )
 
     # def hat(self):
     #     self.field_hat = FourierField(self)
@@ -175,7 +271,11 @@ class Field():
 
     def diff(self, direction, order=1):
         name_suffix = "".join([["x", "y", "z"][direction] for _ in range(order)])
-        return Field(self.domain, self.domain.diff(self.field, direction, order), self.name + "_" + name_suffix)
+        return Field(
+            self.domain,
+            self.domain.diff(self.field, direction, order),
+            self.name + "_" + name_suffix,
+        )
 
     def nabla(self):
         out = [self.diff(0)]
@@ -186,7 +286,7 @@ class Field():
         return VectorField(out)
 
     def laplacian(self):
-        out = self.diff(0,2)
+        out = self.diff(0, 2)
         for dim in self.all_dimensions()[1:]:
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
@@ -201,24 +301,33 @@ class Field():
     def perform_time_step(self, eq, dt, i):
         return self.perform_explicit_euler_step(eq, dt, i)
 
+
 class VectorField:
-    def __init__(self, elements):
-            self.elements = elements
+    def __init__(self, elements, name="vector_field"):
+        self.elements = elements
+        self.name = name
+
     def __getattr__(self, attr):
         def on_all(*args, **kwargs):
             acc = []
             for obj in self.elements:
                 acc += [getattr(obj, attr)(*args, **kwargs)]
             return acc
+
         return on_all
-    def __getitem__(self,index):
-         return self.elements[index]
+
+    def __getitem__(self, index):
+        return self.elements[index]
+
     def __iter__(self):
         return iter(self.elements)
+
     def append(self, element):
         return self.elements.append(element)
+
     def __len__(self):
         return len(self.elements)
+
     def __str__(self):
         out = ""
         for elem in self.elements:
@@ -234,7 +343,9 @@ class VectorField:
     def curl(self):
         assert len(self) == 3, "rotation only defined in 3 dimensions"
         for f in self:
-            assert f.domain.number_of_dimensions == 3, "rotation only defined in 3 dimensions"
+            assert (
+                f.domain.number_of_dimensions == 3
+            ), "rotation only defined in 3 dimensions"
         u_y = self[0].diff(1)
         u_z = self[0].diff(2)
         v_x = self[1].diff(0)
@@ -247,6 +358,7 @@ class VectorField:
         curl_2 = v_x - u_y
 
         return VectorField([curl_0, curl_1, curl_2])
+
 
 # class FourierField(Field):
 #     def __init__(self, field):
