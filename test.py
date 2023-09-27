@@ -196,19 +196,19 @@ def test_3D():
     assert abs(u_zz - u_zz_ana) < tol
 
 
-# def test_integration():
-#     Nx = 24
-#     # domain = Domain((Nx,), (False,))
-#     domain = Domain((Nx,), (True,))
+def test_integration():
+    Nx = 24
+    # domain = Domain((Nx,), (False,))
+    domain = Domain((Nx,), (True,))
 
-#     # u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
-#     u_fn = lambda X: jnp.cos(X[0])
-#     u = Field.FromFunc(domain, func=u_fn, name="u_1d")
-#     # u_int = Field(domain, u.solve_poisson([0], u))
-#     u_int = u.solve_poisson([0], u)
-#     # u_int.update_boundary_conditions()
-#     u_int.name="u_int"
-#     u_int.plot(u)
+    # u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u_fn = lambda X: jnp.cos(X[0])
+    u = Field.FromFunc(domain, func=u_fn, name="u_1d")
+    # u_int = Field(domain, u.solve_poisson([0], u))
+    u_int = u.solve_poisson([0], u)
+    # u_int.update_boundary_conditions()
+    u_int.name="u_int"
+    u_int.plot(u)
 
 def test_fourier_1D():
 
@@ -329,10 +329,24 @@ def test_fourier_2D():
     assert abs(u_int_y - u_int_y_ana) < tol
     assert abs(u_int_yy - u_int_yy_ana) < tol
 
+def test_poisson():
+    Nx = 24
+    Ny = Nx
+    domain = Domain((Nx,Ny), (True,True))
+
+    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1])
+    u = Field.FromFunc(domain, func=u_fn, name="u_2d")
+    rhs = Field.FromFunc(domain, func=u_fn, name="rhs_2d")
+    poisson = u.solve_poisson(u.all_periodic_dimensions(), rhs)
+    poisson.plot_center(0)
+    poisson.plot_center(1)
+
 def run_all_tests():
-    test_1D_periodic()
-    test_1D_cheb()
-    test_2D()
-    test_3D()
-    test_fourier_1D()
-    test_fourier_2D()
+    # test_1D_periodic()
+    # test_1D_cheb()
+    # test_2D()
+    # test_3D()
+    # test_fourier_1D()
+    # test_fourier_2D()
+    # test_integration()
+    test_poisson()

@@ -307,17 +307,38 @@ class Field:
         return out
 
     def solve_poisson(self, directions, rhs):
-        # if len(directions) == 1:
-        #     rhs_int_1 = rhs.diff(directions[0], -1)
-        #     rhs_int_1.update_boundary_conditions()
-        #     rhs_int_2 = rhs_int_1.diff(directions[0], -1)
-        #     rhs_int_2.update_boundary_conditions()
-        #     return rhs_int_2
-        # else:
-        #     raise NotImplementedError()
-        rhs_hat = rhs.hat()
-        sol_hat = rhs_hat.integrate(2)
-        return sol_hat.nohat()
+        if len(directions) == 1:
+            rhs_hat = rhs.hat()
+            sol_hat = rhs_hat.integrate(0, 2)
+            sol = sol_hat.no_hat()
+            return sol
+        else:
+            rhs_hat = rhs.hat()
+            denom = 0.0
+            for direction in self.all_periodic_dimensions():
+                mgrid = self.domain.mgrid[direction]
+                for i in reversed(self.all_periodic_dimensions()):
+                    N = mgrid.shape[i]
+                    inds = jnp.array(list(range(1, N)))
+                    mgrid = mgrid.take(indices=inds, axis=i)
+
+                denom += (1j * mgrid) ** 2
+            out_0 = 0.0
+            field = self.field
+            for i in reversed(self.all_periodic_dimensions()):
+                N = field.shape[i]
+                inds = jnp.array(list(range(1, N)))
+                field = field.take(indices=inds, axis=i)
+            out_field = jnp.pad(
+                field / denom,
+                [(1, 0) for _ in self.all_periodic_dimensions()],
+                mode="constant",
+                constant_values=out_0,
+            )
+            out_fourier = FourierField(
+                self.domain, out_field, name=self.name + "_poisson"
+            )
+            return out_fourier.no_hat()
 
     def perform_explicit_euler_step(self, eq, dt, i):
         new_u = self + eq * dt
