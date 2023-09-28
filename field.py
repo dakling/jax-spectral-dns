@@ -63,11 +63,11 @@ class Field:
         return self + other * (-1.0)
 
     def __mul__(self, other):
-        if type(other) == Field:
+        if isinstance(other, Field):
             new_name = self.name + " * " + other.name
             return Field(self.domain, self.field * other.field, name=new_name)
         else:
-            if other >= 0:
+            if other.real >= 0:
                 new_name = str(other) + self.name
             elif other == 1:
                 new_name = self.name
@@ -80,11 +80,11 @@ class Field:
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            if other >= 0:
+            if other.real >= 0:
                 new_name = self.name + "/" + other
             elif other == 1:
                 new_name = self.name
@@ -98,6 +98,9 @@ class Field:
         return (
             jnp.linalg.norm(self.field) / self.number_of_dofs()
         )  # TODO use integration or something more sophisticated
+
+    def number_of_dimensions(self):
+        return len(self.all_dimensions())
 
     def number_of_dofs(self):
         return int(math.prod(self.domain.shape))
@@ -297,6 +300,9 @@ class Field:
             self.name + "_" + name_suffix,
         )
 
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
+        return self.domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
+
     def integrate(self, direction, order=1, bc_left=None, bc_right=None):
         out_bc = self.domain.integrate(self.field, direction, order, bc_left, bc_right)
         return Field(self.domain, out_bc, name=self.name + "_int")
@@ -395,7 +401,7 @@ class VectorField:
         assert len(self) == 3, "rotation only defined in 3 dimensions"
         for f in self:
             assert (
-                f.domain.number_of_dimensions == 3
+                f.number_of_dimensions() == 3
             ), "rotation only defined in 3 dimensions"
         u_y = self[0].diff(1)
         u_z = self[0].diff(2)
@@ -477,3 +483,113 @@ class FourierField(Field):
             self.field, axes=self.all_periodic_dimensions(), norm="ortho"
         )
         return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
+
+class FourierFieldSlice(FourierField):
+    def __init__(self, domain, non_periodic_direction, field, name="field", *ks):
+        self.domain = domain
+        self.domain_no_hat = domain
+        self.non_periodic_direction = non_periodic_direction
+        self.field = field
+        self.ks_raw = list(ks)
+        self.ks = list(ks)
+        self.ks.insert(non_periodic_direction, None)
+        self.name = name
+
+    def all_dimensions(self):
+        return range(len(self.ks))
+
+    def all_periodic_dimensions(self):
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if d not in self.all_nonperiodic_dimensions()
+        ]
+
+    def all_nonperiodic_dimensions(self):
+        return [
+            self.non_periodic_direction
+        ]
+
+    def diff(self, direction, order=1):
+        if direction in self.all_periodic_dimensions():
+            out_field = (1j * self.ks[direction]) ** order * self.field
+        else:
+            # out_field = super().diff(1, order).field
+            out_field = self.domain.diff(self.field, 0, order)
+        return FourierFieldSlice(
+            self.domain_no_hat,
+            self.non_periodic_direction,
+            out_field,
+            self.name + "_diff_" + str(order),
+            *self.ks_raw
+        )
+
+    def integrate(self, direction, order=1, bc_right=None, bc_left=None):
+        if direction in self.all_periodic_dimensions():
+            out_field = self.field / (1j * self.ks[direction]) ** order
+        else:
+            # out_field = super().integrate(1, order).field
+            out_field = self.domain.integrate(self.field, 0, order)
+        return FourierFieldSlice(
+            self.domain_no_hat,
+            self.non_periodic_direction,
+            out_field,
+            self.name + "_int_" + str(order),
+            *self.ks_raw
+        )
+
+    def __neg__(self):
+        return self * (-1.0)
+
+    def __add__(self, other):
+        if other.name[0] == "-":
+            new_name = self.name + " - " + other.name[1:]
+        else:
+            new_name = self.name + " + " + other.name
+        return FourierFieldSlice(self.domain_no_hat,
+                                 self.non_periodic_direction, self.field + other.field, new_name,
+                                 *self.ks_raw)
+
+    def __sub__(self, other):
+        return self + other * (-1.0)
+
+    def __mul__(self, other):
+        if isinstance(other, Field):
+            new_name = self.name + " * " + other.name
+            return FourierFieldSlice(self.domain_no_hat,
+                                     self.non_periodic_direction,
+                                     self.field * other.field, new_name,
+                                     *self.ks_raw)
+        else:
+            if other.real >= 0:
+                new_name = str(other) + self.name
+            elif other == 1:
+                new_name = self.name
+            elif other == -1:
+                new_name = "-" + self.name
+            else:
+                new_name = "(" + str(other) + ") " + self.name
+            return FourierFieldSlice(self.domain_no_hat,
+                                     self.non_periodic_direction,
+                                     self.field * other, new_name,
+                                     *self.ks_raw)
+
+    __rmul__ = __mul__
+    __lmul__ = __mul__
+
+    def __truediv__(self, other):
+        if type(other) == Field:
+            raise Exception("Don't know how to divide by another field")
+        else:
+            if other.real >= 0:
+                new_name = self.name + "/" + other
+            elif other == 1:
+                new_name = self.name
+            elif other == -1:
+                new_name = "-" + self.name
+            else:
+                new_name = self.name + "/ (" + str(other) + ") "
+            return FourierFieldSlice(self.domain_no_hat,
+                                     self.non_periodic_direction,
+                                     self.field * other, new_name,
+                                     *self.ks_raw)

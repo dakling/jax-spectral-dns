@@ -67,11 +67,14 @@ class Domain:
             N = len(inp)
             return jnp.block([inp[N//2:], inp[:N//2]]) - N//2
         Ns = []
-        for i in self.all_periodic_dimensions():
+        for i in self.all_dimensions():
             Ns.append(len(self.grid[i]))
         fourier_grid = []
-        for i in self.all_periodic_dimensions():
-            fourier_grid.append(jnp.linspace(0, Ns[i]-1, Ns[i]))
+        for i in self.all_dimensions():
+            if self.periodic_directions[i]:
+                fourier_grid.append(jnp.linspace(0, Ns[i]-1, Ns[i]))
+            else:
+                fourier_grid.append(self.grid[i])
         fourier_grid_shifted = jnp.array(list(map(fftshift, fourier_grid)))
         out = FourierDomain(self.shape, self.periodic_directions)
         out.grid = fourier_grid_shifted
@@ -113,6 +116,26 @@ class Domain:
             ind, field, jnp.linalg.matrix_power(self.diff_mats[direction], order)
         )
         return f_diff
+
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
+        def set_first_mat_row_and_col_to_unit(matr):
+            N = matr.shape[0]
+            return jnp.block(
+                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]
+            )
+
+        def set_last_mat_row_and_col_to_unit(matr):
+            N = matr.shape[0]
+            return jnp.block(
+                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
+            )
+
+        mat = set_last_mat_row_and_col_to_unit(
+            set_first_mat_row_and_col_to_unit(
+                jnp.linalg.matrix_power(self.diff_mats[direction], 2)
+            )
+        )
+        return mat
 
     def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
         if (type(bc_left) != NoneType and abs(bc_left) > 1e-20) or (

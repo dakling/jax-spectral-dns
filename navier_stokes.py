@@ -16,7 +16,7 @@ try:
     reload(sys.modules["field"])
 except:
     pass
-from field import Field, VectorField
+from field import Field, VectorField, FourierField, FourierFieldSlice
 
 try:
     reload(sys.modules["equation"])
@@ -67,8 +67,18 @@ class NavierStokesVelVort(Equation):
             hel[i].name = "hel_" + str(i)
         return (vort, hel)
 
+    def get_cheb_mat_2_homogeneous_dirichlet(self):
+        return self.get_initial_field("velocity")[
+            0
+        ].get_cheb_mat_2_homogeneous_dirichlet(1)
+
     def get_rk_parameters(self):
-        return ([0], [0], [0]) # TODO
+        return (
+            [29 / 96, -3 / 40, 1 / 6],
+            [37 / 160, 5 / 24, 1 / 6],
+            [8 / 15, 5 / 12, 3 / 4],
+            [-17 / 60, -5 / 12],
+        )
 
     def perform_runge_kutta_step(self, dt, i):
         Re = self.Re
@@ -86,18 +96,127 @@ class NavierStokesVelVort(Equation):
         # h_v = -(hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
         # h_g = hel[0].diff(2) - hel[2].diff(0)
 
-        h_v_hat = -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + hel_hat[1].laplacian()
+        h_v_hat = (
+            -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + hel_hat[1].laplacian()
+        )
         h_g_hat = hel_hat[0].diff(2) - hel_hat[2].diff(0)
 
         # start runge-kutta stepping
-        alpha, beta, gamma = self.get_rk_parameters()
+        alpha, beta, gamma, xi = self.get_rk_parameters()
         domain_hat = self.domain.hat()
-        for kx in domain_hat.grid[0]:
-            for kz in domain_hat.grid[2]:
-                phi_hat = jnp.block([v_1_lap_hat[kx, kz], vort_1_hat[kx, kz]])
-        v_1_lap_hat_new_1 = (1 / (1 - dt * beta[0] ))((1 + dt * alpha[0]) * (1.0/Re * v_1_lap_hat.laplacian()) + (dt * gamma[0]) * h_v_hat)
 
+        domain_y = Domain((len(self.domain.grid[1]),), (False,))
 
+        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        n = D2_hom_diri.shape[0]
+        Z = jnp.zeros((n, n))
+        L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        I = jnp.eye(2 * n)
+        lhs_mat_inv_0 = jnp.linalg.inv(I - beta[0] * dt * L)
+        rhs_mat_0 = I + alpha[0] * dt * L
+
+        lhs_mat_inv_1 = jnp.linalg.inv(I - beta[1] * dt * L)
+        rhs_mat_1 = I + alpha[1] * dt * L
+
+        lhs_mat_inv_2 = jnp.linalg.inv(I - beta[2] * dt * L)
+        rhs_mat_2 = I + alpha[2] * dt * L
+
+        for kx_ in domain_hat.grid[0][1:]:
+            for kz_ in domain_hat.grid[2][1:]:
+                kx = int(kx_)
+                kz = int(kz_)
+                # first RK step
+                phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
+                N_0 = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
+                phi_hat_new_1 = lhs_mat_inv_0 @ (
+                    rhs_mat_0 @ phi_hat + (dt * gamma[0]) * N_0
+                )
+
+                # update velocities
+                v_1_lap_hat_new_1 = FourierFieldSlice(
+                    domain_y, 1, phi_hat_new_1[:n], "v_1_lap_hat_new_1", kx, kz
+                )
+                vort_1_hat_new_1 = FourierFieldSlice(
+                    domain_y, 1, phi_hat_new_1[n:], "vort_hat_new_1", kx, kz
+                )
+
+                v_1_new_1 = v_1_lap_hat_new_1.integrate(1, 2, 0.0, 0.0)
+                minus_kx_kz_sq = -(kx**2 + kz**2)
+                v_0_new_1 = (
+                    -1j * kx * v_1_new_1.diff(0) + 1j * kz * vort_1_hat_new_1
+                ) / minus_kx_kz_sq
+                v_2_new_1 = (
+                    -1j * kz * v_1_new_1.diff(0) - 1j * kx * vort_1_hat_new_1
+                ) / minus_kx_kz_sq
+                vel_new_1 = VectorField([v_0_new_1, v_1_new_1, v_2_new_1])
+
+                vort_hat_new_1 = vel_new_1.curl()
+
+                hel_hat_new_1 = vel_new_1.cross_product(vort_hat_new_1)
+
+                h_v_hat_new_1 = (
+                    -(hel_hat_new_1[0].diff(0) + hel_hat_new_1[2].diff(2)).diff(1) + hel_hat_new_1[1].laplacian()
+                )
+                h_g_hat_new_1 = hel_hat_new_1[0].diff(2) - hel_hat_new_1[2].diff(0)
+
+                # second RK step
+                phi_hat_new_1 = jnp.block([v_1_lap_hat_new_1.field, vort_1_hat_new_1.field])
+                N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
+                phi_hat_new_2 = lhs_mat_inv_1 @ (
+                    rhs_mat_1 @ phi_hat + (dt * gamma[1]) * N_1 + xi[0] * N_0
+                )
+
+                # update velocities
+                v_1_lap_hat_new_2 = FourierFieldSlice(
+                    domain_y, 1, phi_hat_new_2[:n], "v_1_lap_hat_new_2", kx, kz
+                )
+                vort_1_hat_new_2 = FourierFieldSlice(
+                    domain_y, 1, phi_hat_new_2[n:], "vort_hat_new_2", kx, kz
+                )
+
+                v_1_new_2 = v_1_lap_hat_new_2.integrate(1, 2, 0.0, 0.0)
+                v_0_new_2 = (
+                    -1j * kx * v_1_new_2.diff(0) + 1j * kz * vort_1_hat_new_2
+                ) / minus_kx_kz_sq
+                v_2_new_2 = (
+                    -1j * kz * v_1_new_2.diff(0) - 1j * kx * vort_1_hat_new_2
+                ) / minus_kx_kz_sq
+                vel_new_2 = VectorField([v_0_new_2, v_1_new_2, v_2_new_2])
+
+                vort_hat_new_2 = vel_new_2.curl()
+
+                hel_hat_new_2 = vel_new_2.cross_product(vort_hat_new_2)
+
+                h_v_hat_new_2 = (
+                    -(hel_hat_new_2[0].diff(0) + hel_hat_new_2[2].diff(2)).diff(1) + hel_hat_new_2[1].laplacian()
+                )
+                h_g_hat_new_2 = hel_hat_new_2[0].diff(2) - hel_hat_new_2[2].diff(0)
+
+                # third RK step
+                phi_hat_new_3 = jnp.block([v_1_lap_hat_new_2.field, vort_1_hat_new_2.field])
+                N_2 = jnp.block([h_v_hat_new_2.field, h_g_hat_new_2.field])
+                phi_hat_new_3 = lhs_mat_inv_2 @ (
+                    rhs_mat_2 @ phi_hat + (dt * gamma[2]) * N_2 + xi[1] * N_1
+                )
+
+                # update velocities
+                v_1_lap_hat_new_3 = FourierFieldSlice(
+                    domain_y, 1, phi_hat_new_3[:n], "v_1_lap_hat_new_3", kx, kz
+                )
+                vort_1_hat_new_3 = FourierFieldSlice(
+                    domain_y, 1, phi_hat_new_3[n:], "vort_hat_new_3", kx, kz
+                )
+
+                v_1_new_3 = v_1_lap_hat_new_3.integrate(1, 2, 0.0, 0.0)
+                v_0_new_3 = (
+                    -1j * kx * v_1_new_3.diff(0) + 1j * kz * vort_1_hat_new_3
+                ) / minus_kx_kz_sq
+                v_2_new_3 = (
+                    -1j * kz * v_1_new_3.diff(0) - 1j * kx * vort_1_hat_new_3
+                ) / minus_kx_kz_sq
+                vel_new_3 = VectorField([v_0_new_3, v_1_new_3, v_2_new_3])
+                self.fields["velocity"].append(vel_new_3)
+                return vel_new_3
 
     def perform_time_step(self, dt, i):
         return self.perform_runge_kutta_step(dt, i)
@@ -105,7 +224,7 @@ class NavierStokesVelVort(Equation):
 
 def solve_navier_stokes_3D_channel():
     start_time = time.time()
-    Nx = 24
+    Nx = 4
     Ny = Nx
     Nz = Nx
 
@@ -118,7 +237,7 @@ def solve_navier_stokes_3D_channel():
     )
 
     nse = NavierStokesVelVort.FromRandom(domain, Re)
-    print(nse)
+    nse.perform_runge_kutta_step(1e-5, 1)
     return
 
     vort = vel.curl()
