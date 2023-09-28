@@ -44,7 +44,8 @@ class NavierStokesVelVort(Equation):
         for i in range(3):
             hel[i].name = "hel_" + str(i)
 
-        return cls(domain, velocity_field, vort, hel, Re=Re)
+        # return cls(domain, velocity_field, vort, hel, Re=Re)
+        return cls(domain, velocity_field, Re=Re)
 
     @classmethod
     def FromRandom(cls, domain, Re):
@@ -55,20 +56,51 @@ class NavierStokesVelVort(Equation):
         vel = VectorField([vel_x, vel_y, vel_z], "velocity")
         return cls.FromVelocityField(domain, vel, Re)
 
-    def perform_runge_kutta_step(self):
+    def get_vorticity_and_helicity(self):
+        velocity_field = self.get_latest_field("velocity")
+        vort = velocity_field.curl()
+        for i in range(3):
+            vort[i].name = "vort_" + str(i)
+
+        hel = velocity_field.cross_product(vort)
+        for i in range(3):
+            hel[i].name = "hel_" + str(i)
+        return (vort, hel)
+
+    def get_rk_parameters(self):
+        return ([0], [0], [0]) # TODO
+
+    def perform_runge_kutta_step(self, dt, i):
         Re = self.Re
-        vort = self.get_latest_field("vort")
-        hel = self.get_latest_field("hel")
         vel = self.get_latest_field("velocity")
-        vort_1 = vort[1]
-        vy_lap = vel[1].laplacian()
-        vy_lap.name = "vy_lap"
 
-        h_v = -(hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
-        h_g = hel[0].diff(2) - hel[2].diff(0)
+        v_1_hat = vel[1].hat()
+        v_1_lap_hat = v_1_hat.laplacian()
 
-    def perform_time_step(self):
-        return self.perform_runge_kutta_step()
+        vort, hel = self.get_vorticity_and_helicity()
+
+        vort_hat = vort.hat()
+        vort_1_hat = vort_hat[1]
+        hel_hat = hel.hat()
+
+        # h_v = -(hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
+        # h_g = hel[0].diff(2) - hel[2].diff(0)
+
+        h_v_hat = -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + hel_hat[1].laplacian()
+        h_g_hat = hel_hat[0].diff(2) - hel_hat[2].diff(0)
+
+        # start runge-kutta stepping
+        alpha, beta, gamma = self.get_rk_parameters()
+        domain_hat = self.domain.hat()
+        for kx in domain_hat.grid[0]:
+            for kz in domain_hat.grid[2]:
+                phi_hat = jnp.block([v_1_lap_hat[kx, kz], vort_1_hat[kx, kz]])
+        v_1_lap_hat_new_1 = (1 / (1 - dt * beta[0] ))((1 + dt * alpha[0]) * (1.0/Re * v_1_lap_hat.laplacian()) + (dt * gamma[0]) * h_v_hat)
+
+
+
+    def perform_time_step(self, dt, i):
+        return self.perform_runge_kutta_step(dt, i)
 
 
 def solve_navier_stokes_3D_channel():

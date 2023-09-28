@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
+from types import NoneType
 import math
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+
+import numpy as np
 
 
 class Field:
@@ -42,6 +45,9 @@ class Field:
         # ax.plot(self.mgrid[0], self.field)
         self.plot()
         return str(self.field)
+
+    def __getitem__(self, index):
+        return self.field[index]
 
     def __neg__(self):
         return self * (-1.0)
@@ -291,6 +297,10 @@ class Field:
             self.name + "_" + name_suffix,
         )
 
+    def integrate(self, direction, order=1, bc_left=None, bc_right=None):
+        out_bc = self.domain.integrate(self.field, direction, order, bc_left, bc_right)
+        return Field(self.domain, out_bc, name=self.name + "_int")
+
     def nabla(self):
         out = [self.diff(0)]
         out[0].name = "nabla_" + self.name + "_" + str(0)
@@ -307,40 +317,31 @@ class Field:
         return out
 
     def solve_poisson(self, directions, rhs):
-        # if len(directions) == 1:
-        #     rhs_hat = rhs.hat()
-        #     sol_hat = rhs_hat.integrate(0, 2)
-        #     sol = sol_hat.no_hat()
-        #     return sol
-        # else:
-        if True:
-            rhs_hat = rhs.hat()
-            denom = 0.0
-            for direction in self.all_periodic_dimensions():
-                mgrid = self.domain.mgrid[direction]
-                for i in reversed(self.all_periodic_dimensions()):
-                    N = mgrid.shape[i]
-                    inds = jnp.array(list(range(1, N)))
-                    mgrid = mgrid.take(indices=inds, axis=i)
-
-                denom += (1j * mgrid) ** 2
-            out_0 = 0.0
-            field = rhs_hat.field
+        rhs_hat = rhs.hat()
+        denom = 0.0
+        for direction in self.all_periodic_dimensions():
+            mgrid = self.domain.mgrid[direction]
             for i in reversed(self.all_periodic_dimensions()):
-                N = field.shape[i]
+                N = mgrid.shape[i]
                 inds = jnp.array(list(range(1, N)))
-                field = field.take(indices=inds, axis=i)
-            out_field = jnp.pad(
-                field / denom,
-                [(1, 0) for _ in self.all_periodic_dimensions()],
-                mode="constant",
-                constant_values=out_0,
-            )
-            out_fourier = FourierField(
-                self.domain, out_field, name=self.name + "_poisson"
-            )
-            self.field = out_fourier.no_hat().field
-            return out_fourier.no_hat()
+                mgrid = mgrid.take(indices=inds, axis=i)
+
+            denom += (1j * mgrid) ** 2
+        out_0 = 0.0
+        field = rhs_hat.field
+        for i in reversed(self.all_periodic_dimensions()):
+            N = field.shape[i]
+            inds = jnp.array(list(range(1, N)))
+            field = field.take(indices=inds, axis=i)
+        out_field = jnp.pad(
+            field / denom,
+            [(1, 0) for _ in self.all_periodic_dimensions()],
+            mode="constant",
+            constant_values=out_0,
+        )
+        out_fourier = FourierField(self.domain, out_field, name=self.name + "_poisson")
+        self.field = out_fourier.no_hat().field
+        return out_fourier.no_hat()
 
     def perform_explicit_euler_step(self, eq, dt, i):
         new_u = self + eq * dt
@@ -427,29 +428,46 @@ class FourierField(Field):
         return out
 
     def diff(self, direction, order=1):
+        if direction in self.all_periodic_dimensions():
+            out_field = (1j * self.domain.mgrid[direction]) ** order * self.field
+        else:
+            out_field = super().diff(direction, order).field
         return FourierField(
             self.domain_no_hat,
-            (1j * self.domain.mgrid[direction]) ** order * self.field,
+            out_field,
             name=self.name + "_diff_" + str(order),
         )
 
-    def integrate(self, direction, order=1):
-        mgrid = self.domain.mgrid[direction]
-        field = self.field
-        for i in reversed(self.all_periodic_dimensions()):
-            N = mgrid.shape[i]
-            inds = jnp.array(list(range(1, N)))
-            mgrid = mgrid.take(indices=inds, axis=i)
-            field = field.take(indices=inds, axis=i)
+    def integrate(self, direction, order=1, bc_right=None, bc_left=None):
+        if direction in self.all_periodic_dimensions():
+            assert (
+                type(bc_right) == NoneType and type(bc_left) == NoneType
+            ), "Providing boundary conditions for integration along periodic direction makes no sense"
+            mgrid = self.domain.mgrid[direction]
+            field = self.field
+            for i in reversed(self.all_periodic_dimensions()):
+                N = mgrid.shape[i]
+                inds = jnp.array(list(range(1, N)))
+                mgrid = mgrid.take(indices=inds, axis=i)
+                field = field.take(indices=inds, axis=i)
 
-        denom = (1j * mgrid) ** order
-        out_0 = 0.0
-        out_field = jnp.pad(
-            field / denom,
-            [(1, 0) for _ in self.all_periodic_dimensions()],
-            mode="constant",
-            constant_values=out_0,
-        )
+            denom = (1j * mgrid) ** order
+            out_0 = 0.0
+            out_field = jnp.pad(
+                field / denom,
+                [(1, 0) for _ in self.all_periodic_dimensions()],
+                mode="constant",
+                constant_values=out_0,
+            )
+        else:
+            if order == 2:
+                out_field = (
+                    super()
+                    .integrate(direction, order, bc_right=bc_right, bc_left=bc_left)
+                    .field
+                )
+            else:
+                raise NotImplementedError()
         return FourierField(
             self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
         )

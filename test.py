@@ -329,6 +329,60 @@ def test_fourier_2D():
     assert abs(u_int_y - u_int_y_ana) < tol
     assert abs(u_int_yy - u_int_yy_ana) < tol
 
+def test_cheb_integration_1D():
+    Nx = 24
+    domain = Domain((Nx,), (False,))
+
+    u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u = Field.FromFunc(domain, func=u_fn, name="u_1d")
+
+    u_fn_int = lambda X: - (2 / jnp.pi)**2 * jnp.cos(X[0] * jnp.pi / 2)
+    u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_1d_int_ana")
+    u_int = u.integrate(0, order=2, bc_left=0.0, bc_right=0.0)
+    u_int.name="u_int"
+    u_int.plot(u, u_int_ana)
+
+    tol = 1e-7
+    # print(abs(u_int - u_int_ana))
+    assert abs(u_int - u_int_ana) < tol
+
+def test_cheb_integration_2D():
+    Nx = 24
+    Ny = Nx
+    domain = Domain((Nx,Ny), (True,False))
+
+    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
+    u = Field.FromFunc(domain, func=u_fn, name="u_2d")
+
+    u_fn_int = lambda X: - jnp.cos(X[0]) * (2 / jnp.pi)**2 * jnp.cos(X[1] * jnp.pi / 2)
+    u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_2d_int_ana")
+    u_int = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
+    u_int.name="u_int"
+    u_int.plot(u, u_int_ana)
+
+    tol = 1e-7
+    # print(abs(u_int - u_int_ana))
+    assert abs(u_int - u_int_ana) < tol
+
+def test_cheb_integration_3D():
+    Nx = 24
+    Ny = Nx
+    Nz = Nx
+    domain = Domain((Nx,Ny,Nz), (True,False,True))
+
+    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
+    u = Field.FromFunc(domain, func=u_fn, name="u_3d")
+
+    u_fn_int = lambda X: - jnp.cos(X[0]) * jnp.cos(X[2]) * (2 / jnp.pi)**2 * jnp.cos(X[1] * jnp.pi / 2)
+    u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_3d_int_ana")
+    u_int = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
+    u_int.name="u_int"
+    u_int.plot(u_int_ana)
+
+    tol = 1e-8
+    # print(abs(u_int - u_int_ana))
+    assert abs(u_int - u_int_ana) < tol
+
 def test_poisson():
     Nx = 24
     Ny = Nx
@@ -350,4 +404,7 @@ def run_all_tests():
     # test_fourier_1D()
     # test_fourier_2D()
     # test_integration()
-    test_poisson()
+    test_cheb_integration_1D()
+    test_cheb_integration_2D()
+    test_cheb_integration_3D()
+    # test_poisson()

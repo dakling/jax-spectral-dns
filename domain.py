@@ -114,6 +114,74 @@ class Domain:
         )
         return f_diff
 
+    def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
+        if (type(bc_left) != NoneType and abs(bc_left) > 1e-20) or (
+            type(bc_right) != NoneType and abs(bc_right) > 1e-20
+        ):
+            raise Exception("Only homogeneous dirichlet conditions currently supported")
+        assert order <= 2, "Integration only supported up to second order"
+
+        def set_first_mat_row_and_col_to_unit(matr):
+            if bc_right == None:
+                return matr
+            N = matr.shape[0]
+            return jnp.block(
+                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]
+            )
+
+        def set_last_mat_row_and_col_to_unit(matr):
+            if bc_left == None:
+                return matr
+            N = matr.shape[0]
+            return jnp.block(
+                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
+            )
+
+        def set_first_and_last_of_field(field, first, last):
+            N = field.shape[direction]
+            inds = jnp.array(list(range(1, N-1)))
+            inner = field.take(indices=inds, axis=direction)
+            out = jnp.pad(
+                inner,
+                [
+                    (0, 0) if d != direction else (1, 1)
+                    for d in self.all_dimensions()
+                ],
+                mode="constant",
+                constant_values=(first, last),
+                )
+            return out
+
+        mat = set_last_mat_row_and_col_to_unit(
+            set_first_mat_row_and_col_to_unit(
+                jnp.linalg.matrix_power(self.diff_mats[direction], order)
+            )
+        )
+        inv_mat = jnp.linalg.inv(mat)
+        b_right = 0.0 if type(bc_right) != NoneType else field[0]
+        b_left = 0.0 if type(bc_left) != NoneType else field[-1]
+        b = set_first_and_last_of_field(field, b_right, b_left)
+
+        inds = "ijk"
+        int_mat_ind = "l" + inds[direction]
+        other_inds = "".join(
+            [
+                ind
+                for ind in inds[0 : self.number_of_dimensions]
+                if ind != inds[direction]
+            ]
+        )
+        target_inds = other_inds[:direction] + "l" + other_inds[direction:]
+        field_ind = inds[0 : self.number_of_dimensions]
+        ind = field_ind + "," + int_mat_ind + "->" + target_inds
+        out = jnp.einsum(
+            ind, b, inv_mat
+        )
+
+        out_right = bc_right if type(bc_right) != NoneType else out[0]
+        out_left = bc_left if type(bc_left) != NoneType else out[-1]
+        out_bc = set_first_and_last_of_field(out, out_right, out_left)
+        return out_bc
 
 class FourierDomain(Domain):
     pass
