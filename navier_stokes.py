@@ -2,6 +2,7 @@
 
 import jax.numpy as jnp
 import time
+import matplotlib.pyplot as plt
 
 from importlib import reload
 import sys
@@ -92,7 +93,8 @@ class NavierStokesVelVort(Equation):
             domain_y, 1, phi_hat[n:], "vort_hat_new", kx, kz
         )
 
-        v_1_new = v_1_lap_hat_new.integrate(1, 2, 0.0, 0.0)
+        # v_1_new = v_1_lap_hat_new.integrate(1, 2, 0.0, 0.0)
+        v_1_new = v_1_lap_hat_new.solve_poisson()
         minus_kx_kz_sq = -(kx**2 + kz**2)
         v_0_new = (
             -1j * kx * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
@@ -129,9 +131,6 @@ class NavierStokesVelVort(Equation):
         vort_hat = vort.hat()
         vort_1_hat = vort_hat[1]
         hel_hat = hel.hat()
-
-        # h_v = -(hel[0].diff(0) + hel[2].diff(2)).diff(1) + hel[1].laplacian()
-        # h_g = hel[0].diff(2) - hel[2].diff(0)
 
         h_v_hat = (
             -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + hel_hat[1].laplacian()
@@ -170,7 +169,8 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # update nonlinear terms
-                h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+                h_v_hat_new_1, h_g_hat_new_1, vel_new_1 = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
 
                 # second RK step
                 N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
@@ -178,6 +178,18 @@ class NavierStokesVelVort(Equation):
                     rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
                 )
 
+                v_curl = vel_new_1.curl()
+                hel_ = vel_new_1.cross_product(v_curl)
+                # vel_new_1.plot(v_curl[0], v_curl[1], v_curl[2], hel_[0], hel_[1], hel_[2])
+                vel_new_1[1].plot(FourierFieldSlice(domain_y, 1, vel[1].hat()[kx, :, kz], "v0", kx, kz))
+                print(jnp.linalg.norm(N_1))
+                fig, ax = plt.subplots(1,1)
+                ax.plot(domain_y.grid[0], phi_hat_new_2[:n])
+                ax.plot(domain_y.grid[0], phi_hat_new_2[n:])
+                # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
+                # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
+                fig.savefig("plots/plot.pdf")
+                return
                 # update nonlinear terms
                 h_v_hat_new_2, h_g_hat_new_2, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_2, kx, kz)
 
@@ -189,8 +201,9 @@ class NavierStokesVelVort(Equation):
 
                 # update velocity
                 _, _, vel_new = self.update_nonlinear_terms(domain_y, phi_hat_new_3, kx, kz)
-                self.fields["velocity"].append(vel_new)
-                return vel_new
+                # TODO cast this back into non-sliced form
+                # self.fields["velocity"].append(vel_new)
+                # return vel_new
 
     def perform_time_step(self, dt, i):
         return self.perform_runge_kutta_step(dt, i)

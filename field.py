@@ -64,17 +64,23 @@ class Field:
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            new_name = self.name + " * " + other.name
+            try:
+                new_name = self.name + " * " + other.name
+            except Exception:
+                new_name = "field"
             return Field(self.domain, self.field * other.field, name=new_name)
         else:
-            if other.real >= 0:
-                new_name = str(other) + self.name
-            elif other == 1:
-                new_name = self.name
-            elif other == -1:
-                new_name = "-" + self.name
-            else:
-                new_name = "(" + str(other) + ") " + self.name
+            try:
+                if other.real >= 0:
+                    new_name = str(other) + self.name
+                elif other == 1:
+                    new_name = self.name
+                elif other == -1:
+                    new_name = "-" + self.name
+                else:
+                    new_name = "(" + str(other) + ") " + self.name
+            except Exception:
+                new_name = "field"
             return Field(self.domain, self.field * other, name=new_name)
 
     __rmul__ = __mul__
@@ -84,14 +90,17 @@ class Field:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            if other.real >= 0:
-                new_name = self.name + "/" + other
-            elif other == 1:
-                new_name = self.name
-            elif other == -1:
-                new_name = "-" + self.name
-            else:
-                new_name = self.name + "/ (" + str(other) + ") "
+            try:
+                if other.real >= 0:
+                    new_name = self.name + "/" + other
+                elif other == 1:
+                    new_name = self.name
+                elif other == -1:
+                    new_name = "-" + self.name
+                else:
+                    new_name = self.name + "/ (" + str(other) + ") "
+            except Exception:
+                new_name = "field"
             return Field(self.domain, self.field * other, name=new_name)
 
     def __abs__(self):
@@ -322,7 +331,7 @@ class Field:
         out.name = "lap_" + self.name
         return out
 
-    def solve_poisson(self, directions, rhs):
+    def solve_poisson(self, rhs):
         rhs_hat = rhs.hat()
         denom = 0.0
         for direction in self.all_periodic_dimensions():
@@ -538,14 +547,33 @@ class FourierFieldSlice(FourierField):
             *self.ks_raw
         )
 
+    def solve_poisson(self):
+        rhs_hat = self.field
+        y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(0)
+        n = y_mat.shape[0]
+        factor = 0
+        for direction in self.all_periodic_dimensions():
+            factor += (1j * self.ks[direction]) ** 2
+
+        mat = factor * jnp.eye(n) + y_mat # TODO enforce BCs before adding ks?
+        mat_inv = jnp.linalg.inv(mat)
+
+        out_field = mat_inv @ rhs_hat
+        out_fourier = FourierFieldSlice(self.domain, self.non_periodic_direction, out_field, self.name + "_poisson", *self.ks_raw)
+        # self.field = out_fourier.field
+        return out_fourier
+
     def __neg__(self):
         return self * (-1.0)
 
     def __add__(self, other):
-        if other.name[0] == "-":
-            new_name = self.name + " - " + other.name[1:]
-        else:
-            new_name = self.name + " + " + other.name
+        try:
+            if other.name[0] == "-":
+                new_name = self.name + " - " + other.name[1:]
+            else:
+                new_name = self.name + " + " + other.name
+        except Exception:
+            new_name = "field"
         return FourierFieldSlice(self.domain_no_hat,
                                  self.non_periodic_direction, self.field + other.field, new_name,
                                  *self.ks_raw)
@@ -555,20 +583,26 @@ class FourierFieldSlice(FourierField):
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            new_name = self.name + " * " + other.name
+            try:
+                new_name = self.name + " * " + other.name
+            except Exception:
+                new_name = "field"
             return FourierFieldSlice(self.domain_no_hat,
                                      self.non_periodic_direction,
                                      self.field * other.field, new_name,
                                      *self.ks_raw)
         else:
-            if other.real >= 0:
-                new_name = str(other) + self.name
-            elif other == 1:
-                new_name = self.name
-            elif other == -1:
-                new_name = "-" + self.name
-            else:
-                new_name = "(" + str(other) + ") " + self.name
+            try:
+                if other.real >= 0:
+                    new_name = str(other) + self.name
+                elif other == 1:
+                    new_name = self.name
+                elif other == -1:
+                    new_name = "-" + self.name
+                else:
+                    new_name = "(" + str(other) + ") " + self.name
+            except Exception:
+                new_name = "field"
             return FourierFieldSlice(self.domain_no_hat,
                                      self.non_periodic_direction,
                                      self.field * other, new_name,
@@ -581,14 +615,17 @@ class FourierFieldSlice(FourierField):
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            if other.real >= 0:
-                new_name = self.name + "/" + other
-            elif other == 1:
-                new_name = self.name
-            elif other == -1:
-                new_name = "-" + self.name
-            else:
-                new_name = self.name + "/ (" + str(other) + ") "
+            try:
+                if other.real >= 0:
+                    new_name = self.name + "/" + other
+                elif other == 1:
+                    new_name = self.name
+                elif other == -1:
+                    new_name = "-" + self.name
+                else:
+                    new_name = self.name + "/ (" + str(other) + ") "
+            except Exception:
+                new_name = "field"
             return FourierFieldSlice(self.domain_no_hat,
                                      self.non_periodic_direction,
                                      self.field * other, new_name,

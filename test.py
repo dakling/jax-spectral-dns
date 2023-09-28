@@ -411,7 +411,7 @@ def test_navier_stokes():
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = (
-        lambda X: 0.1 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: 0.1 * jnp.cos(X[0]) * jnp.cos(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
     )
     vel_y_fn = (
         lambda X: 0.1 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
@@ -425,8 +425,8 @@ def test_navier_stokes():
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    nse.perform_runge_kutta_step(1e-5, 1)
-    print(nse.get_latest_field("velocity"))
+    nse.perform_runge_kutta_step(1e1, 1)
+    # print(nse.get_latest_field("velocity"))
 
 def run_all_tests():
     # test_1D_periodic()
