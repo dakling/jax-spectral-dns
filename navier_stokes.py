@@ -28,14 +28,16 @@ from equation import Equation
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
 
-    def __init__(self, domain, *fields, **params):
+    def __init__(self, shape, *fields, **params):
+        domain = Domain(shape, (True, False, True))
         super().__init__(domain, *fields)
         self.Re = params["Re"]
         # vort = self.fields["vort"][0]
         # vort.update_boundary_conditions()
 
     @classmethod
-    def FromVelocityField(cls, domain, velocity_field, Re=1.8e2):
+    def FromVelocityField(cls, shape, velocity_field, Re=1.8e2):
+        domain = Domain(shape, (True, False, True))
         vort = velocity_field.curl()
         for i in range(3):
             vort[i].name = "vort_" + str(i)
@@ -45,16 +47,17 @@ class NavierStokesVelVort(Equation):
             hel[i].name = "hel_" + str(i)
 
         # return cls(domain, velocity_field, vort, hel, Re=Re)
-        return cls(domain, velocity_field, Re=Re)
+        return cls(shape, velocity_field, Re=Re)
 
     @classmethod
-    def FromRandom(cls, domain, Re):
+    def FromRandom(cls, shape, Re):
+        domain = Domain(shape, (True, False, True))
         vel_x = Field.FromRandom(domain, name="u0")
         vel_y = Field.FromRandom(domain, name="u1")
         vel_z = Field.FromRandom(domain, name="u2")
         vel_y.update_boundary_conditions()
         vel = VectorField([vel_x, vel_y, vel_z], "velocity")
-        return cls.FromVelocityField(domain, vel, Re)
+        return cls.FromVelocityField(shape, vel, Re)
 
     def get_vorticity_and_helicity(self):
         velocity_field = self.get_latest_field("velocity")
@@ -79,6 +82,40 @@ class NavierStokesVelVort(Equation):
             [8 / 15, 5 / 12, 3 / 4],
             [-17 / 60, -5 / 12],
         )
+
+    def update_nonlinear_terms(self, domain_y, phi_hat, kx, kz):
+        n = len(phi_hat)//2
+        v_1_lap_hat_new = FourierFieldSlice(
+            domain_y, 1, phi_hat[:n], "v_1_lap_hat_new", kx, kz
+        )
+        vort_1_hat_new = FourierFieldSlice(
+            domain_y, 1, phi_hat[n:], "vort_hat_new", kx, kz
+        )
+
+        v_1_new = v_1_lap_hat_new.integrate(1, 2, 0.0, 0.0)
+        minus_kx_kz_sq = -(kx**2 + kz**2)
+        v_0_new = (
+            -1j * kx * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
+        ) / minus_kx_kz_sq
+        v_2_new = (
+            -1j * kz * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
+        ) / minus_kx_kz_sq
+        vel_new = VectorField([v_0_new, v_1_new, v_2_new])
+        vel_new.name = "velocity"
+        for i in range(3):
+            vel_new[i].name = "velocity_" + str(i)
+
+        vort_hat_new = vel_new.curl()
+
+        hel_hat_new = vel_new.cross_product(vort_hat_new)
+
+        h_v_hat_new = (
+            -(hel_hat_new[0].diff(0) + hel_hat_new[2].diff(2)).diff(1) + hel_hat_new[1].laplacian()
+        )
+        h_g_hat_new = hel_hat_new[0].diff(2) - hel_hat_new[2].diff(0)
+
+        # phi_hat_new = jnp.block([v_1_lap_hat_new.field, vort_1_hat_new.field])
+        return (h_v_hat_new, h_g_hat_new, vel_new)
 
     def perform_runge_kutta_step(self, dt, i):
         Re = self.Re
@@ -132,91 +169,28 @@ class NavierStokesVelVort(Equation):
                     rhs_mat_0 @ phi_hat + (dt * gamma[0]) * N_0
                 )
 
-                # update velocities
-                v_1_lap_hat_new_1 = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new_1[:n], "v_1_lap_hat_new_1", kx, kz
-                )
-                vort_1_hat_new_1 = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new_1[n:], "vort_hat_new_1", kx, kz
-                )
-
-                v_1_new_1 = v_1_lap_hat_new_1.integrate(1, 2, 0.0, 0.0)
-                minus_kx_kz_sq = -(kx**2 + kz**2)
-                v_0_new_1 = (
-                    -1j * kx * v_1_new_1.diff(0) + 1j * kz * vort_1_hat_new_1
-                ) / minus_kx_kz_sq
-                v_2_new_1 = (
-                    -1j * kz * v_1_new_1.diff(0) - 1j * kx * vort_1_hat_new_1
-                ) / minus_kx_kz_sq
-                vel_new_1 = VectorField([v_0_new_1, v_1_new_1, v_2_new_1])
-
-                vort_hat_new_1 = vel_new_1.curl()
-
-                hel_hat_new_1 = vel_new_1.cross_product(vort_hat_new_1)
-
-                h_v_hat_new_1 = (
-                    -(hel_hat_new_1[0].diff(0) + hel_hat_new_1[2].diff(2)).diff(1) + hel_hat_new_1[1].laplacian()
-                )
-                h_g_hat_new_1 = hel_hat_new_1[0].diff(2) - hel_hat_new_1[2].diff(0)
+                # update nonlinear terms
+                h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
 
                 # second RK step
-                phi_hat_new_1 = jnp.block([v_1_lap_hat_new_1.field, vort_1_hat_new_1.field])
                 N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
                 phi_hat_new_2 = lhs_mat_inv_1 @ (
-                    rhs_mat_1 @ phi_hat + (dt * gamma[1]) * N_1 + xi[0] * N_0
+                    rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
                 )
 
-                # update velocities
-                v_1_lap_hat_new_2 = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new_2[:n], "v_1_lap_hat_new_2", kx, kz
-                )
-                vort_1_hat_new_2 = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new_2[n:], "vort_hat_new_2", kx, kz
-                )
-
-                v_1_new_2 = v_1_lap_hat_new_2.integrate(1, 2, 0.0, 0.0)
-                v_0_new_2 = (
-                    -1j * kx * v_1_new_2.diff(0) + 1j * kz * vort_1_hat_new_2
-                ) / minus_kx_kz_sq
-                v_2_new_2 = (
-                    -1j * kz * v_1_new_2.diff(0) - 1j * kx * vort_1_hat_new_2
-                ) / minus_kx_kz_sq
-                vel_new_2 = VectorField([v_0_new_2, v_1_new_2, v_2_new_2])
-
-                vort_hat_new_2 = vel_new_2.curl()
-
-                hel_hat_new_2 = vel_new_2.cross_product(vort_hat_new_2)
-
-                h_v_hat_new_2 = (
-                    -(hel_hat_new_2[0].diff(0) + hel_hat_new_2[2].diff(2)).diff(1) + hel_hat_new_2[1].laplacian()
-                )
-                h_g_hat_new_2 = hel_hat_new_2[0].diff(2) - hel_hat_new_2[2].diff(0)
+                # update nonlinear terms
+                h_v_hat_new_2, h_g_hat_new_2, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_2, kx, kz)
 
                 # third RK step
-                phi_hat_new_3 = jnp.block([v_1_lap_hat_new_2.field, vort_1_hat_new_2.field])
                 N_2 = jnp.block([h_v_hat_new_2.field, h_g_hat_new_2.field])
                 phi_hat_new_3 = lhs_mat_inv_2 @ (
-                    rhs_mat_2 @ phi_hat + (dt * gamma[2]) * N_2 + xi[1] * N_1
+                    rhs_mat_2 @ phi_hat_new_2 + (dt * gamma[2]) * N_2 + xi[1] * N_1
                 )
 
-                # update velocities
-                v_1_lap_hat_new_3 = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new_3[:n], "v_1_lap_hat_new_3", kx, kz
-                )
-                vort_1_hat_new_3 = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new_3[n:], "vort_hat_new_3", kx, kz
-                )
-
-                v_1_new_3 = v_1_lap_hat_new_3.integrate(1, 2, 0.0, 0.0)
-                v_0_new_3 = (
-                    -1j * kx * v_1_new_3.diff(0) + 1j * kz * vort_1_hat_new_3
-                ) / minus_kx_kz_sq
-                v_2_new_3 = (
-                    -1j * kz * v_1_new_3.diff(0) - 1j * kx * vort_1_hat_new_3
-                ) / minus_kx_kz_sq
-                vel_new_3 = VectorField([v_0_new_3, v_1_new_3, v_2_new_3])
-                self.fields["velocity"].append(vel_new_3)
-                return vel_new_3
+                # update velocity
+                _, _, vel_new = self.update_nonlinear_terms(domain_y, phi_hat_new_3, kx, kz)
+                self.fields["velocity"].append(vel_new)
+                return vel_new
 
     def perform_time_step(self, dt, i):
         return self.perform_runge_kutta_step(dt, i)
@@ -230,13 +204,11 @@ def solve_navier_stokes_3D_channel():
 
     Re = 1.8e2
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
-
     vel_x_fn = (
         lambda X: 0.1 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
     )
 
-    nse = NavierStokesVelVort.FromRandom(domain, Re)
+    nse = NavierStokesVelVort.FromRandom((Nx, Ny, Nz), Re)
     nse.perform_runge_kutta_step(1e-5, 1)
     return
 
