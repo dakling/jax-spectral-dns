@@ -87,12 +87,13 @@ class NavierStokesVelVort(Equation):
             [-17 / 60, -5 / 12],
         )
 
-    def assemble_rk_matrices(self, L, dt):
+    def assemble_rk_matrices(self, Ly, dt, kx, kz):
         alpha, beta, _, _ = self.get_rk_parameters()
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
         I = jnp.eye(2 * n)
+        L = Ly + I * (-(kx**2 + kz**2))
         lhs_mat_inv_0 = jnp.linalg.inv(I - beta[0] * dt * L)
         rhs_mat_0 = I + alpha[0] * dt * L
 
@@ -169,16 +170,17 @@ class NavierStokesVelVort(Equation):
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
-        L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        I = jnp.eye(2 * n)
-        lhs_mat_inv_0, lhs_mat_inv_1, lhs_mat_inv_2, rhs_mat_0, rhs_mat_1, rhs_mat_2 = self.assemble_rk_matrices(L, dt)
+        L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]]) # TODO + (kx**2 + kz**2)?
 
-        # kx = kz = 0
-        lhs_mat_00_inv_0, lhs_mat_00_inv_1, lhs_mat_00_inv_2, rhs_mat_00_0, rhs_mat_00_1, rhs_mat_00_2 = self.assemble_rk_matrices(L, dt)
+        D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
+        L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]]) #TODO this is where one would add pressure
+        # for kx = kz = 0
+        lhs_mat_00_inv_0, lhs_mat_00_inv_1, lhs_mat_00_inv_2, rhs_mat_00_0, rhs_mat_00_1, rhs_mat_00_2 = self.assemble_rk_matrices(L_NS, dt, 0, 0)
 
         def perform_rk_step_for_single_wavenumber(kx_, kz_):
             kx = int(kx_)
             kz = int(kz_)
+            lhs_mat_inv_0, lhs_mat_inv_1, lhs_mat_inv_2, rhs_mat_0, rhs_mat_1, rhs_mat_2 = self.assemble_rk_matrices(L, dt, kx, kz)
             # first RK step
             phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
             N_0 = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
@@ -206,14 +208,14 @@ class NavierStokesVelVort(Equation):
             # second RK step
             N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
             phi_hat_new_2 = lhs_mat_inv_1 @ (
-                rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
+                rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + dt * xi[0] * N_0
             )
 
             if kx == 0 and kz == 0:
                 v_hat_new_1 = jnp.block([v_hat_new_1[:n], v_hat_new_1[n:]])
                 N_00_1 = jnp.block([hel_hat_new_1[0].field, hel_hat_new_1[2].field])
                 v_hat_new_2 = lhs_mat_00_inv_1 @ (
-                rhs_mat_00_1 @ v_hat_new_1 + (dt * gamma[1]) * N_00_1  + xi[0] * N_00_0
+                rhs_mat_00_1 @ v_hat_new_1 + (dt * gamma[1]) * N_00_1 + dt * xi[0] * N_00_0
                 )
                 # update nonlinear terms
                 # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
@@ -229,14 +231,14 @@ class NavierStokesVelVort(Equation):
             # third RK step
             N_2 = jnp.block([h_v_hat_new_2.field, h_g_hat_new_2.field])
             phi_hat_new_3 = lhs_mat_inv_2 @ (
-                rhs_mat_2 @ phi_hat_new_2 + (dt * gamma[2]) * N_2 + xi[1] * N_1
+                rhs_mat_2 @ phi_hat_new_2 + (dt * gamma[2]) * N_2 + dt * xi[1] * N_1
             )
 
             if kx == 0 and kz == 0:
                 v_hat_new_2 = jnp.block([v_hat_new_2[:n], v_hat_new_2[n:]])
                 N_00_2 = jnp.block([hel_hat_new_2[0].field, hel_hat_new_2[2].field])
                 v_hat_new_3 = lhs_mat_00_inv_2 @ (
-                rhs_mat_00_2 @ v_hat_new_2 + (dt * gamma[2]) * N_00_2  + xi[1] * N_00_1
+                rhs_mat_00_2 @ v_hat_new_2 + (dt * gamma[2]) * N_00_2 + dt * xi[1] * N_00_1
                 )
                 # update nonlinear terms
                 # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
@@ -289,9 +291,6 @@ class NavierStokesVelVort(Equation):
         vel_new_hat = vel_hat.reconstruct_from_wavenumbers(perform_rk_step_for_single_wavenumber)
         vel_new_hat.update_boundary_conditions()
         self.append_field("velocity_hat",vel_new_hat)
-        vel = vel_new_hat.no_hat()
-        vel_0 = self.get_initial_field("velocity_hat").no_hat()
-        vel_0.plot(vel)
 
     def perform_time_step(self, dt, i):
         return self.perform_runge_kutta_step(dt, i)
