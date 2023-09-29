@@ -19,19 +19,19 @@ import sys
 try:
     reload(sys.modules["heat_eq"])
 except:
-    pass
+    print("Unable to load")
 from heat_eq import solve_heat_eq_2D, solve_heat_eq_3D
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    pass
+    print("Unable to load")
 from navier_stokes import solve_navier_stokes_3D_channel
 
 try:
     reload(sys.modules["test"])
 except:
-    pass
+    print("Unable to load")
 from test import run_all_tests
 
 

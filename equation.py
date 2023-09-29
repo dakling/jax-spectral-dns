@@ -31,6 +31,12 @@ class Equation():
   def get_latest_field(self, name):
       return self.get_field(name, -1)
 
+  def append_field(self, name, field):
+        try:
+            self.fields[name].append(field)
+        except KeyError:
+            raise KeyError("Expected field named " + name + " in " + self.name + ".")
+
   def all_dimensions(self):
       return range(self.domain.number_of_dimensions)
 

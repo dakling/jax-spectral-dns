@@ -39,16 +39,18 @@ class NavierStokesVelVort(Equation):
     @classmethod
     def FromVelocityField(cls, shape, velocity_field, Re=1.8e2):
         domain = Domain(shape, (True, False, True))
-        vort = velocity_field.curl()
-        for i in range(3):
-            vort[i].name = "vort_" + str(i)
+        # vort = velocity_field.curl()
+        # for i in range(3):
+        #     vort[i].name = "vort_" + str(i)
 
-        hel = velocity_field.cross_product(vort)
-        for i in range(3):
-            hel[i].name = "hel_" + str(i)
+        # hel = velocity_field.cross_product(vort)
+        # for i in range(3):
+        #     hel[i].name = "hel_" + str(i)
 
         # return cls(domain, velocity_field, vort, hel, Re=Re)
-        return cls(shape, velocity_field, Re=Re)
+        velocity_field_hat = velocity_field.hat()
+        velocity_field_hat.name = "velocity_hat"
+        return cls(shape, velocity_field_hat, Re=Re)
 
     @classmethod
     def FromRandom(cls, shape, Re):
@@ -61,18 +63,18 @@ class NavierStokesVelVort(Equation):
         return cls.FromVelocityField(shape, vel, Re)
 
     def get_vorticity_and_helicity(self):
-        velocity_field = self.get_latest_field("velocity")
-        vort = velocity_field.curl()
+        velocity_field_hat = self.get_latest_field("velocity_hat")
+        vort_hat = velocity_field_hat.curl()
         for i in range(3):
-            vort[i].name = "vort_" + str(i)
+            vort_hat[i].name = "vort_hat_" + str(i)
 
-        hel = velocity_field.cross_product(vort)
+        hel_hat = velocity_field_hat.cross_product(vort_hat)
         for i in range(3):
-            hel[i].name = "hel_" + str(i)
-        return (vort, hel)
+            hel_hat[i].name = "hel_hat_" + str(i)
+        return (vort_hat, hel_hat)
 
     def get_cheb_mat_2_homogeneous_dirichlet(self):
-        return self.get_initial_field("velocity")[
+        return self.get_initial_field("velocity_hat")[
             0
         ].get_cheb_mat_2_homogeneous_dirichlet(1)
 
@@ -85,7 +87,7 @@ class NavierStokesVelVort(Equation):
         )
 
     def update_nonlinear_terms(self, domain_y, phi_hat, kx, kz):
-        n = len(phi_hat)//2
+        n = len(phi_hat) // 2
         v_1_lap_hat_new = FourierFieldSlice(
             domain_y, 1, phi_hat[:n], "v_1_lap_hat_new", kx, kz
         )
@@ -103,16 +105,17 @@ class NavierStokesVelVort(Equation):
             -1j * kz * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
         ) / minus_kx_kz_sq
         vel_new = VectorField([v_0_new, v_1_new, v_2_new])
-        vel_new.name = "velocity"
+        vel_new.name = "velocity_hat"
         for i in range(3):
-            vel_new[i].name = "velocity_" + str(i)
+            vel_new[i].name = "velocity_hat_" + str(i)
 
         vort_hat_new = vel_new.curl()
 
         hel_hat_new = vel_new.cross_product(vort_hat_new)
 
         h_v_hat_new = (
-            -(hel_hat_new[0].diff(0) + hel_hat_new[2].diff(2)).diff(1) + hel_hat_new[1].laplacian()
+            -(hel_hat_new[0].diff(0) + hel_hat_new[2].diff(2)).diff(1)
+            + hel_hat_new[1].laplacian()
         )
         h_g_hat_new = hel_hat_new[0].diff(2) - hel_hat_new[2].diff(0)
 
@@ -121,16 +124,17 @@ class NavierStokesVelVort(Equation):
 
     def perform_runge_kutta_step(self, dt, i):
         Re = self.Re
-        vel = self.get_latest_field("velocity")
+        vel_hat = self.get_latest_field("velocity_hat")
 
-        v_1_hat = vel[1].hat()
+        # v_1_hat = vel[1].hat()
+        v_1_hat = vel_hat[1]
         v_1_lap_hat = v_1_hat.laplacian()
 
-        vort, hel = self.get_vorticity_and_helicity()
+        vort_hat, hel_hat = self.get_vorticity_and_helicity()
 
-        vort_hat = vort.hat()
+        # vort_hat = vort.hat()
         vort_1_hat = vort_hat[1]
-        hel_hat = hel.hat()
+        # hel_hat = hel.hat()
 
         h_v_hat = (
             -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + hel_hat[1].laplacian()
@@ -139,7 +143,7 @@ class NavierStokesVelVort(Equation):
 
         # start runge-kutta stepping
         alpha, beta, gamma, xi = self.get_rk_parameters()
-        domain_hat = self.domain.hat()
+        # domain_hat = self.domain.hat()
 
         domain_y = Domain((len(self.domain.grid[1]),), (False,))
 
@@ -157,53 +161,70 @@ class NavierStokesVelVort(Equation):
         lhs_mat_inv_2 = jnp.linalg.inv(I - beta[2] * dt * L)
         rhs_mat_2 = I + alpha[2] * dt * L
 
-        for kx_ in domain_hat.grid[0][1:]:
-            for kz_ in domain_hat.grid[2][1:]:
-                kx = int(kx_)
-                kz = int(kz_)
-                # first RK step
-                phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
-                N_0 = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
-                phi_hat_new_1 = lhs_mat_inv_0 @ (
-                    rhs_mat_0 @ phi_hat + (dt * gamma[0]) * N_0
-                )
+        def perform_rk_step_for_single_wavenumber(kx_, kz_):
+            kx = int(kx_)
+            kz = int(kz_)
+            # first RK step
+            phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
+            N_0 = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
+            phi_hat_new_1 = lhs_mat_inv_0 @ (
+                rhs_mat_0 @ phi_hat + (dt * gamma[0]) * N_0
+            )
 
-                # update nonlinear terms
-                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
-                h_v_hat_new_1, h_g_hat_new_1, vel_new_1 = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+            # update nonlinear terms
+            # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+            h_v_hat_new_1, h_g_hat_new_1, vel_new_1 = self.update_nonlinear_terms(
+                domain_y, phi_hat_new_1, kx, kz
+            )
 
-                # second RK step
-                N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
-                phi_hat_new_2 = lhs_mat_inv_1 @ (
-                    rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
-                )
+            # second RK step
+            N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
+            phi_hat_new_2 = lhs_mat_inv_1 @ (
+                rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
+            )
 
-                v_curl = vel_new_1.curl()
-                hel_ = vel_new_1.cross_product(v_curl)
-                # vel_new_1.plot(v_curl[0], v_curl[1], v_curl[2], hel_[0], hel_[1], hel_[2])
-                vel_new_1[1].plot(FourierFieldSlice(domain_y, 1, vel[1].hat()[kx, :, kz], "v0", kx, kz))
-                print(jnp.linalg.norm(N_1))
-                fig, ax = plt.subplots(1,1)
-                ax.plot(domain_y.grid[0], phi_hat_new_2[:n])
-                ax.plot(domain_y.grid[0], phi_hat_new_2[n:])
-                # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
-                # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
-                fig.savefig("plots/plot.pdf")
-                return
-                # update nonlinear terms
-                h_v_hat_new_2, h_g_hat_new_2, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_2, kx, kz)
+            # v_curl = vel_new_1.curl()
+            # hel_ = vel_new_1.cross_product(v_curl)
 
-                # third RK step
-                N_2 = jnp.block([h_v_hat_new_2.field, h_g_hat_new_2.field])
-                phi_hat_new_3 = lhs_mat_inv_2 @ (
-                    rhs_mat_2 @ phi_hat_new_2 + (dt * gamma[2]) * N_2 + xi[1] * N_1
-                )
+            ####
+            # # vel_new_1.plot(v_curl[0], v_curl[1], v_curl[2], hel_[0], hel_[1], hel_[2])
+            # vel_new_1[1].plot(
+            #     FourierFieldSlice(
+            #         domain_y, 1, vel_hat[1][kx, :, kz], "v0", kx, kz
+            #     )
+            # )
+            # print(jnp.linalg.norm(N_1))
+            # fig, ax = plt.subplots(1, 1)
+            # ax.plot(domain_y.grid[0], phi_hat_new_2[:n])
+            # ax.plot(domain_y.grid[0], phi_hat_new_2[n:])
+            # # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
+            # # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
+            # fig.savefig("plots/plot.pdf")
+            # return
+            ####
 
-                # update velocity
-                _, _, vel_new = self.update_nonlinear_terms(domain_y, phi_hat_new_3, kx, kz)
-                # TODO cast this back into non-sliced form
-                # self.fields["velocity"].append(vel_new)
-                # return vel_new
+            # update nonlinear terms
+            h_v_hat_new_2, h_g_hat_new_2, _ = self.update_nonlinear_terms(
+                domain_y, phi_hat_new_2, kx, kz
+            )
+
+            # third RK step
+            N_2 = jnp.block([h_v_hat_new_2.field, h_g_hat_new_2.field])
+            phi_hat_new_3 = lhs_mat_inv_2 @ (
+                rhs_mat_2 @ phi_hat_new_2 + (dt * gamma[2]) * N_2 + xi[1] * N_1
+            )
+
+            # update velocity
+            _, _, vel_new = self.update_nonlinear_terms(
+                domain_y, phi_hat_new_3, kx, kz
+            )
+            return vel_new
+
+        vel_hat.reconstruct_from_wavenumbers(perform_rk_step_for_single_wavenumber)
+        self.append_field("velocity_hat",vel_hat)
+        vel = vel_hat.no_hat()
+        vel_0 = self.get_initial_field("velocity_hat").no_hat()
+        vel.plot(vel_0)
 
     def perform_time_step(self, dt, i):
         return self.perform_runge_kutta_step(dt, i)

@@ -18,19 +18,19 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    pass
+    print("Unable to load")
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    pass
-from field import Field, VectorField
+    print("Unable to load")
+from field import Field, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    pass
+    print("Unable to load")
 from navier_stokes import NavierStokesVelVort
 
 def test_1D_cheb():
@@ -401,6 +401,44 @@ def test_poisson():
     u.plot_center(1)
     u.plot()
 
+def test_poisson_slices():
+    Nx = 24
+    Ny = Nx
+    Nz = Nx
+
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain_y = Domain((Ny, ), (False))
+
+    rhs_fn = (
+        lambda X: - (2 + jnp.pi**2/4) * jnp.sin(X[0]) * jnp.sin(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
+    )
+    rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
+
+    u_ana_fn = (
+        lambda X: jnp.sin(X[0]) * jnp.sin(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
+    )
+    u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
+    rhs_hat = rhs.hat()
+    rhs_nohat = rhs_hat.no_hat()
+    def solve_poisson_for_single_wavenumber(kx_, kz_):
+        kx, kz = int(kx_), int(kz_)
+        if kx == 0 or kz == 0:
+            # assumes homogeneneous Dirichlet boundary conditions
+            return FourierFieldSlice(domain_y, 1, rhs_hat[kx, :, kz]*0.0, "rhs_t_slice", kx, kz)
+        rhs_hat_slice = FourierFieldSlice(domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", kx, kz)
+        out = rhs_hat_slice.solve_poisson()
+        return out
+    out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
+    out = out_hat.no_hat()
+
+    # u_ana.plot(out)
+
+    tol = 1e-8
+    # print(abs(u_ana - out))
+    assert abs(u_ana - out) < tol
+
+
+
 def test_navier_stokes():
     Nx = 24
     Ny = Nx
@@ -440,4 +478,5 @@ def run_all_tests():
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
     # test_poisson()
+    # test_poisson_slices()
     test_navier_stokes()

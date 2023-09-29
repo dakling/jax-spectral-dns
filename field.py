@@ -400,6 +400,34 @@ class VectorField:
             out += str(elem)
         return out
 
+    def all_dimensions(self):
+        return range(self[0].domain.number_of_dimensions)
+
+    def all_periodic_dimensions(self):
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if self[0].domain.periodic_directions[d]
+        ]
+
+    def all_nonperiodic_dimensions(self):
+        return [
+            self.all_dimensions()[d]
+            for d in self.all_dimensions()
+            if not self[0].domain.periodic_directions[d]
+        ]
+
+    def hat(self):
+        return VectorField([f.hat() for f in self])
+
+    def no_hat(self):
+        return VectorField([f.no_hat() for f in self])
+
+    def plot(self, *other_fields):
+        for i in range(len(self)):
+            other_fields_i = [item[i] for item in other_fields]
+            self[i].plot(*other_fields_i)
+
     def cross_product(self, other):
         out_0 = self[2] * other[1] - self[1] * other[2]
         out_1 = self[0] * other[2] - self[2] * other[0]
@@ -424,6 +452,17 @@ class VectorField:
         curl_2 = v_x - u_y
 
         return VectorField([curl_0, curl_1, curl_2])
+
+    def reconstruct_from_wavenumbers(self, fn):
+        assert self.number_of_dimensions != 3, "2D not implemented yet"
+        k1, k2 = self[0].domain.grid[jnp.array(self.all_periodic_dimensions())]
+        out_field = [FourierField(self[0].domain_no_hat,
+                                  jnp.moveaxis(jnp.array([[fn(k1_, k2_)[i].field for k2_ in k2] for k1_ in k1]),
+                                               -1, self.all_nonperiodic_dimensions()[0],),
+                                  "out_" + str(i)
+                                  )
+                     for i in self.all_dimensions() ]
+        return VectorField(out_field)
 
 
 class FourierField(Field):
@@ -492,6 +531,13 @@ class FourierField(Field):
             self.field, axes=self.all_periodic_dimensions(), norm="ortho"
         )
         return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
+
+    def reconstruct_from_wavenumbers(self, fn):
+        assert self.number_of_dimensions != 3, "2D not implemented yet"
+        k1, k2 = self.domain.grid[jnp.array(self.all_periodic_dimensions())]
+        out_field = jnp.moveaxis(jnp.array([[fn(k1_, k2_).field for k2_ in k2] for k1_ in k1]), -1, self.all_nonperiodic_dimensions()[0])
+        return FourierField(self.domain_no_hat, out_field, name=self.name + "_reconstr")
+
 
 class FourierFieldSlice(FourierField):
     def __init__(self, domain, non_periodic_direction, field, name="field", *ks):

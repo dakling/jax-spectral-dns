@@ -63,9 +63,12 @@ class Domain:
         return jnp.linspace(0.0, 2 * jnp.pi, N + 1)[:-1]
 
     def hat(self):
-        def fftshift(inp):
-            N = len(inp)
-            return jnp.block([inp[N//2:], inp[:N//2]]) - N//2
+        def fftshift(inp, i):
+            if self.periodic_directions[i]:
+                N = len(inp)
+                return jnp.block([inp[N//2:], inp[:N//2]]) - N//2
+            else:
+                return inp
         Ns = []
         for i in self.all_dimensions():
             Ns.append(len(self.grid[i]))
@@ -75,7 +78,7 @@ class Domain:
                 fourier_grid.append(jnp.linspace(0, Ns[i]-1, Ns[i]))
             else:
                 fourier_grid.append(self.grid[i])
-        fourier_grid_shifted = jnp.array(list(map(fftshift, fourier_grid)))
+        fourier_grid_shifted = jnp.array(list(map(fftshift, fourier_grid, self.all_dimensions())))
         out = FourierDomain(self.shape, self.periodic_directions)
         out.grid = fourier_grid_shifted
         out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
