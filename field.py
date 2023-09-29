@@ -41,9 +41,7 @@ class Field:
         pass
 
     def __repr__(self):
-        # fig, ax = plt.subplots(1,1)
-        # ax.plot(self.mgrid[0], self.field)
-        self.plot()
+        # self.plot()
         return str(self.field)
 
     def __getitem__(self, index):
@@ -613,9 +611,10 @@ class FourierFieldSlice(FourierField):
         for direction in self.all_periodic_dimensions():
             factor += (1j * self.ks[direction]) ** 2
 
-        mat = factor * jnp.eye(n) + y_mat # TODO enforce BCs before adding ks?
+        # unit matrix with zeros in first and  last row/col to avoid messing with bcs
+        eye_bc = jnp.block([[jnp.zeros((1,n))], [jnp.zeros((n-2,1)), jnp.eye(n-2), jnp.zeros((n-2,1))], [jnp.zeros((1,n))]])
+        mat = factor * eye_bc + y_mat
         mat_inv = jnp.linalg.inv(mat)
-
         out_field = mat_inv @ rhs_hat
         out_fourier = FourierFieldSlice(self.domain, self.non_periodic_direction, out_field, self.name + "_poisson", *self.ks_raw)
         # self.field = out_fourier.field

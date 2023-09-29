@@ -148,7 +148,6 @@ class NavierStokesVelVort(Equation):
         Re = self.Re
         vel_hat = self.get_latest_field("velocity_hat")
 
-        # v_1_hat = vel[1].hat()
         v_1_hat = vel_hat[1]
         v_1_lap_hat = v_1_hat.laplacian()
 
@@ -194,14 +193,12 @@ class NavierStokesVelVort(Equation):
                 rhs_mat_00_0 @ v_hat + (dt * gamma[0]) * N_00_0
                 )
                 # update nonlinear terms
-                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
                 h_v_hat_new_1, h_g_hat_new_1, _, hel_hat_new_1 = self.update_nonlinear_terms(
                     domain_y, phi_hat_new_1, kx, kz, v_hat_new_1
                 )
 
             else:
                 # update nonlinear terms
-                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
                 h_v_hat_new_1, h_g_hat_new_1, _, _ = self.update_nonlinear_terms(
                     domain_y, phi_hat_new_1, kx, kz
                 )
@@ -211,27 +208,6 @@ class NavierStokesVelVort(Equation):
             phi_hat_new_2 = lhs_mat_inv_1 @ (
                 rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
             )
-
-            ####
-            # v_curl = vel_new_1.curl()
-            # hel_ = vel_new_1.cross_product(v_curl)
-            # vel_new_1.plot(v_curl[0], v_curl[1], v_curl[2], hel_[0], hel_[1], hel_[2])
-            # vel_new_1[1].plot(
-            #     FourierFieldSlice(
-            #         domain_y, 1, vel_hat[1][kx, :, kz], "v0", kx, kz
-            #     )
-            # )
-            # print(jnp.linalg.norm(N_1))
-            # fig, ax = plt.subplots(1, 1)
-            # ax.plot(domain_y.grid[0], phi_hat[:n])
-            # ax.plot(domain_y.grid[0], phi_hat[n:])
-            # # ax.plot(domain_y.grid[0], phi_hat[:n], phi_hat_new_1[:n], phi_hat_new_2[:n])
-            # # ax.plot(domain_y.grid[0], phi_hat[n:], phi_hat_new_1[n:], phi_hat_new_2[n:])
-            # # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
-            # # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
-            # fig.savefig("plots/plot.pdf")
-            # return
-            ####
 
             if kx == 0 and kz == 0:
                 v_hat_new_1 = jnp.block([v_hat_new_1[:n], v_hat_new_1[n:]])
@@ -257,9 +233,9 @@ class NavierStokesVelVort(Equation):
             )
 
             if kx == 0 and kz == 0:
-                v_hat_new_3 = jnp.block([v_hat_new_2[:n], v_hat_new_2[n:]])
+                v_hat_new_2 = jnp.block([v_hat_new_2[:n], v_hat_new_2[n:]])
                 N_00_2 = jnp.block([hel_hat_new_2[0].field, hel_hat_new_2[2].field])
-                v_hat_new_2 = lhs_mat_00_inv_2 @ (
+                v_hat_new_3 = lhs_mat_00_inv_2 @ (
                 rhs_mat_00_2 @ v_hat_new_2 + (dt * gamma[2]) * N_00_2  + xi[1] * N_00_1
                 )
                 # update nonlinear terms
@@ -272,13 +248,50 @@ class NavierStokesVelVort(Equation):
                 _, _, vel_new, _ = self.update_nonlinear_terms(
                     domain_y, phi_hat_new_3, kx, kz
                 )
+
+            ####
+            # if kz == 1:
+                # print(phi_hat)
+
+                # print(phi_hat_new_1)
+                # print(phi_hat_new_2)
+                # print(h_v_hat_new_1)
+
+                # print(phi_hat_new_3)
+                # print(vel_new)
+                # v_curl = v_hat_new_1.curl()
+                # hel_ = v_hat_new_1.cross_product(v_curl)
+                # fig, ax = plt.subplots(1, 1)
+                # ax.plot(domain_y.grid[0], phi_hat[:n])
+                # ax.plot(domain_y.grid[0], phi_hat[n:])
+                # vel_0_nohat = self.get_initial_field("velocity_hat").no_hat()
+                # vel_new.plot()
+                # vel_0_nohat.plot()
+                # ax.plot(domain_y.grid[0], v_hat_new_3[:n])
+                # ax.plot(domain_y.grid[0], v_hat_new_2[:n])
+                # ax.plot(domain_y.grid[0], v_hat_new_1[:n])
+                # ax.plot(domain_y.grid[0], v_hat[:n])
+                # ax.plot(domain_y.grid[0], v_hat_new_3[n:])
+                # ax.plot(domain_y.grid[0], v_hat_new_2[n:])
+                # ax.plot(domain_y.grid[0], v_hat_new_1[n:])
+                # ax.plot(domain_y.grid[0], v_hat[n:])
+                # ax.plot(domain_y.grid[0], v_hat_new_1[n:])
+                # ax.plot(domain_y.grid[0], phi_hat[:n], phi_hat_new_1[:n], phi_hat_new_2[:n])
+                # ax.plot(domain_y.grid[0], phi_hat[n:], phi_hat_new_1[n:], phi_hat_new_2[n:])
+                # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
+                # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
+                # fig.savefig("plots/plot.pdf")
+                # raise Exception("break")
+            ####
+
             return vel_new
 
-        vel_hat.reconstruct_from_wavenumbers(perform_rk_step_for_single_wavenumber)
-        self.append_field("velocity_hat",vel_hat)
-        vel = vel_hat.no_hat()
+        vel_new_hat = vel_hat.reconstruct_from_wavenumbers(perform_rk_step_for_single_wavenumber)
+        vel_new_hat.update_boundary_conditions()
+        self.append_field("velocity_hat",vel_new_hat)
+        vel = vel_new_hat.no_hat()
         vel_0 = self.get_initial_field("velocity_hat").no_hat()
-        vel.plot(vel_0)
+        vel_0.plot(vel)
 
     def perform_time_step(self, dt, i):
         return self.perform_runge_kutta_step(dt, i)

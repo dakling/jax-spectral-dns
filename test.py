@@ -463,7 +463,7 @@ def test_navier_stokes():
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    nse.perform_runge_kutta_step(1e1, 1)
+    nse.perform_runge_kutta_step(1e-4, 1)
     # print(nse.get_latest_field("velocity"))
 
 def run_all_tests():
