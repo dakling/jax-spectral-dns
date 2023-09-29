@@ -334,6 +334,25 @@ def test_fourier_2D():
     assert abs(u_int_y - u_int_y_ana) < tol
     assert abs(u_int_yy - u_int_yy_ana) < tol
 
+def test_fourier_simple_3D():
+    Nx = 24
+    Ny = Nx
+    Nz = Nx
+    domain = Domain((Nx,Ny,Nz), (True,False,True))
+
+    # u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
+    u_0_fn = lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
+    u_fn = lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2]) + jnp.sin(X[1] * jnp.pi)
+    u = Field.FromFunc(domain, func=u_fn, name="u_3d")
+    v = Field.FromFunc(domain, func=u_0_fn, name="v_3d")
+    w = Field.FromFunc(domain, func=u_0_fn, name="w_3d")
+    U = VectorField([u, v, w])
+    U_hat = U.hat()
+    U_nohat = U_hat.no_hat()
+    U_nohat.plot(U, U_hat)
+    # U.plot(U_hat)
+    # U_nohat.plot(U)
+
 def test_cheb_integration_1D():
     Nx = 24
     domain = Domain((Nx,), (False,))
@@ -444,7 +463,7 @@ def test_navier_stokes():
     Ny = Nx
     Nz = Nx
 
-    Re = 1.8e0
+    Re = 1.8e2
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
@@ -480,12 +499,14 @@ def test_navier_stokes():
     number_of_steps = 1
     for i in range(number_of_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_steps))
-        nse.perform_runge_kutta_step(1e-3, i)
-        vel = nse.get_latest_field("velocity_hat").no_hat()
+        nse.perform_runge_kutta_step(1e0, i)
+        vel_hat = nse.get_latest_field("velocity_hat")
+        vel = vel_hat.no_hat()
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         vel_0[0].plot_center(1, vel[0], vel_x_ana)
         vel_0[1].plot_center(1, vel[1])
         vel_0[2].plot_center(1, vel[2])
+        print("change: " + str(abs(vel_0 - vel)))
 
 def run_all_tests():
     # test_1D_periodic()
@@ -494,6 +515,7 @@ def run_all_tests():
     # test_3D()
     # test_fourier_1D()
     # test_fourier_2D()
+    # test_fourier_simple_3D()
     # test_integration()
     # test_cheb_integration_1D()
     # test_cheb_integration_2D()

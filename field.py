@@ -398,6 +398,87 @@ class VectorField:
             out += str(elem)
         return out
 
+    def __neg__(self):
+        return self * (-1.0)
+
+    def __add__(self, other):
+        if other.name[0] == "-":
+            new_name = self.name + " - " + other.name[1:]
+        else:
+            new_name = self.name + " + " + other.name
+        fields = []
+        for i in range(len(self)):
+            fields.append(self[i] + other[i])
+
+        out = VectorField(fields)
+        out.name = new_name
+        return out
+
+    def __sub__(self, other):
+        return self + other * (-1.0)
+
+    def __mul__(self, other):
+        if isinstance(other, Field):
+            try:
+                new_name = self.name + " * " + other.name
+            except Exception:
+                new_name = "field"
+            fields = []
+            for i in range(len(self)):
+                fields.append(self[i] * other[i])
+
+            out = VectorField(fields)
+            out.name = new_name
+            return out
+        else:
+            try:
+                if other.real >= 0:
+                    new_name = str(other) + self.name
+                elif other == 1:
+                    new_name = self.name
+                elif other == -1:
+                    new_name = "-" + self.name
+                else:
+                    new_name = "(" + str(other) + ") " + self.name
+            except Exception:
+                new_name = "field"
+            fields = []
+            for i in range(len(self)):
+                fields.append(self[i] * other)
+
+            out = VectorField(fields)
+            out.name = new_name
+            return out
+
+    def __truediv__(self, other):
+        if type(other) == Field:
+            raise Exception("Don't know how to divide by another field")
+        else:
+            try:
+                if other.real >= 0:
+                    new_name = self.name + "/" + other
+                elif other == 1:
+                    new_name = self.name
+                elif other == -1:
+                    new_name = "-" + self.name
+                else:
+                    new_name = self.name + "/ (" + str(other) + ") "
+            except Exception:
+                new_name = "field"
+            fields = []
+            for i in range(len(self)):
+                fields.append(self[i] / other)
+
+            out = VectorField(fields)
+            out.name = new_name
+            return out
+
+    def __abs__(self):
+        out = 0
+        for f in self:
+            out += abs(f)
+        return out
+
     def all_dimensions(self):
         return range(self[0].domain.number_of_dimensions)
 

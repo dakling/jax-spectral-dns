@@ -113,7 +113,6 @@ class NavierStokesVelVort(Equation):
             domain_y, 1, phi_hat[n:], "vort_hat_new", kx, kz
         )
 
-        # v_1_new = v_1_lap_hat_new.integrate(1, 2, 0.0, 0.0)
         v_1_new = v_1_lap_hat_new.solve_poisson()
         minus_kx_kz_sq = -(kx**2 + kz**2)
         if minus_kx_kz_sq == 0:
@@ -159,7 +158,7 @@ class NavierStokesVelVort(Equation):
         # hel_hat = hel.hat()
 
         h_v_hat = (
-            -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + hel_hat[1].laplacian()
+            -(hel_hat[0].diff(0) + hel_hat[2].diff(2)).diff(1) + (hel_hat[1].diff(0,2) + hel_hat[1].diff(2,2))
         )
         h_g_hat = hel_hat[0].diff(2) - hel_hat[2].diff(0)
 
@@ -172,8 +171,8 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]]) # TODO + (kx**2 + kz**2)?
 
-        # dPdx = - 2 / Re # should make for u_max=1
-        dPdx = 0
+        dPdx = - 2 / Re # should yield u_max=1
+        # dPdx = 0
         dPdz = 0 # spanwise pressure gradient should be negligble
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]])
@@ -186,6 +185,7 @@ class NavierStokesVelVort(Equation):
             lhs_mat_inv_0, lhs_mat_inv_1, lhs_mat_inv_2, rhs_mat_0, rhs_mat_1, rhs_mat_2 = self.assemble_rk_matrices(L, dt, kx, kz)
             # first RK step
             phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
+
             N_0 = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
             phi_hat_new_1 = lhs_mat_inv_0 @ (
                 rhs_mat_0 @ phi_hat + (dt * gamma[0]) * N_0
@@ -261,43 +261,36 @@ class NavierStokesVelVort(Equation):
                 )
 
             ####
-            # if kz == 1:
-                # print(phi_hat)
-
-                # print(phi_hat_new_1)
-                # print(phi_hat_new_2)
-                # print(h_v_hat_new_1)
-
-                # print(phi_hat_new_3)
-                # print(vel_new)
-                # v_curl = v_hat_new_1.curl()
-                # hel_ = v_hat_new_1.cross_product(v_curl)
-                # fig, ax = plt.subplots(1, 1)
-                # ax.plot(domain_y.grid[0], phi_hat[:n])
-                # ax.plot(domain_y.grid[0], phi_hat[n:])
-                # vel_0_nohat = self.get_initial_field("velocity_hat").no_hat()
-                # vel_new.plot()
-                # vel_0_nohat.plot()
-                # ax.plot(domain_y.grid[0], v_hat_new_3[:n])
-                # ax.plot(domain_y.grid[0], v_hat_new_2[:n])
-                # ax.plot(domain_y.grid[0], v_hat_new_1[:n])
-                # ax.plot(domain_y.grid[0], v_hat[:n])
-                # ax.plot(domain_y.grid[0], v_hat_new_3[n:])
-                # ax.plot(domain_y.grid[0], v_hat_new_2[n:])
-                # ax.plot(domain_y.grid[0], v_hat_new_1[n:])
-                # ax.plot(domain_y.grid[0], v_hat[n:])
-                # ax.plot(domain_y.grid[0], v_hat_new_1[n:])
-                # ax.plot(domain_y.grid[0], phi_hat[:n], phi_hat_new_1[:n], phi_hat_new_2[:n])
-                # ax.plot(domain_y.grid[0], phi_hat[n:], phi_hat_new_1[n:], phi_hat_new_2[n:])
-                # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
-                # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
-                # fig.savefig("plots/plot.pdf")
-                # raise Exception("break")
+            # if kz == 2:
+            #     # fig, ax = plt.subplots(1, 1)
+            #     # ax.plot(domain_y.grid[0], phi_hat[:n])
+            #     # ax.plot(domain_y.grid[0], phi_hat[n:])
+            #     vel_0_nohat = self.get_initial_field("velocity_hat").no_hat()
+            #     vel_new.plot()
+            #     vel_0_nohat.plot()
+            #     # ax.plot(domain_y.grid[0], v_hat_new_3[:n])
+            #     # ax.plot(domain_y.grid[0], v_hat_new_2[:n])
+            #     # ax.plot(domain_y.grid[0], v_hat_new_1[:n])
+            #     # ax.plot(domain_y.grid[0], v_hat[:n])
+            #     # ax.plot(domain_y.grid[0], v_hat_new_3[n:])
+            #     # ax.plot(domain_y.grid[0], v_hat_new_2[n:])
+            #     # ax.plot(domain_y.grid[0], v_hat_new_1[n:])
+            #     # ax.plot(domain_y.grid[0], v_hat[n:])
+            #     # ax.plot(domain_y.grid[0], v_hat_new_1[n:])
+            #     # ax.plot(domain_y.grid[0], phi_hat[:n], phi_hat_new_1[:n], phi_hat_new_2[:n])
+            #     # ax.plot(domain_y.grid[0], phi_hat[n:], phi_hat_new_1[n:], phi_hat_new_2[n:])
+            #     # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
+            #     # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
+            #     # fig.savefig("plots/plot.pdf")
+            #     raise Exception("break")
             ####
 
             return vel_new
 
         vel_new_hat = vel_hat.reconstruct_from_wavenumbers(perform_rk_step_for_single_wavenumber)
+        vel_new_hat.name = "velocity_hat"
+        for i in range(len(vel_new_hat)):
+            vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         vel_new_hat.update_boundary_conditions()
         self.append_field("velocity_hat",vel_new_hat)
 
@@ -370,8 +363,8 @@ def solve_navier_stokes_3D_channel():
 
     # u_final = jnp.fft.ifft(us_hat[-1], axis=0)
     # u_final = us[-1]
-    vy_lap.plot(vy_laps[-1])
-    vort_1.plot(vort_1_s[-1])
+    # vy_lap.plot(vy_laps[-1])
+    # vort_1.plot(vort_1_s[-1])
 
     end_time = time.time()
     print("elapsed time: " + str(end_time - start_time) + " seconds")
