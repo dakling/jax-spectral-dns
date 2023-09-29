@@ -449,7 +449,7 @@ def test_navier_stokes():
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = (
-        lambda X: 0.1 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
+        lambda X: 1 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
     vel_y_fn = (
         lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2])**3 * jnp.cos(X[1] * jnp.pi / 2)
@@ -472,18 +472,20 @@ def test_navier_stokes():
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     vel_x_fn_ana = (
-        lambda X: -0.1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+        lambda X: - 1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    number_of_steps = 5
+    number_of_steps = 1
     for i in range(number_of_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_steps))
-        nse.perform_runge_kutta_step(1e-1, i)
+        nse.perform_runge_kutta_step(1e-3, i)
         vel = nse.get_latest_field("velocity_hat").no_hat()
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         vel_0[0].plot_center(1, vel[0], vel_x_ana)
+        vel_0[1].plot_center(1, vel[1])
+        vel_0[2].plot_center(1, vel[2])
 
 def run_all_tests():
     # test_1D_periodic()

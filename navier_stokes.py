@@ -172,8 +172,11 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]]) # TODO + (kx**2 + kz**2)?
 
+        # dPdx = - 2 / Re # should make for u_max=1
+        dPdx = 0
+        dPdz = 0 # spanwise pressure gradient should be negligble
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
-        L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]]) #TODO this is where one would add pressure
+        L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]])
         # for kx = kz = 0
         lhs_mat_00_inv_0, lhs_mat_00_inv_1, lhs_mat_00_inv_2, rhs_mat_00_0, rhs_mat_00_1, rhs_mat_00_2 = self.assemble_rk_matrices(L_NS, dt, 0, 0)
 
@@ -190,9 +193,11 @@ class NavierStokesVelVort(Equation):
 
             if kx == 0 and kz == 0:
                 v_hat = jnp.block([vel_hat[0][kx, :, kz], vel_hat[2][kx, :, kz]])
-                N_00_0 = jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]])
+                N_00_0 = jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]]) \
+                    - dPdx * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
+                    - dPdz * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
                 v_hat_new_1 = lhs_mat_00_inv_0 @ (
-                rhs_mat_00_0 @ v_hat + (dt * gamma[0]) * N_00_0
+                rhs_mat_00_0 @ v_hat+ (dt * gamma[0]) * N_00_0
                 )
                 # update nonlinear terms
                 h_v_hat_new_1, h_g_hat_new_1, _, hel_hat_new_1 = self.update_nonlinear_terms(
@@ -213,7 +218,9 @@ class NavierStokesVelVort(Equation):
 
             if kx == 0 and kz == 0:
                 v_hat_new_1 = jnp.block([v_hat_new_1[:n], v_hat_new_1[n:]])
-                N_00_1 = jnp.block([hel_hat_new_1[0].field, hel_hat_new_1[2].field])
+                N_00_1 = jnp.block([hel_hat_new_1[0].field, hel_hat_new_1[2].field]) \
+                    - dPdx * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
+                    - dPdz * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
                 v_hat_new_2 = lhs_mat_00_inv_1 @ (
                 rhs_mat_00_1 @ v_hat_new_1 + (dt * gamma[1]) * N_00_1 + dt * xi[0] * N_00_0
                 )
@@ -236,7 +243,9 @@ class NavierStokesVelVort(Equation):
 
             if kx == 0 and kz == 0:
                 v_hat_new_2 = jnp.block([v_hat_new_2[:n], v_hat_new_2[n:]])
-                N_00_2 = jnp.block([hel_hat_new_2[0].field, hel_hat_new_2[2].field])
+                N_00_2 = jnp.block([hel_hat_new_2[0].field, hel_hat_new_2[2].field]) \
+                    - dPdx * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
+                    - dPdz * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
                 v_hat_new_3 = lhs_mat_00_inv_2 @ (
                 rhs_mat_00_2 @ v_hat_new_2 + (dt * gamma[2]) * N_00_2 + dt * xi[1] * N_00_1
                 )
