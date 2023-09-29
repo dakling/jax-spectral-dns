@@ -471,6 +471,18 @@ class FourierField(Field):
         self.domain_no_hat = domain
         self.domain = domain.hat()
 
+    def __add__(self, other):
+        out = super().__add__(other)
+        return FourierField(self.domain_no_hat, out.field, name=out.name)
+
+    def __mul__(self, other):
+        out = super().__mul__(other)
+        return FourierField(self.domain_no_hat, out.field, name=out.name)
+
+    def __truediv__(self, other):
+        out = super().__truediv__(other)
+        return FourierField(self.domain_no_hat, out.field, name=out.name)
+
     @classmethod
     def FromField(cls, field):
         out = cls(field.domain, field.field, field.name + "_hat")
@@ -674,5 +686,5 @@ class FourierFieldSlice(FourierField):
                 new_name = "field"
             return FourierFieldSlice(self.domain_no_hat,
                                      self.non_periodic_direction,
-                                     self.field * other, new_name,
+                                     self.field / other, new_name,
                                      *self.ks_raw)

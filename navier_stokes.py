@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from types import NoneType
 import jax.numpy as jnp
 import time
 import matplotlib.pyplot as plt
@@ -86,7 +87,23 @@ class NavierStokesVelVort(Equation):
             [-17 / 60, -5 / 12],
         )
 
-    def update_nonlinear_terms(self, domain_y, phi_hat, kx, kz):
+    def assemble_rk_matrices(self, L, dt):
+        alpha, beta, _, _ = self.get_rk_parameters()
+        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        n = D2_hom_diri.shape[0]
+        Z = jnp.zeros((n, n))
+        I = jnp.eye(2 * n)
+        lhs_mat_inv_0 = jnp.linalg.inv(I - beta[0] * dt * L)
+        rhs_mat_0 = I + alpha[0] * dt * L
+
+        lhs_mat_inv_1 = jnp.linalg.inv(I - beta[1] * dt * L)
+        rhs_mat_1 = I + alpha[1] * dt * L
+
+        lhs_mat_inv_2 = jnp.linalg.inv(I - beta[2] * dt * L)
+        rhs_mat_2 = I + alpha[2] * dt * L
+        return (lhs_mat_inv_0, lhs_mat_inv_1, lhs_mat_inv_2, rhs_mat_0, rhs_mat_1, rhs_mat_2)
+
+    def update_nonlinear_terms(self, domain_y, phi_hat, kx, kz, vel_new=None):
         n = len(phi_hat) // 2
         v_1_lap_hat_new = FourierFieldSlice(
             domain_y, 1, phi_hat[:n], "v_1_lap_hat_new", kx, kz
@@ -98,12 +115,17 @@ class NavierStokesVelVort(Equation):
         # v_1_new = v_1_lap_hat_new.integrate(1, 2, 0.0, 0.0)
         v_1_new = v_1_lap_hat_new.solve_poisson()
         minus_kx_kz_sq = -(kx**2 + kz**2)
-        v_0_new = (
-            -1j * kx * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
-        ) / minus_kx_kz_sq
-        v_2_new = (
-            -1j * kz * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
-        ) / minus_kx_kz_sq
+        if minus_kx_kz_sq == 0:
+            assert type(vel_new) != NoneType, "vel_new needs to be passed for kx=kz=0"
+            v_0_new = FourierFieldSlice(domain_y, 1, vel_new[:n], "v_0_new", kx, kz)
+            v_2_new = FourierFieldSlice(domain_y, 1, vel_new[n:], "v_0_new", kx, kz)
+        else:
+            v_0_new = (
+                -1j * kx * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
+            ) / minus_kx_kz_sq
+            v_2_new = (
+                -1j * kz * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
+            ) / minus_kx_kz_sq
         vel_new = VectorField([v_0_new, v_1_new, v_2_new])
         vel_new.name = "velocity_hat"
         for i in range(3):
@@ -119,8 +141,8 @@ class NavierStokesVelVort(Equation):
         )
         h_g_hat_new = hel_hat_new[0].diff(2) - hel_hat_new[2].diff(0)
 
-        # phi_hat_new = jnp.block([v_1_lap_hat_new.field, vort_1_hat_new.field])
-        return (h_v_hat_new, h_g_hat_new, vel_new)
+        return (h_v_hat_new, h_g_hat_new, vel_new, hel_hat_new)
+
 
     def perform_runge_kutta_step(self, dt, i):
         Re = self.Re
@@ -142,9 +164,7 @@ class NavierStokesVelVort(Equation):
         h_g_hat = hel_hat[0].diff(2) - hel_hat[2].diff(0)
 
         # start runge-kutta stepping
-        alpha, beta, gamma, xi = self.get_rk_parameters()
-        # domain_hat = self.domain.hat()
-
+        _, _, gamma, xi = self.get_rk_parameters()
         domain_y = Domain((len(self.domain.grid[1]),), (False,))
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
@@ -152,14 +172,10 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
         I = jnp.eye(2 * n)
-        lhs_mat_inv_0 = jnp.linalg.inv(I - beta[0] * dt * L)
-        rhs_mat_0 = I + alpha[0] * dt * L
+        lhs_mat_inv_0, lhs_mat_inv_1, lhs_mat_inv_2, rhs_mat_0, rhs_mat_1, rhs_mat_2 = self.assemble_rk_matrices(L, dt)
 
-        lhs_mat_inv_1 = jnp.linalg.inv(I - beta[1] * dt * L)
-        rhs_mat_1 = I + alpha[1] * dt * L
-
-        lhs_mat_inv_2 = jnp.linalg.inv(I - beta[2] * dt * L)
-        rhs_mat_2 = I + alpha[2] * dt * L
+        # kx = kz = 0
+        lhs_mat_00_inv_0, lhs_mat_00_inv_1, lhs_mat_00_inv_2, rhs_mat_00_0, rhs_mat_00_1, rhs_mat_00_2 = self.assemble_rk_matrices(L, dt)
 
         def perform_rk_step_for_single_wavenumber(kx_, kz_):
             kx = int(kx_)
@@ -171,11 +187,24 @@ class NavierStokesVelVort(Equation):
                 rhs_mat_0 @ phi_hat + (dt * gamma[0]) * N_0
             )
 
-            # update nonlinear terms
-            # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
-            h_v_hat_new_1, h_g_hat_new_1, vel_new_1 = self.update_nonlinear_terms(
-                domain_y, phi_hat_new_1, kx, kz
-            )
+            if kx == 0 and kz == 0:
+                v_hat = jnp.block([vel_hat[0][kx, :, kz], vel_hat[2][kx, :, kz]])
+                N_00_0 = jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]])
+                v_hat_new_1 = lhs_mat_00_inv_0 @ (
+                rhs_mat_00_0 @ v_hat + (dt * gamma[0]) * N_00_0
+                )
+                # update nonlinear terms
+                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+                h_v_hat_new_1, h_g_hat_new_1, _, hel_hat_new_1 = self.update_nonlinear_terms(
+                    domain_y, phi_hat_new_1, kx, kz, v_hat_new_1
+                )
+
+            else:
+                # update nonlinear terms
+                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+                h_v_hat_new_1, h_g_hat_new_1, _, _ = self.update_nonlinear_terms(
+                    domain_y, phi_hat_new_1, kx, kz
+                )
 
             # second RK step
             N_1 = jnp.block([h_v_hat_new_1.field, h_g_hat_new_1.field])
@@ -183,11 +212,10 @@ class NavierStokesVelVort(Equation):
                 rhs_mat_1 @ phi_hat_new_1 + (dt * gamma[1]) * N_1 + xi[0] * N_0
             )
 
+            ####
             # v_curl = vel_new_1.curl()
             # hel_ = vel_new_1.cross_product(v_curl)
-
-            ####
-            # # vel_new_1.plot(v_curl[0], v_curl[1], v_curl[2], hel_[0], hel_[1], hel_[2])
+            # vel_new_1.plot(v_curl[0], v_curl[1], v_curl[2], hel_[0], hel_[1], hel_[2])
             # vel_new_1[1].plot(
             #     FourierFieldSlice(
             #         domain_y, 1, vel_hat[1][kx, :, kz], "v0", kx, kz
@@ -195,18 +223,32 @@ class NavierStokesVelVort(Equation):
             # )
             # print(jnp.linalg.norm(N_1))
             # fig, ax = plt.subplots(1, 1)
-            # ax.plot(domain_y.grid[0], phi_hat_new_2[:n])
-            # ax.plot(domain_y.grid[0], phi_hat_new_2[n:])
+            # ax.plot(domain_y.grid[0], phi_hat[:n])
+            # ax.plot(domain_y.grid[0], phi_hat[n:])
+            # # ax.plot(domain_y.grid[0], phi_hat[:n], phi_hat_new_1[:n], phi_hat_new_2[:n])
+            # # ax.plot(domain_y.grid[0], phi_hat[n:], phi_hat_new_1[n:], phi_hat_new_2[n:])
             # # ax.plot(domain_y.grid[0], phi_hat[:n], "--")
             # # ax.plot(domain_y.grid[0], phi_hat[n:], "--")
             # fig.savefig("plots/plot.pdf")
             # return
             ####
 
-            # update nonlinear terms
-            h_v_hat_new_2, h_g_hat_new_2, _ = self.update_nonlinear_terms(
-                domain_y, phi_hat_new_2, kx, kz
-            )
+            if kx == 0 and kz == 0:
+                v_hat_new_1 = jnp.block([v_hat_new_1[:n], v_hat_new_1[n:]])
+                N_00_1 = jnp.block([hel_hat_new_1[0].field, hel_hat_new_1[2].field])
+                v_hat_new_2 = lhs_mat_00_inv_1 @ (
+                rhs_mat_00_1 @ v_hat_new_1 + (dt * gamma[1]) * N_00_1  + xi[0] * N_00_0
+                )
+                # update nonlinear terms
+                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+                h_v_hat_new_2, h_g_hat_new_2, _, hel_hat_new_2 = self.update_nonlinear_terms(
+                    domain_y, phi_hat_new_1, kx, kz, v_hat_new_2
+                )
+            else:
+                # update nonlinear terms
+                h_v_hat_new_2, h_g_hat_new_2, _,_ = self.update_nonlinear_terms(
+                    domain_y, phi_hat_new_2, kx, kz
+                )
 
             # third RK step
             N_2 = jnp.block([h_v_hat_new_2.field, h_g_hat_new_2.field])
@@ -214,10 +256,22 @@ class NavierStokesVelVort(Equation):
                 rhs_mat_2 @ phi_hat_new_2 + (dt * gamma[2]) * N_2 + xi[1] * N_1
             )
 
-            # update velocity
-            _, _, vel_new = self.update_nonlinear_terms(
-                domain_y, phi_hat_new_3, kx, kz
-            )
+            if kx == 0 and kz == 0:
+                v_hat_new_3 = jnp.block([v_hat_new_2[:n], v_hat_new_2[n:]])
+                N_00_2 = jnp.block([hel_hat_new_2[0].field, hel_hat_new_2[2].field])
+                v_hat_new_2 = lhs_mat_00_inv_2 @ (
+                rhs_mat_00_2 @ v_hat_new_2 + (dt * gamma[2]) * N_00_2  + xi[1] * N_00_1
+                )
+                # update nonlinear terms
+                # h_v_hat_new_1, h_g_hat_new_1, _ = self.update_nonlinear_terms(domain_y, phi_hat_new_1, kx, kz)
+                _, _, vel_new, _ = self.update_nonlinear_terms(
+                    domain_y, phi_hat_new_1, kx, kz, v_hat_new_3
+                )
+            else:
+                # update velocity
+                _, _, vel_new, _ = self.update_nonlinear_terms(
+                    domain_y, phi_hat_new_3, kx, kz
+                )
             return vel_new
 
         vel_hat.reconstruct_from_wavenumbers(perform_rk_step_for_single_wavenumber)
