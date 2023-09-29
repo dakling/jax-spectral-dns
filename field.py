@@ -47,6 +47,12 @@ class Field:
     def __getitem__(self, index):
         return self.field[index]
 
+    def max(self):
+        return max(self.field.flatten())
+
+    def min(self):
+        return min(self.field.flatten())
+
     def __neg__(self):
         return self * (-1.0)
 
@@ -397,6 +403,12 @@ class VectorField:
         for elem in self.elements:
             out += str(elem)
         return out
+
+    def max(self):
+        return max([max(f) for f in self])
+
+    def min(self):
+        return min([min(f) for f in self])
 
     def __neg__(self):
         return self * (-1.0)

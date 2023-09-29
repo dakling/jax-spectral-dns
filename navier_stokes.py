@@ -171,7 +171,7 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]]) # TODO + (kx**2 + kz**2)?
 
-        dPdx = - 2 / Re # should yield u_max=1
+        dPdx = - 27 * 2 / Re # should yield u_max=1
         # dPdx = 0
         dPdz = 0 # spanwise pressure gradient should be negligble
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()

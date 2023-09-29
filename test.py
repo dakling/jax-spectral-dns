@@ -201,20 +201,6 @@ def test_3D():
     assert abs(u_zz - u_zz_ana) < tol
 
 
-def test_integration():
-    Nx = 24
-    # domain = Domain((Nx,), (False,))
-    domain = Domain((Nx,), (True,))
-
-    # u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
-    u_fn = lambda X: jnp.cos(X[0])
-    u = Field.FromFunc(domain, func=u_fn, name="u_1d")
-    # u_int = Field(domain, u.solve_poisson([0], u))
-    u_int = u.solve_poisson([0], u)
-    # u_int.update_boundary_conditions()
-    u_int.name="u_int"
-    u_int.plot(u)
-
 def test_fourier_1D():
 
     Nx = 24
@@ -407,19 +393,6 @@ def test_cheb_integration_3D():
     # print(abs(u_int - u_int_ana))
     assert abs(u_int - u_int_ana) < tol
 
-def test_poisson():
-    Nx = 24
-    Ny = Nx
-    domain = Domain((Nx,Ny), (True,True))
-
-    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1])
-    u = Field.FromFunc(domain, func=u_fn, name="u_2d")
-    rhs = Field.FromFunc(domain, func=u_fn, name="rhs_2d")
-    u.solve_poisson(u.all_periodic_dimensions(), rhs)
-    u.plot_center(0)
-    u.plot_center(1)
-    u.plot()
-
 def test_poisson_slices():
     Nx = 24
     Ny = Nx
@@ -463,7 +436,7 @@ def test_navier_stokes():
     Ny = Nx
     Nz = Nx
 
-    Re = 1.8e2
+    Re = 1.8e1
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
@@ -496,7 +469,7 @@ def test_navier_stokes():
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    number_of_steps = 1
+    number_of_steps = 10
     for i in range(number_of_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_steps))
         nse.perform_runge_kutta_step(1e0, i)
@@ -507,19 +480,20 @@ def test_navier_stokes():
         vel_0[1].plot_center(1, vel[1])
         vel_0[2].plot_center(1, vel[2])
         print("change: " + str(abs(vel_0 - vel)))
+        print("u_0_max: " + str(vel_0[0].max()))
+        print("u_max: " + str(vel[0].max()))
 
 def run_all_tests():
-    # test_1D_periodic()
-    # test_1D_cheb()
-    # test_2D()
-    # test_3D()
-    # test_fourier_1D()
-    # test_fourier_2D()
-    # test_fourier_simple_3D()
+    test_1D_periodic()
+    test_1D_cheb()
+    test_2D()
+    test_3D()
+    test_fourier_1D()
+    test_fourier_2D()
+    test_fourier_simple_3D()
     # test_integration()
-    # test_cheb_integration_1D()
-    # test_cheb_integration_2D()
-    # test_cheb_integration_3D()
-    # test_poisson()
-    # test_poisson_slices()
+    test_cheb_integration_1D()
+    test_cheb_integration_2D()
+    test_cheb_integration_3D()
+    test_poisson_slices()
     test_navier_stokes()
