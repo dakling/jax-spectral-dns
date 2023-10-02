@@ -74,6 +74,10 @@ class NavierStokesVelVort(Equation):
             hel_hat[i].name = "hel_hat_" + str(i)
         return (vort_hat, hel_hat)
 
+    def get_flow_rate(self):
+        vel_hat = self.get_latest_field("velocity_hat")
+        return vel_hat[0].no_hat().integrate(1, 1, 0.0).field[0, 0, 0]
+
     def get_cheb_mat_2_homogeneous_dirichlet(self):
         return self.get_initial_field("velocity_hat")[
             0
@@ -99,7 +103,6 @@ class NavierStokesVelVort(Equation):
         return (lhs_mat_inv, rhs_mat)
 
     def update_nonlinear_terms(self, vel_hat_new):
-        # TODO do I have to do this in physical space? (Hoyas mentions this)
         vel_new = vel_hat_new.no_hat()
         vort_new = vel_new.curl()
 
@@ -133,7 +136,11 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
-        dPdx = - len(self.domain.grid[2]) * 2 / Re # should yield u_max=1; TODO: why does Nx (Nz??) enter here?
+
+        # flow rate per unit thickness
+        flow_rate = self.get_flow_rate()
+        dPdx = - flow_rate * 3/2 / Re # TODO does this only hold for quadratic profiles?
+        # dPdx = - len(self.domain.grid[0]) * 2 / Re # should yield u_max=1; TODO: why does Nx (Ny?? Nz??) enter here?
         # dPdx = - 2 / Re # should yield u_max=1
         # dPdx = - 1
         # dPdx = 0

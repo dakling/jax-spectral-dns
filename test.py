@@ -365,15 +365,22 @@ def test_cheb_integration_2D():
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
     u = Field.FromFunc(domain, func=u_fn, name="u_2d")
 
-    u_fn_int = lambda X: - jnp.cos(X[0]) * (2 / jnp.pi)**2 * jnp.cos(X[1] * jnp.pi / 2)
-    u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_2d_int_ana")
-    u_int = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
-    u_int.name="u_int"
-    u_int.plot(u, u_int_ana)
+    u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(X[1] * jnp.pi / 2) + (2 / jnp.pi) * jnp.cos(X[0])
+    u_int_1_ana = Field.FromFunc(domain, func=u_fn_int_1, name="u_2d_int_1_ana")
+    u_fn_int_2 = lambda X: - jnp.cos(X[0]) * (2 / jnp.pi)**2 * jnp.cos(X[1] * jnp.pi / 2)
+    u_int_2_ana = Field.FromFunc(domain, func=u_fn_int_2, name="u_2d_int_2_ana")
+    u_int_1 = u.integrate(1, order=1, bc_left=0.0)
+    u_int_2 = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
+    u_int_1.name="u_int_1"
+    u_int_2.name="u_int_2"
+    u_int_1.plot(u, u_int_1_ana)
+    u_int_2.plot(u, u_int_2_ana)
 
     tol = 1e-7
-    # print(abs(u_int - u_int_ana))
-    assert abs(u_int - u_int_ana) < tol
+    # print(abs(u_int_1 - u_int_1_ana))
+    # print(abs(u_int_2 - u_int_2_ana))
+    assert abs(u_int_1 - u_int_1_ana) < tol
+    assert abs(u_int_2 - u_int_2_ana) < tol
 
 def test_cheb_integration_3D():
     Nx = 24
@@ -432,7 +439,7 @@ def test_poisson_slices():
 
 
 
-def test_navier_stokes():
+def test_navier_stokes_laminar():
     Nx = 20
     Ny = 24
     Nz = 18
@@ -442,13 +449,13 @@ def test_navier_stokes():
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = (
-        lambda X: 1 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
+        lambda X: jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
     vel_y_fn = (
-        lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2])**3 * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: 0.0 * X[0] * X[1] * X[2]
     )
     vel_z_fn = (
-        lambda X: 0.0 * jnp.cos(X[0])**2 * jnp.cos(X[2])**2 * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: 0.0 * X[0] * X[1] * X[2]
     )
     # vel_x_fn = (
     #     lambda X: 0.1 * jnp.cos(X[0])**2 * jnp.cos(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
@@ -471,6 +478,7 @@ def test_navier_stokes():
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
     number_of_steps = 50
+    flow_rate_0 = nse.get_flow_rate()
     for i in range(number_of_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_steps))
         nse.perform_runge_kutta_step(1e0, i)
@@ -481,8 +489,17 @@ def test_navier_stokes():
         vel[1].plot_center(1, vel_0[1])
         vel[2].plot_center(1, vel_0[2])
         print("change: " + str(abs(vel_0 - vel)))
-        print("u_0_max: " + str(vel_0[0].max()))
-        print("u_max: " + str(vel[0].max()))
+        # print("u_0_max: " + str(vel_0[0].max()))
+        # print("u_max: " + str(vel[0].max()))
+        print("flow_rate_0: " + str(flow_rate_0))
+        print("flow_rate: " + str(nse.get_flow_rate()))
+    tol = 1e-7
+    print(abs(vel[0] - vel_x_ana[0]))
+    print(abs(vel[1]))
+    print(abs(vel[2]))
+    assert abs(vel[0] - vel_x_ana[0]) < tol
+    assert abs(vel[1]) < tol
+    assert abs(vel[2]) < tol
 
 def run_all_tests():
     # test_1D_periodic()
@@ -496,4 +513,4 @@ def run_all_tests():
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
     # test_poisson_slices()
-    test_navier_stokes()
+    test_navier_stokes_laminar()

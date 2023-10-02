@@ -694,7 +694,6 @@ class FourierFieldSlice(FourierField):
         if direction in self.all_periodic_dimensions():
             out_field = self.field / (1j * self.ks[direction]) ** order
         else:
-            # out_field = super().integrate(1, order).field
             out_field = self.domain.integrate(self.field, 0, order)
         return FourierFieldSlice(
             self.domain_no_hat,

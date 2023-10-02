@@ -185,8 +185,10 @@ class Domain:
             )
         )
         inv_mat = jnp.linalg.inv(mat)
-        b_right = 0.0 if type(bc_right) != NoneType else field[0]
-        b_left = 0.0 if type(bc_left) != NoneType else field[-1]
+        # b_right = 0.0 if type(bc_right) != NoneType else b_right_fallback
+        # b_left = 0.0 if type(bc_left) != NoneType else b_left_fallback
+        b_right = 0.0
+        b_left = 0.0
         b = set_first_and_last_of_field(field, b_right, b_left)
 
         inds = "ijk"
@@ -205,9 +207,12 @@ class Domain:
             ind, b, inv_mat
         )
 
-        out_right = bc_right if type(bc_right) != NoneType else out[0]
-        out_left = bc_left if type(bc_left) != NoneType else out[-1]
-        out_bc = set_first_and_last_of_field(out, out_right, out_left)
+        # out_right = bc_right if type(bc_right) != NoneType else out[0]
+        # out_left = bc_left if type(bc_left) != NoneType else out[-1]
+        # out_right = 0.0
+        # out_left = 0.0
+        # # out_bc = set_first_and_last_of_field(out, out_right, out_left)
+        out_bc = out
         return out_bc
 
 class FourierDomain(Domain):
