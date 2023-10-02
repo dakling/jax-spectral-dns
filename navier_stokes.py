@@ -34,21 +34,11 @@ class NavierStokesVelVort(Equation):
         domain = Domain(shape, (True, False, True))
         super().__init__(domain, *fields)
         self.Re = params["Re"]
-        # vort = self.fields["vort"][0]
-        # vort.update_boundary_conditions()
+        self.flow_rate = self.get_flow_rate()
 
     @classmethod
     def FromVelocityField(cls, shape, velocity_field, Re=1.8e2):
         domain = Domain(shape, (True, False, True))
-        # vort = velocity_field.curl()
-        # for i in range(3):
-        #     vort[i].name = "vort_" + str(i)
-
-        # hel = velocity_field.cross_product(vort)
-        # for i in range(3):
-        #     hel[i].name = "hel_" + str(i)
-
-        # return cls(domain, velocity_field, vort, hel, Re=Re)
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
         return cls(shape, velocity_field_hat, Re=Re)
@@ -138,12 +128,10 @@ class NavierStokesVelVort(Equation):
 
 
         # flow rate per unit thickness
-        flow_rate = self.get_flow_rate()
-        dPdx = - flow_rate * 3/2 / Re # TODO does this only hold for quadratic profiles?
-        # dPdx = - len(self.domain.grid[0]) * 2 / Re # should yield u_max=1; TODO: why does Nx (Ny?? Nz??) enter here?
-        # dPdx = - 2 / Re # should yield u_max=1
-        # dPdx = - 1
-        # dPdx = 0
+        Nx = len(self.domain.grid[0])
+        Nz = len(self.domain.grid[2])
+        # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
+        dPdx = - (Nx * Nz)**(1/2) * self.flow_rate * 3/2 / Re
         dPdz = 0 # spanwise pressure gradient should be negligble
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]])

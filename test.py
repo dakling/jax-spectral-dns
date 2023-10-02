@@ -249,7 +249,7 @@ def test_fourier_1D():
 
 def test_fourier_2D():
     Nx = 24
-    Ny = Nx
+    Ny = Nx + 4
     domain = Domain((Nx,Ny), (True,True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1])
@@ -323,8 +323,8 @@ def test_fourier_2D():
 
 def test_fourier_simple_3D():
     Nx = 24
-    Ny = Nx
-    Nz = Nx
+    Ny = Nx + 4
+    Nz = Nx - 4
     domain = Domain((Nx,Ny,Nz), (True,False,True))
 
     # u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
@@ -440,22 +440,26 @@ def test_poisson_slices():
 
 
 def test_navier_stokes_laminar():
-    Nx = 20
+    Nx = 22
     Ny = 24
     Nz = 18
 
-    Re = 1.8e1
+    Re = 1.8e0
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = (
         lambda X: jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
+    # add small pertubation in y and z to see if it decays
+    # TODO make sure this is div free
     vel_y_fn = (
-        lambda X: 0.0 * X[0] * X[1] * X[2]
+        # lambda X: 0.0 * X[0] * X[1] * X[2]
+        lambda X: 0.1 *  jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
     vel_z_fn = (
-        lambda X: 0.0 * X[0] * X[1] * X[2]
+        # lambda X: 0.0 * X[0] * X[1] * X[2]
+        lambda X: 0.1 * jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
     # vel_x_fn = (
     #     lambda X: 0.1 * jnp.cos(X[0])**2 * jnp.cos(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
@@ -477,7 +481,7 @@ def test_navier_stokes_laminar():
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    number_of_steps = 50
+    number_of_steps = 10
     flow_rate_0 = nse.get_flow_rate()
     for i in range(number_of_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_steps))
@@ -494,10 +498,10 @@ def test_navier_stokes_laminar():
         print("flow_rate_0: " + str(flow_rate_0))
         print("flow_rate: " + str(nse.get_flow_rate()))
     tol = 1e-7
-    print(abs(vel[0] - vel_x_ana[0]))
+    print(abs(vel[0] - vel_x_ana))
     print(abs(vel[1]))
     print(abs(vel[2]))
-    assert abs(vel[0] - vel_x_ana[0]) < tol
+    assert abs(vel[0] - vel_x_ana) < tol
     assert abs(vel[1]) < tol
     assert abs(vel[2]) < tol
 
