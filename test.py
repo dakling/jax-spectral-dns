@@ -445,32 +445,21 @@ def test_navier_stokes_laminar(Ny = 28):
     Ny = Ny
     Nz = 18
 
-    Re = 1.8e0
+    Re = 1.0e0
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = (
         lambda X: jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
+
     # add small pertubation in y and z to see if it decays
-    # TODO make sure this is div free
     vel_y_fn = (
-        # lambda X: 0.0 * X[0] * X[1] * X[2]
         lambda X: 0.1 *  jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
     vel_z_fn = (
-        # lambda X: 0.0 * X[0] * X[1] * X[2]
         lambda X: 0.1 * jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
     )
-    # vel_x_fn = (
-    #     lambda X: 0.1 * jnp.cos(X[0])**2 * jnp.cos(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
-    # )
-    # vel_y_fn = (
-    #     lambda X: 0.1 * jnp.cos(X[0]) * jnp.cos(X[2])**3 * jnp.cos(X[1] * jnp.pi / 2)
-    # )
-    # vel_z_fn = (
-    #     lambda X: 0.1 * jnp.cos(X[0])**2 * jnp.cos(X[2])**2 * jnp.cos(X[1] * jnp.pi / 2)
-    # )
     vel_x = Field.FromFunc(domain, vel_x_fn, name="vel_x")
     vel_y = Field.FromFunc(domain, vel_y_fn, name="vel_y")
     vel_z = Field.FromFunc(domain, vel_z_fn, name="vel_z")
@@ -483,7 +472,6 @@ def test_navier_stokes_laminar(Ny = 28):
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
     number_of_time_steps = 14
-    flow_rate_0 = nse.get_flow_rate()
     for i in range(number_of_time_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_time_steps))
         start_time = time.time()

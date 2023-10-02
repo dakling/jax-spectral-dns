@@ -169,8 +169,8 @@ class NavierStokesVelVort(Equation):
                         - dPdx * (Nx * Nz)**(1/2) * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
                         - dPdz * (Nx * Nz)**(1/2) * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
                     N_00_old = jnp.block([hel_hat_old[0][kx, :, kz], hel_hat_old[2][kx, :, kz]]) \
-                        - dPdx * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
-                        - dPdz * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
+                        - dPdx * (Nx * Nz)**(1/2) * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
+                        - dPdz * (Nx * Nz)**(1/2) * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
                     v_hat_new = lhs_mat_00_inv @ (
                     rhs_mat_00 @ v_hat + (dt * gamma[step]) * N_00_new + (dt * xi[step]) * N_00_old
                     )
