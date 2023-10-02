@@ -127,11 +127,8 @@ class NavierStokesVelVort(Equation):
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
 
-        # flow rate per unit thickness
-        Nx = len(self.domain.grid[0])
-        Nz = len(self.domain.grid[2])
         # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
-        dPdx = - (Nx * Nz)**(1/2) * self.flow_rate * 3/2 / Re
+        dPdx = - self.flow_rate * 3/2 / Re
         dPdz = 0 # spanwise pressure gradient should be negligble
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]])
@@ -166,9 +163,11 @@ class NavierStokesVelVort(Equation):
                 if kx == 0 and kz == 0:
                     lhs_mat_00_inv, rhs_mat_00 = self.assemble_rk_matrices(L_NS, dt, 0, 0, step)
                     v_hat = jnp.block([vel_hat[0][kx, :, kz], vel_hat[2][kx, :, kz]])
+                    Nx = len(self.domain.grid[0])
+                    Nz = len(self.domain.grid[2])
                     N_00_new = jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]]) \
-                        - dPdx * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
-                        - dPdz * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
+                        - dPdx * (Nx * Nz)**(1/2) * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
+                        - dPdz * (Nx * Nz)**(1/2) * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])
                     N_00_old = jnp.block([hel_hat_old[0][kx, :, kz], hel_hat_old[2][kx, :, kz]]) \
                         - dPdx * jnp.block([jnp.ones(vel_hat[0][kx, :, kz].shape), jnp.zeros(vel_hat[2][kx, :, kz].shape)]) \
                         - dPdz * jnp.block([jnp.zeros(vel_hat[0][kx, :, kz].shape), jnp.ones(vel_hat[2][kx, :, kz].shape)])

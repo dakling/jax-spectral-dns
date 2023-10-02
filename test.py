@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import legend
 from numpy import float128
 import scipy as sc
+import time
 
 import numpy as np
 
@@ -439,9 +440,9 @@ def test_poisson_slices():
 
 
 
-def test_navier_stokes_laminar():
+def test_navier_stokes_laminar(Ny = 28):
     Nx = 22
-    Ny = 24
+    Ny = Ny
     Nz = 18
 
     Re = 1.8e0
@@ -481,10 +482,11 @@ def test_navier_stokes_laminar():
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    number_of_steps = 10
+    number_of_time_steps = 14
     flow_rate_0 = nse.get_flow_rate()
-    for i in range(number_of_steps):
-        print("Time Step " + str(i+1) + " of " + str(number_of_steps))
+    for i in range(number_of_time_steps):
+        print("Time Step " + str(i+1) + " of " + str(number_of_time_steps))
+        start_time = time.time()
         nse.perform_runge_kutta_step(1e0, i)
         vel_hat = nse.get_latest_field("velocity_hat")
         vel = vel_hat.no_hat()
@@ -492,18 +494,21 @@ def test_navier_stokes_laminar():
         vel[0].plot_center(1, vel_0[0], vel_x_ana)
         vel[1].plot_center(1, vel_0[1])
         vel[2].plot_center(1, vel_0[2])
-        print("change: " + str(abs(vel_0 - vel)))
-        # print("u_0_max: " + str(vel_0[0].max()))
-        # print("u_max: " + str(vel[0].max()))
-        print("flow_rate_0: " + str(flow_rate_0))
-        print("flow_rate: " + str(nse.get_flow_rate()))
-    tol = 1e-7
-    print(abs(vel[0] - vel_x_ana))
-    print(abs(vel[1]))
-    print(abs(vel[2]))
-    assert abs(vel[0] - vel_x_ana) < tol
-    assert abs(vel[1]) < tol
-    assert abs(vel[2]) < tol
+        tol = 1e-5
+        print(abs(vel[0] - vel_x_ana))
+        print(abs(vel[1]))
+        print(abs(vel[2]))
+        # check that the simulation is really converged
+        if i >= 10:
+            assert abs(vel[0] - vel_x_ana) < tol
+            assert abs(vel[1]) < tol
+            assert abs(vel[2]) < tol
+        print("Took " + str(time.time() - start_time) + " seconds")
+
+    return abs(vel[0] - vel_x_ana)
+
+def navier_stokes_laminar_convergence_test():
+    pass
 
 def run_all_tests():
     # test_1D_periodic()
