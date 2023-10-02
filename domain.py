@@ -29,7 +29,8 @@ class Domain:
             else:
                 grid.append(self.get_cheb_grid(shape[dim]))
                 self.diff_mats.append(self.assemble_cheb_diff_mat(shape[dim]))
-        self.grid = jnp.array(grid)
+        # self.grid = jnp.array(grid)
+        self.grid = grid
         self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
 
     def all_dimensions(self):
@@ -78,7 +79,7 @@ class Domain:
                 fourier_grid.append(jnp.linspace(0, Ns[i]-1, Ns[i]))
             else:
                 fourier_grid.append(self.grid[i])
-        fourier_grid_shifted = jnp.array(list(map(fftshift, fourier_grid, self.all_dimensions())))
+        fourier_grid_shifted = list(map(fftshift, fourier_grid, self.all_dimensions()))
         out = FourierDomain(self.shape, self.periodic_directions)
         out.grid = fourier_grid_shifted
         out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")

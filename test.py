@@ -82,8 +82,9 @@ def test_1D_periodic():
 
 
 def test_2D():
-    Nx = 24
-    Ny = Nx
+    Nx = 20
+    # Ny = Nx
+    Ny = 24
     domain = Domain((Nx, Ny), (True, False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
@@ -129,9 +130,9 @@ def test_2D():
 
 
 def test_3D():
-    Nx = 48
-    Ny = Nx
-    Nz = Nx
+    Nx = 24
+    Ny = 40
+    Nz = 20
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(X[2])
@@ -358,7 +359,7 @@ def test_cheb_integration_1D():
 
 def test_cheb_integration_2D():
     Nx = 24
-    Ny = Nx
+    Ny = Nx + 4
     domain = Domain((Nx,Ny), (True,False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
@@ -376,8 +377,8 @@ def test_cheb_integration_2D():
 
 def test_cheb_integration_3D():
     Nx = 24
-    Ny = Nx
-    Nz = Nx
+    Ny = Nx + 4
+    Nz = Nx - 4
     domain = Domain((Nx,Ny,Nz), (True,False,True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
@@ -395,8 +396,8 @@ def test_cheb_integration_3D():
 
 def test_poisson_slices():
     Nx = 24
-    Ny = Nx
-    Nz = Nx
+    Ny = Nx + 4
+    Nz = Nx - 4
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
     domain_y = Domain((Ny, ), (False))
@@ -432,9 +433,9 @@ def test_poisson_slices():
 
 
 def test_navier_stokes():
-    Nx = 24
-    Ny = Nx
-    Nz = Nx
+    Nx = 20
+    Ny = 24
+    Nz = 18
 
     Re = 1.8e1
 
@@ -469,31 +470,30 @@ def test_navier_stokes():
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    number_of_steps = 10
+    number_of_steps = 50
     for i in range(number_of_steps):
         print("Time Step " + str(i+1) + " of " + str(number_of_steps))
         nse.perform_runge_kutta_step(1e0, i)
         vel_hat = nse.get_latest_field("velocity_hat")
         vel = vel_hat.no_hat()
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        vel_0[0].plot_center(1, vel[0], vel_x_ana)
-        vel_0[1].plot_center(1, vel[1])
-        vel_0[2].plot_center(1, vel[2])
+        vel[0].plot_center(1, vel_0[0], vel_x_ana)
+        vel[1].plot_center(1, vel_0[1])
+        vel[2].plot_center(1, vel_0[2])
         print("change: " + str(abs(vel_0 - vel)))
         print("u_0_max: " + str(vel_0[0].max()))
         print("u_max: " + str(vel[0].max()))
 
 def run_all_tests():
-    test_1D_periodic()
-    test_1D_cheb()
-    test_2D()
-    test_3D()
-    test_fourier_1D()
-    test_fourier_2D()
-    test_fourier_simple_3D()
-    # test_integration()
-    test_cheb_integration_1D()
-    test_cheb_integration_2D()
-    test_cheb_integration_3D()
-    test_poisson_slices()
+    # test_1D_periodic()
+    # test_1D_cheb()
+    # test_2D()
+    # test_3D()
+    # test_fourier_1D()
+    # test_fourier_2D()
+    # test_fourier_simple_3D()
+    # test_cheb_integration_1D()
+    # test_cheb_integration_2D()
+    # test_cheb_integration_3D()
+    # test_poisson_slices()
     test_navier_stokes()

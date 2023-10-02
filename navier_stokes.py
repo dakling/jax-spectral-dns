@@ -105,6 +105,7 @@ class NavierStokesVelVort(Equation):
         return (lhs_mat_inv_0, lhs_mat_inv_1, lhs_mat_inv_2, rhs_mat_0, rhs_mat_1, rhs_mat_2)
 
     def update_nonlinear_terms(self, domain_y, phi_hat, kx, kz, vel_new=None):
+        # TODO do I have to do this in physical space? (Hoyas mentions this)
         n = len(phi_hat) // 2
         v_1_lap_hat_new = FourierFieldSlice(
             domain_y, 1, phi_hat[:n], "v_1_lap_hat_new", kx, kz
@@ -169,9 +170,11 @@ class NavierStokesVelVort(Equation):
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
-        L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]]) # TODO + (kx**2 + kz**2)?
+        L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
-        dPdx = - 27 * 2 / Re # should yield u_max=1
+        dPdx = - len(self.domain.grid[0]) * 2 / Re # should yield u_max=1; TODO: why does Nx enter here?
+        # dPdx = - 2 / Re # should yield u_max=1
+        # dPdx = - 1
         # dPdx = 0
         dPdz = 0 # spanwise pressure gradient should be negligble
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()

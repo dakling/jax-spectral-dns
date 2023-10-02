@@ -126,6 +126,7 @@ class Field:
                 ax.plot(
                     self.domain.grid[dimension],
                     other_field.field,
+                    "--",
                     label=other_field.name,
                 )
             fig.legend()
@@ -143,6 +144,7 @@ class Field:
                 ax.plot(
                     self.domain.grid[dimension],
                     other_field.field.take(indices=N_c, axis=other_dim),
+                    "--",
                     label=other_field.name,
                 )
             fig.legend()
@@ -171,6 +173,7 @@ class Field:
                     other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
                         indices=N_c[0], axis=other_dim[0]
                     ),
+                    "--",
                     label=other_field.name,
                 )
             fig.legend()
@@ -197,6 +200,7 @@ class Field:
                 ax.plot(
                     self.domain.grid[0],
                     other_field.field,
+                    "--",
                     label=other_field.name,
                 )
             fig.legend()
@@ -221,6 +225,7 @@ class Field:
                     ax[dimension].plot(
                         self.domain.grid[dimension],
                         other_field.field.take(indices=N_c, axis=other_dim),
+                        "--",
                         label=other_field.name,
                     )
                     ax3d.plot_surface(
@@ -246,6 +251,7 @@ class Field:
                         other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
                             indices=N_c[0], axis=other_dim[0]
                         ),
+                        "--",
                         label=other_field.name,
                     )
             fig.legend()
@@ -546,7 +552,8 @@ class VectorField:
 
     def reconstruct_from_wavenumbers(self, fn):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
-        k1, k2 = self[0].domain.grid[jnp.array(self.all_periodic_dimensions())]
+        k1 = self[0].domain.grid[self.all_periodic_dimensions()[0]]
+        k2 = self[0].domain.grid[self.all_periodic_dimensions()[1]]
         out_field = [FourierField(self[0].domain_no_hat,
                                   jnp.moveaxis(jnp.array([[fn(k1_, k2_)[i].field for k2_ in k2] for k1_ in k1]),
                                                -1, self.all_nonperiodic_dimensions()[0],),
@@ -637,7 +644,8 @@ class FourierField(Field):
 
     def reconstruct_from_wavenumbers(self, fn):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
-        k1, k2 = self.domain.grid[jnp.array(self.all_periodic_dimensions())]
+        k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
+        k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
         out_field = jnp.moveaxis(jnp.array([[fn(k1_, k2_).field for k2_ in k2] for k1_ in k1]), -1, self.all_nonperiodic_dimensions()[0])
         return FourierField(self.domain_no_hat, out_field, name=self.name + "_reconstr")
 
