@@ -36,18 +36,21 @@ class Domain:
     def all_dimensions(self):
         return range(self.number_of_dimensions)
 
+    def is_periodic(self, direction):
+        return self.periodic_directions[d]
+
     def all_periodic_dimensions(self):
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
-            if self.periodic_directions[d]
+            if self.is_periodic(d)
         ]
 
     def all_nonperiodic_dimensions(self):
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
-            if not self.periodic_directions[d]
+            if not self.is_periodic(d)
         ]
 
     def get_cheb_grid(self, N):

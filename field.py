@@ -6,11 +6,19 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 
-import numpy as np
+from importlib import reload
+import sys
+
+try:
+    reload(sys.modules["domain"])
+except:
+    print("Unable to load")
+from domain import Domain
 
 
 class Field:
     plotting_dir = "./plots/"
+    performance_mode = True
 
     def __init__(self, domain, field, name="field"):
         self.domain = domain
@@ -38,7 +46,11 @@ class Field:
             )
         field = jnp.array(rands).reshape(zero_field.domain.shape)
         return cls(domain, field, name)
-        pass
+
+    @classmethod
+    def FromField(cls, domain, field):
+        fn = lambda X: field.eval(X)
+        return Field.FromFunc(domain, fn, field.name + "_projected")
 
     def __repr__(self):
         # self.plot()
@@ -57,10 +69,13 @@ class Field:
         return self * (-1.0)
 
     def __add__(self, other):
-        if other.name[0] == "-":
-            new_name = self.name + " - " + other.name[1:]
+        if self.performance_mode:
+            new_name = ""
         else:
-            new_name = self.name + " + " + other.name
+            if other.name[0] == "-":
+                new_name = self.name + " - " + other.name[1:]
+            else:
+                new_name = self.name + " + " + other.name
         return Field(self.domain, self.field + other.field, name=new_name)
 
     def __sub__(self, other):
@@ -68,23 +83,29 @@ class Field:
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            try:
-                new_name = self.name + " * " + other.name
-            except Exception:
-                new_name = "field"
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    new_name = self.name + " * " + other.name
+                except Exception:
+                    new_name = "field"
             return Field(self.domain, self.field * other.field, name=new_name)
         else:
-            try:
-                if other.real >= 0:
-                    new_name = str(other) + self.name
-                elif other == 1:
-                    new_name = self.name
-                elif other == -1:
-                    new_name = "-" + self.name
-                else:
-                    new_name = "(" + str(other) + ") " + self.name
-            except Exception:
-                new_name = "field"
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = str(other) + self.name
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = "(" + str(other) + ") " + self.name
+                except Exception:
+                    new_name = "field"
             return Field(self.domain, self.field * other, name=new_name)
 
     __rmul__ = __mul__
@@ -94,23 +115,72 @@ class Field:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            try:
-                if other.real >= 0:
-                    new_name = self.name + "/" + other
-                elif other == 1:
-                    new_name = self.name
-                elif other == -1:
-                    new_name = "-" + self.name
-                else:
-                    new_name = self.name + "/ (" + str(other) + ") "
-            except Exception:
-                new_name = "field"
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = self.name + "/" + other
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = self.name + "/ (" + str(other) + ") "
+                except Exception:
+                    new_name = "field"
             return Field(self.domain, self.field * other, name=new_name)
 
     def __abs__(self):
-        return (
-            jnp.linalg.norm(self.field) / self.number_of_dofs()
-        )  # TODO use integration or something more sophisticated
+        # TODO use integration or something more sophisticated
+        return jnp.linalg.norm(self.field) / self.number_of_dofs()
+
+    def l2error(self, fn):
+        # fine_resolution = tuple(map(lambda x: x*10, self.domain.shape))
+        # fine_domain = Domain(fine_resolution, self.domain.periodic_directions)
+        # analytical_solution = Field.FromFunc(fine_domain, fn)
+        # fine_field = Field.FromFunc(fine_domain, lambda X: self.eval(*X) + 0.0*X[0] * X[1] * X[2])
+        # TODO supersampling
+        analytical_solution = Field.FromFunc(self.domain, fn)
+        return jnp.linalg.norm((self - analytical_solution).field, None)
+
+    def eval(self, *X):
+        """Evaluate field at arbitrary point X through linear interpolation. (This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
+        grd = self.domain.grid
+        print(grd)
+        print(len(grd))
+        print(X)
+        print(len(X))
+        print(len(X[0]))
+        interpolant = []
+        weights = []
+        for dim in self.all_dimensions():
+            for i in range(len(grd[dim])):
+                if (grd[dim][i] - X[dim]) * (grd[dim][i + 1] - X[dim]) <= 0:
+                    interpolant.append(i)
+                    weights.append(
+                        (grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1])
+                    )
+                    break
+        base_value = self.field
+        other_values = []
+        for dim in self.all_dimensions():
+            other_values.append(self.field)
+        for dim in reversed(self.all_dimensions()):
+            base_value = jnp.take(base_value, indices=interpolant[dim], axis=dim)
+            for i in self.all_dimensions():
+                if i == dim:
+                    other_values[i] = jnp.take(
+                        other_values[i], indices=interpolant[dim] + 1, axis=dim
+                    )
+                else:
+                    other_values[i] = jnp.take(
+                        other_values[i], indices=interpolant[dim], axis=dim
+                    )
+        out = base_value
+        for dim in self.all_dimensions():
+            out += (other_values[dim] - base_value) * (1 - weights[dim])
+        return out
 
     def number_of_dimensions(self):
         return len(self.all_dimensions())
@@ -420,10 +490,13 @@ class VectorField:
         return self * (-1.0)
 
     def __add__(self, other):
-        if other.name[0] == "-":
-            new_name = self.name + " - " + other.name[1:]
+        if self.performance_mode:
+            new_name = ""
         else:
-            new_name = self.name + " + " + other.name
+            if other.name[0] == "-":
+                new_name = self.name + " - " + other.name[1:]
+            else:
+                new_name = self.name + " + " + other.name
         fields = []
         for i in range(len(self)):
             fields.append(self[i] + other[i])
@@ -437,10 +510,13 @@ class VectorField:
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            try:
-                new_name = self.name + " * " + other.name
-            except Exception:
-                new_name = "field"
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    new_name = self.name + " * " + other.name
+                except Exception:
+                    new_name = "field"
             fields = []
             for i in range(len(self)):
                 fields.append(self[i] * other[i])
@@ -449,17 +525,20 @@ class VectorField:
             out.name = new_name
             return out
         else:
-            try:
-                if other.real >= 0:
-                    new_name = str(other) + self.name
-                elif other == 1:
-                    new_name = self.name
-                elif other == -1:
-                    new_name = "-" + self.name
-                else:
-                    new_name = "(" + str(other) + ") " + self.name
-            except Exception:
-                new_name = "field"
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = str(other) + self.name
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = "(" + str(other) + ") " + self.name
+                except Exception:
+                    new_name = "field"
             fields = []
             for i in range(len(self)):
                 fields.append(self[i] * other)
@@ -472,17 +551,20 @@ class VectorField:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            try:
-                if other.real >= 0:
-                    new_name = self.name + "/" + other
-                elif other == 1:
-                    new_name = self.name
-                elif other == -1:
-                    new_name = "-" + self.name
-                else:
-                    new_name = self.name + "/ (" + str(other) + ") "
-            except Exception:
-                new_name = "field"
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = self.name + "/" + other
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = self.name + "/ (" + str(other) + ") "
+                except Exception:
+                    new_name = "field"
             fields = []
             for i in range(len(self)):
                 fields.append(self[i] / other)
@@ -554,12 +636,18 @@ class VectorField:
         assert self.number_of_dimensions != 3, "2D not implemented yet"
         k1 = self[0].domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self[0].domain.grid[self.all_periodic_dimensions()[1]]
-        out_field = [FourierField(self[0].domain_no_hat,
-                                  jnp.moveaxis(jnp.array([[fn(k1_, k2_)[i].field for k2_ in k2] for k1_ in k1]),
-                                               -1, self.all_nonperiodic_dimensions()[0],),
-                                  "out_" + str(i)
-                                  )
-                     for i in self.all_dimensions() ]
+        out_field = [
+            FourierField(
+                self[0].domain_no_hat,
+                jnp.moveaxis(
+                    jnp.array([[fn(k1_, k2_)[i].field for k2_ in k2] for k1_ in k1]),
+                    -1,
+                    self.all_nonperiodic_dimensions()[0],
+                ),
+                "out_" + str(i),
+            )
+            for i in self.all_dimensions()
+        ]
         return VectorField(out_field)
 
 
@@ -646,7 +734,11 @@ class FourierField(Field):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
         k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
-        out_field = jnp.moveaxis(jnp.array([[fn(k1_, k2_).field for k2_ in k2] for k1_ in k1]), -1, self.all_nonperiodic_dimensions()[0])
+        out_field = jnp.moveaxis(
+            jnp.array([[fn(k1_, k2_).field for k2_ in k2] for k1_ in k1]),
+            -1,
+            self.all_nonperiodic_dimensions()[0],
+        )
         return FourierField(self.domain_no_hat, out_field, name=self.name + "_reconstr")
 
 
@@ -672,9 +764,7 @@ class FourierFieldSlice(FourierField):
         ]
 
     def all_nonperiodic_dimensions(self):
-        return [
-            self.non_periodic_direction
-        ]
+        return [self.non_periodic_direction]
 
     def diff(self, direction, order=1):
         if direction in self.all_periodic_dimensions():
@@ -712,11 +802,23 @@ class FourierFieldSlice(FourierField):
             factor += (1j * self.ks[direction]) ** 2
 
         # unit matrix with zeros in first and  last row/col to avoid messing with bcs
-        eye_bc = jnp.block([[jnp.zeros((1,n))], [jnp.zeros((n-2,1)), jnp.eye(n-2), jnp.zeros((n-2,1))], [jnp.zeros((1,n))]])
+        eye_bc = jnp.block(
+            [
+                [jnp.zeros((1, n))],
+                [jnp.zeros((n - 2, 1)), jnp.eye(n - 2), jnp.zeros((n - 2, 1))],
+                [jnp.zeros((1, n))],
+            ]
+        )
         mat = factor * eye_bc + y_mat
         mat_inv = jnp.linalg.inv(mat)
         out_field = mat_inv @ rhs_hat
-        out_fourier = FourierFieldSlice(self.domain, self.non_periodic_direction, out_field, self.name + "_poisson", *self.ks_raw)
+        out_fourier = FourierFieldSlice(
+            self.domain,
+            self.non_periodic_direction,
+            out_field,
+            self.name + "_poisson",
+            *self.ks_raw
+        )
         # self.field = out_fourier.field
         return out_fourier
 
@@ -724,46 +826,65 @@ class FourierFieldSlice(FourierField):
         return self * (-1.0)
 
     def __add__(self, other):
-        try:
-            if other.name[0] == "-":
-                new_name = self.name + " - " + other.name[1:]
-            else:
-                new_name = self.name + " + " + other.name
-        except Exception:
-            new_name = "field"
-        return FourierFieldSlice(self.domain_no_hat,
-                                 self.non_periodic_direction, self.field + other.field, new_name,
-                                 *self.ks_raw)
+        if self.performance_mode:
+            new_name = ""
+        else:
+            try:
+                if other.name[0] == "-":
+                    new_name = self.name + " - " + other.name[1:]
+                else:
+                    new_name = self.name + " + " + other.name
+            except Exception:
+                new_name = "field"
+        return FourierFieldSlice(
+            self.domain_no_hat,
+            self.non_periodic_direction,
+            self.field + other.field,
+            new_name,
+            *self.ks_raw
+        )
 
     def __sub__(self, other):
         return self + other * (-1.0)
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            try:
-                new_name = self.name + " * " + other.name
-            except Exception:
-                new_name = "field"
-            return FourierFieldSlice(self.domain_no_hat,
-                                     self.non_periodic_direction,
-                                     self.field * other.field, new_name,
-                                     *self.ks_raw)
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    new_name = self.name + " * " + other.name
+                except Exception:
+                    new_name = "field"
+            return FourierFieldSlice(
+                self.domain_no_hat,
+                self.non_periodic_direction,
+                self.field * other.field,
+                new_name,
+                *self.ks_raw
+            )
         else:
-            try:
-                if other.real >= 0:
-                    new_name = str(other) + self.name
-                elif other == 1:
-                    new_name = self.name
-                elif other == -1:
-                    new_name = "-" + self.name
-                else:
-                    new_name = "(" + str(other) + ") " + self.name
-            except Exception:
-                new_name = "field"
-            return FourierFieldSlice(self.domain_no_hat,
-                                     self.non_periodic_direction,
-                                     self.field * other, new_name,
-                                     *self.ks_raw)
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = str(other) + self.name
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = "(" + str(other) + ") " + self.name
+                except Exception:
+                    new_name = "field"
+            return FourierFieldSlice(
+                self.domain_no_hat,
+                self.non_periodic_direction,
+                self.field * other,
+                new_name,
+                *self.ks_raw
+            )
 
     __rmul__ = __mul__
     __lmul__ = __mul__
@@ -772,18 +893,24 @@ class FourierFieldSlice(FourierField):
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            try:
-                if other.real >= 0:
-                    new_name = self.name + "/" + other
-                elif other == 1:
-                    new_name = self.name
-                elif other == -1:
-                    new_name = "-" + self.name
-                else:
-                    new_name = self.name + "/ (" + str(other) + ") "
-            except Exception:
-                new_name = "field"
-            return FourierFieldSlice(self.domain_no_hat,
-                                     self.non_periodic_direction,
-                                     self.field / other, new_name,
-                                     *self.ks_raw)
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = self.name + "/" + other
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = self.name + "/ (" + str(other) + ") "
+                except Exception:
+                    new_name = "field"
+            return FourierFieldSlice(
+                self.domain_no_hat,
+                self.non_periodic_direction,
+                self.field / other,
+                new_name,
+                *self.ks_raw
+            )

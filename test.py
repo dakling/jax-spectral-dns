@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import legend
 from numpy import float128
 import scipy as sc
+import scipy.optimize as optimization
 import time
 
 import numpy as np
@@ -32,7 +33,8 @@ try:
     reload(sys.modules["navier_stokes"])
 except:
     print("Unable to load")
-from navier_stokes import NavierStokesVelVort
+from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
+
 
 def test_1D_cheb():
     Nx = 48
@@ -204,7 +206,6 @@ def test_3D():
 
 
 def test_fourier_1D():
-
     Nx = 24
     domain = Domain((Nx,), (True,))
 
@@ -227,7 +228,7 @@ def test_fourier_1D():
     u_hat_int = u_hat.integrate(0)
     u_int = u_hat_int.no_hat()
     u_int.name = "u_1d_int"
-    u_hat_int_2 = u_hat.integrate(0,2)
+    u_hat_int_2 = u_hat.integrate(0, 2)
     u_int_2 = u_hat_int_2.no_hat()
     u_int_2.name = "u_1d_int_2"
     tol = 1e-6
@@ -248,32 +249,33 @@ def test_fourier_1D():
     assert abs(u_diff - u_diff_ana) < tol
     assert abs(u_diff_2 - u_diff_ana_2) < tol
 
+
 def test_fourier_2D():
     Nx = 24
     Ny = Nx + 4
-    domain = Domain((Nx,Ny), (True,True))
+    domain = Domain((Nx, Ny), (True, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1])
     u = Field.FromFunc(domain, func=u_fn, name="u_2d")
 
-    u_x_fn = lambda X: - jnp.sin(X[0]) * jnp.cos(X[1])
+    u_x_fn = lambda X: -jnp.sin(X[0]) * jnp.cos(X[1])
     u_x_ana = Field.FromFunc(domain, func=u_x_fn, name="u_2d_x_ana")
-    u_xx_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_xx_fn = lambda X: -jnp.cos(X[0]) * jnp.cos(X[1])
     u_xx_ana = Field.FromFunc(domain, func=u_xx_fn, name="u_2d_xx_ana")
 
-    u_y_fn = lambda X: - jnp.cos(X[0]) * jnp.sin(X[1])
+    u_y_fn = lambda X: -jnp.cos(X[0]) * jnp.sin(X[1])
     u_y_ana = Field.FromFunc(domain, func=u_y_fn, name="u_2d_y_ana")
-    u_yy_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_yy_fn = lambda X: -jnp.cos(X[0]) * jnp.cos(X[1])
     u_yy_ana = Field.FromFunc(domain, func=u_yy_fn, name="u_2d_yy_ana")
 
     u_int_x_fn = lambda X: jnp.sin(X[0]) * jnp.cos(X[1])
     u_int_x_ana = Field.FromFunc(domain, func=u_int_x_fn, name="u_2d_int_x_ana")
-    u_int_xx_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_int_xx_fn = lambda X: -jnp.cos(X[0]) * jnp.cos(X[1])
     u_int_xx_ana = Field.FromFunc(domain, func=u_int_xx_fn, name="u_2d_int_xx_ana")
 
     u_int_y_fn = lambda X: jnp.cos(X[0]) * jnp.sin(X[1])
     u_int_y_ana = Field.FromFunc(domain, func=u_int_y_fn, name="u_2d_int_y_ana")
-    u_int_yy_fn = lambda X: - jnp.cos(X[0]) * jnp.cos(X[1])
+    u_int_yy_fn = lambda X: -jnp.cos(X[0]) * jnp.cos(X[1])
     u_int_yy_ana = Field.FromFunc(domain, func=u_int_yy_fn, name="u_2d_int_yy_ana")
 
     u_hat = u.hat()
@@ -322,14 +324,15 @@ def test_fourier_2D():
     assert abs(u_int_y - u_int_y_ana) < tol
     assert abs(u_int_yy - u_int_yy_ana) < tol
 
+
 def test_fourier_simple_3D():
     Nx = 24
     Ny = Nx + 4
     Nz = Nx - 4
-    domain = Domain((Nx,Ny,Nz), (True,False,True))
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     # u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
-    u_0_fn = lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
+    u_0_fn = lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
     u_fn = lambda X: 0.0 * jnp.cos(X[0]) * jnp.cos(X[2]) + jnp.sin(X[1] * jnp.pi)
     u = Field.FromFunc(domain, func=u_fn, name="u_3d")
     v = Field.FromFunc(domain, func=u_0_fn, name="v_3d")
@@ -341,6 +344,7 @@ def test_fourier_simple_3D():
     # U.plot(U_hat)
     # U_nohat.plot(U)
 
+
 def test_cheb_integration_1D():
     Nx = 24
     domain = Domain((Nx,), (False,))
@@ -348,32 +352,37 @@ def test_cheb_integration_1D():
     u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
     u = Field.FromFunc(domain, func=u_fn, name="u_1d")
 
-    u_fn_int = lambda X: - (2 / jnp.pi)**2 * jnp.cos(X[0] * jnp.pi / 2)
+    u_fn_int = lambda X: -((2 / jnp.pi) ** 2) * jnp.cos(X[0] * jnp.pi / 2)
     u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_1d_int_ana")
     u_int = u.integrate(0, order=2, bc_left=0.0, bc_right=0.0)
-    u_int.name="u_int"
+    u_int.name = "u_int"
     u_int.plot(u, u_int_ana)
 
     tol = 1e-7
     # print(abs(u_int - u_int_ana))
     assert abs(u_int - u_int_ana) < tol
 
+
 def test_cheb_integration_2D():
     Nx = 24
     Ny = Nx + 4
-    domain = Domain((Nx,Ny), (True,False))
+    domain = Domain((Nx, Ny), (True, False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
     u = Field.FromFunc(domain, func=u_fn, name="u_2d")
 
-    u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(X[1] * jnp.pi / 2) + (2 / jnp.pi) * jnp.cos(X[0])
+    u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(X[1] * jnp.pi / 2) + (
+        2 / jnp.pi
+    ) * jnp.cos(X[0])
     u_int_1_ana = Field.FromFunc(domain, func=u_fn_int_1, name="u_2d_int_1_ana")
-    u_fn_int_2 = lambda X: - jnp.cos(X[0]) * (2 / jnp.pi)**2 * jnp.cos(X[1] * jnp.pi / 2)
+    u_fn_int_2 = (
+        lambda X: -jnp.cos(X[0]) * (2 / jnp.pi) ** 2 * jnp.cos(X[1] * jnp.pi / 2)
+    )
     u_int_2_ana = Field.FromFunc(domain, func=u_fn_int_2, name="u_2d_int_2_ana")
     u_int_1 = u.integrate(1, order=1, bc_left=0.0)
     u_int_2 = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
-    u_int_1.name="u_int_1"
-    u_int_2.name="u_int_2"
+    u_int_1.name = "u_int_1"
+    u_int_2.name = "u_int_2"
     u_int_1.plot(u, u_int_1_ana)
     u_int_2.plot(u, u_int_2_ana)
 
@@ -383,24 +392,31 @@ def test_cheb_integration_2D():
     assert abs(u_int_1 - u_int_1_ana) < tol
     assert abs(u_int_2 - u_int_2_ana) < tol
 
+
 def test_cheb_integration_3D():
     Nx = 24
     Ny = Nx + 4
     Nz = Nx - 4
-    domain = Domain((Nx,Ny,Nz), (True,False,True))
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
     u = Field.FromFunc(domain, func=u_fn, name="u_3d")
 
-    u_fn_int = lambda X: - jnp.cos(X[0]) * jnp.cos(X[2]) * (2 / jnp.pi)**2 * jnp.cos(X[1] * jnp.pi / 2)
+    u_fn_int = (
+        lambda X: -jnp.cos(X[0])
+        * jnp.cos(X[2])
+        * (2 / jnp.pi) ** 2
+        * jnp.cos(X[1] * jnp.pi / 2)
+    )
     u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_3d_int_ana")
     u_int = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
-    u_int.name="u_int"
+    u_int.name = "u_int"
     u_int.plot(u_int_ana)
 
     tol = 1e-8
     # print(abs(u_int - u_int_ana))
     assert abs(u_int - u_int_ana) < tol
+
 
 def test_poisson_slices():
     Nx = 24
@@ -408,27 +424,36 @@ def test_poisson_slices():
     Nz = Nx - 4
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
-    domain_y = Domain((Ny, ), (False))
+    domain_y = Domain((Ny,), (False))
 
     rhs_fn = (
-        lambda X: - (2 + jnp.pi**2/4) * jnp.sin(X[0]) * jnp.sin(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: -(2 + jnp.pi**2 / 4)
+        * jnp.sin(X[0])
+        * jnp.sin(X[2] + 1.0)
+        * jnp.cos(X[1] * jnp.pi / 2)
     )
     rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
 
     u_ana_fn = (
-        lambda X: jnp.sin(X[0]) * jnp.sin(X[2]+1.0) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: jnp.sin(X[0]) * jnp.sin(X[2] + 1.0) * jnp.cos(X[1] * jnp.pi / 2)
     )
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
     rhs_nohat = rhs_hat.no_hat()
+
     def solve_poisson_for_single_wavenumber(kx_, kz_):
         kx, kz = int(kx_), int(kz_)
         if kx == 0 or kz == 0:
             # assumes homogeneneous Dirichlet boundary conditions
-            return FourierFieldSlice(domain_y, 1, rhs_hat[kx, :, kz]*0.0, "rhs_t_slice", kx, kz)
-        rhs_hat_slice = FourierFieldSlice(domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", kx, kz)
+            return FourierFieldSlice(
+                domain_y, 1, rhs_hat[kx, :, kz] * 0.0, "rhs_t_slice", kx, kz
+            )
+        rhs_hat_slice = FourierFieldSlice(
+            domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", kx, kz
+        )
         out = rhs_hat_slice.solve_poisson()
         return out
+
     out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
     out = out_hat.no_hat()
 
@@ -439,64 +464,107 @@ def test_poisson_slices():
     assert abs(u_ana - out) < tol
 
 
+def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
 
-def test_navier_stokes_laminar(Ny = 28):
-    Nx = 22
-    Ny = Ny
-    Nz = 18
+    Re = 1e0
 
-    Re = 1.0e0
+    end_time = 8
+    nse = solve_navier_stokes_laminar(Re=Re, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor)
+    nse.solve()
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
 
-    vel_x_fn = (
-        lambda X: jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
-    )
-
-    # add small pertubation in y and z to see if it decays
-    vel_y_fn = (
-        lambda X: 0.1 *  jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
-    )
-    vel_z_fn = (
-        lambda X: 0.1 * jnp.pi/3 * jnp.cos(X[1] * jnp.pi / 2 + 0.0 * X[0] * X[2])
-    )
-    vel_x = Field.FromFunc(domain, vel_x_fn, name="vel_x")
-    vel_y = Field.FromFunc(domain, vel_y_fn, name="vel_y")
-    vel_z = Field.FromFunc(domain, vel_z_fn, name="vel_z")
-    vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
-
-    vel_x_fn_ana = (
-        lambda X: - 1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    )
-    vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
-
-    nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
-    number_of_time_steps = 14
-    for i in range(number_of_time_steps):
-        print("Time Step " + str(i+1) + " of " + str(number_of_time_steps))
-        start_time = time.time()
-        nse.perform_runge_kutta_step(1e0, i)
-        vel_hat = nse.get_latest_field("velocity_hat")
+    vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+    print("Doing post-processing")
+    for i in range(nse.time_step)[-4:]:
+        vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         vel[0].plot_center(1, vel_0[0], vel_x_ana)
         vel[1].plot_center(1, vel_0[1])
         vel[2].plot_center(1, vel_0[2])
-        tol = 1e-5
+        tol = 6e-5
         print(abs(vel[0] - vel_x_ana))
         print(abs(vel[1]))
         print(abs(vel[2]))
         # check that the simulation is really converged
-        if i >= 10:
-            assert abs(vel[0] - vel_x_ana) < tol
-            assert abs(vel[1]) < tol
-            assert abs(vel[2]) < tol
-        print("Took " + str(time.time() - start_time) + " seconds")
+        assert abs(vel[0] - vel_x_ana) < tol
+        assert abs(vel[1]) < tol
+        assert abs(vel[2]) < tol
 
-    return abs(vel[0] - vel_x_ana)
 
-def navier_stokes_laminar_convergence_test():
-    pass
+def test_navier_stokes_laminar_convergence():
+    Nys = [24, 48, 96]
+    end_time = 10
+    def run(Ny):
+        nse = solve_navier_stokes_laminar(Re=1, end_time=end_time, Ny=Ny, pertubation_factor=0)
+        nse.solve()
+        vel_x_fn_ana = lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+        # vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
+        vel_hat = nse.get_latest_field("velocity_hat")
+        vel = vel_hat.no_hat()
+        return vel[0].l2error(vel_x_fn_ana)
+    errors = list(map(run, Nys))
+    errorsLog = list(map(lambda x: np.log2(x), errors))
+    print(errors)
+
+    def fittingFunc(x, a, b):
+        return a + b*x
+    result = optimization.curve_fit(fittingFunc, Nys, errorsLog)
+    print(result)
+
+def test_optimization():
+    Re = 1e0
+    Ny = 24
+    end_time = 1
+
+    nse = solve_navier_stokes_laminar(Re=Re, Ny=Ny, end_time=end_time, pertubation_factor=0.0)
+    def run(v0):
+        nse_ = solve_navier_stokes_laminar(Re=Re, Ny=Ny, end_time=end_time, max_iter=10, pertubation_factor=0.0)
+        nse_.max_iter = 10
+        v0_field = Field(nse_.domain, v0)
+        vel_0 = nse_.get_initial_field("velocity_hat")
+        vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
+        nse_.set_field("velocity_hat", 0, vel_0_new)
+        nse_.after_time_step_fn = None
+        nse_.solve()
+        vel_out = nse_.get_latest_field("velocity_hat").no_hat()
+        return (vel_out[0].max() / vel_0[0].max()).real
+
+    vel_x_fn_ana = lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    v0_0 = Field.FromFunc(nse.domain, vel_x_fn_ana)
+
+    v0s = [v0_0.field]
+    eps = 1e3
+    for i in range(10):
+        gain, corr = jax.value_and_grad(run)(v0s[-1])
+        corr_field = Field(nse.domain, corr, name="correction")
+        corr_field.update_boundary_conditions()
+        print("gain: " + str(gain))
+        print("corr (abs): " + str(abs(corr_field)))
+        v0s.append(v0s[-1] + eps * corr_field.field)
+        v0_new = Field(nse.domain, v0s[-1])
+        v0_new.name = "vel_0_" + str(i)
+        v0_new.plot(v0_0)
+
+def test_navier_stokes_turbulent():
+
+    Re = 1.8e2
+
+    end_time = 10
+    nse = solve_navier_stokes_laminar(Re=Re, Ny=48, Nx=16, end_time=end_time, pertubation_factor=1)
+
+    vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+    def after_time_step(nse):
+        i = nse.time_step
+        if i > 1:
+            vel = nse.get_field("velocity_hat", i).no_hat()
+            vel[0].plot_center(1, vel_0[0])
+            vel[1].plot_center(1, vel_0[1])
+            vel[2].plot_center(1, vel_0[2])
+    nse.after_time_step_fn = after_time_step
+    nse.solve()
+
 
 def run_all_tests():
     # test_1D_periodic()
@@ -510,4 +578,7 @@ def run_all_tests():
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
     # test_poisson_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
+    # test_navier_stokes_laminar_convergence()
+    # test_optimization()
+    test_navier_stokes_turbulent()
