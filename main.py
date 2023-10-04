@@ -26,7 +26,7 @@ try:
     reload(sys.modules["navier_stokes"])
 except:
     print("Unable to load")
-from navier_stokes import solve_navier_stokes_3D_channel
+from navier_stokes import solve_navier_stokes_laminar
 
 try:
     reload(sys.modules["test"])

@@ -20,19 +20,19 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    print("Unable to load")
+    print("Unable to load Domain")
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    print("Unable to load")
+    print("Unable to load Field")
 from field import Field, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    print("Unable to load")
+    print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 
@@ -457,10 +457,10 @@ def test_poisson_slices():
     out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
     out = out_hat.no_hat()
 
-    # u_ana.plot(out)
+    u_ana.plot(out)
 
     tol = 1e-8
-    # print(abs(u_ana - out))
+    print(abs(u_ana - out))
     assert abs(u_ana - out) < tol
 
 
@@ -551,19 +551,33 @@ def test_navier_stokes_turbulent():
 
     Re = 1.8e2
 
-    end_time = 10
-    nse = solve_navier_stokes_laminar(Re=Re, Ny=48, Nx=16, end_time=end_time, pertubation_factor=1)
+    end_time = 100
+    # nse = solve_navier_stokes_laminar(Re=Re, Ny=96, Nx=48, end_time=end_time, pertubation_factor=1)
+    nse = solve_navier_stokes_laminar(Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1)
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     def after_time_step(nse):
         i = nse.time_step
         if i > 1:
             vel = nse.get_field("velocity_hat", i).no_hat()
+            vel[0].plot()
             vel[0].plot_center(1, vel_0[0])
             vel[1].plot_center(1, vel_0[1])
             vel[2].plot_center(1, vel_0[2])
     nse.after_time_step_fn = after_time_step
     nse.solve()
+
+def test_vmap():
+    def fn(x):
+        return jax.lax.cond(x > 3, lambda x_: x_*2, lambda x_: x_*3, x)
+        # if x > 3:
+        #     return x*2
+        # else:
+        #     return x*3
+    xs = jnp.arange(10)
+    out = jax.vmap(fn)(xs)
+    print(xs)
+    print(out)
 
 
 def run_all_tests():
@@ -577,8 +591,9 @@ def run_all_tests():
     # test_cheb_integration_1D()
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
-    # test_poisson_slices()
+    test_poisson_slices()
     # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    test_navier_stokes_turbulent()
+    # test_navier_stokes_turbulent()
+    # test_vmap()

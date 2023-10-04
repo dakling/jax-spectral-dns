@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from types import NoneType
+import jax
 import jax.numpy as jnp
 import time
 import matplotlib.pyplot as plt
@@ -159,8 +160,10 @@ class NavierStokesVelVort(Equation):
             h_g_hat_old,
         ):
             def fn(kx_, kz_):
-                kx = int(kx_)
-                kz = int(kz_)
+                # kx = int(kx_)
+                # kz = int(kz_)
+                kx = kx_.astype(int)
+                kz = kz_.astype(int)
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx, kz, step)
 
                 vort_1_hat = vort_hat[1]
@@ -185,7 +188,7 @@ class NavierStokesVelVort(Equation):
                 v_1_new = v_1_lap_hat_new.solve_poisson()
 
                 # compute velocities in x and z directions
-                if kx == 0 and kz == 0:
+                def rk_00(kx, kz):
                     lhs_mat_00_inv, rhs_mat_00 = self.assemble_rk_matrices(
                         L_NS, 0, 0, step
                     )
@@ -241,9 +244,11 @@ class NavierStokesVelVort(Equation):
                         domain_y, 1, v_hat_new[:n], "v_0_new", kx, kz
                     )
                     v_2_new = FourierFieldSlice(
-                        domain_y, 1, v_hat_new[n:], "v_0_new", kx, kz
+                        domain_y, 1, v_hat_new[n:], "v_2_new", kx, kz
                     )
-                else:
+                    return (v_0_new.field, v_2_new.field)
+
+                def rk_not_00(kx, kz):
                     minus_kx_kz_sq = -(kx**2 + kz**2)
                     v_0_new = (
                         -1j * kx * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
@@ -251,12 +256,22 @@ class NavierStokesVelVort(Equation):
                     v_2_new = (
                         -1j * kz * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
+                    return (v_0_new.field, v_2_new.field)
 
+                # v_0_new_field, v_2_new_field = jax.lax.cond(kx == 0,
+                #                                 lambda kx_, kz_: rk_00(kx_, kz_),
+                #                                 lambda kx_, kz_: rk_not_00(kx_, kz_),
+                #                                 kx, kz
+                #                                 )
+                v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
+                v_0_new = FourierFieldSlice(domain_y, v_0_new_field, "v_0_new", kx, kz)
+                v_2_new = FourierFieldSlice(domain_y, v_2_new_field, "v_2_new", kx, kz)
                 vel_hat_new = VectorField([v_0_new, v_1_new, v_2_new])
                 vel_hat_new.name = "velocity_hat"
                 for i in range(3):
                     vel_hat_new[i].name = "velocity_hat_" + str(i)
 
+                # return (v_0_new_field, v_1_new.field, v_2_new_field)
                 return vel_hat_new
 
             return fn
@@ -348,7 +363,7 @@ def solve_navier_stokes_laminar(
         Re=1.8e2, end_time=1e1, max_iter=100, Ny=40, Nx=6, pertubation_factor=0.1
 ):
     Ny = Ny
-    Nz = Nx
+    Nz = Nx + 2
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
@@ -356,8 +371,8 @@ def solve_navier_stokes_laminar(
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     vel_x_fn = lambda X: jnp.pi / 3 * (pertubation_factor * jnp.cos(
-        X[1] * jnp.pi / 2 + jnp.cos(3 * X[0]) * jnp.cos(4 * X[2])
-    )) + (1 - pertubation_factor) * vel_x_fn_ana(X)
+        X[1] * jnp.pi / 2) * jnp.cos(3 * X[0]) * jnp.cos(4 * X[2])
+    ) + (1 - pertubation_factor) * vel_x_fn_ana(X)
 
     # add small pertubation in y and z to see if it decays
     vel_y_fn = (
@@ -366,7 +381,7 @@ def solve_navier_stokes_laminar(
         * (
             jnp.pi
             / 3
-            * jnp.cos(X[1] * jnp.pi / 2 + jnp.cos(3 * X[0]) * jnp.cos(4 * X[2]))
+            * jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(3 * X[0]) * jnp.cos(4 * X[2])
         )
     )
     vel_z_fn = (
@@ -374,7 +389,7 @@ def solve_navier_stokes_laminar(
         * pertubation_factor
         * (
             jnp.cos(X[1] * jnp.pi / 2)
-            + jnp.cos(5 * X[0]) * jnp.cos(3 * X[2])
+            * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2])
         )
     )
     vel_x = Field.FromFunc(domain, vel_x_fn, name="vel_x")

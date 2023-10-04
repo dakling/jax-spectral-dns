@@ -634,13 +634,23 @@ class VectorField:
 
     def reconstruct_from_wavenumbers(self, fn):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
-        k1 = self[0].domain.grid[self.all_periodic_dimensions()[0]]
-        k2 = self[0].domain.grid[self.all_periodic_dimensions()[1]]
+        k1 = self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int)
+        k2 = self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int)
+        # jit_fn = jax.jit(fn)
+        out_array = [[fn(k1_, k2_).field for k2_ in k2] for k1_ in k1]
+        print(len(out_array))
+        print(len(out_array[0]))
+        print(len(out_array[0][0]))
+        print(out_array[0][0][0])
+        raise Exception("break")
         out_field = [
             FourierField(
                 self[0].domain_no_hat,
                 jnp.moveaxis(
-                    jnp.array([[fn(k1_, k2_)[i].field for k2_ in k2] for k1_ in k1]),
+                    jnp.array([[out_array[k1_][k2_][i] for k2_ in k2] for k1_ in k1]),
+                    # jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: fn(k1_, k2_))(k1))(k2)),
+                    # jnp.array(jax.vmap(lambda ks_: fn(ks_[0], ks_[1]))(ks)),
+                    # jnp.array([jax.vmap(lambda k2_: fn(k1_, k2_)[i].field)(k2) for k1_ in k1]),
                     -1,
                     self.all_nonperiodic_dimensions()[0],
                 ),
@@ -749,8 +759,15 @@ class FourierFieldSlice(FourierField):
         self.non_periodic_direction = non_periodic_direction
         self.field = field
         self.ks_raw = list(ks)
-        self.ks = list(ks)
-        self.ks.insert(non_periodic_direction, None)
+        self.ks = []
+        i = 0
+        for dim in self.all_dimensions():
+            if self.domain.is_periodic(dim):
+                self.ks.append(ks_raw[i])
+                i += 1
+            else:
+                self.ks.append(None)
+        # self.ks.insert(non_periodic_direction, None)
         self.name = name
 
     def all_dimensions(self):
