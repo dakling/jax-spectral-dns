@@ -3,11 +3,6 @@
 import jax
 import jax.scipy as jsp
 import jax.numpy as jnp
-import jax_cfd
-import jax_cfd.base as cfd
-import jax_cfd.spectral as spectral
-from jax_cfd.spectral import utils as spectral_utils
-from jax_cfd.base.grids import GridVariable
 import numpy as np
 import seaborn as sns
 import xarray
