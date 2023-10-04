@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from types import NoneType
 import math
 import jax
 import jax.numpy as jnp
@@ -15,6 +14,7 @@ except:
     print("Unable to load")
 from domain import Domain
 
+NoneType = type(None)
 
 class Field:
     plotting_dir = "./plots/"

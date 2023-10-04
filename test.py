@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from types import NoneType
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
@@ -35,6 +34,7 @@ except:
     print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
+NoneType = type(None)
 
 def test_1D_cheb():
     Nx = 48

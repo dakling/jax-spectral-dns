@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from types import NoneType
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
@@ -12,6 +11,7 @@ import scipy as sc
 
 import numpy as np
 
+NoneType = type(None)
 
 class Domain:
     def __init__(self, shape, periodic_directions=None):

@@ -4,10 +4,10 @@ import functools
 from typing import Callable, Optional
 import time
 
-from types import NoneType
 import jax
 import jax.numpy as jnp
 
+NoneType = type(None)
 
 class Equation:
     name = "equation"

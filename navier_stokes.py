@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from types import NoneType
+NoneType = type(None)
 import jax
 import jax.numpy as jnp
 import time
