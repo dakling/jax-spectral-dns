@@ -62,7 +62,7 @@ class Equation:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
     def all_dimensions(self):
-        return range(self.domain.number_of_dimensions)
+        return jnp.arange(self.domain.number_of_dimensions)
 
     def all_periodic_dimensions(self):
         return [

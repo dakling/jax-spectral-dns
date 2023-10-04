@@ -39,7 +39,7 @@ class Field:
         key = jax.random.PRNGKey(seed)
         zero_field = Field.FromFunc(domain)
         rands = []
-        for i in range(zero_field.number_of_dofs()):
+        for i in jnp.arange(zero_field.number_of_dofs()):
             key, subkey = jax.random.split(key)
             rands.append(
                 jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
@@ -155,7 +155,7 @@ class Field:
         interpolant = []
         weights = []
         for dim in self.all_dimensions():
-            for i in range(len(grd[dim])):
+            for i in jnp.arange(len(grd[dim])):
                 if (grd[dim][i] - X[dim]) * (grd[dim][i + 1] - X[dim]) <= 0:
                     interpolant.append(i)
                     weights.append(
@@ -330,21 +330,38 @@ class Field:
             raise Exception("Not implemented yet")
 
     def all_dimensions(self):
+        # return jnp.arange(self.domain.number_of_dimensions)
+        return self.domain.all_dimensions()
         return range(self.domain.number_of_dimensions)
 
+    def is_periodic(self, direction):
+        return self.domain.is_periodic(direction)
+
     def all_periodic_dimensions(self):
-        return [
-            self.all_dimensions()[d]
-            for d in self.all_dimensions()
-            if self.domain.periodic_directions[d]
-        ]
+        return self.domain.all_periodic_dimensions()
+        # out = self.all_dimensions()
+        # for d in self.all_dimensions():
+        #     if not self.is_periodic(d):
+        #         out = jnp.delete(out, d)
+        # return out
+        # return [
+        #     self.all_dimensions()[d]
+        #     for d in self.all_dimensions()
+        #     if self.domain.periodic_directions[d]
+        # ]
 
     def all_nonperiodic_dimensions(self):
-        return [
-            self.all_dimensions()[d]
-            for d in self.all_dimensions()
-            if not self.domain.periodic_directions[d]
-        ]
+        return self.domain.all_nonperiodic_dimensions()
+        # out = self.all_dimensions()
+        # for d in self.all_dimensions():
+        #     if self.is_periodic(d):
+        #         out = jnp.delete(out, d)
+        # return out
+        # return [
+        #     self.all_dimensions()[d]
+        #     for d in self.all_dimensions()
+        #     if not self.domain.periodic_directions[d]
+        # ]
 
     def pad_mat_with_zeros(self):
         return jnp.block(
@@ -364,7 +381,7 @@ class Field:
         for dim in self.all_nonperiodic_dimensions():
             self.field = jnp.take(
                 self.field,
-                jnp.array(list(range(len(self.domain.grid[dim]))))[1:-1],
+                jnp.arange(len(self.domain.grid[dim]))[1:-1],
                 axis=dim,
             )
             self.field = jnp.pad(
@@ -382,7 +399,7 @@ class Field:
         return FourierField.FromField(self)
 
     def diff(self, direction, order=1):
-        name_suffix = "".join([["x", "y", "z"][direction] for _ in range(order)])
+        name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
         return Field(
             self.domain,
             self.domain.diff(self.field, direction, order),
@@ -418,7 +435,7 @@ class Field:
             mgrid = self.domain.mgrid[direction]
             for i in reversed(self.all_periodic_dimensions()):
                 N = mgrid.shape[i]
-                inds = jnp.array(list(range(1, N)))
+                inds = jnp.arange(1, N)
                 mgrid = mgrid.take(indices=inds, axis=i)
 
             denom += (1j * mgrid) ** 2
@@ -426,7 +443,7 @@ class Field:
         field = rhs_hat.field
         for i in reversed(self.all_periodic_dimensions()):
             N = field.shape[i]
-            inds = jnp.array(list(range(1, N)))
+            inds = jnp.arange(1, N)
             field = field.take(indices=inds, axis=i)
         out_field = jnp.pad(
             field / denom,
@@ -498,7 +515,7 @@ class VectorField:
             else:
                 new_name = self.name + " + " + other.name
         fields = []
-        for i in range(len(self)):
+        for i in jnp.arange(len(self)):
             fields.append(self[i] + other[i])
 
         out = VectorField(fields)
@@ -518,7 +535,7 @@ class VectorField:
                 except Exception:
                     new_name = "field"
             fields = []
-            for i in range(len(self)):
+            for i in jnp.arange(len(self)):
                 fields.append(self[i] * other[i])
 
             out = VectorField(fields)
@@ -540,7 +557,7 @@ class VectorField:
                 except Exception:
                     new_name = "field"
             fields = []
-            for i in range(len(self)):
+            for i in jnp.arange(len(self)):
                 fields.append(self[i] * other)
 
             out = VectorField(fields)
@@ -566,7 +583,7 @@ class VectorField:
                 except Exception:
                     new_name = "field"
             fields = []
-            for i in range(len(self)):
+            for i in jnp.arange(len(self)):
                 fields.append(self[i] / other)
 
             out = VectorField(fields)
@@ -580,21 +597,24 @@ class VectorField:
         return out
 
     def all_dimensions(self):
-        return range(self[0].domain.number_of_dimensions)
+        return self[0].domain.all_dimensions()
+        # return jnp.arange(self[0].domain.number_of_dimensions)
 
     def all_periodic_dimensions(self):
-        return [
-            self.all_dimensions()[d]
-            for d in self.all_dimensions()
-            if self[0].domain.periodic_directions[d]
-        ]
+        return self[0].domain.all_periodic_dimensions()
+        # return [
+        #     self.all_dimensions()[d]
+        #     for d in self.all_dimensions()
+        #     if self[0].domain.periodic_directions[d]
+        # ]
 
     def all_nonperiodic_dimensions(self):
-        return [
-            self.all_dimensions()[d]
-            for d in self.all_dimensions()
-            if not self[0].domain.periodic_directions[d]
-        ]
+        return self[0].domain.all_nonperiodic_dimensions()
+        # return [
+        #     self.all_dimensions()[d]
+        #     for d in self.all_dimensions()
+        #     if not self[0].domain.periodic_directions[d]
+        # ]
 
     def hat(self):
         return VectorField([f.hat() for f in self])
@@ -603,7 +623,7 @@ class VectorField:
         return VectorField([f.no_hat() for f in self])
 
     def plot(self, *other_fields):
-        for i in range(len(self)):
+        for i in jnp.arange(len(self)):
             other_fields_i = [item[i] for item in other_fields]
             self[i].plot(*other_fields_i)
 
@@ -684,8 +704,9 @@ class FourierField(Field):
         out = cls(field.domain, field.field, field.name + "_hat")
         out.domain_no_hat = field.domain
         out.domain = field.domain.hat()
+
         out.field = jnp.fft.fftn(
-            field.field, axes=out.all_periodic_dimensions(), norm="ortho"
+            field.field, axes=list(out.all_periodic_dimensions()), norm="ortho"
         )
         return out
 
@@ -709,7 +730,7 @@ class FourierField(Field):
             field = self.field
             for i in reversed(self.all_periodic_dimensions()):
                 N = mgrid.shape[i]
-                inds = jnp.array(list(range(1, N)))
+                inds = jnp.arange(1, N)
                 mgrid = mgrid.take(indices=inds, axis=i)
                 field = field.take(indices=inds, axis=i)
 
@@ -759,19 +780,13 @@ class FourierFieldSlice(FourierField):
         self.non_periodic_direction = non_periodic_direction
         self.field = field
         self.ks_raw = list(ks)
-        self.ks = []
-        i = 0
-        for dim in self.all_dimensions():
-            if self.domain.is_periodic(dim):
-                self.ks.append(ks_raw[i])
-                i += 1
-            else:
-                self.ks.append(None)
-        # self.ks.insert(non_periodic_direction, None)
+        self.ks = jnp.array(ks)
+        self.ks = jnp.insert(self.ks, non_periodic_direction, -1)
         self.name = name
 
     def all_dimensions(self):
         return range(len(self.ks))
+        # return jnp.arange(len(self.ks))
 
     def all_periodic_dimensions(self):
         return [

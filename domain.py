@@ -17,12 +17,12 @@ class Domain:
     def __init__(self, shape, periodic_directions=None):
         self.number_of_dimensions = len(shape)
         self.periodic_directions = periodic_directions or [
-            False for _ in range(self.number_of_dimensions)
+            False for _ in jnp.arange(self.number_of_dimensions)
         ]
         self.shape = shape
         grid = []
         self.diff_mats = []
-        for dim in range(self.number_of_dimensions):
+        for dim in jnp.arange(self.number_of_dimensions):
             if type(periodic_directions) != NoneType and self.periodic_directions[dim]:
                 grid.append(self.get_fourier_grid(shape[dim]))
                 self.diff_mats.append(self.assemble_fourier_diff_mat(shape[dim]))
@@ -35,9 +35,10 @@ class Domain:
 
     def all_dimensions(self):
         return range(self.number_of_dimensions)
+        # return jnp.arange(self.number_of_dimensions)
 
     def is_periodic(self, direction):
-        return self.periodic_directions[d]
+        return self.periodic_directions[direction]
 
     def all_periodic_dimensions(self):
         return [
@@ -55,7 +56,7 @@ class Domain:
 
     def get_cheb_grid(self, N):
         return jnp.array(
-            [jnp.cos(jnp.pi / (N - 1) * i) for i in range(N)]
+            [jnp.cos(jnp.pi / (N - 1) * i) for i in jnp.arange(N)]
         )  # gauss-lobatto points with endpoints
 
     def get_fourier_grid(self, N):
@@ -169,7 +170,7 @@ class Domain:
 
         def set_first_and_last_of_field(field, first, last):
             N = field.shape[direction]
-            inds = jnp.array(list(range(1, N-1)))
+            inds = jnp.arange(1, N-1)
             inner = field.take(indices=inds, axis=direction)
             out = jnp.pad(
                 inner,

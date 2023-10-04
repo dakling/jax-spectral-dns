@@ -45,7 +45,7 @@ class Heat_Eq(Equation):
         return self.perform_explicit_euler_step(dt, i)
 
     def solve(self, dt, number_of_steps):
-        for i in range(1, number_of_steps + 1):
+        for i in jnp.arange(1, number_of_steps + 1):
             self.perform_time_step(dt, i)
         return self.fields["u"]
 

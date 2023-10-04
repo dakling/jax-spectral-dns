@@ -460,7 +460,7 @@ def test_poisson_slices():
     u_ana.plot(out)
 
     tol = 1e-8
-    print(abs(u_ana - out))
+    # print(abs(u_ana - out))
     assert abs(u_ana - out) < tol
 
 
@@ -477,7 +477,7 @@ def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     print("Doing post-processing")
-    for i in range(nse.time_step)[-4:]:
+    for i in jnp.arange(nse.time_step)[-4:]:
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
         vel[0].plot_center(1, vel_0[0], vel_x_ana)
@@ -536,7 +536,7 @@ def test_optimization():
 
     v0s = [v0_0.field]
     eps = 1e3
-    for i in range(10):
+    for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
         corr_field = Field(nse.domain, corr, name="correction")
         corr_field.update_boundary_conditions()
@@ -581,16 +581,16 @@ def test_vmap():
 
 
 def run_all_tests():
-    # test_1D_periodic()
-    # test_1D_cheb()
-    # test_2D()
-    # test_3D()
-    # test_fourier_1D()
-    # test_fourier_2D()
-    # test_fourier_simple_3D()
-    # test_cheb_integration_1D()
-    # test_cheb_integration_2D()
-    # test_cheb_integration_3D()
+    test_1D_periodic()
+    test_1D_cheb()
+    test_2D()
+    test_3D()
+    test_fourier_1D()
+    test_fourier_2D()
+    test_fourier_simple_3D()
+    test_cheb_integration_1D()
+    test_cheb_integration_2D()
+    test_cheb_integration_3D()
     test_poisson_slices()
     # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()

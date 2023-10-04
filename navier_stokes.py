@@ -59,11 +59,11 @@ class NavierStokesVelVort(Equation):
     def get_vorticity_and_helicity(self):
         velocity_field_hat = self.get_latest_field("velocity_hat")
         vort_hat = velocity_field_hat.curl()
-        for i in range(3):
+        for i in jnp.arange(3):
             vort_hat[i].name = "vort_hat_" + str(i)
 
         hel_hat = velocity_field_hat.cross_product(vort_hat)
-        for i in range(3):
+        for i in jnp.arange(3):
             hel_hat[i].name = "hel_hat_" + str(i)
         return (vort_hat, hel_hat)
 
@@ -268,7 +268,7 @@ class NavierStokesVelVort(Equation):
                 v_2_new = FourierFieldSlice(domain_y, v_2_new_field, "v_2_new", kx, kz)
                 vel_hat_new = VectorField([v_0_new, v_1_new, v_2_new])
                 vel_hat_new.name = "velocity_hat"
-                for i in range(3):
+                for i in jnp.arange(3):
                     vel_hat_new[i].name = "velocity_hat_" + str(i)
 
                 # return (v_0_new_field, v_1_new.field, v_2_new_field)
@@ -349,7 +349,7 @@ class NavierStokesVelVort(Equation):
         vel_new_hat.update_boundary_conditions()
 
         vel_new_hat.name = "velocity_hat"
-        for i in range(len(vel_new_hat)):
+        for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
         self.time += self.dt
