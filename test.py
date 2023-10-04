@@ -445,14 +445,15 @@ def test_poisson_slices():
         kx, kz = int(kx_), int(kz_)
         if kx == 0 or kz == 0:
             # assumes homogeneneous Dirichlet boundary conditions
-            return FourierFieldSlice(
-                domain_y, 1, rhs_hat[kx, :, kz] * 0.0, "rhs_t_slice", kx, kz
-            )
+            return rhs_hat[kx, :, kz] * 0.0
+            # return FourierFieldSlice(
+            #     domain_y, 1, rhs_hat[kx, :, kz] * 0.0, "rhs_t_slice", kx, kz
+            # )
         rhs_hat_slice = FourierFieldSlice(
             domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", kx, kz
         )
         out = rhs_hat_slice.solve_poisson()
-        return out
+        return out.field
 
     out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
     out = out_hat.no_hat()
@@ -553,7 +554,8 @@ def test_navier_stokes_turbulent():
 
     end_time = 100
     # nse = solve_navier_stokes_laminar(Re=Re, Ny=96, Nx=48, end_time=end_time, pertubation_factor=1)
-    nse = solve_navier_stokes_laminar(Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1)
+    nse = solve_navier_stokes_laminar(Re=Re, Ny=96, Nx=24, end_time=end_time, pertubation_factor=1)
+    # nse = solve_navier_stokes_laminar(Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1)
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     def after_time_step(nse):
@@ -581,19 +583,19 @@ def test_vmap():
 
 
 def run_all_tests():
-    test_1D_periodic()
-    test_1D_cheb()
-    test_2D()
-    test_3D()
-    test_fourier_1D()
-    test_fourier_2D()
-    test_fourier_simple_3D()
-    test_cheb_integration_1D()
-    test_cheb_integration_2D()
-    test_cheb_integration_3D()
-    test_poisson_slices()
+    # test_1D_periodic()
+    # test_1D_cheb()
+    # test_2D()
+    # test_3D()
+    # test_fourier_1D()
+    # test_fourier_2D()
+    # test_fourier_simple_3D()
+    # test_cheb_integration_1D()
+    # test_cheb_integration_2D()
+    # test_cheb_integration_3D()
+    # test_poisson_slices()
     # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    # test_navier_stokes_turbulent()
+    test_navier_stokes_turbulent()
     # test_vmap()

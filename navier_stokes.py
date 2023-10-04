@@ -258,21 +258,26 @@ class NavierStokesVelVort(Equation):
                     ) / minus_kx_kz_sq
                     return (v_0_new.field, v_2_new.field)
 
-                # v_0_new_field, v_2_new_field = jax.lax.cond(kx == 0,
-                #                                 lambda kx_, kz_: rk_00(kx_, kz_),
-                #                                 lambda kx_, kz_: rk_not_00(kx_, kz_),
-                #                                 kx, kz
-                #                                 )
-                v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
-                v_0_new = FourierFieldSlice(domain_y, v_0_new_field, "v_0_new", kx, kz)
-                v_2_new = FourierFieldSlice(domain_y, v_2_new_field, "v_2_new", kx, kz)
-                vel_hat_new = VectorField([v_0_new, v_1_new, v_2_new])
-                vel_hat_new.name = "velocity_hat"
-                for i in jnp.arange(3):
-                    vel_hat_new[i].name = "velocity_hat_" + str(i)
+                v_0_new_field, v_2_new_field = jax.lax.cond(kx == 0,
+                                                            lambda kx_, kz_:
+                                                                jax.lax.cond(kz == 0,
+                                                                lambda kx__, kz__: rk_00(kx__, kz__),
+                                                                lambda kx__, kz__: rk_not_00(kx__, kz__),
+                                                             kx_, kz_
+                                                             ),
+                                                lambda kx_, kz_: rk_not_00(kx_, kz_),
+                                                kx, kz
+                                                )
+                # v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
+                # v_0_new = FourierFieldSlice(domain_y, 1, v_0_new_field, "v_0_new", kx, kz)
+                # v_2_new = FourierFieldSlice(domain_y, 1, v_2_new_field, "v_2_new", kx, kz)
+                # vel_hat_new = VectorField([v_0_new, v_1_new, v_2_new])
+                # vel_hat_new.name = "velocity_hat"
+                # for i in jnp.arange(3):
+                #     vel_hat_new[i].name = "velocity_hat_" + str(i)
 
-                # return (v_0_new_field, v_1_new.field, v_2_new_field)
-                return vel_hat_new
+                return (v_0_new_field, v_1_new.field, v_2_new_field)
+                # return vel_hat_new
 
             return fn
 
