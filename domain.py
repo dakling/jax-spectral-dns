@@ -13,21 +13,34 @@ import numpy as np
 
 NoneType = type(None)
 
+
 class Domain:
-    def __init__(self, shape, periodic_directions=None):
+    def __init__(self, shape, periodic_directions=None, scale_factors=None):
         self.number_of_dimensions = len(shape)
         self.periodic_directions = periodic_directions or [
             False for _ in jnp.arange(self.number_of_dimensions)
         ]
+        if type(scale_factors) == NoneType:
+            self.scale_factors = []
+        else:
+            self.scale_factors = scale_factors
         self.shape = shape
         grid = []
         self.diff_mats = []
         for dim in jnp.arange(self.number_of_dimensions):
             if type(periodic_directions) != NoneType and self.periodic_directions[dim]:
-                grid.append(self.get_fourier_grid(shape[dim]))
-                self.diff_mats.append(self.assemble_fourier_diff_mat(shape[dim]))
+                if type(scale_factors) == NoneType:
+                    self.scale_factors.append(2.0 * jnp.pi)
+                grid.append(self.get_fourier_grid(shape[dim], self.scale_factors[dim]))
+                self.diff_mats.append(
+                    self.assemble_fourier_diff_mat(shape[dim])
+                    * (2 * jnp.pi)
+                    / self.scale_factors[dim]
+                )
             else:
-                grid.append(self.get_cheb_grid(shape[dim]))
+                if type(scale_factors) == NoneType:
+                    self.scale_factors.append(1.0)
+                grid.append(self.get_cheb_grid(shape[dim], self.scale_factors[dim]))
                 self.diff_mats.append(self.assemble_cheb_diff_mat(shape[dim]))
         # self.grid = jnp.array(grid)
         self.grid = grid
@@ -54,37 +67,49 @@ class Domain:
             if not self.is_periodic(d)
         ]
 
-    def get_cheb_grid(self, N):
+    def get_cheb_grid(self, N, scale_factor=1.0):
+        assert (
+            scale_factor == 1.0
+        ), "different scaling of Chebyshev direction not implemented yet."
         return jnp.array(
             [jnp.cos(jnp.pi / (N - 1) * i) for i in jnp.arange(N)]
         )  # gauss-lobatto points with endpoints
 
-    def get_fourier_grid(self, N):
+    def get_fourier_grid(self, N, scale_factor=2 * jnp.pi):
         if N % 2 != 0:
             print(
                 "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
             )
             N += 1
-        return jnp.linspace(0.0, 2 * jnp.pi, N + 1)[:-1]
+        return jnp.linspace(0.0, scale_factor, N + 1)[:-1]
 
     def hat(self):
         def fftshift(inp, i):
             if self.periodic_directions[i]:
                 N = len(inp)
-                return jnp.block([inp[N//2:], inp[:N//2]]) - N//2
+                return (
+                    (jnp.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
+                    * (2 * jnp.pi)
+                    / self.scale_factors[i]
+                )
             else:
                 return inp
+
         Ns = []
         for i in self.all_dimensions():
             Ns.append(len(self.grid[i]))
         fourier_grid = []
         for i in self.all_dimensions():
             if self.periodic_directions[i]:
-                fourier_grid.append(jnp.linspace(0, Ns[i]-1, Ns[i]))
+                fourier_grid.append(jnp.linspace(0, Ns[i] - 1, Ns[i]))
             else:
                 fourier_grid.append(self.grid[i])
-        fourier_grid_shifted = list(map(fftshift, fourier_grid, self.all_dimensions()))
-        out = FourierDomain(self.shape, self.periodic_directions)
+        fourier_grid_shifted = (
+            list(map(fftshift, fourier_grid, self.all_dimensions()))
+        )
+        out = FourierDomain(
+            self.shape, self.periodic_directions, scale_factors=self.scale_factors
+        )
         out.grid = fourier_grid_shifted
         out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
         return out
@@ -170,17 +195,14 @@ class Domain:
 
         def set_first_and_last_of_field(field, first, last):
             N = field.shape[direction]
-            inds = jnp.arange(1, N-1)
+            inds = jnp.arange(1, N - 1)
             inner = field.take(indices=inds, axis=direction)
             out = jnp.pad(
                 inner,
-                [
-                    (0, 0) if d != direction else (1, 1)
-                    for d in self.all_dimensions()
-                ],
+                [(0, 0) if d != direction else (1, 1) for d in self.all_dimensions()],
                 mode="constant",
                 constant_values=(first, last),
-                )
+            )
             return out
 
         mat = set_last_mat_row_and_col_to_unit(
@@ -207,9 +229,7 @@ class Domain:
         target_inds = other_inds[:direction] + "l" + other_inds[direction:]
         field_ind = inds[0 : self.number_of_dimensions]
         ind = field_ind + "," + int_mat_ind + "->" + target_inds
-        out = jnp.einsum(
-            ind, b, inv_mat
-        )
+        out = jnp.einsum(ind, b, inv_mat)
 
         # out_right = bc_right if type(bc_right) != NoneType else out[0]
         # out_left = bc_left if type(bc_left) != NoneType else out[-1]
@@ -218,6 +238,7 @@ class Domain:
         # # out_bc = set_first_and_last_of_field(out, out_right, out_left)
         out_bc = out
         return out_bc
+
 
 class FourierDomain(Domain):
     pass

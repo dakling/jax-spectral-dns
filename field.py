@@ -4,6 +4,7 @@ import math
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 from importlib import reload
 import sys
@@ -15,6 +16,7 @@ except:
 from domain import Domain
 
 NoneType = type(None)
+
 
 class Field:
     plotting_dir = "./plots/"
@@ -329,39 +331,63 @@ class Field:
         else:
             raise Exception("Not implemented yet")
 
+    def plot_3d(self):
+        assert (
+            self.domain.number_of_dimensions == 3
+        ), "Only 3D supported for this plotting method."
+        # fig, ax = plt.subplots(1, 3)
+        fig = plt.figure(layout="constrained")
+        grd = (8, 8)
+        ax = [
+            plt.subplot2grid(grd, (0, 0), rowspan=2, colspan=6),
+            plt.subplot2grid(grd, (2, 0), rowspan=6, colspan=6),
+            plt.subplot2grid(grd, (2, 6), rowspan=6, colspan=2),
+        ]
+        # grd = (10, 6)
+        # ax = [
+        #     plt.subplot2grid(grd, (0, 0), rowspan=2, colspan=6),
+        #     plt.subplot2grid(grd, (2, 0), rowspan=6, colspan=6),
+        #     plt.subplot2grid(grd, (8, 0), rowspan=2, colspan=6),
+        # ]
+        ims = []
+        for dim in self.all_dimensions():
+            N_c = len(self.domain.grid[dim]) // 2
+            other_dim = [i for i in self.all_dimensions() if i != dim]
+            ims.append(
+                ax[dim].imshow(
+                    self.field.take(indices=N_c, axis=dim),
+                    # labels=dict(x="xyz"[other_dim[0]], y="xyz"[other_dim[1]], color="Productivity"),
+                    # x=self.domain.grid[other_dim[0]],
+                    # y=self.domain.grid[other_dim[1]],
+                    interpolation=None,
+                    extent=[
+                        self.domain.grid[other_dim[1]][0],
+                        self.domain.grid[other_dim[1]][-1],
+                        self.domain.grid[other_dim[0]][0],
+                        self.domain.grid[other_dim[0]][-1],
+                    ],
+                )
+            )
+        # Find the min and max of all colors for use in setting the color scale.
+        vmin = min(image.get_array().min() for image in ims)
+        vmax = max(image.get_array().max() for image in ims)
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
+        for im in ims:
+            im.set_norm(norm)
+        fig.colorbar(ims[0], ax=ax, label=self.name)
+        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + ".pdf")
+
     def all_dimensions(self):
-        # return jnp.arange(self.domain.number_of_dimensions)
         return self.domain.all_dimensions()
-        return range(self.domain.number_of_dimensions)
 
     def is_periodic(self, direction):
         return self.domain.is_periodic(direction)
 
     def all_periodic_dimensions(self):
         return self.domain.all_periodic_dimensions()
-        # out = self.all_dimensions()
-        # for d in self.all_dimensions():
-        #     if not self.is_periodic(d):
-        #         out = jnp.delete(out, d)
-        # return out
-        # return [
-        #     self.all_dimensions()[d]
-        #     for d in self.all_dimensions()
-        #     if self.domain.periodic_directions[d]
-        # ]
 
     def all_nonperiodic_dimensions(self):
         return self.domain.all_nonperiodic_dimensions()
-        # out = self.all_dimensions()
-        # for d in self.all_dimensions():
-        #     if self.is_periodic(d):
-        #         out = jnp.delete(out, d)
-        # return out
-        # return [
-        #     self.all_dimensions()[d]
-        #     for d in self.all_dimensions()
-        #     if not self.domain.periodic_directions[d]
-        # ]
 
     def pad_mat_with_zeros(self):
         return jnp.block(
@@ -656,6 +682,8 @@ class VectorField:
         assert self.number_of_dimensions != 3, "2D not implemented yet"
         k1 = self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int)
         k2 = self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int)
+        k1_ints = jnp.arange(len(k1))
+        k2_ints = jnp.arange(len(k2))
         jit_fn = jax.jit(fn)
         # jit_fn = (fn)
         out_array = [[jit_fn(k1_, k2_) for k2_ in k2] for k1_ in k1]
@@ -664,7 +692,7 @@ class VectorField:
             FourierField(
                 self[0].domain_no_hat,
                 jnp.moveaxis(
-                    jnp.array([[out_array[k1_][k2_][i] for k2_ in k2] for k1_ in k1]),
+                    jnp.array([[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]),
                     # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2))(k1)),
                     # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
                     -1,
@@ -701,9 +729,13 @@ class FourierField(Field):
         out.domain_no_hat = field.domain
         out.domain = field.domain.hat()
 
+        scaling_factor = 1.0
+        for i in out.all_periodic_dimensions():
+            scaling_factor *= out.domain.scale_factors[i]
+
         out.field = jnp.fft.fftn(
             field.field, axes=list(out.all_periodic_dimensions()), norm="ortho"
-        )
+        ) * 2 * jnp.pi / scaling_factor
         return out
 
     def diff(self, direction, order=1):
@@ -752,9 +784,14 @@ class FourierField(Field):
         )
 
     def no_hat(self):
+
+        scaling_factor = 1.0
+        for i in self.all_periodic_dimensions():
+            scaling_factor *= self.domain.scale_factors[i]
+
         out = jnp.fft.ifftn(
             self.field, axes=self.all_periodic_dimensions(), norm="ortho"
-        )
+        ).real / (2 * jnp.pi / scaling_factor)
         return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
 
     def reconstruct_from_wavenumbers(self, fn):

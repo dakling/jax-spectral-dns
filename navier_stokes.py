@@ -370,13 +370,13 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nx + 2
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     vel_x_fn = lambda X: jnp.pi / 3 * (pertubation_factor * jnp.cos(
-        X[1] * jnp.pi / 2) * jnp.cos(3 * X[0]) * jnp.cos(4 * X[2])
+        X[1] * jnp.pi / 2) * (jnp.cos(3 * X[0])**2 * jnp.cos(4 * X[2])**2)
     ) + (1 - pertubation_factor) * vel_x_fn_ana(X)
 
     # add small pertubation in y and z to see if it decays
