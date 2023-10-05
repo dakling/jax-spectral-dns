@@ -576,12 +576,12 @@ def test_poisson_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=20, pertubation_factor=0.1):
     Re = 1e0
 
-    end_time = 8
+    end_time = 15
     nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re, Nx=10, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
     )
     nse.solve()
 
@@ -600,6 +600,7 @@ def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
         print(abs(vel[0] - vel_x_ana))
         print(abs(vel[1]))
         print(abs(vel[2]))
+        print("max vel: " + str(vel[0].max() / vel_0[0].max()))
         # check that the simulation is really converged
         assert abs(vel[0] - vel_x_ana) < tol
         assert abs(vel[1]) < tol
@@ -730,8 +731,8 @@ def run_all_tests():
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
     # test_poisson_slices()
-    # test_navier_stokes_laminar()
+    test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    test_navier_stokes_turbulent()
+    # test_navier_stokes_turbulent()
     # test_vmap()

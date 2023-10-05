@@ -195,10 +195,14 @@ class NavierStokesVelVort(Equation):
                     v_hat = jnp.block([vel_hat[0][kx, :, kz], vel_hat[2][kx, :, kz]])
                     Nx = len(self.domain.grid[0])
                     Nz = len(self.domain.grid[2])
+                    # dx = Nx * 2 * jnp.pi / self.domain.scale_factors[0]
+                    # dz = Nz * 2 * jnp.pi / self.domain.scale_factors[2]
+                    dx = 1
+                    dz = 1
                     N_00_new = (
                         jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]])
                         - dPdx
-                        * (Nx * Nz) ** (1 / 2)
+                        * (dx * dz) ** (1 / 2)
                         * jnp.block(
                             [
                                 jnp.ones(vel_hat[0][kx, :, kz].shape),
@@ -206,7 +210,7 @@ class NavierStokesVelVort(Equation):
                             ]
                         )
                         - dPdz
-                        * (Nx * Nz) ** (1 / 2)
+                        * (dx * dz) ** (1 / 2)
                         * jnp.block(
                             [
                                 jnp.zeros(vel_hat[0][kx, :, kz].shape),
@@ -219,7 +223,7 @@ class NavierStokesVelVort(Equation):
                             [hel_hat_old[0][kx, :, kz], hel_hat_old[2][kx, :, kz]]
                         )
                         - dPdx
-                        * (Nx * Nz) ** (1 / 2)
+                        * (dx * dz) ** (1 / 2)
                         * jnp.block(
                             [
                                 jnp.ones(vel_hat[0][kx, :, kz].shape),
@@ -227,7 +231,7 @@ class NavierStokesVelVort(Equation):
                             ]
                         )
                         - dPdz
-                        * (Nx * Nz) ** (1 / 2)
+                        * (dx * dz) ** (1 / 2)
                         * jnp.block(
                             [
                                 jnp.zeros(vel_hat[0][kx, :, kz].shape),
@@ -370,7 +374,8 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nx + 2
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    # domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
