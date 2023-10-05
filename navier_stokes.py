@@ -32,16 +32,15 @@ class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
     max_cfl = 0.7
 
-    def __init__(self, shape, *fields, **params):
-        domain = Domain(shape, (True, False, True))
-        super().__init__(domain, *fields, **params)
+    def __init__(self, shape, velocity_field, **params):
+        domain = velocity_field[0].domain_no_hat
+        super().__init__(domain, velocity_field, **params)
         self.Re = params["Re"]
         self.flow_rate = self.get_flow_rate()
         self.dt = self.get_time_step()
 
     @classmethod
     def FromVelocityField(cls, shape, velocity_field, Re=1.8e2, end_time=1e0):
-        domain = Domain(shape, (True, False, True))
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
         return cls(shape, velocity_field_hat, Re=Re, end_time=end_time)
@@ -195,10 +194,8 @@ class NavierStokesVelVort(Equation):
                     v_hat = jnp.block([vel_hat[0][kx, :, kz], vel_hat[2][kx, :, kz]])
                     Nx = len(self.domain.grid[0])
                     Nz = len(self.domain.grid[2])
-                    # dx = Nx * 2 * jnp.pi / self.domain.scale_factors[0]
-                    # dz = Nz * 2 * jnp.pi / self.domain.scale_factors[2]
-                    dx = 1
-                    dz = 1
+                    dx = Nx * (2 * jnp.pi / self.domain.scale_factors[0])**(2)
+                    dz = Nz * (2 * jnp.pi / self.domain.scale_factors[2])**(2)
                     N_00_new = (
                         jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]])
                         - dPdx
@@ -374,8 +371,8 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nx + 2
 
-    # domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")

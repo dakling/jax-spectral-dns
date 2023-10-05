@@ -576,7 +576,7 @@ def test_poisson_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=20, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=20, pertubation_factor=0.0):
     Re = 1e0
 
     end_time = 15

@@ -692,6 +692,7 @@ class VectorField:
             FourierField(
                 self[0].domain_no_hat,
                 jnp.moveaxis(
+                    # jnp.array([[out_array[k1_][k2_][i] for k2_ in k2] for k1_ in k1]),
                     jnp.array([[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]),
                     # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2))(k1)),
                     # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
@@ -731,11 +732,11 @@ class FourierField(Field):
 
         scaling_factor = 1.0
         for i in out.all_periodic_dimensions():
-            scaling_factor *= out.domain.scale_factors[i]
+            scaling_factor *= out.domain.scale_factors[i] / (2 * jnp.pi)
 
         out.field = jnp.fft.fftn(
             field.field, axes=list(out.all_periodic_dimensions()), norm="ortho"
-        ) * 2 * jnp.pi / scaling_factor
+        ) / scaling_factor
         return out
 
     def diff(self, direction, order=1):
@@ -787,11 +788,11 @@ class FourierField(Field):
 
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
-            scaling_factor *= self.domain.scale_factors[i]
+            scaling_factor *= self.domain.scale_factors[i] / (2 * jnp.pi)
 
         out = jnp.fft.ifftn(
             self.field, axes=self.all_periodic_dimensions(), norm="ortho"
-        ).real / (2 * jnp.pi / scaling_factor)
+        ).real / (1 / scaling_factor)
         return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
 
     def reconstruct_from_wavenumbers(self, fn):
