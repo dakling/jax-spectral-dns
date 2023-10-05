@@ -576,10 +576,10 @@ def test_poisson_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=20, pertubation_factor=0.0):
+def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
     Re = 1e0
 
-    end_time = 15
+    end_time = 8
     nse = solve_navier_stokes_laminar(
         Re=Re, Nx=10, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
     )
@@ -678,25 +678,24 @@ def test_optimization():
 
 
 def test_navier_stokes_turbulent():
-    Re = 1.8e3
+    Re = 1.8e2
 
     end_time = 5
     nse = solve_navier_stokes_laminar(
         Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
     )
-    # nse = solve_navier_stokes_laminar(Re=Re, Ny=96, Nx=24, end_time=end_time, pertubation_factor=1)
-    # nse = solve_navier_stokes_laminar(Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1)
 
-    # vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     def after_time_step(nse):
         i = nse.time_step
         vel = nse.get_field("velocity_hat", i).no_hat()
+        vort_hat, _ = nse.get_vorticity_and_helicity()
+        vort = vort_hat.no_hat()
         vel[0].plot_3d()
         vel[1].plot_3d()
         vel[2].plot_3d()
-        # vel[0].plot_center(1, vel_0[0])
-        # vel[1].plot_center(1, vel_0[1])
-        # vel[2].plot_center(1, vel_0[2])
+        vort[0].plot_3d()
+        vort[1].plot_3d()
+        vort[2].plot_3d()
         vel[0].plot_center(1)
         vel[1].plot_center(1)
         vel[2].plot_center(1)
@@ -731,8 +730,8 @@ def run_all_tests():
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
     # test_poisson_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    # test_navier_stokes_turbulent()
+    test_navier_stokes_turbulent()
     # test_vmap()

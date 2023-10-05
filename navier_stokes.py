@@ -372,7 +372,6 @@ def solve_navier_stokes_laminar(
     Nz = Nx + 2
 
     domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
-    # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")

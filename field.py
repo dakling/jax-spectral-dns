@@ -337,11 +337,21 @@ class Field:
         ), "Only 3D supported for this plotting method."
         # fig, ax = plt.subplots(1, 3)
         fig = plt.figure(layout="constrained")
-        grd = (8, 8)
+        base_len = 100
+        grd = (base_len, base_len)
+        lx = self.domain.scale_factors[0]
+        ly = self.domain.scale_factors[1] * 2
+        lz = self.domain.scale_factors[2]
+        rows_x = int(ly / (ly + lz) * base_len)
+        cols_x = int(lx / (lx + ly) * base_len)
+        rows_y = int(lz / (ly + lz) * base_len)
+        cols_y = int(lx / (lx + ly) * base_len)
+        rows_z = int(lz / (ly + lz) * base_len)
+        cols_z = int(ly / (lx + ly) * base_len)
         ax = [
-            plt.subplot2grid(grd, (0, 0), rowspan=2, colspan=6),
-            plt.subplot2grid(grd, (2, 0), rowspan=6, colspan=6),
-            plt.subplot2grid(grd, (2, 6), rowspan=6, colspan=2),
+            plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
+            plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
+            plt.subplot2grid(grd, (rows_x, cols_y), rowspan=rows_z, colspan=cols_z),
         ]
         # grd = (10, 6)
         # ax = [
