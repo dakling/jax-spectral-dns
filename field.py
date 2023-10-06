@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import time
+
 import math
 import jax
 import jax.numpy as jnp
@@ -670,39 +672,37 @@ class VectorField:
         k2s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int))
         k1_ints = jnp.arange(len(k1s))
         k2_ints = jnp.arange(len(k2s))
-
-        # worst variant - high overhead due to array access calls
-        # out_field = [ self[i].field for i in self.all_dimensions() ]
-        # for k1 in k1_ints:
-        #     for k2 in k2_ints:
-        #         out = jnp.array(jit_fn(k1s[k1], k2s[k2]))
-        #         for dim in self.all_dimensions():
-        #             out_field[dim] = out_field[dim].at[k1, :, k2].set(out[dim])
-        # out = []
-        # for dim in self.all_dimensions():
-        #     if isinstance(self[dim], FourierField):
-        #         out.append(FourierField(self[dim].domain_no_hat, out_field[dim]))
-        #     elif isinstance(self[dim], Field):
-        #         out.append(Field(self[dim].domain, out_field[dim]))
-        #     else:
-        #         raise Exception("Unrecognized type " + type(self[dim]))
-        # return VectorField(out)
+        jit_fn = jax.jit(fn)
 
         # previously best varant using list comprehensions
         if vectorize == False:
-            jit_fn = jax.jit(fn)
-            # jit_fn = fn
-            # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
-            out_array = [[jit_fn(k1_, k2_) for k2_ in k2_ints] for k1_ in k1_ints]
+            Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
+            # t1 = time.time()
+            out_array = jnp.array([[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints])
+            # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn((k1_, k2_)))(k1_ints))(k2_ints))
+            # out_array = [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
+            # t2 = time.time()
+            # out_field = [
+            #     FourierField(
+            #         self[0].domain_no_hat,
+            #         jnp.moveaxis(
+            #             jnp.array(
+            #                 [[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
+            #             ),
+            #             # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2_ints))(k1_ints)),
+            #             # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
+            #             -1,
+            #             self.all_nonperiodic_dimensions()[0],
+            #         ),
+            #         "out_" + str(i),
+            #     )
+            #     for i in self.all_dimensions()
+            # ]
             out_field = [
                 FourierField(
                     self[0].domain_no_hat,
                     jnp.moveaxis(
-                        jnp.array(
-                            [[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
-                        ),
-                        # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2_ints))(k1_ints)),
-                        # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
+                        out_array[:,:,i,:],
                         -1,
                         self.all_nonperiodic_dimensions()[0],
                     ),
@@ -710,62 +710,35 @@ class VectorField:
                 )
                 for i in self.all_dimensions()
             ]
+            # t3 = time.time()
+            # print("time for first part ", t2-t1)
+            # print("time for second part ", t3-t2)
 
         # might be better on GPUs? TODO: fix bug
         else:
-            def inner(k1s, k2s):
-                # jit_fn = jax.jit(fn)
-                # jit_fn_vec = jnp.vectorize(jit_fn, signature='(n),(m)->(k)')
-                # jit_fn_vec = jnp.vectorize(jit_fn, signature='(n),(m)->(k)')
-                # jit_fn_vec = jax.vmap(jit_fn)
-                jit_fn_vec = jax.vmap(fn)
-                # jit_fn_vec = fn
-                k1_ints = jnp.arange(len(k1s))
-                k2_ints = jnp.arange(len(k2s))
-                # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
-                # out_array = [[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s]
-                # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn(k1_, k2_))(k1s))(k2s))
-                # out_array = jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn(k1_, k2_))(k1s))(k2s)
-                # out_array = jax.vmap(jit_fn, in_axes=(0,1), out_axes=(0,))(k1s, k2s)
-                # out_array = jax.vmap(jit_fn, in_axes=(0,1), out_axes=(0,))(k1s, k2s)
-                # out_array = jnp.array(jax.vmap(lambda k1_: [jit_fn(k1_, k2_) for k2_ in k2s])(k1s))
-                # out_array = jnp.array(jax.vmap(lambda k1_: [jit_fn(k1_, k2_) for k2_ in k2s])(k1s))
-
-                # out_array = jnp.array(jax.vmap(jax.vmap(jit_fn))(k1s, k2s))
-                K1s, K2s = jnp.meshgrid(k1s, k2s)
-                # out_array = jit_fn_vec(K1s, K2s)
-                out_array = jnp.array(jit_fn_vec(K1s, K2s))
-                # out_array = jnp.array(jit_fn_vec(k1s, k2s))
-                out_field_ = [
-                    jnp.moveaxis(
-                        jnp.array(
-                            [[out_array.at[k1_,k2_].get()[i] for k2_ in k2_ints] for k1_ in k1_ints]
-                        ),
-                        # jnp.array(
-                        #     [[out_array[k1_][k2_].at[i].get() for k2_ in k2_ints] for k1_ in k1_ints]
-                        # ),
-                        # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_].get()[i])(k2_ints))(k1_ints)),
-                        # jnp.array(
-                        #     [[out_array.at[k1_].get()[k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
-                        # ),
-                        -1,
-                        self.all_nonperiodic_dimensions()[0],
-                    )
-                    for i in self.all_dimensions()
-                ]
-                return out_field_
-
-            # jit_inner = jax.jit(inner)
-            jit_inner = inner
-            out_field_ = jit_inner(k1s, k2s)
+            K1, K2 = jnp.meshgrid(k1_ints, k2_ints)
+            K = jnp.array(list(zip(K1.flatten(), K2.flatten())))
+            jit_fn_vec = jax.vmap(jit_fn)
+            Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
+            # t1 = time.time()
+            out_array = jnp.array(jit_fn_vec(K))
+            # t2 = time.time()
+            # TODO this is probably not quite correct yet
             out_field = [
                 FourierField(
                     self[0].domain_no_hat,
-                    out_field_[i],
+                    jnp.moveaxis(
+                        out_array[i,:,:].reshape(Nx, Nz, Ny),
+                        -1,
+                        self.all_nonperiodic_dimensions()[0],
+                    ),
                     "out_" + str(i),
                 )
                 for i in self.all_dimensions()
             ]
+            # t3 = time.time()
+            # print("time for first part ", t2-t1)
+            # print("time for second part ", t3-t2)
         return VectorField(out_field)
 
 

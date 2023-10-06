@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from importlib import reload
 import sys
 
+from numpy import vectorize
+
 try:
     reload(sys.modules["domain"])
 except:
@@ -39,6 +41,8 @@ class NavierStokesVelVort(Equation):
         self.flow_rate = self.get_flow_rate()
         self.dt = self.get_time_step()
         self.poisson_mat = None
+        self.lhs_mat_inv = []
+        self.rhs_mat = []
 
     @classmethod
     def FromVelocityField(cls, shape, velocity_field, Re=1.8e2, end_time=1e0):
@@ -108,8 +112,33 @@ class NavierStokesVelVort(Equation):
         rhs_mat = I + alpha[i] * self.dt * L
         return (lhs_mat_inv, rhs_mat)
 
+    def assemble_rk_matrices_vec(self, Ly, i):
+        alpha, beta, _, _ = self.get_rk_parameters()
+        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        n = D2_hom_diri.shape[0]
+        I = jnp.eye(2 * n)
+        kxs = self.domain.grid[0]
+        kzs = self.domain.grid[2]
+        kxs_ints = jnp.arange(len(self.domain.grid[0]))
+        kzs_ints = jnp.arange(len(self.domain.grid[2]))
+        L = jnp.array([[Ly + I * (-(kx**2 + kz**2)) for kx in kxs] for kz in kzs])
+        lhs_mat_inv = jnp.array([[jnp.linalg.inv(I - beta[i] * self.dt * L[kx,kz,:,:]) for kx in kxs_ints] for kz in kzs_ints])
+        rhs_mat = jnp.array([[I + alpha[i] * self.dt * L[kx,kz,:,:] for kx in kxs_ints] for kz in kzs_ints])
+        return (lhs_mat_inv, rhs_mat)
+
     def prepare(self):
         self.poisson_mat = self.get_initial_field("velocity_hat")[0].assemble_poisson_matrix()
+
+    # def before_time_step(self):
+    #     D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+    #     n = D2_hom_diri.shape[0]
+    #     Z = jnp.zeros((n, n))
+    #     L = 1 / self.Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+    #     for i in jnp.arange(3):
+    #         lhs_mat_inv, rhs_mat = self.assemble_rk_matrices_vec(L, i)
+    #         self.lhs_mat_inv.append(lhs_mat_inv)
+    #         self.rhs_mat.append(rhs_mat)
+    #     return super().before_time_step()
 
     def update_nonlinear_terms(self, vel_hat_new):
         vel_new = vel_hat_new.no_hat()
@@ -162,16 +191,20 @@ class NavierStokesVelVort(Equation):
             h_v_hat_old,
             h_g_hat_old,
         ):
-            def fn(kx, kz):
+            # def fn(kx, kz):
+            def fn(K):
+                kx = K[0]
+                kz = K[1]
                 # kx = int(kx_)
                 # kz = int(kz_)
                 # kx = kx_.astype(int)
                 # kz = kz_.astype(int)
                 kx_ = self.domain.grid[0][kx]
-                kz_ = self.domain.grid[0][kz]
+                kz_ = self.domain.grid[2][kz]
                 # TODO maybe move this out of the loop
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
-                # lhs_mat_inv, rhs_mat =
+                # lhs_mat_inv = self.lhs_mat_inv[kx, kz, :, :]
+                # rhs_mat = self.rhs_mat[kx, kz, :, :]
 
                 vort_1_hat = vort_hat[1]
                 phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
@@ -194,7 +227,6 @@ class NavierStokesVelVort(Equation):
 
                 # compute velocity in y direction
                 v_1_new = v_1_lap_hat_new.solve_poisson(self.poisson_mat)
-                # v_1_new = v_1_lap_hat_new.solve_poisson()
 
                 # compute velocities in x and z directions
                 def rk_00(kx, kz):
@@ -296,6 +328,8 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
+        vectorize = False
+
         # perform first RK step
         v_1_hat_0 = vel_hat[1]
         v_1_lap_hat_0 = v_1_hat_0.laplacian()
@@ -316,7 +350,8 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_0,
                 h_v_hat_0,
                 h_g_hat_0,
-            )
+            ),
+            vectorize=vectorize
         )
         vel_new_hat_1.update_boundary_conditions()
 
@@ -341,7 +376,8 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_1,
                 h_v_hat_0,
                 h_g_hat_0,
-            )
+            ),
+            vectorize=vectorize
         )
         vel_new_hat_2.update_boundary_conditions()
         # update nonlinear terms
@@ -365,7 +401,8 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_2,
                 h_v_hat_1,
                 h_g_hat_1,
-            )
+            ),
+            vectorize=vectorize
         )
         vel_new_hat.update_boundary_conditions()
 

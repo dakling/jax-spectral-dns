@@ -773,30 +773,45 @@ def test_vmap():
         #     return x*2
         # else:
         #     return x*3
-    def fn2(x, y):
-        print(x.shape)
-        print(y.shape)
+    def fn2(X):
+        x = X[0]
+        y = X[1]
         A = jnp.zeros((4, 4, 24, 24))
         B = jnp.ones((4, 24, 4))
         # print(A[x, :, y])
         # return A[x,:,  y] + B[x, :, y]
         # return jnp.dot(x,y)
-        jnp.einsum("ijkl,ilj->ikj", A, B)
-        return x + y
+        out = jax.lax.cond(x+y == 0,
+                           lambda: x * y,
+                           lambda: x * y / (x + y)
+                           )
+        return out
 
-    xs = jnp.arange(10)
-    ys = jnp.arange(10)
+    N = 100
+    xs = jnp.arange(N, dtype=float)
+    ys = jnp.arange(N, dtype=float)
     Xs, Ys = jnp.meshgrid(xs, ys)
+    X = jnp.array(list(zip(Xs.flatten(), Ys.flatten())))
     # out = jax.vmap(fn)(xs)
     # print(xs)
     # print(out)
     # fn2vmap = jnp.vectorize(fn2, signature='(n),(m)->(k)')
     # fn2vmap = jnp.vectorize(fn2)
-    fn2vmap = jax.vmap(fn2)
+    fn2_jit = jax.jit(fn2)
+    start = time.time()
+    # for x in X:
+    #     fn2(x)
+    [fn2_jit(x) for x in X]
+    end = time.time()
     # for x in xs:
     #     for y in ys:
     #         print(fn2(x, y))
-    print(fn2vmap(Xs, Ys))
+    fn2vmap = jax.vmap(fn2_jit)
+    start_2 = time.time()
+    fn2vmap(X).reshape(N, N)
+    end_2 = time.time()
+    print("Elapsed time non-vectorized version: ", end-start)
+    print("Elapsed time vectorized version: ", end_2-start_2)
     # print(fn2vmap(xs, ys))
 
 
