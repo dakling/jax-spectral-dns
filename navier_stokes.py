@@ -173,9 +173,6 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
                 # lhs_mat_inv, rhs_mat =
 
-                print("kx: ", kx, " kz: ", kz, " v0: ", vel_hat[0].max())
-                print("kx: ", kx, " kz: ", kz, " v1: ", vel_hat[1].max())
-                print("kx: ", kx, " kz: ", kz, " v2: ", vel_hat[2].max())
                 vort_1_hat = vort_hat[1]
                 phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
 
@@ -266,7 +263,8 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx, kz):
                     kx_ = self.domain.grid[0][kx]
                     kz_ = self.domain.grid[2][kz]
-                    minus_kx_kz_sq = -(kx_**2 + kz_**2)
+                    # minus_kx_kz_sq = -(kx_**2 + kz_**2)
+                    minus_kx_kz_sq = -(kx**2 + kz**2) # TODO why does this have to remain kx rather than kx_?
                     v_0_new = (
                         -1j * kx_ * v_1_new.diff(0) + 1j * kz_ * vort_1_hat_new
                     ) / minus_kx_kz_sq
@@ -276,18 +274,15 @@ class NavierStokesVelVort(Equation):
                     return (v_0_new.field, v_2_new.field)
 
                 v_0_new_field, v_2_new_field = jax.lax.cond(kx == 0,
-                                                            lambda kx_, kz_:
+                                                            lambda kx___, kz___:
                                                                 jax.lax.cond(kz == 0,
                                                                 lambda kx__, kz__: rk_00(kx__, kz__),
                                                                 lambda kx__, kz__: rk_not_00(kx__, kz__),
-                                                             kx_, kz_
+                                                             kx___, kz___
                                                              ),
-                                                lambda kx_, kz_: rk_not_00(kx_, kz_),
+                                                lambda kx___, kz___: rk_not_00(kx___, kz___),
                                                 kx, kz
                                                 )
-                # print("kx: ", kx, " kz: ", kz, " v0: ", max(v_0_new_field))
-                # print("kx: ", kx, " kz: ", kz, " v1: ", max(v_1_new.field))
-                # print("kx: ", kx, " kz: ", kz, " v2: ", max(v_2_new_field))
                 # v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
                 # v_0_new = FourierFieldSlice(domain_y, 1, v_0_new_field, "v_0_new", kx, kz)
                 # v_2_new = FourierFieldSlice(domain_y, 1, v_2_new_field, "v_2_new", kx, kz)
@@ -323,8 +318,8 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_0,
             )
         )
-
         vel_new_hat_1.update_boundary_conditions()
+
         # update nonlinear terms
         h_v_hat_1, h_g_hat_1, vort_hat_1, hel_hat_1 = self.update_nonlinear_terms(
             vel_new_hat_1

@@ -732,9 +732,9 @@ def test_navier_stokes_turbulent():
 
     end_time = 50
     nse = solve_navier_stokes_laminar(
-        # Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
-        Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
+        # Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
     )
 
     plot_interval = 1
@@ -813,10 +813,10 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    # return test_navier_stokes_turbulent()
+    return test_navier_stokes_turbulent()
     # test_vmap()
 
 def run_all_tests_profiling():

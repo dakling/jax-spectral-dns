@@ -690,8 +690,8 @@ class VectorField:
 
         # previously best varant using list comprehensions
         if vectorize == False:
-            # jit_fn = jax.jit(fn)
-            jit_fn = fn
+            jit_fn = jax.jit(fn)
+            # jit_fn = fn
             # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
             out_array = [[jit_fn(k1_, k2_) for k2_ in k2_ints] for k1_ in k1_ints]
             out_field = [
