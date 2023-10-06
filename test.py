@@ -539,20 +539,24 @@ def test_poisson_slices():
     # Nx = 4
     # Ny = 4
     # Nz = 6
+    scale_factor_x = 1.0
+    scale_factor_z = 1.0
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(scale_factor_x,1.0,scale_factor_z))
     domain_y = Domain((Ny,), (False))
 
     rhs_fn = (
-        lambda X: -(2 + jnp.pi**2 / 4)
-        * jnp.sin(X[0])
-        * jnp.sin(X[2] + 1.0)
+        lambda X: -((2 * jnp.pi / scale_factor_x)**2 + jnp.pi**2 / 4 + (2 * jnp.pi / scale_factor_z)**2)
+        * jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
         * jnp.cos(X[1] * jnp.pi / 2)
     )
     rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
 
     u_ana_fn = (
-        lambda X: jnp.sin(X[0]) * jnp.sin(X[2] + 1.0) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.sin(
+            (X[2] + 1.0) * 2 * jnp.pi / scale_factor_z
+        ) * jnp.cos(X[1] * jnp.pi / 2)
     )
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
@@ -586,22 +590,28 @@ def test_poisson_slices():
     assert abs(u_ana - out) < tol
 
 def test_poisson_no_slices():
-    Nx = 12
+    Nx = 20
     Ny = 24
-    Nz = 14
+    Nz = 22
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    scale_factor_x = 1.0
+    scale_factor_z = 1.0
+    # scale_factor_x = 2 * jnp.pi
+    # scale_factor_z = 2 * jnp.pi
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(Nx, 1.0, Nz))
 
     rhs_fn = (
-        lambda X: -(2 + jnp.pi**2 / 4)
-        * jnp.sin(X[0])
-        * jnp.sin(X[2] + 1.0)
+        lambda X: -((2 * jnp.pi / scale_factor_x)**2 + jnp.pi**2 / 4 + (2 * jnp.pi / scale_factor_z)**2)
+        * jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
         * jnp.cos(X[1] * jnp.pi / 2)
     )
     rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
 
     u_ana_fn = (
-        lambda X: jnp.sin(X[0]) * jnp.sin(X[2] + 1.0) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.sin(
+            (X[2] + 1.0) * 2 * jnp.pi / scale_factor_z
+        ) * jnp.cos(X[1] * jnp.pi / 2)
     )
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
@@ -722,11 +732,17 @@ def test_navier_stokes_turbulent():
 
     end_time = 50
     nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
+        # Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
     )
 
     plot_interval = 1
+
+    vel = nse.get_initial_field("velocity_hat").no_hat()
+    vel[0].plot_3d()
+    vel[1].plot_3d()
+    vel[2].plot_3d()
 
     def after_time_step(nse):
         i = nse.time_step
@@ -797,10 +813,10 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    # test_navier_stokes_laminar()
+    test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    return test_navier_stokes_turbulent()
+    # return test_navier_stokes_turbulent()
     # test_vmap()
 
 def run_all_tests_profiling():

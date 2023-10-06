@@ -690,10 +690,10 @@ class VectorField:
 
         # previously best varant using list comprehensions
         if vectorize == False:
-            jit_fn = jax.jit(fn)
-            # jit_fn = fn
+            # jit_fn = jax.jit(fn)
+            jit_fn = fn
             # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
-            out_array = [[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s]
+            out_array = [[jit_fn(k1_, k2_) for k2_ in k2_ints] for k1_ in k1_ints]
             out_field = [
                 FourierField(
                     self[0].domain_no_hat,
@@ -886,7 +886,7 @@ class FourierField(Field):
             inds = jnp.arange(1, N)
             field = field.take(indices=inds, axis=i)
         out_field = jnp.pad(
-            jnp.einsum("ijkl,ijl->ijk", mat, field),
+            jnp.einsum("ijkl,ilj->ikj", mat, field),
             [(1, 0) if i in self.all_periodic_dimensions() else (0,0) for i in self.all_dimensions()],
             mode="constant",
             constant_values=0.0,
