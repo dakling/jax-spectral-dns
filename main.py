@@ -27,7 +27,7 @@ try:
     reload(sys.modules["test"])
 except:
     print("Unable to load")
-from test import run_all_tests
+from test import run_all_tests, run_all_tests_profiling
 
 
 def main():
@@ -36,6 +36,7 @@ def main():
     # optimize_channel()
     # optimize_channel_2d()
     run_all_tests()
+    # run_all_tests_profiling()
 
     # mn()
     # solve_heat_eq_2D()

@@ -24,6 +24,7 @@ class Field:
 
     def __init__(self, domain, field, name="field"):
         self.domain = domain
+        self.domain_no_hat = domain
         self.field = field
         self.name = name
         self.field_hat = None
@@ -342,12 +343,12 @@ class Field:
         lx = self.domain.scale_factors[0]
         ly = self.domain.scale_factors[1] * 2
         lz = self.domain.scale_factors[2]
-        rows_x = int(ly / (ly + lz) * base_len)
-        cols_x = int(lx / (lx + ly) * base_len)
-        rows_y = int(lz / (ly + lz) * base_len)
-        cols_y = int(lx / (lx + ly) * base_len)
-        rows_z = int(lz / (ly + lz) * base_len)
-        cols_z = int(ly / (lx + ly) * base_len)
+        rows_x = int(lx / (ly + lx) * base_len)
+        cols_x = int(lz / (lz + ly) * base_len)
+        rows_y = int(lx / (ly + lx) * base_len)
+        cols_y = int(lz / (lz + ly) * base_len)
+        rows_z = int(lx / (ly + lx) * base_len)
+        cols_z = int(ly / (lz + ly) * base_len)
         ax = [
             plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
             plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
@@ -378,6 +379,8 @@ class Field:
                     ],
                 )
             )
+            ax[dim].set_xlabel("xyz"[other_dim[1]])
+            ax[dim].set_ylabel("xyz"[other_dim[0]])
         # Find the min and max of all colors for use in setting the color scale.
         vmin = min(image.get_array().min() for image in ims)
         vmax = max(image.get_array().max() for image in ims)
@@ -464,32 +467,45 @@ class Field:
         out.name = "lap_" + self.name
         return out
 
-    def solve_poisson(self, rhs):
-        rhs_hat = rhs.hat()
-        denom = 0.0
-        for direction in self.all_periodic_dimensions():
-            mgrid = self.domain.mgrid[direction]
-            for i in reversed(self.all_periodic_dimensions()):
-                N = mgrid.shape[i]
-                inds = jnp.arange(1, N)
-                mgrid = mgrid.take(indices=inds, axis=i)
+    def assemble_poisson_matrix(self):
+        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
+        assert len(self.all_nonperiodic_dimensions()) <= 1, "Poisson solution not implemented for the general case."
+        y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(self.all_nonperiodic_dimensions()[0])
+        n = y_mat.shape[0]
+        eye_bc = jnp.block(
+            [
+                [jnp.zeros((1, n))],
+                [jnp.zeros((n - 2, 1)), jnp.eye(n - 2), jnp.zeros((n - 2, 1))],
+                [jnp.zeros((1, n))],
+            ]
+        )
+        k1 = self.domain.grid[self.all_periodic_dimensions()[0]][1:]
+        k2 = self.domain.grid[self.all_periodic_dimensions()[1]][1:]
+        k1sq = k1**2
+        k2sq = k2**2
+        mat = jnp.moveaxis(jnp.array([[jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq] for k1sq_ in k1sq]),
+                           1, -1)
+        return mat
 
-            denom += (1j * mgrid) ** 2
-        out_0 = 0.0
-        field = rhs_hat.field
+    def solve_poisson(self, mat=None):
+        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
+        assert len(self.all_nonperiodic_dimensions()) <= 1, "Poisson solution not implemented for the general case."
+        rhs_hat = self.field
+        if type(mat) == NoneType:
+            mat = self.assemble_poisson_matrix()
+        field = rhs_hat
         for i in reversed(self.all_periodic_dimensions()):
             N = field.shape[i]
             inds = jnp.arange(1, N)
             field = field.take(indices=inds, axis=i)
         out_field = jnp.pad(
-            field / denom,
-            [(1, 0) for _ in self.all_periodic_dimensions()],
+            jnp.einsum("ijkl,ikl->ijl", mat, field),
+            [(1, 0) if i in self.all_periodic_dimensions() else (0,0) for i in self.all_dimensions()],
             mode="constant",
-            constant_values=out_0,
+            constant_values=0.0,
         )
         out_fourier = FourierField(self.domain, out_field, name=self.name + "_poisson")
-        self.field = out_fourier.no_hat().field
-        return out_fourier.no_hat()
+        return out_fourier
 
     def perform_explicit_euler_step(self, eq, dt, i):
         new_u = self + eq * dt
@@ -688,31 +704,108 @@ class VectorField:
 
         return VectorField([curl_0, curl_1, curl_2])
 
-    def reconstruct_from_wavenumbers(self, fn):
+    def reconstruct_from_wavenumbers(self, fn, vectorize=False):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
-        k1 = self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int)
-        k2 = self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int)
-        k1_ints = jnp.arange(len(k1))
-        k2_ints = jnp.arange(len(k2))
-        jit_fn = jax.jit(fn)
-        # jit_fn = (fn)
-        out_array = [[jit_fn(k1_, k2_) for k2_ in k2] for k1_ in k1]
-        # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn(k1_, k2_))(k1))(k2))
-        out_field = [
-            FourierField(
-                self[0].domain_no_hat,
-                jnp.moveaxis(
-                    # jnp.array([[out_array[k1_][k2_][i] for k2_ in k2] for k1_ in k1]),
-                    jnp.array([[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]),
-                    # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2))(k1)),
-                    # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
-                    -1,
-                    self.all_nonperiodic_dimensions()[0],
-                ),
-                "out_" + str(i),
-            )
-            for i in self.all_dimensions()
-        ]
+        k1s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int))
+        k2s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int))
+
+        # worst variant - high overhead due to array access calls
+        # out_field = [ self[i].field for i in self.all_dimensions() ]
+        # for k1 in k1_ints:
+        #     for k2 in k2_ints:
+        #         out = jnp.array(jit_fn(k1s[k1], k2s[k2]))
+        #         for dim in self.all_dimensions():
+        #             out_field[dim] = out_field[dim].at[k1, :, k2].set(out[dim])
+        # out = []
+        # for dim in self.all_dimensions():
+        #     if isinstance(self[dim], FourierField):
+        #         out.append(FourierField(self[dim].domain_no_hat, out_field[dim]))
+        #     elif isinstance(self[dim], Field):
+        #         out.append(Field(self[dim].domain, out_field[dim]))
+        #     else:
+        #         raise Exception("Unrecognized type " + type(self[dim]))
+        # return VectorField(out)
+
+        # previously best varant using list comprehensions
+        if vectorize == False:
+            # jit_fn = jax.jit(fn)
+            jit_fn = fn
+            k1_ints = jnp.arange(len(k1s))
+            k2_ints = jnp.arange(len(k2s))
+            # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
+            out_array = [[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s]
+            out_field = [
+                FourierField(
+                    self[0].domain_no_hat,
+                    jnp.moveaxis(
+                        jnp.array(
+                            [[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
+                        ),
+                        # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2_ints))(k1_ints)),
+                        # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
+                        -1,
+                        self.all_nonperiodic_dimensions()[0],
+                    ),
+                    "out_" + str(i),
+                )
+                for i in self.all_dimensions()
+            ]
+
+        # might be better on GPUs? TODO: fix bug
+        else:
+            def inner(k1s, k2s):
+                # jit_fn = jax.jit(fn)
+                # jit_fn_vec = jnp.vectorize(jit_fn, signature='(n),(m)->(k)')
+                # jit_fn_vec = jnp.vectorize(jit_fn, signature='(n),(m)->(k)')
+                # jit_fn_vec = jax.vmap(jit_fn)
+                jit_fn_vec = jax.vmap(fn)
+                # jit_fn_vec = fn
+                k1_ints = jnp.arange(len(k1s))
+                k2_ints = jnp.arange(len(k2s))
+                # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
+                # out_array = [[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s]
+                # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn(k1_, k2_))(k1s))(k2s))
+                # out_array = jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn(k1_, k2_))(k1s))(k2s)
+                # out_array = jax.vmap(jit_fn, in_axes=(0,1), out_axes=(0,))(k1s, k2s)
+                # out_array = jax.vmap(jit_fn, in_axes=(0,1), out_axes=(0,))(k1s, k2s)
+                # out_array = jnp.array(jax.vmap(lambda k1_: [jit_fn(k1_, k2_) for k2_ in k2s])(k1s))
+                # out_array = jnp.array(jax.vmap(lambda k1_: [jit_fn(k1_, k2_) for k2_ in k2s])(k1s))
+
+                # out_array = jnp.array(jax.vmap(jax.vmap(jit_fn))(k1s, k2s))
+                K1s, K2s = jnp.meshgrid(k1s, k2s)
+                # out_array = jit_fn_vec(K1s, K2s)
+                out_array = jnp.array(jit_fn_vec(K1s, K2s))
+                # out_array = jnp.array(jit_fn_vec(k1s, k2s))
+                out_field_ = [
+                    jnp.moveaxis(
+                        jnp.array(
+                            [[out_array.at[k1_,k2_].get()[i] for k2_ in k2_ints] for k1_ in k1_ints]
+                        ),
+                        # jnp.array(
+                        #     [[out_array[k1_][k2_].at[i].get() for k2_ in k2_ints] for k1_ in k1_ints]
+                        # ),
+                        # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_].get()[i])(k2_ints))(k1_ints)),
+                        # jnp.array(
+                        #     [[out_array.at[k1_].get()[k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
+                        # ),
+                        -1,
+                        self.all_nonperiodic_dimensions()[0],
+                    )
+                    for i in self.all_dimensions()
+                ]
+                return out_field_
+
+            # jit_inner = jax.jit(inner)
+            jit_inner = inner
+            out_field_ = jit_inner(k1s, k2s)
+            out_field = [
+                FourierField(
+                    self[0].domain_no_hat,
+                    out_field_[i],
+                    "out_" + str(i),
+                )
+                for i in self.all_dimensions()
+            ]
         return VectorField(out_field)
 
 
@@ -744,9 +837,12 @@ class FourierField(Field):
         for i in out.all_periodic_dimensions():
             scaling_factor *= out.domain.scale_factors[i] / (2 * jnp.pi)
 
-        out.field = jnp.fft.fftn(
-            field.field, axes=list(out.all_periodic_dimensions()), norm="ortho"
-        ) / scaling_factor
+        out.field = (
+            jnp.fft.fftn(
+                field.field, axes=list(out.all_periodic_dimensions()), norm="ortho"
+            )
+            / scaling_factor
+        )
         return out
 
     def diff(self, direction, order=1):
@@ -795,7 +891,6 @@ class FourierField(Field):
         )
 
     def no_hat(self):
-
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.domain.scale_factors[i] / (2 * jnp.pi)
@@ -805,7 +900,9 @@ class FourierField(Field):
         ).real / (1 / scaling_factor)
         return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
 
-    def reconstruct_from_wavenumbers(self, fn):
+    def reconstruct_from_wavenumbers(self, fn, vectorize=False):
+        if vectorize:
+            print("vectorisation not implemented yet, using unvectorized version")
         assert self.number_of_dimensions != 3, "2D not implemented yet"
         k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.domain.grid[self.all_periodic_dimensions()[1]]

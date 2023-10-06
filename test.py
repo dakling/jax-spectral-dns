@@ -11,7 +11,10 @@ import scipy as sc
 import scipy.optimize as optimization
 import time
 
-import numpy as np
+from cProfile import Profile
+from pstats import SortKey, Stats
+
+# import numpy as np
 
 from importlib import reload
 import sys
@@ -575,6 +578,36 @@ def test_poisson_slices():
     # print(abs(u_ana - out))
     assert abs(u_ana - out) < tol
 
+def test_poisson_no_slices():
+    Nx = 12
+    Ny = 24
+    Nz = 14
+
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
+
+    rhs_fn = (
+        lambda X: -(2 + jnp.pi**2 / 4)
+        * jnp.sin(X[0])
+        * jnp.sin(X[2] + 1.0)
+        * jnp.cos(X[1] * jnp.pi / 2)
+    )
+    rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
+
+    u_ana_fn = (
+        lambda X: jnp.sin(X[0]) * jnp.sin(X[2] + 1.0) * jnp.cos(X[1] * jnp.pi / 2)
+    )
+    u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
+    rhs_hat = rhs.hat()
+
+    out_hat = rhs_hat.solve_poisson()
+    out = out_hat.no_hat()
+
+    u_ana.plot(out)
+
+    tol = 1e-8
+    # print(abs(u_ana - out))
+    assert abs(u_ana - out) < tol
+
 
 def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
     Re = 1e0
@@ -625,7 +658,7 @@ def test_navier_stokes_laminar_convergence():
         return vel[0].l2error(vel_x_fn_ana)
 
     errors = list(map(run, Nys))
-    errorsLog = list(map(lambda x: np.log2(x), errors))
+    errorsLog = list(map(lambda x: jnp.log2(x), errors))
     print(errors)
 
     def fittingFunc(x, a, b):
@@ -680,28 +713,34 @@ def test_optimization():
 def test_navier_stokes_turbulent():
     Re = 1.8e2
 
-    end_time = 5
+    end_time = 50
     nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
+        # Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
     )
+
+    plot_interval = 1
 
     def after_time_step(nse):
         i = nse.time_step
-        vel = nse.get_field("velocity_hat", i).no_hat()
-        vort_hat, _ = nse.get_vorticity_and_helicity()
-        vort = vort_hat.no_hat()
-        vel[0].plot_3d()
-        vel[1].plot_3d()
-        vel[2].plot_3d()
-        vort[0].plot_3d()
-        vort[1].plot_3d()
-        vort[2].plot_3d()
-        vel[0].plot_center(1)
-        vel[1].plot_center(1)
-        vel[2].plot_center(1)
+        if (i - 1) % plot_interval == 0:
+            vel = nse.get_field("velocity_hat", i).no_hat()
+            vort_hat, _ = nse.get_vorticity_and_helicity()
+            vort = vort_hat.no_hat()
+            vel[0].plot_3d()
+            vel[1].plot_3d()
+            vel[2].plot_3d()
+            vort[0].plot_3d()
+            vort[1].plot_3d()
+            vort[2].plot_3d()
+            vel[0].plot_center(1)
+            vel[1].plot_center(1)
+            vel[2].plot_center(1)
 
     nse.after_time_step_fn = after_time_step
+    # nse.after_time_step_fn = None
     nse.solve()
+    return nse.get_latest_field("velocity_hat").no_hat().field
 
 
 def test_vmap():
@@ -711,11 +750,31 @@ def test_vmap():
         #     return x*2
         # else:
         #     return x*3
+    def fn2(x, y):
+        print(x.shape)
+        print(y.shape)
+        A = jnp.zeros((4, 4, 24, 24))
+        B = jnp.ones((4, 24, 4))
+        # print(A[x, :, y])
+        # return A[x,:,  y] + B[x, :, y]
+        # return jnp.dot(x,y)
+        jnp.einsum("ijkl,ilj->ikj", A, B)
+        return x + y
 
     xs = jnp.arange(10)
-    out = jax.vmap(fn)(xs)
-    print(xs)
-    print(out)
+    ys = jnp.arange(10)
+    Xs, Ys = jnp.meshgrid(xs, ys)
+    # out = jax.vmap(fn)(xs)
+    # print(xs)
+    # print(out)
+    # fn2vmap = jnp.vectorize(fn2, signature='(n),(m)->(k)')
+    # fn2vmap = jnp.vectorize(fn2)
+    fn2vmap = jax.vmap(fn2)
+    # for x in xs:
+    #     for y in ys:
+    #         print(fn2(x, y))
+    print(fn2vmap(Xs, Ys))
+    # print(fn2vmap(xs, ys))
 
 
 def run_all_tests():
@@ -730,8 +789,22 @@ def run_all_tests():
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
     # test_poisson_slices()
+    # test_poisson_no_slices()
     # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    test_navier_stokes_turbulent()
+    return test_navier_stokes_turbulent()
     # test_vmap()
+
+def run_all_tests_profiling():
+    # with jax.profiler.trace("/tmp/jax-trace", create_perfetto_link=True):
+        # Run the operations to be profiled
+        # run_all_tests()
+    with Profile() as profile:
+        run_all_tests()
+        (
+             Stats(profile)
+            .strip_dirs()
+            .sort_stats(SortKey.CALLS)
+            .dump_stats("./navier-stokes.prof")
+        )

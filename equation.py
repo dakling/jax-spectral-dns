@@ -9,6 +9,7 @@ import jax.numpy as jnp
 
 NoneType = type(None)
 
+
 class Equation:
     name = "equation"
 
@@ -21,13 +22,13 @@ class Equation:
         self.before_time_step_fn = None
         self.after_time_step_fn = None
         try:
-          self.end_time = params["end_time"]
+            self.end_time = params["end_time"]
         except KeyError:
-          self.end_time = None
+            self.end_time = None
         try:
-          self.max_iter = params["max_iter"]
+            self.max_iter = params["max_iter"]
         except KeyError:
-          self.max_iter = None
+            self.max_iter = None
         for field in fields:
             f_name = field.name
             self.fields[f_name] = [field]
@@ -53,7 +54,6 @@ class Equation:
             self.fields[name][index] = field
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
-
 
     def append_field(self, name, field):
         try:
@@ -82,33 +82,43 @@ class Equation:
         iteration_done = False
         time_done = False
         if type(self.max_iter) != NoneType:
-          iteration_done = self.time_step > self.max_iter
+            iteration_done = self.time_step > self.max_iter
         if type(self.end_time) != NoneType:
-          time_done = self.time > self.end_time
+            time_done = self.time > self.end_time
         return iteration_done or time_done
 
     def perform_time_step(self):
         raise NotImplementedError()
 
     def before_time_step(self):
-      if type(self.before_time_step_fn) != NoneType:
-        self.before_time_step_fn(self)
+        if type(self.before_time_step_fn) != NoneType:
+            self.before_time_step_fn(self)
 
     def after_time_step(self):
-      if type(self.after_time_step_fn) != NoneType:
-        self.after_time_step_fn(self)
+        if type(self.after_time_step_fn) != NoneType:
+            self.after_time_step_fn(self)
+
+    def prepare(self):
+        pass
 
     def solve(self):
-      while not self.done():
-          i = self.time_step
-          print("Time Step " + str(i + 1) + ", time: " + str(self.time) + ", dt: " + str(self.dt))
-          # print("Time Step " + str(i + 1))
-          start_time = time.time()
-          self.before_time_step()
-          self.perform_time_step()
-          self.after_time_step()
-          print("Took " + str(time.time() - start_time) + " seconds")
-
+        self.prepare()
+        while not self.done():
+            i = self.time_step
+            print(
+                "Time Step "
+                + str(i + 1)
+                + ", time: "
+                + str(self.time)
+                + ", dt: "
+                + str(self.dt)
+            )
+            # print("Time Step " + str(i + 1))
+            start_time = time.time()
+            self.before_time_step()
+            self.perform_time_step()
+            self.after_time_step()
+            print("Took " + str(time.time() - start_time) + " seconds")
 
     def plot(self):
         raise NotImplementedError()
