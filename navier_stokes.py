@@ -38,6 +38,7 @@ class NavierStokesVelVort(Equation):
         self.Re = params["Re"]
         self.flow_rate = self.get_flow_rate()
         self.dt = self.get_time_step()
+        self.poisson_mat = None
 
     @classmethod
     def FromVelocityField(cls, shape, velocity_field, Re=1.8e2, end_time=1e0):
@@ -107,6 +108,9 @@ class NavierStokesVelVort(Equation):
         rhs_mat = I + alpha[i] * self.dt * L
         return (lhs_mat_inv, rhs_mat)
 
+    def prepare(self):
+        self.poisson_mat = self.get_initial_field("velocity_hat")[0].assemble_poisson_matrix()
+
     def update_nonlinear_terms(self, vel_hat_new):
         vel_new = vel_hat_new.no_hat()
         vort_new = vel_new.curl()
@@ -158,12 +162,13 @@ class NavierStokesVelVort(Equation):
             h_v_hat_old,
             h_g_hat_old,
         ):
-            def fn(kx_, kz_):
+            def fn(kx, kz):
                 # kx = int(kx_)
                 # kz = int(kz_)
-                kx = kx_.astype(int)
-                kz = kz_.astype(int)
-                lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx, kz, step)
+                # kx = kx_.astype(int)
+                # kz = kz_.astype(int)
+                lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx, kz, step)  # TODO move this out of the loop
+                # lhs_mat_inv, rhs_mat =
 
                 vort_1_hat = vort_hat[1]
                 phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
@@ -176,15 +181,17 @@ class NavierStokesVelVort(Equation):
                     + (self.dt * xi[step]) * N_old
                 )
                 n = len(phi_hat) // 2
+                kx_ = self.domain.grid[0][kx]
+                kz_ = self.domain.grid[2][kz]
                 v_1_lap_hat_new = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new[:n], "v_1_lap_hat_new", kx, kz
+                    domain_y, 1, phi_hat_new[:n], "v_1_lap_hat_new", kx_, kz_, ks_int=[kx, kz]
                 )
                 vort_1_hat_new = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new[n:], "vort_hat_new", kx, kz
+                    domain_y, 1, phi_hat_new[n:], "vort_hat_new", kx_, kz_, ks_int=[kx, kz]
                 )
 
                 # compute velocity in y direction
-                v_1_new = v_1_lap_hat_new.solve_poisson()
+                v_1_new = v_1_lap_hat_new.solve_poisson(self.poisson_mat)
 
                 # compute velocities in x and z directions
                 def rk_00(kx, kz):
@@ -241,21 +248,24 @@ class NavierStokesVelVort(Equation):
                         + (self.dt * gamma[step]) * N_00_new
                         + (self.dt * xi[step]) * N_00_old
                     )
-                    v_0_new = FourierFieldSlice(
-                        domain_y, 1, v_hat_new[:n], "v_0_new", kx, kz
-                    )
-                    v_2_new = FourierFieldSlice(
-                        domain_y, 1, v_hat_new[n:], "v_2_new", kx, kz
-                    )
-                    return (v_0_new.field, v_2_new.field)
+                    # v_0_new = FourierFieldSlice(
+                    #     domain_y, 1, v_hat_new[:n], "v_0_new", kx_, kz_, ks_int=[kx, kz]
+                    # )
+                    # v_2_new = FourierFieldSlice(
+                    #     domain_y, 1, v_hat_new[n:], "v_2_new", kx_, kz_, ks_int=[kx, kz]
+                    # )
+                    # return (v_0_new.field, v_2_new.field)
+                    return (v_hat_new[:n], v_hat_new[n:])
 
                 def rk_not_00(kx, kz):
-                    minus_kx_kz_sq = -(kx**2 + kz**2)
+                    kx_ = self.domain.grid[0][kx]
+                    kz_ = self.domain.grid[2][kz]
+                    minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_0_new = (
-                        -1j * kx * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
+                        -1j * kx_ * v_1_new.diff(0) + 1j * kz * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        -1j * kz * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
+                        -1j * kz_ * v_1_new.diff(0) - 1j * kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new.field, v_2_new.field)
 

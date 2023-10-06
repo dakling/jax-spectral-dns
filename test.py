@@ -536,6 +536,9 @@ def test_poisson_slices():
     Nx = 24
     Ny = Nx + 4
     Nz = Nx - 4
+    # Nx = 4
+    # Ny = 4
+    # Nz = 6
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
     domain_y = Domain((Ny,), (False))
@@ -555,8 +558,9 @@ def test_poisson_slices():
     rhs_hat = rhs.hat()
     rhs_nohat = rhs_hat.no_hat()
 
-    def solve_poisson_for_single_wavenumber(kx_, kz_):
-        kx, kz = int(kx_), int(kz_)
+    mat = rhs_hat.assemble_poisson_matrix()
+    def solve_poisson_for_single_wavenumber(kx, kz):
+        # kx, kz = int(kx_), int(kz_)
         if kx == 0 or kz == 0:
             # assumes homogeneneous Dirichlet boundary conditions
             return rhs_hat[kx, :, kz] * 0.0
@@ -564,18 +568,21 @@ def test_poisson_slices():
             #     domain_y, 1, rhs_hat[kx, :, kz] * 0.0, "rhs_t_slice", kx, kz
             # )
         rhs_hat_slice = FourierFieldSlice(
-            domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", kx, kz
+            domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", rhs_hat.domain.grid[0][kx], rhs_hat.domain.grid[2][kz], ks_int=[kx, kz]
         )
-        out = rhs_hat_slice.solve_poisson()
+        out = rhs_hat_slice.solve_poisson(mat)
+        # out = rhs_hat_slice.solve_poisson()
         return out.field
 
+    start_time = time.time()
     out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
+    print(str(time.time() - start_time) + " seconds used for reconstruction.")
     out = out_hat.no_hat()
 
     u_ana.plot(out)
 
     tol = 1e-8
-    # print(abs(u_ana - out))
+    print(abs(u_ana - out))
     assert abs(u_ana - out) < tol
 
 def test_poisson_no_slices():
@@ -715,8 +722,8 @@ def test_navier_stokes_turbulent():
 
     end_time = 50
     nse = solve_navier_stokes_laminar(
-        # Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
-        Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
+        # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
     )
 
     plot_interval = 1

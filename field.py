@@ -467,46 +467,6 @@ class Field:
         out.name = "lap_" + self.name
         return out
 
-    def assemble_poisson_matrix(self):
-        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
-        assert len(self.all_nonperiodic_dimensions()) <= 1, "Poisson solution not implemented for the general case."
-        y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(self.all_nonperiodic_dimensions()[0])
-        n = y_mat.shape[0]
-        eye_bc = jnp.block(
-            [
-                [jnp.zeros((1, n))],
-                [jnp.zeros((n - 2, 1)), jnp.eye(n - 2), jnp.zeros((n - 2, 1))],
-                [jnp.zeros((1, n))],
-            ]
-        )
-        k1 = self.domain.grid[self.all_periodic_dimensions()[0]][1:]
-        k2 = self.domain.grid[self.all_periodic_dimensions()[1]][1:]
-        k1sq = k1**2
-        k2sq = k2**2
-        mat = jnp.moveaxis(jnp.array([[jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq] for k1sq_ in k1sq]),
-                           1, -1)
-        return mat
-
-    def solve_poisson(self, mat=None):
-        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
-        assert len(self.all_nonperiodic_dimensions()) <= 1, "Poisson solution not implemented for the general case."
-        rhs_hat = self.field
-        if type(mat) == NoneType:
-            mat = self.assemble_poisson_matrix()
-        field = rhs_hat
-        for i in reversed(self.all_periodic_dimensions()):
-            N = field.shape[i]
-            inds = jnp.arange(1, N)
-            field = field.take(indices=inds, axis=i)
-        out_field = jnp.pad(
-            jnp.einsum("ijkl,ikl->ijl", mat, field),
-            [(1, 0) if i in self.all_periodic_dimensions() else (0,0) for i in self.all_dimensions()],
-            mode="constant",
-            constant_values=0.0,
-        )
-        out_fourier = FourierField(self.domain, out_field, name=self.name + "_poisson")
-        return out_fourier
-
     def perform_explicit_euler_step(self, eq, dt, i):
         new_u = self + eq * dt
         new_u.update_boundary_conditions()
@@ -708,6 +668,8 @@ class VectorField:
         assert self.number_of_dimensions != 3, "2D not implemented yet"
         k1s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int))
         k2s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int))
+        k1_ints = jnp.arange(len(k1s))
+        k2_ints = jnp.arange(len(k2s))
 
         # worst variant - high overhead due to array access calls
         # out_field = [ self[i].field for i in self.all_dimensions() ]
@@ -728,10 +690,8 @@ class VectorField:
 
         # previously best varant using list comprehensions
         if vectorize == False:
-            # jit_fn = jax.jit(fn)
-            jit_fn = fn
-            k1_ints = jnp.arange(len(k1s))
-            k2_ints = jnp.arange(len(k2s))
+            jit_fn = jax.jit(fn)
+            # jit_fn = fn
             # out_array = jnp.array([[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s])
             out_array = [[jit_fn(k1_, k2_) for k2_ in k2s] for k1_ in k1s]
             out_field = [
@@ -890,6 +850,51 @@ class FourierField(Field):
             self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
         )
 
+    def assemble_poisson_matrix(self):
+        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
+        assert len(self.all_nonperiodic_dimensions()) <= 1, "Poisson solution not implemented for the general case."
+        y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(self.all_nonperiodic_dimensions()[0])
+        n = y_mat.shape[0]
+        eye_bc = jnp.block(
+            [
+                [jnp.zeros((1, n))],
+                [jnp.zeros((n - 2, 1)), jnp.eye(n - 2), jnp.zeros((n - 2, 1))],
+                [jnp.zeros((1, n))],
+            ]
+        )
+        k1 = self.domain.grid[self.all_periodic_dimensions()[0]][1:]
+        k2 = self.domain.grid[self.all_periodic_dimensions()[1]][1:]
+        k1sq = k1**2
+        k2sq = k2**2
+        mat = jnp.array(
+                [
+                    [jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
+                    for k1sq_ in k1sq
+                ]
+            )
+        return mat
+
+    def solve_poisson(self, mat=None):
+        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
+        assert len(self.all_nonperiodic_dimensions()) <= 1, "Poisson solution not implemented for the general case."
+        rhs_hat = self.field
+        if type(mat) == NoneType:
+            mat = self.assemble_poisson_matrix()
+        field = rhs_hat
+        for i in reversed(self.all_periodic_dimensions()):
+            N = field.shape[i]
+            inds = jnp.arange(1, N)
+            field = field.take(indices=inds, axis=i)
+        out_field = jnp.pad(
+            jnp.einsum("ijkl,ijl->ijk", mat, field),
+            [(1, 0) if i in self.all_periodic_dimensions() else (0,0) for i in self.all_dimensions()],
+            mode="constant",
+            constant_values=0.0,
+        )
+        out_fourier = FourierField(self.domain, out_field, name=self.name + "_poisson")
+        return out_fourier
+
+
     def no_hat(self):
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
@@ -906,8 +911,10 @@ class FourierField(Field):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
         k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
+        k1_ints = jnp.arange((len(k1)), dtype=int)
+        k2_ints = jnp.arange((len(k2)), dtype=int)
         out_field = jnp.moveaxis(
-            jnp.array([[fn(k1_, k2_) for k2_ in k2] for k1_ in k1]),
+            jnp.array([[fn(k1_int, k2_int) for k2_int in k2_ints] for k1_int in k1_ints]),
             -1,
             self.all_nonperiodic_dimensions()[0],
         )
@@ -915,14 +922,16 @@ class FourierField(Field):
 
 
 class FourierFieldSlice(FourierField):
-    def __init__(self, domain, non_periodic_direction, field, name="field", *ks):
+    def __init__(self, domain, non_periodic_direction, field, name="field", *ks, **params):
         self.domain = domain
         self.domain_no_hat = domain
         self.non_periodic_direction = non_periodic_direction
         self.field = field
         self.ks_raw = list(ks)
         self.ks = jnp.array(ks)
+        self.ks_int = jnp.array(params["ks_int"])
         self.ks = jnp.insert(self.ks, non_periodic_direction, -1)
+        self.ks_int = jnp.insert(self.ks_int, non_periodic_direction, -1)
         self.name = name
 
     def all_dimensions(self):
@@ -950,7 +959,8 @@ class FourierFieldSlice(FourierField):
             self.non_periodic_direction,
             out_field,
             self.name + "_diff_" + str(order),
-            *self.ks_raw
+            *self.ks_raw,
+            ks_int=self.ks_int
         )
 
     def integrate(self, direction, order=1, bc_right=None, bc_left=None):
@@ -963,11 +973,11 @@ class FourierFieldSlice(FourierField):
             self.non_periodic_direction,
             out_field,
             self.name + "_int_" + str(order),
-            *self.ks_raw
+            *self.ks_raw,
+            ks_int=self.ks_int
         )
 
-    def solve_poisson(self):
-        rhs_hat = self.field
+    def assemble_poisson_matrix(self):
         y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(0)
         n = y_mat.shape[0]
         factor = 0
@@ -984,13 +994,24 @@ class FourierFieldSlice(FourierField):
         )
         mat = factor * eye_bc + y_mat
         mat_inv = jnp.linalg.inv(mat)
+        return mat_inv
+
+    def solve_poisson(self, mat=None):
+        if type(mat) == NoneType:
+            mat_inv = self.assemble_poisson_matrix()
+        else:
+            k1 = self.ks_int[self.all_periodic_dimensions()[0]]
+            k2 = self.ks_int[self.all_periodic_dimensions()[1]]
+            mat_inv = mat[k1-1, k2-1, :, :]
+        rhs_hat = self.field
         out_field = mat_inv @ rhs_hat
         out_fourier = FourierFieldSlice(
             self.domain,
             self.non_periodic_direction,
             out_field,
             self.name + "_poisson",
-            *self.ks_raw
+            *self.ks_raw,
+            ks_int=self.ks_int[jnp.array(self.all_periodic_dimensions())]
         )
         # self.field = out_fourier.field
         return out_fourier
@@ -1014,7 +1035,8 @@ class FourierFieldSlice(FourierField):
             self.non_periodic_direction,
             self.field + other.field,
             new_name,
-            *self.ks_raw
+            *self.ks_raw,
+            ks_int=self.ks_int
         )
 
     def __sub__(self, other):
@@ -1034,7 +1056,8 @@ class FourierFieldSlice(FourierField):
                 self.non_periodic_direction,
                 self.field * other.field,
                 new_name,
-                *self.ks_raw
+                *self.ks_raw,
+                ks_int=self.ks_int
             )
         else:
             if self.performance_mode:
@@ -1056,7 +1079,8 @@ class FourierFieldSlice(FourierField):
                 self.non_periodic_direction,
                 self.field * other,
                 new_name,
-                *self.ks_raw
+                *self.ks_raw,
+                ks_int=self.ks_int
             )
 
     __rmul__ = __mul__
@@ -1085,5 +1109,6 @@ class FourierFieldSlice(FourierField):
                 self.non_periodic_direction,
                 self.field / other,
                 new_name,
-                *self.ks_raw
+                *self.ks_raw,
+                ks_int=self.ks_int
             )
