@@ -728,14 +728,27 @@ def test_optimization():
 
 
 def test_navier_stokes_turbulent():
-    Re = 1.8e6
+    Re = 1.8e2
 
     end_time = 50
+    s_z = 0.93
     nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=0.1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
         # Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
     )
+
+    vel_x_fn = lambda X: jnp.pi / 3 * jnp.cos(
+        X[1] * jnp.pi / 2) * (1/3) * (2 + jnp.cos(2 * X[2] * 2 * jnp.pi / s_z))
+    vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="vel_x")
+
+    vel_y_fn = (
+        lambda X: 0.0 * X[0] * X[1] * X[2])
+    vel_z_fn = (
+        lambda X: 0.0 * X[0] * X[1] * X[2]  )
+    vel_y = Field.FromFunc(nse.domain, vel_y_fn, name="vel_y")
+    vel_z = Field.FromFunc(nse.domain, vel_z_fn, name="vel_z")
+    nse.set_field("velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()]))
 
     plot_interval = 1
 
@@ -828,10 +841,10 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    # return test_navier_stokes_turbulent()
+    return test_navier_stokes_turbulent()
     # test_vmap()
 
 def run_all_tests_profiling():
