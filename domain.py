@@ -150,6 +150,25 @@ class Domain:
         )
         return f_diff
 
+    def diff_fourier_field_slice(self, field, direction, order=1):
+        # inds = "ijk"
+        # diff_mat_ind = "l" + inds[0]
+        # other_inds = "".join(
+        #     [
+        #         ind
+        #         for ind in inds[0 : 1]
+        #         if ind != inds[0]
+        #     ]
+        # )
+        # target_inds = other_inds[:0] + "l" + other_inds[0:]
+        # field_ind = inds[0 : 1]
+        # ind = field_ind + "," + diff_mat_ind + "->" + target_inds
+        # f_diff = jnp.einsum(
+        #     ind, field, jnp.linalg.matrix_power(self.diff_mats[direction], order)
+        # )
+        return jnp.linalg.matrix_power(self.diff_mats[direction], order) @ field
+        # return f_diff
+
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
         def set_first_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
@@ -238,6 +257,66 @@ class Domain:
         # # out_bc = set_first_and_last_of_field(out, out_right, out_left)
         out_bc = out
         return out_bc
+
+    def solve_poisson_fourier_field_slice(self, field, mat, k1, k2):
+        mat_inv = mat[k1-1, k2-1, :, :]
+        rhs_hat = field
+        out_field = mat_inv @ rhs_hat
+        return out_field
+
+    def update_boundary_conditions_fourier_field_slice(self, field, non_periodic_direction):
+        """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
+        out_field = jnp.take(
+            field,
+            jnp.arange(len(self.grid[non_periodic_direction]))[1:-1],
+            axis=0,
+        )
+        out_field = jnp.pad(
+            out_field,
+            [
+                (1,1)
+            ],
+            mode="constant",
+            constant_values=0.0,
+        )
+        return out_field
+
+    def no_hat(self, field):
+        scaling_factor = 1.0
+        for i in self.all_periodic_dimensions():
+            scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
+
+        return jnp.fft.ifftn(
+            field, axes=self.all_periodic_dimensions(), norm="ortho"
+        ).real / (1 / scaling_factor)
+
+    def field_hat(self, field):
+        scaling_factor = 1.0
+        for i in self.all_periodic_dimensions():
+            scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
+
+        return (jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho") / scaling_factor)
+
+    def curl(self, field):
+        assert len(field) == 3, "rotation only defined in 3 dimensions"
+        u_y = self.diff(field[0], (1))
+        u_z = self.diff(field[0], (2))
+        v_x = self.diff(field[1], (0))
+        v_z = self.diff(field[1], (2))
+        w_x = self.diff(field[2], (0))
+        w_y = self.diff(field[2], (1))
+
+        curl_0 = w_y - v_z
+        curl_1 = u_z - w_x
+        curl_2 = v_x - u_y
+
+        return [curl_0, curl_1, curl_2]
+
+    def cross_product(self, field_1, field_2):
+        out_0 = field_1[2] * field_2[1] - field_1[1] * field_2[2]
+        out_1 = field_1[0] * field_2[2] - field_1[2] * field_2[0]
+        out_2 = field_1[1] * field_2[0] - field_1[0] * field_2[1]
+        return [out_0, out_1, out_2]
 
 
 class FourierDomain(Domain):

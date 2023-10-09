@@ -679,6 +679,7 @@ class VectorField:
             Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
             # t1 = time.time()
             out_array = jnp.array([[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints])
+            # out_array = jnp.array([[fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints])
             # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn((k1_, k2_)))(k1_ints))(k2_ints))
             # out_array = [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
             # t2 = time.time()
@@ -988,6 +989,22 @@ class FourierFieldSlice(FourierField):
         )
         # self.field = out_fourier.field
         return out_fourier
+
+    def update_boundary_conditions(self):
+        """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
+        self.field = jnp.take(
+            self.field,
+            jnp.arange(len(self.domain.grid[0]))[1:-1],
+            axis=0,
+        )
+        self.field = jnp.pad(
+            self.field,
+            [
+                (1,1)
+            ],
+            mode="constant",
+            constant_values=0.0,
+        )
 
     def __neg__(self):
         return self * (-1.0)
