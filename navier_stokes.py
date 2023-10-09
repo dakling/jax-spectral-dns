@@ -35,7 +35,8 @@ class NavierStokesVelVort(Equation):
     max_cfl = 0.7
 
     def __init__(self, shape, velocity_field, **params):
-        domain = velocity_field[0].domain_no_hat
+        domain = velocity_field[0].domain
+        self.domain_no_hat = velocity_field[0].domain_no_hat
         super().__init__(domain, velocity_field, **params)
         self.Re = params["Re"]
         self.flow_rate = self.get_flow_rate()
@@ -81,9 +82,9 @@ class NavierStokesVelVort(Equation):
         ].get_cheb_mat_2_homogeneous_dirichlet(1)
 
     def get_time_step(self):
-        dX = self.domain.grid[0][1:] - self.domain.grid[0][:-1]
-        dY = self.domain.grid[1][1:] - self.domain.grid[1][:-1]
-        dZ = self.domain.grid[2][1:] - self.domain.grid[2][:-1]
+        dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
+        dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
+        dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
         DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
         vel = self.get_latest_field("velocity_hat").no_hat()
         U = vel[0][1: ,1:, 1:]
@@ -188,7 +189,7 @@ class NavierStokesVelVort(Equation):
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
-        domain_y = Domain((len(self.domain.grid[1]),), (False,))
+        # domain_y = Domain((len(self.domain.grid[1]),), (False,))
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri.shape[0]
@@ -309,8 +310,14 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx, kz):
                     kx_ = domain.grid[0][kx]
                     kz_ = domain.grid[2][kz]
-                    # minus_kx_kz_sq = -(kx_**2 + kz_**2)
-                    minus_kx_kz_sq = -(kx**2 + kz**2) # TODO why does this have to remain kx rather than kx_?
+                    # print("kx", kx)
+                    # print("kx_", kx_)
+                    # print("kx sc_x", kx / sc_x)
+                    # print("kz", kz)
+                    # print("kz_", kz_)
+                    # print("kz sc_z", kz / sc_z)
+                    # print("")
+                    minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_new, 1)
                     v_0_new = (
                         -1j * kx_ * v_1_new_y + 1j * kz_ * vort_1_hat_new
@@ -347,166 +354,8 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
-        def perform_single_rk_step_for_single_wavenumber(
-            step,
-            v_1_lap_hat,
-            vort_hat,
-            hel_hat,
-            hel_hat_old,
-            h_v_hat,
-            h_g_hat,
-            h_v_hat_old,
-            h_g_hat_old,
-        ):
-            # def fn(kx, kz):
-            def fn(K):
-                # start_time = time.time()
-                kx = K[0]
-                kz = K[1]
-                # kx = int(kx_)
-                # kz = int(kz_)
-                # kx = kx_.astype(int)
-                # kz = kz_.astype(int)
-                kx_ = self.domain.grid[0][kx]
-                kz_ = self.domain.grid[2][kz]
-                # TODO maybe move this out of the loop
-                lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
-                # lhs_mat_inv = self.lhs_mat_inv[kx, kz, :, :]
-                # rhs_mat = self.rhs_mat[kx, kz, :, :]
-
-                vort_1_hat = vort_hat[1]
-                phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
-
-                N_new = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
-                N_old = jnp.block([h_v_hat_old[kx, :, kz], h_g_hat_old[kx, :, kz]])
-                phi_hat_new = lhs_mat_inv @ (
-                    rhs_mat @ phi_hat
-                    + (self.dt * gamma[step]) * N_new
-                    + (self.dt * xi[step]) * N_old
-                )
-
-                n = len(phi_hat) // 2
-                v_1_lap_hat_new = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new[:n], "v_1_lap_hat_new", kx_, kz_, ks_int=[kx, kz]
-                )
-                vort_1_hat_new = FourierFieldSlice(
-                    domain_y, 1, phi_hat_new[n:], "vort_hat_new", kx_, kz_, ks_int=[kx, kz]
-                )
-
-                # compute velocity in y direction
-                v_1_new = v_1_lap_hat_new.solve_poisson(self.poisson_mat)
-                v_1_new.update_boundary_conditions()
-                # v_1_new = v_1_lap_hat_new.solve_poisson()
-
-                # compute velocities in x and z directions
-                def rk_00(kx, kz):
-                    lhs_mat_00_inv, rhs_mat_00 = self.assemble_rk_matrices(
-                        L_NS, 0, 0, step
-                    )
-                    v_hat = jnp.block([vel_hat[0][kx, :, kz], vel_hat[2][kx, :, kz]])
-                    Nx = len(self.domain.grid[0])
-                    Nz = len(self.domain.grid[2])
-                    dx = Nx * (2 * jnp.pi / self.domain.scale_factors[0])**(2)
-                    dz = Nz * (2 * jnp.pi / self.domain.scale_factors[2])**(2)
-                    N_00_new = (
-                        jnp.block([hel_hat[0][kx, :, kz], hel_hat[2][kx, :, kz]])
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx, :, kz].shape),
-                                jnp.zeros(vel_hat[2][kx, :, kz].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx, :, kz].shape),
-                                jnp.ones(vel_hat[2][kx, :, kz].shape),
-                            ]
-                        )
-                    )
-                    N_00_old = (
-                        jnp.block(
-                            [hel_hat_old[0][kx, :, kz], hel_hat_old[2][kx, :, kz]]
-                        )
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx, :, kz].shape),
-                                jnp.zeros(vel_hat[2][kx, :, kz].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx, :, kz].shape),
-                                jnp.ones(vel_hat[2][kx, :, kz].shape),
-                            ]
-                        )
-                    )
-                    v_hat_new = lhs_mat_00_inv @ (
-                        rhs_mat_00 @ v_hat
-                        + (self.dt * gamma[step]) * N_00_new
-                        + (self.dt * xi[step]) * N_00_old
-                    )
-                    # v_0_new = FourierFieldSlice(
-                    #     domain_y, 1, v_hat_new[:n], "v_0_new", kx_, kz_, ks_int=[kx, kz]
-                    # )
-                    # v_2_new = FourierFieldSlice(
-                    #     domain_y, 1, v_hat_new[n:], "v_2_new", kx_, kz_, ks_int=[kx, kz]
-                    # )
-                    # return (v_0_new.field, v_2_new.field)
-                    return (v_hat_new[:n], v_hat_new[n:])
-
-                def rk_not_00(kx, kz):
-                    kx_ = self.domain.grid[0][kx]
-                    kz_ = self.domain.grid[2][kz]
-                    sc_x = 2 * jnp.pi / self.domain.scale_factors[0]
-                    sc_z = 2 * jnp.pi / self.domain.scale_factors[2]
-                    # minus_kx_kz_sq = -(kx_**2 + kz_**2)
-                    minus_kx_kz_sq = -((kx * sc_x)**2 + (kz * sc_z)**2) # TODO why does this have to remain kx rather than kx_?
-                    # v_1_new_y = v_1_new.diff(0)
-                    v_1_new_y = v_1_new.diff(1)
-                    v_0_new = (
-                        -1j * kx_ * v_1_new_y + 1j * kz_ * vort_1_hat_new
-                    ) / minus_kx_kz_sq
-                    v_2_new = (
-                        -1j * kz_ * v_1_new_y - 1j * kx_ * vort_1_hat_new
-                    ) / minus_kx_kz_sq
-                    return (v_0_new.field, v_2_new.field)
-
-                v_0_new_field, v_2_new_field = jax.lax.cond(kx == 0,
-                                                            lambda kx___, kz___:
-                                                                jax.lax.cond(kz == 0,
-                                                                lambda kx__, kz__: rk_00(kx__, kz__),
-                                                                lambda kx__, kz__: rk_not_00(kx__, kz__),
-                                                             kx___, kz___
-                                                             ),
-                                                lambda kx___, kz___: rk_not_00(kx___, kz___),
-                                                kx, kz
-                                                )
-                # v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
-                # v_0_new = FourierFieldSlice(domain_y, 1, v_0_new_field, "v_0_new", kx, kz)
-                # v_2_new = FourierFieldSlice(domain_y, 1, v_2_new_field, "v_2_new", kx, kz)
-                # vel_hat_new = VectorField([v_0_new, v_1_new, v_2_new])
-                # vel_hat_new.name = "velocity_hat"
-                # for i in jnp.arange(3):
-                #     vel_hat_new[i].name = "velocity_hat_" + str(i)
-
-                # end_time = time.time()
-                # print("Took ", end_time - start_time, " for single wn.")
-                return (v_0_new_field, v_1_new.field, v_2_new_field)
-                # return vel_hat_new
-
-            return fn
-
         vectorize = False
         # vectorize = True
-        # reconstruct_fn = perform_single_rk_step_for_single_wavenumber
         reconstruct_fn = perform_single_rk_step_for_single_wavenumber_high_performance
 
         # perform first RK step
@@ -604,7 +453,8 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nx + 2
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    # domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")

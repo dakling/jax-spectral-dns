@@ -4,8 +4,6 @@ import jax
 import jax.scipy as jsp
 import jax.numpy as jnp
 import numpy as np
-import seaborn as sns
-import xarray
 import time
 
 from importlib import reload
