@@ -747,7 +747,7 @@ class VectorField:
             out_field = reconstruct_from_wavenumbers_jit(self[0].domain_no_hat, fn)
 
             out = VectorField([FourierField(self.domain_no_hat, out_field[i]) for i in self.all_dimensions()])
-            return VectorField(out)
+            return out
         else:
             k1s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int))
             k2s = jnp.array(self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int))
