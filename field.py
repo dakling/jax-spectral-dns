@@ -740,8 +740,8 @@ class VectorField:
 
     def reconstruct_from_wavenumbers(self, fn, vectorize=False):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
-        jit = False
-        # jit = True
+        # jit = False
+        jit = True
         if jit:
             # jit_fn = jax.jit(fn)
             out_field = reconstruct_from_wavenumbers_jit(self[0].domain_no_hat, fn)
