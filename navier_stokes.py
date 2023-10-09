@@ -5,6 +5,7 @@ import jax
 import jax.numpy as jnp
 import time
 import matplotlib.pyplot as plt
+from functools import partial
 
 from importlib import reload
 import sys
@@ -28,6 +29,31 @@ try:
 except:
     pass
 from equation import Equation
+
+
+@partial(jax.jit, static_argnums=0)
+def update_nonlinear_terms_high_performance(domain, vel_hat_new):
+    vel_new = jnp.array([domain.no_hat(vel_hat_new.at[i].get()) for i in jnp.arange(domain.number_of_dimensions)])
+    # vel_new = [domain.no_hat(vel_hat_new[i]) for i in jnp.arange(domain.number_of_dimensions)]
+    vort_new = domain.curl(vel_new)
+
+    hel_new = domain.cross_product(vel_new, vort_new)
+
+
+    h_v_new = (
+        - domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
+        + domain.diff(hel_new[1], 0, 2)
+        + domain.diff(hel_new[1], 2, 2)
+    )
+    h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
+
+    h_v_hat_new = domain.field_hat(h_v_new)
+    h_g_hat_new = domain.field_hat(h_g_new)
+    vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
+    hel_hat_new = [domain.field_hat(hel_new[i]) for i in domain.all_dimensions()]
+
+    return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
+
 
 
 class NavierStokesVelVort(Equation):
@@ -316,12 +342,12 @@ class NavierStokesVelVort(Equation):
         v_1_hat_0 = vel_hat[1]
         v_1_lap_hat_0 = v_1_hat_0.laplacian()
 
-        jit_update = jax.jit(self.update_nonlinear_terms_high_performance)
+        # jit_update = jax.jit(self.update_nonlinear_terms_high_performance)
         # h_v_hat_0, h_g_hat_0, vort_hat_0, hel_hat_0 = self.update_nonlinear_terms(
         #     vel_hat
         # )
-        h_v_hat_0, h_g_hat_0, vort_hat_0, hel_hat_0 = jit_update(
-            vel_hat
+        h_v_hat_0, h_g_hat_0, vort_hat_0, hel_hat_0 = update_nonlinear_terms_high_performance(
+            self.domain_no_hat, jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field])
         )
 
 
@@ -344,8 +370,8 @@ class NavierStokesVelVort(Equation):
 
 
         # update nonlinear terms
-        h_v_hat_1, h_g_hat_1, vort_hat_1, hel_hat_1 = self.update_nonlinear_terms(
-            vel_new_hat_1
+        h_v_hat_1, h_g_hat_1, vort_hat_1, hel_hat_1 = update_nonlinear_terms_high_performance(
+            self.domain_no_hat, jnp.array([vel_new_hat_1[0].field, vel_new_hat_1[1].field, vel_new_hat_1[2].field])
         )
 
         # perform second RK step
@@ -369,8 +395,8 @@ class NavierStokesVelVort(Equation):
         )
         vel_new_hat_2.update_boundary_conditions()
         # update nonlinear terms
-        h_v_hat_2, h_g_hat_2, vort_hat_2, hel_hat_2 = self.update_nonlinear_terms(
-            vel_new_hat_2
+        h_v_hat_2, h_g_hat_2, vort_hat_2, hel_hat_2 = update_nonlinear_terms_high_performance(
+            self.domain_no_hat, jnp.array([vel_new_hat_2[0].field, vel_new_hat_2[1].field, vel_new_hat_2[2].field])
         )
 
         # perform third RK step
