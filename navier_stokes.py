@@ -161,27 +161,6 @@ class NavierStokesVelVort(Equation):
 
         return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
 
-    # def update_nonlinear_terms_high_performance(self, vel_hat_new):
-    #     domain = self.domain
-    #     vel_new = [domain.no_hat(vel_hat_new[i]) for i in jnp.arange(domain.number_of_dimensions)]
-    #     vort_new = domain.curl(vel_new)
-
-    #     hel_new = domain.cross_product(vel_new, vort_new)
-
-    #     h_v_new = (
-    #         -(domain.diff(hel_new[0], 0) + domain.diff(domain.diff(hel_new[2], 2), 1))
-    #         + domain.diff(hel_new[1], 0, 2)
-    #         + domain.diff(hel_new[1], 2, 2)
-    #     )
-    #     h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
-
-    #     h_v_hat_new = domain.field_hat(h_v_new)
-    #     h_g_hat_new = domain.field_hat(h_g_new)
-    #     vort_hat_new = domain.field_hat(vort_new)
-    #     hel_hat_new = domain.field_hat(hel_new)
-
-    #     return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
-
     def perform_runge_kutta_step(self):
         self.dt = self.get_time_step()
         Re = self.Re
@@ -202,7 +181,7 @@ class NavierStokesVelVort(Equation):
         D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS = 1 / Re * jnp.block([[D2, Z], [Z, D2]])
 
-        def perform_single_rk_step_for_single_wavenumber_high_performance(
+        def perform_single_rk_step_for_single_wavenumber(
             step,
             v_1_lap_hat,
             vort_hat,
@@ -213,22 +192,14 @@ class NavierStokesVelVort(Equation):
             h_v_hat_old,
             h_g_hat_old,
         ):
-            # def fn(kx, kz):
             def fn(K):
                 # start_time = time.time()
                 domain = self.domain
                 kx = K[0]
                 kz = K[1]
-                # kx = int(kx_)
-                # kz = int(kz_)
-                # kx = kx_.astype(int)
-                # kz = kz_.astype(int)
                 kx_ = domain.grid[0][kx]
                 kz_ = domain.grid[2][kz]
-                # TODO maybe move this out of the loop
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
-                # lhs_mat_inv = self.lhs_mat_inv[kx, kz, :, :]
-                # rhs_mat = self.rhs_mat[kx, kz, :, :]
 
                 vort_1_hat = vort_hat[1]
                 phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
@@ -310,22 +281,13 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx, kz):
                     kx_ = domain.grid[0][kx]
                     kz_ = domain.grid[2][kz]
-                    # print("kx", kx)
-                    # print("kx_", kx_)
-                    # print("kx sc_x", kx / sc_x)
-                    # print("kz", kz)
-                    # print("kz_", kz_)
-                    # print("kz sc_z", kz / sc_z)
-                    # print("")
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_new, 1)
                     v_0_new = (
                         -1j * kx_ * v_1_new_y + 1j * kz_ * vort_1_hat_new
-                        # -1j * kx * v_1_new_y + 1j * kz * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     v_2_new = (
                         -1j * kz_ * v_1_new_y - 1j * kx_ * vort_1_hat_new
-                        # -1j * kz * v_1_new_y - 1j * kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
@@ -340,23 +302,15 @@ class NavierStokesVelVort(Equation):
                                                 kx, kz
                                                 )
                 # v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
-                # v_0_new = FourierFieldSlice(domain_y, 1, v_0_new_field, "v_0_new", kx, kz)
-                # v_2_new = FourierFieldSlice(domain_y, 1, v_2_new_field, "v_2_new", kx, kz)
-                # vel_hat_new = VectorField([v_0_new, v_1_new, v_2_new])
-                # vel_hat_new.name = "velocity_hat"
-                # for i in jnp.arange(3):
-                #     vel_hat_new[i].name = "velocity_hat_" + str(i)
 
                 # end_time = time.time()
                 # print("Took ", end_time - start_time, " for single wn.")
                 return (v_0_new_field, v_1_new, v_2_new_field)
-                # return vel_hat_new
 
             return fn
 
         vectorize = False
         # vectorize = True
-        reconstruct_fn = perform_single_rk_step_for_single_wavenumber_high_performance
 
         # perform first RK step
         v_1_hat_0 = vel_hat[1]
@@ -369,7 +323,7 @@ class NavierStokesVelVort(Equation):
 
         # solve equations
         vel_new_hat_1 = vel_hat.reconstruct_from_wavenumbers(
-            reconstruct_fn(
+            perform_single_rk_step_for_single_wavenumber(
                 0,
                 v_1_lap_hat_0,
                 vort_hat_0,
@@ -396,7 +350,7 @@ class NavierStokesVelVort(Equation):
 
         # solve equations
         vel_new_hat_2 = vel_hat.reconstruct_from_wavenumbers(
-            reconstruct_fn(
+            perform_single_rk_step_for_single_wavenumber(
                 1,
                 v_1_lap_hat_1,
                 vort_hat_1,
@@ -421,7 +375,7 @@ class NavierStokesVelVort(Equation):
 
         # solve equations
         vel_new_hat = vel_hat.reconstruct_from_wavenumbers(
-            reconstruct_fn(
+            perform_single_rk_step_for_single_wavenumber(
                 2,
                 v_1_lap_hat_2,
                 vort_hat_2,
@@ -453,8 +407,8 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nx + 2
 
-    # domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")

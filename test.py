@@ -828,10 +828,10 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    # test_navier_stokes_laminar()
+    test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    return test_navier_stokes_turbulent()
+    # return test_navier_stokes_turbulent()
     # test_vmap()
 
 def run_all_tests_profiling():
