@@ -342,10 +342,6 @@ class NavierStokesVelVort(Equation):
         v_1_hat_0 = vel_hat[1]
         v_1_lap_hat_0 = v_1_hat_0.laplacian()
 
-        # jit_update = jax.jit(self.update_nonlinear_terms_high_performance)
-        # h_v_hat_0, h_g_hat_0, vort_hat_0, hel_hat_0 = self.update_nonlinear_terms(
-        #     vel_hat
-        # )
         h_v_hat_0, h_g_hat_0, vort_hat_0, hel_hat_0 = update_nonlinear_terms_high_performance(
             self.domain_no_hat, jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field])
         )
@@ -366,7 +362,6 @@ class NavierStokesVelVort(Equation):
             ),
             vectorize=vectorize
         )
-        # vel_new_hat_1 = VectorField([FourierField(self.domain_no_hat, vel_new_hat_1[i]) for i in self.all_dimensions()])
         vel_new_hat_1.update_boundary_conditions()
 
 
@@ -394,7 +389,6 @@ class NavierStokesVelVort(Equation):
             ),
             vectorize=vectorize
         )
-        # vel_new_hat_2 = VectorField([FourierField(self.domain_no_hat, vel_new_hat_2[i]) for i in self.all_dimensions()])
         vel_new_hat_2.update_boundary_conditions()
         # update nonlinear terms
         h_v_hat_2, h_g_hat_2, vort_hat_2, hel_hat_2 = update_nonlinear_terms_high_performance(
