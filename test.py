@@ -37,6 +37,12 @@ except:
     print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
+try:
+    reload(sys.modules["linear_stability_calculation"])
+except:
+    print("Unable to load linear stability")
+from linear_stability_calculation import LinearStabilityCalculation
+
 NoneType = type(None)
 
 
@@ -45,8 +51,9 @@ def test_1D_cheb():
     domain = Domain((Nx,), (False,))
 
     u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    # u_fn = lambda X: 0.0 * jnp.cos(X[0] * jnp.pi / 2) + 2
     u = Field.FromFunc(domain, func=u_fn, name="u_1d_cheb")
-    u.update_boundary_conditions()
+    # u.update_boundary_conditions()
     u_x = u.diff(0, 1)
     u_xx = u.diff(0, 2)
 
@@ -60,6 +67,11 @@ def test_1D_cheb():
     )
 
     # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
+    print("u")
+    print(u)
+    print("ux")
+    print(u_x)
+    u.plot_center(0, u_x, u_xx)
     tol = 5e-4
     # print(abs(u_x - u_x_ana))
     # print(abs(u_xx - u_xx_ana))
@@ -440,11 +452,22 @@ def test_fourier_simple_3D():
     Nz = Nx - 4
     scale_factor_x = 1.0
     scale_factor_z = 2.0
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(scale_factor_x, 1.0, scale_factor_z))
+    domain = Domain(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(scale_factor_x, 1.0, scale_factor_z),
+    )
 
     # u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi/2)
-    u_0_fn = lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_x) * jnp.cos(X[1] * jnp.pi / 2)
-    u_fn = lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z) + jnp.sin(X[1] * jnp.pi)
+    u_0_fn = (
+        lambda X: 0.0
+        * jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_x)
+        * jnp.cos(X[1] * jnp.pi / 2)
+    )
+    u_fn = lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(
+        X[2] * 2 * jnp.pi / scale_factor_z
+    ) + jnp.sin(X[1] * jnp.pi)
     u = Field.FromFunc(domain, func=u_fn, name="u_3d")
     v = Field.FromFunc(domain, func=u_0_fn, name="v_3d")
     w = Field.FromFunc(domain, func=u_0_fn, name="w_3d")
@@ -542,11 +565,19 @@ def test_poisson_slices():
     scale_factor_x = 1.0
     scale_factor_z = 1.0
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(scale_factor_x,1.0,scale_factor_z))
+    domain = Domain(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(scale_factor_x, 1.0, scale_factor_z),
+    )
     domain_y = Domain((Ny,), (False))
 
     rhs_fn = (
-        lambda X: -((2 * jnp.pi / scale_factor_x)**2 + jnp.pi**2 / 4 + (2 * jnp.pi / scale_factor_z)**2)
+        lambda X: -(
+            (2 * jnp.pi / scale_factor_x) ** 2
+            + jnp.pi**2 / 4
+            + (2 * jnp.pi / scale_factor_z) ** 2
+        )
         * jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
         * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
         * jnp.cos(X[1] * jnp.pi / 2)
@@ -554,15 +585,16 @@ def test_poisson_slices():
     rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
 
     u_ana_fn = (
-        lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.sin(
-            (X[2] + 1.0) * 2 * jnp.pi / scale_factor_z
-        ) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
+        * jnp.cos(X[1] * jnp.pi / 2)
     )
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
     rhs_nohat = rhs_hat.no_hat()
 
     mat = rhs_hat.assemble_poisson_matrix()
+
     def solve_poisson_for_single_wavenumber(kx, kz):
         # kx, kz = int(kx_), int(kz_)
         if kx == 0 or kz == 0:
@@ -572,7 +604,13 @@ def test_poisson_slices():
             #     domain_y, 1, rhs_hat[kx, :, kz] * 0.0, "rhs_t_slice", kx, kz
             # )
         rhs_hat_slice = FourierFieldSlice(
-            domain_y, 1, rhs_hat[kx, :, kz], "rhs_hat_slice", rhs_hat.domain.grid[0][kx], rhs_hat.domain.grid[2][kz], ks_int=[kx, kz]
+            domain_y,
+            1,
+            rhs_hat[kx, :, kz],
+            "rhs_hat_slice",
+            rhs_hat.domain.grid[0][kx],
+            rhs_hat.domain.grid[2][kz],
+            ks_int=[kx, kz],
         )
         out = rhs_hat_slice.solve_poisson(mat)
         # out = rhs_hat_slice.solve_poisson()
@@ -589,6 +627,7 @@ def test_poisson_slices():
     print(abs(u_ana - out))
     assert abs(u_ana - out) < tol
 
+
 def test_poisson_no_slices():
     Nx = 20
     Ny = 24
@@ -601,7 +640,11 @@ def test_poisson_no_slices():
     domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(Nx, 1.0, Nz))
 
     rhs_fn = (
-        lambda X: -((2 * jnp.pi / scale_factor_x)**2 + jnp.pi**2 / 4 + (2 * jnp.pi / scale_factor_z)**2)
+        lambda X: -(
+            (2 * jnp.pi / scale_factor_x) ** 2
+            + jnp.pi**2 / 4
+            + (2 * jnp.pi / scale_factor_z) ** 2
+        )
         * jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
         * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
         * jnp.cos(X[1] * jnp.pi / 2)
@@ -609,9 +652,9 @@ def test_poisson_no_slices():
     rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
 
     u_ana_fn = (
-        lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.sin(
-            (X[2] + 1.0) * 2 * jnp.pi / scale_factor_z
-        ) * jnp.cos(X[1] * jnp.pi / 2)
+        lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
+        * jnp.cos(X[1] * jnp.pi / 2)
     )
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
@@ -728,29 +771,84 @@ def test_optimization():
 
 
 def test_navier_stokes_turbulent():
-    Re = 1.8e2
+    Re = 1.8e6
 
     end_time = 50
+    s_x = 1.87
     s_z = 0.93
+    # s_x = 2 * jnp.pi
+    # s_z = 2 * jnp.pi
     nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=90, Nx=64, end_time=end_time, pertubation_factor=0.1
+        Re=Re,
+        Ny=90,
+        Nx=64,
+        end_time=end_time,
+        pertubation_factor=0.1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
         # Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
     )
 
-    vel_x_fn = lambda X: jnp.pi / 3 * jnp.cos(
-        X[1] * jnp.pi / 2) * (1/3) * (2 + jnp.cos(2 * X[2] * 2 * jnp.pi / s_z))
-    vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="vel_x")
+    def vortex_fun(center_y, center_z, a):
+        def ret(X):
+            _, y, z = X[0], X[1], X[2]
+            u = 0
+            v = -a * (z - center_z) / s_z
+            w = a * (y - center_y) / 2
+            return (u, v, w)
 
-    vel_y_fn = (
-        lambda X: 0.0 * X[0] * X[1] * X[2])
-    vel_z_fn = (
-        lambda X: 0.0 * X[0] * X[1] * X[2]  )
-    vel_y = Field.FromFunc(nse.domain, vel_y_fn, name="vel_y")
-    vel_z = Field.FromFunc(nse.domain, vel_z_fn, name="vel_z")
-    nse.set_field("velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()]))
+        return ret
 
-    plot_interval = 1
+    def ts_vortex_fun(center_x, center_z, a):
+        def ret(X):
+            # x,_,z = X
+            x, _, z = X[0], X[1], X[2]
+            u = a * (z - center_z) / s_z
+            v = 0
+            w = -a * (x - center_x) / s_x
+            return (u, v, w)
+
+        return ret
+
+    vortex_1_fun = vortex_fun(0.0, s_z / 2, 0.1)
+    vortex_2_fun = vortex_fun(0.0, -s_z / 2, 0.1)
+    ts_vortex_1_fun = ts_vortex_fun(s_x / 2, 0.0, 0.1)
+    ts_vortex_2_fun = ts_vortex_fun(-s_x / 2, 0.0, 0.1)
+    # vortex_sum = lambda X: vortex_1_fun(X) + vortex_2_fun(X)
+    vortex_sum = lambda X: [
+        ts_vortex_1_fun(X)[i]
+        + ts_vortex_2_fun(X)[i]
+        + vortex_1_fun(X)[i]
+        + vortex_2_fun(X)[i]
+        for i in range(3)
+    ]
+
+    # Add small velocity perturbations localized to the shear layers
+    omega = 0.05
+
+    Ly = 2.0
+    Lz = s_z
+    # vel_x_fn = lambda X: jnp.pi / 3 * jnp.cos(
+    #     X[1] * jnp.pi / 2) + (1 - X[1]**2) * vortex_sum(X)[0]
+    vel_x_fn = (
+        lambda X: ((0.5 + X[1] / Ly) * (0.5 - X[1] / Ly)) / 0.25
+        + 0.1 * jnp.sin(2 * jnp.pi * X[2] / Lz * omega)
+        + 0 * X[0]
+    )
+    vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
+
+    # vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) * vortex_sum(X)[1]
+    vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + 0.1 * jnp.sin(
+        2 * jnp.pi * X[2] / Lz * omega
+    )
+    # vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) *vortex_sum(X)[2]
+    vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
+    vel_y = Field.FromFunc(nse.domain_no_hat, vel_y_fn, name="velocity_y")
+    vel_z = Field.FromFunc(nse.domain_no_hat, vel_z_fn, name="velocity_z")
+    nse.set_field(
+        "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
+    )
+
+    plot_interval = 2
 
     vel = nse.get_initial_field("velocity_hat").no_hat()
     vel[0].plot_3d()
@@ -786,6 +884,7 @@ def test_vmap():
         #     return x*2
         # else:
         #     return x*3
+
     def fn2(X):
         x = X[0]
         y = X[1]
@@ -794,10 +893,7 @@ def test_vmap():
         # print(A[x, :, y])
         # return A[x,:,  y] + B[x, :, y]
         # return jnp.dot(x,y)
-        out = jax.lax.cond(x+y == 0,
-                           lambda: x * y,
-                           lambda: x * y / (x + y)
-                           )
+        out = jax.lax.cond(x + y == 0, lambda: x * y, lambda: x * y / (x + y))
         return out
 
     N = 100
@@ -823,9 +919,111 @@ def test_vmap():
     start_2 = time.time()
     fn2vmap(X).reshape(N, N)
     end_2 = time.time()
-    print("Elapsed time non-vectorized version: ", end-start)
-    print("Elapsed time vectorized version: ", end_2-start_2)
+    print("Elapsed time non-vectorized version: ", end - start)
+    print("Elapsed time vectorized version: ", end_2 - start_2)
     # print(fn2vmap(xs, ys))
+
+
+def test_linear_stability():
+    n = 24
+    Re = 5772.22
+    alpha = 1.02056
+
+    lsc = LinearStabilityCalculation(Re, alpha, n)
+    evs, _ = lsc.calculate_eigenvalues()
+    # print(evs)
+    # print(evecs[0])
+    assert evs[0].real <= 0.0 and evs[0].real >= -1e-8
+
+
+def test_pseudo_2d():
+    # Ny = 96
+    Ny = 48
+    Re = 5772.22
+    # Re = 10000
+    alpha = 1.02056
+    # alpha = 1.0
+
+    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+
+    end_time = 1
+    nse = solve_navier_stokes_laminar(
+        Re=Re, Nx=48, Ny=Ny, Nz=2, end_time=end_time, pertubation_factor=0.0
+    )
+
+    u, v, w = lsc.velocity_field(nse.domain)
+    u.plot_3d()
+    v.plot_3d()
+    w.plot_3d()
+    vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
+
+    eps = 1e-3
+    nse.set_field(
+        "velocity_hat",
+        0,
+        VectorField(
+            [
+                vel_x_hat + eps * u.hat(),
+                vel_y_hat + eps * v.hat(),
+                vel_z_hat + eps * w.hat(),
+            ]
+        ),
+    )
+
+    nse.solve()
+
+def test_dummy_velocity_field():
+    Re = 6000
+
+    end_time = 50
+
+    nse = solve_navier_stokes_laminar(
+        # Re=Re,
+        # Ny=90,
+        # Nx=64,
+        # end_time=end_time,
+        # pertubation_factor=0.1
+        # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
+    )
+
+    nse.max_iter = 1e10
+    vel_x_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] )
+    # vel_y_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) )
+    vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
+    vel_y = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_y")
+    vel_z = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_z")
+    nse.set_field(
+        "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
+    )
+
+    plot_interval = 2
+
+    vel = nse.get_initial_field("velocity_hat").no_hat()
+    vel[0].plot_3d()
+    vel[1].plot_3d()
+    vel[2].plot_3d()
+
+    def after_time_step(nse):
+        i = nse.time_step
+        if (i - 1) % plot_interval == 0:
+            vel = nse.get_field("velocity_hat", i).no_hat()
+            vort_hat, _ = nse.get_vorticity_and_helicity()
+            vort = vort_hat.no_hat()
+            vel[0].plot_3d()
+            vel[1].plot_3d()
+            vel[2].plot_3d()
+            vort[0].plot_3d()
+            vort[1].plot_3d()
+            vort[2].plot_3d()
+            vel[0].plot_center(1)
+            vel[1].plot_center(1)
+            vel[2].plot_center(1)
+
+    nse.after_time_step_fn = after_time_step
+    # nse.after_time_step_fn = None
+    nse.solve()
+    return nse.get_latest_field("velocity_hat").no_hat().field
 
 
 def run_all_tests():
@@ -844,17 +1042,21 @@ def run_all_tests():
     # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
-    return test_navier_stokes_turbulent()
+    # return test_navier_stokes_turbulent()
     # test_vmap()
+    # test_transient_growth()
+    test_pseudo_2d()
+    # test_dummy_velocity_field()
+
 
 def run_all_tests_profiling():
     # with jax.profiler.trace("/tmp/jax-trace", create_perfetto_link=True):
-        # Run the operations to be profiled
-        # run_all_tests()
+    # Run the operations to be profiled
+    # run_all_tests()
     with Profile() as profile:
         run_all_tests()
         (
-             Stats(profile)
+            Stats(profile)
             .strip_dirs()
             .sort_stats(SortKey.CALLS)
             .dump_stats("./navier-stokes.prof")

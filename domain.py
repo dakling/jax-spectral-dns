@@ -299,12 +299,12 @@ class Domain:
 
     def curl(self, field):
         assert len(field) == 3, "rotation only defined in 3 dimensions"
-        u_y = self.diff(field[0], (1))
-        u_z = self.diff(field[0], (2))
-        v_x = self.diff(field[1], (0))
-        v_z = self.diff(field[1], (2))
-        w_x = self.diff(field[2], (0))
-        w_y = self.diff(field[2], (1))
+        u_y = self.diff(field[0], 1)
+        u_z = self.diff(field[0], 2)
+        v_x = self.diff(field[1], 0)
+        v_z = self.diff(field[1], 2)
+        w_x = self.diff(field[2], 0)
+        w_y = self.diff(field[2], 1)
 
         curl_0 = w_y - v_z
         curl_1 = u_z - w_x

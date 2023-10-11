@@ -1,0 +1,233 @@
+#!/usr/bin/env python3
+
+
+import numpy as np
+from numpy.linalg import svd
+from scipy.linalg import eig, cholesky
+from scipy.sparse.linalg import eigs
+from scipy.integrate import quad
+import scipy
+import matplotlib.pyplot as plt
+import timeit
+
+from importlib import reload
+import sys
+
+try:
+    reload(sys.modules["cheb"])
+except:
+    pass
+from cheb import cheb, phi, phi_s, phi_a
+
+try:
+    reload(sys.modules["domain"])
+except:
+    pass
+from domain import Domain
+
+try:
+    reload(sys.modules["field"])
+except:
+    pass
+from field import Field
+
+
+class LinearStabilityCalculation:
+    def __init__(self, Re=180.0, alpha=3.25, n=50):
+        self.Re = Re
+        self.alpha = alpha
+        self.n = n  # chebychev resolution
+
+        self.A = None
+        self.B = None
+        self.eigenvalues = None
+        self.eigenvectors = None
+
+        self.C = None
+        self.growth = []
+
+        # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*n)) for i in range(n)] # gauss-lobatto points (SH2001, p. 488)
+        domain = Domain((n,), (False,))
+        self.ys = domain.grid[0]
+
+        self.U = None
+        self.Uy = None
+        self.Uyy = None
+        self.intU = None
+        self.UG = None
+        self.UGy = None
+
+    def read_mat(self, file, key):
+        return scipy.io.loadmat(file)[key]
+
+    # def load_dns_data(self):
+    #     dns = DNS_Reader(self)
+    #     self.U, self.Uy, self.Uyy, self.intU = dns.read_profile()
+    #     self.UG, self.UGy = dns.read_streak()
+
+    def assemble_matrix_fast(self):
+        n = self.n
+        alpha = self.alpha
+        Re = self.Re
+
+        ys = self.ys
+
+        noOfEqs = 4
+        N = n * noOfEqs
+        A = np.zeros([N, N], dtype=complex)
+        B = np.zeros([N, N], dtype=complex)
+
+        I = 0 + 1j
+
+        def local_to_global_index(j, k, eq, var):
+            jj = j + eq * self.n
+            kk = k + var * self.n
+            return (jj, kk)
+
+        u_fun = lambda y: (1 - y**2)
+        du_fun = lambda y: -2 * y
+        beta = 0
+        kSq = alpha**2 + beta**2
+        for j in range(n):
+            y = ys[j]
+            U = u_fun(y)
+            dU = du_fun(y)
+            for k in range(n):
+
+                def setMat(mat, eq, var, value):
+                    jj, kk = local_to_global_index(j, k, eq, var)
+                    mat[jj, kk] = value
+
+                u = phi(k, 0, y)
+                d2u = phi(k, 2, y)
+
+                v = u
+                dv = phi(k, 1, y)
+                d2v = d2u
+
+                w = u
+                d2w = d2u
+
+                p = cheb(k, 0, y)
+                dp = cheb(k, 1, y)
+
+                # eq 1 (momentum x)
+                setMat(B, 0, 0, u)
+
+                setMat(A, 0, 0, -I * alpha * U * u + 1 / Re * (d2u - kSq * u))
+                setMat(A, 0, 1, v * -dU)
+                setMat(A, 0, 3, -I * alpha * p)
+
+                # eq 2 (momentum y)
+                setMat(B, 1, 1, v)
+
+                setMat(A, 1, 1, -I * alpha * U * v + 1 / Re * (d2v - kSq * v))
+                setMat(A, 1, 3, -dp)
+
+                # eq 3 (momentum z)
+                setMat(B, 2, 2, w)
+
+                setMat(A, 2, 2, -I * alpha * U * w + 1 / Re * (d2w - kSq * w))
+                setMat(A, 2, 3, -I * beta * p)
+
+                # eq 4 (continuity)
+                setMat(A, 3, 0, I * alpha * u)
+                setMat(A, 3, 1, dv)
+                setMat(A, 3, 2, I * beta * w)
+
+        self.A = A
+        self.B = B
+        return (A, B)
+
+    def calculate_eigenvalues(self):
+        try:
+            if None in [self.A, self.B]:
+                self.assemble_matrix_fast()
+        except ValueError:
+            pass
+        eigvals, eigvecs = eig(self.A, self.B)
+
+        # scale spurious e'value out of the picture
+        for j in range(len(eigvals)):
+            if eigvals[j].real > 1:
+                eigvals[j] = -1e12
+        # sort eigenvals
+        eevs = [(eigvals[i], eigvecs[:, i]) for i in range(len(eigvals))]
+        eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
+        self.eigenvalues = [eev[0] for eev in eevs]
+        self.eigenvectors = [eev[1] for eev in eevs]
+        return self.eigenvalues, self.eigenvectors
+
+    def velocity_field(self, domain, mode=0):
+        assert domain.number_of_dimensions == 3, "this only makes sense in 3D."
+        try:
+            if None in [self.A, self.B]:
+                self.calculate_eigenvalues()
+        except ValueError:
+            pass
+
+        evec = self.eigenvectors[mode]
+
+        u_vec, v_vec, w_vec, _ = np.split(evec, 4)
+
+        def to_3d_field(eigenvector):
+            out = np.array(
+                [
+                    [
+                        np.sum(
+                            [
+                                (
+                                    v_vec[k]
+                                    * phi(k, 0, self.ys[i])
+                                    * np.exp(1j * self.alpha * x)
+                                ).real
+                                for k in range(self.n)
+                            ]
+                        )
+                        for i in range(self.n)
+                    ]
+                    for x in domain.grid[0]
+                ]
+            )
+            out = np.tile(out, (len(domain.grid[2]), 1, 1))
+            out = np.moveaxis(out, 0, -1)
+            return out
+
+        # print(self.eigenvalues[0])
+        # print(v_vec)
+        # fig, ax = plt.subplots(1,1)
+        # ax.plot(self.ys, [np.sum([(v_vec[k] * phi(k, 0, self.ys[i]) * np.exp(1j * self.alpha * 0)).real for k in range(self.n)]) for i in range(self.n)])
+        # fig.savefig("plots/dummy.pdf")
+        # raise Exception("break")
+
+        u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
+        v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
+        w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
+
+        return (u_field, v_field, w_field)
+
+    def print_welcome(self):
+        print("starting linear stability calculation")  # TODO more info
+
+    def post_process(self):
+        pass
+
+    def perform_calculation(self):
+        self.print_welcome()
+        print("Loading DNS data")
+        t0 = timeit.default_timer()
+        # self.load_dns_data()
+        t1 = timeit.default_timer()
+        print("(took " + str(t1 - t0) + " seconds)")
+        print("Performing matrix assembly (matrices A and B)")
+        self.assemble_matrix_fast()
+        t2 = timeit.default_timer()
+        print("(took " + str(t2 - t1) + " seconds)")
+        print("Calculating eigenvalues and -vectors")
+        self.calculate_eigenvalues()
+        t3 = timeit.default_timer()
+        print("(took " + str(t3 - t2) + " seconds)")
+        t5 = timeit.default_timer()
+        print("(took " + str(t5 - t4) + " seconds)")
+        self.post_process()
+        print("Done")
