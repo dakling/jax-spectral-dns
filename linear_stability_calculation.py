@@ -160,6 +160,7 @@ class LinearStabilityCalculation:
 
     def velocity_field(self, domain, mode=0):
         assert domain.number_of_dimensions == 3, "this only makes sense in 3D."
+        print("calculating eigenvalues")
         try:
             if None in [self.A, self.B]:
                 self.calculate_eigenvalues()
@@ -171,24 +172,11 @@ class LinearStabilityCalculation:
         u_vec, v_vec, w_vec, _ = np.split(evec, 4)
 
         def to_3d_field(eigenvector):
-            out = np.array(
-                [
-                    [
-                        np.sum(
-                            [
-                                (
-                                    v_vec[k]
-                                    * phi(k, 0, self.ys[i])
-                                    * np.exp(1j * self.alpha * x)
-                                ).real
-                                for k in range(self.n)
-                            ]
-                        )
-                        for i in range(self.n)
-                    ]
-                    for x in domain.grid[0]
-                ]
-            )
+            phi_mat = np.zeros((self.n, self.n), dtype=np.complex128)
+            for i in range(self.n):
+                for k in range(self.n):
+                    phi_mat[i, k] = phi(k, 0, self.ys[i])
+            out = np.outer(np.exp(1j * self.alpha * domain.grid[0]), phi_mat @ eigenvector).real
             out = np.tile(out, (len(domain.grid[2]), 1, 1))
             out = np.moveaxis(out, 0, -1)
             return out
@@ -200,9 +188,11 @@ class LinearStabilityCalculation:
         # fig.savefig("plots/dummy.pdf")
         # raise Exception("break")
 
+        print("calculating velocity pertubations in 3D")
         u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
         v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
         w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
+        print("done calculating velocity pertubations in 3D")
 
         return (u_field, v_field, w_field)
 

@@ -259,7 +259,7 @@ class Domain:
         return out_bc
 
     def solve_poisson_fourier_field_slice(self, field, mat, k1, k2):
-        mat_inv = mat[k1-1, k2-1, :, :]
+        mat_inv = mat[k1, k2, :, :]
         rhs_hat = field
         out_field = mat_inv @ rhs_hat
         return out_field

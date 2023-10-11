@@ -176,7 +176,6 @@ def test_3D():
     Nz = 20
     scale_factor_x = 1.0
     scale_factor_z = 2.0
-    domain = Domain((Nx, Ny), (True, False))
     domain = Domain(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -937,10 +936,10 @@ def test_linear_stability():
 
 
 def test_pseudo_2d():
-    # Ny = 96
-    Ny = 48
-    Re = 5772.22
-    # Re = 10000
+    Ny = 96
+    # Ny = 24
+    # Re = 5772.22
+    Re = 10000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -954,10 +953,13 @@ def test_pseudo_2d():
     u, v, w = lsc.velocity_field(nse.domain)
     u.plot_3d()
     v.plot_3d()
+    par_fn = lambda X: 0.0 * X[0] * X[1] * X[2] - 0.41 * (1 - X[1]**2)
+    par_field = Field.FromFunc(nse.domain, par_fn)
+    v.plot_center(1, par_field)
     w.plot_3d()
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-3
+    eps = 1e-5
     nse.set_field(
         "velocity_hat",
         0,
@@ -969,6 +971,27 @@ def test_pseudo_2d():
             ]
         ),
     )
+
+    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
+    plot_interval = 1
+    def after_time_step(nse):
+        i = nse.time_step
+        if (i - 1) % plot_interval == 0:
+            vel = nse.get_field("velocity_hat", i).no_hat()
+            vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
+            vel_pert_abs = 0
+            for i in range(3):
+                if i == 0:
+                    vel[i].plot_3d(vel_x_ana)
+                else:
+                    vel[i].plot_3d()
+                vel_pert[i].name = "velocity_pertubation_" + "xyz"[i]
+                vel_pert[i].plot_3d()
+                vel_pert_abs += abs(vel_pert[i])
+            print("velocity pertubation: ", vel_pert_abs)
+
+    nse.after_time_step_fn = after_time_step
 
     nse.solve()
 

@@ -988,8 +988,10 @@ class FourierField(Field):
                 [jnp.zeros((1, n))],
             ]
         )
-        k1 = self.domain.grid[self.all_periodic_dimensions()[0]][1:]
-        k2 = self.domain.grid[self.all_periodic_dimensions()[1]][1:]
+        # k1 = self.domain.grid[self.all_periodic_dimensions()[0]][1:]
+        # k2 = self.domain.grid[self.all_periodic_dimensions()[1]][1:]
+        k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
+        k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
         k1sq = k1**2
         k2sq = k2**2
         mat = jnp.array(
@@ -1136,7 +1138,7 @@ class FourierFieldSlice(FourierField):
         else:
             k1 = self.ks_int[self.all_periodic_dimensions()[0]]
             k2 = self.ks_int[self.all_periodic_dimensions()[1]]
-            mat_inv = mat[k1 - 1, k2 - 1, :, :]
+            mat_inv = mat[k1, k2, :, :]
         rhs_hat = self.field
         out_field = mat_inv @ rhs_hat
         out_fourier = FourierFieldSlice(

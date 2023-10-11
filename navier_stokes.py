@@ -59,12 +59,12 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
     hel_hat_new = [domain.field_hat(hel_new[i]) for i in domain.all_dimensions()]
 
-    continuity_error = jnp.linalg.norm(
-        domain.diff(vel_new[0], 0)
-        + domain.diff(vel_new[1], 1)
-        + domain.diff(vel_new[2], 2)
-    )
-    print("continuity error ", continuity_error)
+    # continuity_error = jnp.linalg.norm(
+    #     domain.diff(vel_new[0], 0)
+    #     + domain.diff(vel_new[1], 1)
+    #     + domain.diff(vel_new[2], 2)
+    # )
+    # print("continuity error ", continuity_error)
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
 
@@ -222,8 +222,8 @@ class NavierStokesVelVort(Equation):
         vort_hat_new = vort_new.hat()
         hel_hat_new = hel_new.hat()
 
-        continuity_error = abs(vel_new.div())
-        print("continuity error ", continuity_error)
+        # continuity_error = abs(vel_new.div())
+        # print("continuity error ", continuity_error)
 
         return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
 
@@ -244,8 +244,8 @@ class NavierStokesVelVort(Equation):
         L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
-        # dPdx = -self.flow_rate * 3 / 2 / Re
-        dPdx = - 1
+        dPdx = -self.flow_rate * 3 / 2 / Re
+        # dPdx = - 1
         # dPdx = 0
         dPdz = 0  # spanwise pressure gradient should be negligble
         # D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
@@ -292,24 +292,39 @@ class NavierStokesVelVort(Equation):
                 vort_1_hat_new = phi_hat_new[n:]
 
                 # compute velocity in y direction
+                # domain_y = Domain((len(self.domain.grid[1]),), (False,))
+                # v_1_new_four_sl = FourierFieldSlice(domain_y, 1, v_1_lap_hat_new, "field", kx_, kz_, ks_int=[kx, kz])
+                # v_1_new = v_1_new_four_sl.solve_poisson(self.poisson_mat).field
                 v_1_new = domain.solve_poisson_fourier_field_slice(
                     v_1_lap_hat_new, self.poisson_mat, kx, kz
                 )
-                # fig, ax = plt.subplots(1,1)
-                # ax.plot(vel_hat[1][kx, :, kz])
-                # # ax.plot(vel_hat[1].diff(1,2)[kx, :, kz])
-                # ax.plot(v_1_lap_hat[kx, :, kz])
-                # ax.plot(v_1_lap_hat_new)
-                # ax.plot(v_1_new)
-                # fig.savefig("plot.pdf")
-                # print("kx: ", kx, " kz: ", kz)
-                # print("kx_: ", kx_, " kz_: ", kz_)
-                # if kx == 0 and kz == 1:
-                #     raise Exception("break")
-                # _ = input("carry on?")
                 v_1_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_new, 1
                 )
+                # ys = domain.grid[1]
+                # # M = domain.diff_mats[1]
+                # # v = jnp.array([y**3 for y in domain.grid[1]])
+                # fig, ax = plt.subplots(1,1)
+                # ax.plot(ys, vel_hat[1][kx, :, kz])
+                # # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
+                # # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
+                # # ax.plot(ys, v_1_lap_hat[kx, :, kz])
+                # # ax.plot(ys, v_1_lap_hat_new)
+                # ax.plot(ys, v_1_new, "--")
+                # fig.savefig("plots/plot.pdf")
+                # fig, ax = plt.subplots(1,1)
+                # # ax.plot(ys, vel_hat[1][kx, :, kz])
+                # # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
+                # # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
+                # ax.plot(ys, v_1_lap_hat[kx, :, kz])
+                # ax.plot(ys, v_1_lap_hat_new, "--")
+                # # ax.plot(ys, v_1_new)
+                # fig.savefig("plots/plot2.pdf")
+                # print("kx: ", kx, " kz: ", kz)
+                # print("kx_: ", kx_, " kz_: ", kz_)
+                # if kx == 0 and kz == 0:
+                #     raise Exception("break")
+                # # _ = input("carry on?")
 
                 time_4 = time.time()
 
