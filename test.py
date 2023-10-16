@@ -935,10 +935,10 @@ def test_linear_stability():
 
 
 def test_pseudo_2d():
-    Ny = 96
+    Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 10000
+    Re = 5000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -988,7 +988,7 @@ def test_pseudo_2d():
                 vel_pert[i].plot_3d()
                 vel_pert_abs += abs(vel_pert[i])
             print("velocity pertubation: ", vel_pert_abs)
-        input("carry on?")
+        # input("carry on?")
 
     nse.after_time_step_fn = after_time_step
 
@@ -1061,13 +1061,13 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    # test_pseudo_2d()
+    test_pseudo_2d()
     # test_dummy_velocity_field()
 
 
