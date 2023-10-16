@@ -17,7 +17,7 @@ try:
     reload(sys.modules["cheb"])
 except:
     pass
-from cheb import cheb, phi, phi_s, phi_a
+from cheb import cheb, phi
 
 try:
     reload(sys.modules["domain"])
@@ -56,14 +56,6 @@ class LinearStabilityCalculation:
         self.intU = None
         self.UG = None
         self.UGy = None
-
-    def read_mat(self, file, key):
-        return scipy.io.loadmat(file)[key]
-
-    # def load_dns_data(self):
-    #     dns = DNS_Reader(self)
-    #     self.U, self.Uy, self.Uyy, self.intU = dns.read_profile()
-    #     self.UG, self.UGy = dns.read_streak()
 
     def assemble_matrix_fast(self):
         n = self.n

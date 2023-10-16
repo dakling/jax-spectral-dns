@@ -241,7 +241,7 @@ class NavierStokesVelVort(Equation):
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
-        L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        # L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
         dPdx = -self.flow_rate * 3 / 2 / Re
@@ -249,8 +249,8 @@ class NavierStokesVelVort(Equation):
         # dPdx = 0
         dPdz = 0  # spanwise pressure gradient should be negligble
         # D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
-        # L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        L_NS = L
+        L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        # L_NS = L
 
         def perform_single_rk_step_for_single_wavenumber(
             step,
@@ -270,37 +270,49 @@ class NavierStokesVelVort(Equation):
                 kz = K[1]
                 kx_ = domain.grid[0][kx]
                 kz_ = domain.grid[2][kz]
+
+                # wall-normal velocity
+                # p-part
+                L = D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
-                time_2 = time.time()
-                vort_1_hat = vort_hat[1]
-                phi_hat = jnp.block([v_1_lap_hat[kx, :, kz], vort_1_hat[kx, :, kz]])
+                phi_hat = v_1_lap_hat[kx, :, kz]
 
-                N_new = jnp.block([h_v_hat[kx, :, kz], h_g_hat[kx, :, kz]])
-                N_old = jnp.block([h_v_hat_old[kx, :, kz], h_g_hat_old[kx, :, kz]])
+                N_new = h_v_hat[kx, :, kz]
+                N_old = h_v_hat_old[kx, :, kz]
                 phi_hat_new = lhs_mat_inv @ (
                     rhs_mat @ phi_hat
                     + (self.dt * gamma[step]) * N_new
                     + (self.dt * xi[step]) * N_old
                 )
 
-                n = len(phi_hat) // 2
-
-                time_3 = time.time()
-
-                v_1_lap_hat_new = phi_hat_new[:n]
-                vort_1_hat_new = phi_hat_new[n:]
+                v_1_lap_hat_new = phi_hat_new
 
                 # compute velocity in y direction
-                # domain_y = Domain((len(self.domain.grid[1]),), (False,))
-                # v_1_new_four_sl = FourierFieldSlice(domain_y, 1, v_1_lap_hat_new, "field", kx_, kz_, ks_int=[kx, kz])
-                # v_1_new = v_1_new_four_sl.solve_poisson(self.poisson_mat).field
                 v_1_new = domain.solve_poisson_fourier_field_slice(
                     v_1_lap_hat_new, self.poisson_mat, kx, kz
                 )
                 v_1_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_new, 1
                 )
+
+                # vorticity
+                L = D2_hom_diri
+                lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
+
+                vort_1_hat = vort_hat[1]
+                phi_hat = jnp.block([vort_1_hat[kx, :, kz]])
+
+                N_new = jnp.block([h_g_hat[kx, :, kz]])
+                N_old = jnp.block([h_g_hat_old[kx, :, kz]])
+                phi_hat_new = lhs_mat_inv @ (
+                    rhs_mat @ phi_hat
+                    + (self.dt * gamma[step]) * N_new
+                    + (self.dt * xi[step]) * N_old
+                )
+
+                vort_1_hat_new = phi_hat_new
+
                 # ys = domain.grid[1]
                 # # M = domain.diff_mats[1]
                 # # v = jnp.array([y**3 for y in domain.grid[1]])
