@@ -72,6 +72,7 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
     max_cfl = 0.7
+    max_dt = 1e10
 
     def __init__(self, shape, velocity_field, **params):
         domain = velocity_field[0].domain
@@ -132,7 +133,7 @@ class NavierStokesVelVort(Equation):
         u_cfl = (abs(DX) / abs(U)).min().real
         v_cfl = (abs(DY) / abs(V)).min().real
         w_cfl = (abs(DZ) / abs(W)).min().real
-        return min(1e-2, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+        return min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
 
     def get_rk_parameters(self):
         return (
@@ -235,7 +236,7 @@ class NavierStokesVelVort(Equation):
         vel_hat = self.get_latest_field("velocity_hat")
 
         # start runge-kutta stepping
-        _, _, gamma, xi = self.get_rk_parameters()
+        alpha, beta, gamma, xi = self.get_rk_parameters()
         # domain_y = Domain((len(self.domain.grid[1]),), (False,))
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
@@ -286,15 +287,78 @@ class NavierStokesVelVort(Equation):
                     + (self.dt * xi[step]) * N_old
                 )
 
-                v_1_lap_hat_new = phi_hat_new
+                v_1_lap_hat_new_p = phi_hat_new
+
 
                 # compute velocity in y direction
-                v_1_new = domain.solve_poisson_fourier_field_slice(
-                    v_1_lap_hat_new, self.poisson_mat, kx, kz
+                v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
+                    v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
-                v_1_new = domain.update_boundary_conditions_fourier_field_slice(
-                    v_1_new, 1
+                v_1_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
+                    v_1_hat_new_p, 1
                 )
+
+                # a-part
+                L_a = 1 / Re * D2_hom_diri
+
+                # runge kutta
+                def set_nth_mat_row_to_unit(matr, n):
+                    N = matr.shape[0]
+                    return jnp.block(
+                        [[matr[:n, :]], [jnp.eye(N)[n,:]], [matr[n+1:, :]]]
+                    )
+                I = jnp.eye(L_a.shape[0])
+                L_ = I - beta[step] * self.dt * L_a
+                R_ = I + alpha[step] * self.dt * L_a
+                for i in [0, n-1]:
+                    L_ = set_nth_mat_row_to_unit(L_, i)
+                    R_ = set_nth_mat_row_to_unit(R_, i)
+
+                L_inv = jnp.linalg.inv(L_)
+
+                ys = domain.grid[1]
+                v_1_lap_hat_a = v_1_lap_hat[kx, :, kz]
+                lin_func = jax.lax.map(lambda y: (y + 1) / 2, ys)
+                phi_hat_a = jnp.block([0.0, v_1_lap_hat_a[1:-1], 0.0]) + lin_func
+                # phi_hat_a = jnp.block([v_1_lap_hat_a, v_1_hat[kx, :, kz]])
+
+                phi_hat_new_a = L_inv @ (
+                    R_ @ phi_hat_a
+                )
+
+                v_1_lap_new_a = phi_hat_new_a
+                # compute velocity in y direction
+                v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
+                    v_1_lap_new_a, self.poisson_mat, kx, kz
+                )
+                v_1_hat_new_a = domain.update_boundary_conditions_fourier_field_slice(
+                    v_1_hat_new_a, 1
+                )
+
+                v_1_hat_new_b = jnp.flip(v_1_hat_new_a)
+
+                # reconstruct velocity s.t. hom. Neumann is fulfilled
+                v_1_hat_new_p_diff = domain.diff_fourier_field_slice(v_1_hat_new_p, 1)
+                v_1_hat_new_a_diff = domain.diff_fourier_field_slice(v_1_hat_new_a, 1)
+                v_1_hat_new_b_diff = domain.diff_fourier_field_slice(v_1_hat_new_b, 1)
+                M = jnp.array([[v_1_hat_new_a_diff[0], v_1_hat_new_b_diff[0]],
+                               [v_1_hat_new_a_diff[-1], v_1_hat_new_b_diff[-1]]])
+                R = jnp.array([-v_1_hat_new_p_diff[0], -v_1_hat_new_p_diff[-1]])
+                AB = jnp.linalg.solve(M, R)
+                a, b = AB[0], AB[1]
+                # a, b = 0, 0
+                # print(a,b)
+                v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
+                # v_1_hat_new_diff = v_1_hat_new_p_diff + a * v_1_hat_new_a_diff + b * v_1_hat_new_b_diff
+                # if v_1_hat_new_diff[0] > 1e-10:
+                #     print("v 1 diff too high on the right ", v_1_hat_new_diff[0])
+                #     print("kx, kz: ", kx, kz)
+                #     print("a, b: ", a, b)
+                # if v_1_hat_new_diff[-1] > 1e-10:
+                #     print("v 1 diff too high on the left ", v_1_hat_new_diff[-1])
+                #     print("kx, kz: ", kx, kz)
+                #     print("a, b: ", a, b)
+                v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(v_1_hat_new, 1)
 
                 # vorticity
                 L = D2_hom_diri
@@ -413,7 +477,7 @@ class NavierStokesVelVort(Equation):
                     # kx_ = kx
                     # kz_ = kz
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
-                    v_1_new_y = domain.diff_fourier_field_slice(v_1_new, 1)
+                    v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1)
                     v_0_new = (
                         -1j * kx_ * v_1_new_y + 1j * kz_ * vort_1_hat_new
                     ) / minus_kx_kz_sq
@@ -447,7 +511,7 @@ class NavierStokesVelVort(Equation):
                 # print(time_5 - time_4)
                 # print("total per rk step/wn: ", time.time() - time_1)
                 # print("Took ", end_time - start_time, " for single wn.")
-                return (v_0_new_field, v_1_new, v_2_new_field)
+                return (v_0_new_field, v_1_hat_new, v_2_new_field)
 
             return fn
 
