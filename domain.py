@@ -15,6 +15,10 @@ NoneType = type(None)
 
 
 class Domain:
+
+    aliasing = 3 / 2
+    # aliasing = 1
+
     def __init__(self, shape, periodic_directions=None, scale_factors=None):
         self.number_of_dimensions = len(shape)
         self.periodic_directions = periodic_directions or [
@@ -25,25 +29,23 @@ class Domain:
         else:
             self.scale_factors = scale_factors
         self.shape = shape
-        grid = []
+        self.grid = []
         self.diff_mats = []
         for dim in jnp.arange(self.number_of_dimensions):
             if type(periodic_directions) != NoneType and self.periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     self.scale_factors.append(2.0 * jnp.pi)
-                grid.append(self.get_fourier_grid(shape[dim], self.scale_factors[dim]))
+                self.grid.append(self.get_fourier_grid(shape[dim], self.scale_factors[dim]))
                 self.diff_mats.append(
-                    self.assemble_fourier_diff_mat(shape[dim])
+                    self.assemble_fourier_diff_mat(dim)
                     * (2 * jnp.pi)
                     / self.scale_factors[dim]
                 )
             else:
                 if type(scale_factors) == NoneType:
                     self.scale_factors.append(1.0)
-                grid.append(self.get_cheb_grid(shape[dim], self.scale_factors[dim]))
-                self.diff_mats.append(self.assemble_cheb_diff_mat(shape[dim]))
-        # self.grid = jnp.array(grid)
-        self.grid = grid
+                self.grid.append(self.get_cheb_grid(shape[dim], self.scale_factors[dim]))
+                self.diff_mats.append(self.assemble_cheb_diff_mat(dim))
         self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
 
     def all_dimensions(self):
@@ -67,12 +69,29 @@ class Domain:
             if not self.is_periodic(d)
         ]
 
+    # def get_cheb_grid(self, N, scale_factor=1.0):
+    #     assert (
+    #         scale_factor == 1.0
+    #     ), "different scaling of Chebyshev direction not implemented yet."
+    #     return jnp.array(
+    #         [jnp.cos(jnp.pi / (N - 1) * i) for i in jnp.arange(N)]
+    #     )  # gauss-lobatto points with endpoints
+
+    # def get_fourier_grid(self, N, scale_factor=2 * jnp.pi):
+    #     if N % 2 != 0:
+    #         print(
+    #             "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
+    #         )
+    #         N += 1
+    #     return jnp.linspace(0.0, scale_factor, N + 1)[:-1]
+
     def get_cheb_grid(self, N, scale_factor=1.0):
         assert (
             scale_factor == 1.0
         ), "different scaling of Chebyshev direction not implemented yet."
+        n = int(N * self.aliasing)
         return jnp.array(
-            [jnp.cos(jnp.pi / (N - 1) * i) for i in jnp.arange(N)]
+            [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
         )  # gauss-lobatto points with endpoints
 
     def get_fourier_grid(self, N, scale_factor=2 * jnp.pi):
@@ -81,7 +100,39 @@ class Domain:
                 "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
             )
             N += 1
-        return jnp.linspace(0.0, scale_factor, N + 1)[:-1]
+        return jnp.linspace(start=0.0, stop=scale_factor, num=int(N * self.aliasing + 1))[:-1]
+
+
+    # def hat(self):
+    #     def fftshift(inp, i):
+    #         if self.periodic_directions[i]:
+    #             N = len(inp)
+    #             return (
+    #                 (jnp.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
+    #                 * (2 * jnp.pi)
+    #                 / self.scale_factors[i]
+    #             )
+    #         else:
+    #             return inp
+
+    #     Ns = []
+    #     for i in self.all_dimensions():
+    #         Ns.append(len(self.grid[i]))
+    #     fourier_grid = []
+    #     for i in self.all_dimensions():
+    #         if self.periodic_directions[i]:
+    #             fourier_grid.append(jnp.linspace(0, Ns[i] - 1, Ns[i]))
+    #         else:
+    #             fourier_grid.append(self.grid[i])
+    #     fourier_grid_shifted = (
+    #         list(map(fftshift, fourier_grid, self.all_dimensions()))
+    #     )
+    #     out = FourierDomain(
+    #         self.shape, self.periodic_directions, scale_factors=self.scale_factors
+    #     )
+    #     out.grid = fourier_grid_shifted
+    #     out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
+    #     return out
 
     def hat(self):
         def fftshift(inp, i):
@@ -97,16 +148,14 @@ class Domain:
 
         Ns = []
         for i in self.all_dimensions():
-            Ns.append(len(self.grid[i]))
+            Ns.append(len(self.grid[i]) / self.aliasing)
         fourier_grid = []
         for i in self.all_dimensions():
             if self.periodic_directions[i]:
-                fourier_grid.append(jnp.linspace(0, Ns[i] - 1, Ns[i]))
+                fourier_grid.append(jnp.linspace(0, Ns[i] - 1, int(Ns[i])))
             else:
                 fourier_grid.append(self.grid[i])
-        fourier_grid_shifted = (
-            list(map(fftshift, fourier_grid, self.all_dimensions()))
-        )
+        fourier_grid_shifted = list(map(fftshift, fourier_grid, self.all_dimensions()))
         out = FourierDomain(
             self.shape, self.periodic_directions, scale_factors=self.scale_factors
         )
@@ -114,23 +163,37 @@ class Domain:
         out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
         return out
 
-    def assemble_cheb_diff_mat(self, N, order=1):
-        xs = self.get_cheb_grid(N)
+
+    def assemble_cheb_diff_mat(self, i, order=1):
+        xs = self.grid[i]
+        N = len(xs)
         c = jnp.block([2.0, jnp.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** jnp.arange(0, N)
         X = jnp.repeat(xs, N).reshape(N, N)
         dX = X - jnp.transpose(X)
         D_ = jnp.transpose((jnp.transpose(1 / c) @ c)) / (dX + jnp.eye(N))
         return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
 
-    def assemble_fourier_diff_mat(self, N, order=1):
-        if N % 2 != 0:
+    # def assemble_fourier_diff_mat(self, N, order=1):
+    #     if N % 2 != 0:
+    #         raise Exception("Fourier discretization points must be even!")
+    #     h = 2 * jnp.pi / N
+    #     column = jnp.block(
+    #         [0, 0.5 * (-1) ** jnp.arange(1, N) * 1 / jnp.tan(jnp.arange(1, N) * h / 2)]
+    #     )
+    #     column2 = jnp.block([column[0], jnp.flip(column[1:])])
+    #     return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
+
+    def assemble_fourier_diff_mat(self, i, order=1):
+        n = len(self.grid[i])
+        if n % 2 != 0:
             raise Exception("Fourier discretization points must be even!")
-        h = 2 * jnp.pi / N
+        h = 2 * jnp.pi / n
         column = jnp.block(
-            [0, 0.5 * (-1) ** jnp.arange(1, N) * 1 / jnp.tan(jnp.arange(1, N) * h / 2)]
+            [0, 0.5 * (-1) ** jnp.arange(1, n) * 1 / jnp.tan(jnp.arange(1, n) * h / 2)]
         )
         column2 = jnp.block([column[0], jnp.flip(column[1:])])
         return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
+
 
     def diff(self, field, direction, order=1):
         inds = "ijk"
@@ -281,21 +344,72 @@ class Domain:
         )
         return out_field
 
+    # def no_hat(self, field):
+    #     scaling_factor = 1.0
+    #     for i in self.all_periodic_dimensions():
+    #         scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
+
+    #     return jnp.fft.ifftn(
+    #         field, axes=self.all_periodic_dimensions(), norm="ortho"
+    #     ).real / (1 / scaling_factor)
+
+    # def field_hat(self, field):
+    #     scaling_factor = 1.0
+    #     for i in self.all_periodic_dimensions():
+    #         scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
+
+    #     return jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho") / scaling_factor
+
     def no_hat(self, field):
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        return jnp.fft.ifftn(
-            field, axes=self.all_periodic_dimensions(), norm="ortho"
+        Ns = [int(len(self.grid[i]) * 1 / self.aliasing) for i in self.all_dimensions()]
+        ks = [
+            int((Ns[i]) / 2)
+            for i in self.all_dimensions()
+        ]
+        for i in self.all_periodic_dimensions():
+            field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
+            field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
+            zeros_shape = [
+                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                for dim in self.all_dimensions()
+            ]
+            extra_zeros = jnp.zeros(zeros_shape)
+            field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
+
+        out = jnp.fft.ifftn(
+            field,
+            axes=self.all_periodic_dimensions(),
+            norm="ortho",
         ).real / (1 / scaling_factor)
+        return out
 
     def field_hat(self, field):
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        return jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho") / scaling_factor
+        Ns = [len(self.grid[i]) for i in self.all_dimensions()]
+        ks = [
+            int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
+            for i in self.all_dimensions()
+        ]
+
+        out = (
+            jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho")
+            / scaling_factor
+        )
+
+        for i in self.all_periodic_dimensions():
+            out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
+            out_2 = out.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
+            out = jnp.concatenate([out_1, out_2], axis=i)
+
+        return out
+
 
     def curl(self, field):
         assert len(field) == 3, "rotation only defined in 3 dimensions"

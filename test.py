@@ -67,10 +67,10 @@ def test_1D_cheb():
     )
 
     # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
-    print("u")
-    print(u)
-    print("ux")
-    print(u_x)
+    # print("u")
+    # print(u)
+    # print("ux")
+    # print(u_x)
     u.plot_center(0, u_x, u_xx)
     tol = 5e-4
     # print(abs(u_x - u_x_ana))
@@ -473,8 +473,6 @@ def test_fourier_simple_3D():
     U = VectorField([u, v, w])
     U_hat = U.hat()
     U_nohat = U_hat.no_hat()
-    U_nohat.plot(U, U_hat)
-    # U.plot(U_hat)
     # U_nohat.plot(U)
     tol = 1e-9
     assert abs(U - U_nohat) < tol
@@ -623,20 +621,20 @@ def test_poisson_slices():
     u_ana.plot(out)
 
     tol = 1e-8
-    print(abs(u_ana - out))
+    # print(abs(u_ana - out))
     assert abs(u_ana - out) < tol
 
 
 def test_poisson_no_slices():
     Nx = 20
-    Ny = 24
-    Nz = 22
+    Ny = 28
+    Nz = 24
 
-    scale_factor_x = 1.0
-    scale_factor_z = 1.0
-    # scale_factor_x = 2 * jnp.pi
-    # scale_factor_z = 2 * jnp.pi
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(Nx, 1.0, Nz))
+    # scale_factor_x = 1.0
+    # scale_factor_z = 1.5
+    scale_factor_x = 2 * jnp.pi
+    scale_factor_z = 2 * jnp.pi
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(scale_factor_x, 1.0, scale_factor_z))
 
     rhs_fn = (
         lambda X: -(
@@ -655,13 +653,14 @@ def test_poisson_no_slices():
         * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
         * jnp.cos(X[1] * jnp.pi / 2)
     )
+
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
 
     out_hat = rhs_hat.solve_poisson()
     out = out_hat.no_hat()
 
-    u_ana.plot(out)
+    # u_ana.plot(out)
 
     tol = 1e-8
     # print(abs(u_ana - out))
@@ -673,7 +672,7 @@ def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
 
     end_time = 8
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=10, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re, Nx=12, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
     )
     nse.solve()
 
@@ -1049,25 +1048,25 @@ def test_dummy_velocity_field():
 
 
 def run_all_tests():
-    # test_1D_periodic()
-    # test_1D_cheb()
-    # test_2D()
-    # test_3D()
-    # test_fourier_1D()
-    # test_fourier_2D()
-    # test_fourier_simple_3D()
-    # test_cheb_integration_1D()
-    # test_cheb_integration_2D()
-    # test_cheb_integration_3D()
-    # test_poisson_slices()
-    # test_poisson_no_slices()
+    test_1D_periodic()
+    test_1D_cheb()
+    test_2D()
+    test_3D()
+    test_fourier_1D()
+    test_fourier_2D()
+    test_fourier_simple_3D()
+    test_cheb_integration_1D()
+    test_cheb_integration_2D()
+    test_cheb_integration_3D()
+    test_poisson_slices()
+    test_poisson_no_slices()
     # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    test_pseudo_2d()
+    # test_pseudo_2d()
     # test_dummy_velocity_field()
 
 

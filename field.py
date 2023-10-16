@@ -121,7 +121,6 @@ class Field:
         self.domain_no_hat = domain
         self.field = field
         self.name = name
-        self.field_hat = None
 
     @classmethod
     def FromFunc(cls, domain, func=None, name="field"):
@@ -914,17 +913,7 @@ class FourierField(Field):
         out = cls(field.domain, field.field, field.name + "_hat")
         out.domain_no_hat = field.domain
         out.domain = field.domain.hat()
-
-        scaling_factor = 1.0
-        for i in out.all_periodic_dimensions():
-            scaling_factor *= out.domain.scale_factors[i] / (2 * jnp.pi)
-
-        out.field = (
-            jnp.fft.fftn(
-                field.field, axes=list(out.all_periodic_dimensions()), norm="ortho"
-            )
-            / scaling_factor
-        )
+        out.field = out.domain_no_hat.field_hat(field.field)
         return out
 
     def diff(self, direction, order=1):
@@ -1011,30 +1000,24 @@ class FourierField(Field):
         if type(mat) == NoneType:
             mat = self.assemble_poisson_matrix()
         field = rhs_hat
-        for i in reversed(self.all_periodic_dimensions()):
-            N = field.shape[i]
-            inds = jnp.arange(1, N)
-            field = field.take(indices=inds, axis=i)
+        # for i in reversed(self.all_periodic_dimensions()):
+        #     N = field.shape[i]
+        #     inds = jnp.arange(1, N)
+        #     field = field.take(indices=inds, axis=i)
         out_field = jnp.pad(
             jnp.einsum("ijkl,ilj->ikj", mat, field),
             [
-                (1, 0) if i in self.all_periodic_dimensions() else (0, 0)
+                (0, 0) if i in self.all_periodic_dimensions() else (0, 0)
                 for i in self.all_dimensions()
             ],
             mode="constant",
             constant_values=0.0,
         )
-        out_fourier = FourierField(self.domain, out_field, name=self.name + "_poisson")
+        out_fourier = FourierField(self.domain_no_hat, out_field, name=self.name + "_poisson")
         return out_fourier
 
     def no_hat(self):
-        scaling_factor = 1.0
-        for i in self.all_periodic_dimensions():
-            scaling_factor *= self.domain.scale_factors[i] / (2 * jnp.pi)
-
-        out = jnp.fft.ifftn(
-            self.field, axes=self.all_periodic_dimensions(), norm="ortho"
-        ).real / (1 / scaling_factor)
+        out = self.domain_no_hat.no_hat(self.field)
         return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
 
     def reconstruct_from_wavenumbers(self, fn, vectorize=False):

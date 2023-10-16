@@ -650,7 +650,7 @@ def solve_navier_stokes_laminar(
     Re=1.8e2, end_time=1e1, max_iter=100, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1
 ):
     Ny = Ny
-    Nz = Nz or Nx + 2
+    Nz = Nz or Nx + 4
 
     domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
     # domain = Domain((Nx, Ny, Nz), (True, False, True))
