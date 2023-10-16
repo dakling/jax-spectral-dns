@@ -40,10 +40,6 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
         ]
     )
     vort_new = domain.curl(vel_new)
-    # fig, ax = plt.subplots(1,1)
-    # ax.plot(domain.grid[2], vel_new[0][5, 5, :])
-    # ax.plot(domain.grid[2], vort_new[1][5, 5, :])
-    # fig.savefig("plots/plot.pdf")
 
     hel_new = domain.cross_product(vel_new, vort_new)
 
@@ -59,13 +55,6 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
     hel_hat_new = [domain.field_hat(hel_new[i]) for i in domain.all_dimensions()]
 
-    # continuity_error = jnp.linalg.norm(
-    #     domain.diff(vel_new[0], 0)
-    #     + domain.diff(vel_new[1], 1)
-    #     + domain.diff(vel_new[2], 2)
-    # )
-    # print("continuity error ", continuity_error)
-
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
 
 
@@ -78,7 +67,8 @@ class NavierStokesVelVort(Equation):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
-        v_1_lap_hat_a = Field.FromFunc(self.domain_no_hat, lambda X: (X[1] + 1)/2 + 0.0 * X[2], name="v_1_lap_hat_a")
+        v_1_lap_hat_a = FourierField.FromFunc(self.domain_no_hat, lambda X: (X[1] + 1)/2 + 0.0 * X[0] * X[2])
+        v_1_lap_hat_a.name="v_1_lap_hat_a"
         super().__init__(domain, velocity_field, v_1_lap_hat_a, **params)
         self.Re = params["Re"]
         self.flow_rate = self.get_flow_rate()
@@ -123,6 +113,9 @@ class NavierStokesVelVort(Equation):
             0
         ].get_cheb_mat_2_homogeneous_dirichlet(1)
 
+    def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self):
+        return self.domain_no_hat.get_cheb_mat_2_homogeneous_dirichlet_only_rows(1)
+
     def get_time_step(self):
         dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
         dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
@@ -147,7 +140,6 @@ class NavierStokesVelVort(Equation):
 
     def assemble_rk_matrices(self, Ly, kx, kz, i):
         alpha, beta, _, _ = self.get_rk_parameters()
-        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = Ly.shape[0] // 2
         eye_bc_1 = jnp.block(
             [
@@ -196,17 +188,6 @@ class NavierStokesVelVort(Equation):
             0
         ].assemble_poisson_matrix()
 
-    # def before_time_step(self):
-    #     D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-    #     n = D2_hom_diri.shape[0]
-    #     Z = jnp.zeros((n, n))
-    #     L = 1 / self.Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-    #     for i in jnp.arange(3):
-    #         lhs_mat_inv, rhs_mat = self.assemble_rk_matrices_vec(L, i)
-    #         self.lhs_mat_inv.append(lhs_mat_inv)
-    #         self.rhs_mat.append(rhs_mat)
-    #     return super().before_time_step()
-
     def update_nonlinear_terms(self, vel_hat_new):
         vel_new = vel_hat_new.no_hat()
         vort_new = vel_new.curl()
@@ -239,21 +220,18 @@ class NavierStokesVelVort(Equation):
 
         # start runge-kutta stepping
         alpha, beta, gamma, xi = self.get_rk_parameters()
-        # domain_y = Domain((len(self.domain.grid[1]),), (False,))
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
-        # L = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
         dPdx = -self.flow_rate * 3 / 2 / Re
         # dPdx = - 1
         # dPdx = 0
         dPdz = 0  # spanwise pressure gradient should be negligble
-        # D2 = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        # L_NS = L
 
         def perform_single_rk_step_for_single_wavenumber(
             step,
@@ -302,7 +280,7 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # a-part
-                L_a = 1 / Re * D2_hom_diri
+                L_a = 1 / Re * D2_hom_diri_only_rows
 
                 # runge kutta
                 def set_nth_mat_row_to_unit(matr, n):
@@ -319,15 +297,16 @@ class NavierStokesVelVort(Equation):
 
                 L_inv = jnp.linalg.inv(L_)
 
-                ys = domain.grid[1]
-                # lin_func = jax.lax.map(lambda y: (y + 1) / 2, ys)
-                # phi_hat_a = jnp.block([0.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0]) + lin_func
+                # TODO why does it look like the 1-bc is not enforced?
                 phi_hat_a = jnp.block([1.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0])
 
                 phi_hat_new_a = L_inv @ (
                     R_ @ phi_hat_a
                 )
 
+                # fig, ax = plt.subplots(1,1)
+                # ax.plot(self.domain_no_hat.grid[1], phi_hat_a)
+                # fig.savefig("./plots/" + "plot_v_1_lap_a_" + str(kx) + "_" + str(kz))
                 v_1_lap_new_a = phi_hat_new_a
                 # compute velocity in y direction
                 v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
@@ -348,18 +327,7 @@ class NavierStokesVelVort(Equation):
                 R = jnp.array([-v_1_hat_new_p_diff[0], -v_1_hat_new_p_diff[-1]])
                 AB = jnp.linalg.solve(M, R)
                 a, b = AB[0], AB[1]
-                # a, b = 0, 0
-                # print(a,b)
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
-                # v_1_hat_new_diff = v_1_hat_new_p_diff + a * v_1_hat_new_a_diff + b * v_1_hat_new_b_diff
-                # if v_1_hat_new_diff[0] > 1e-10:
-                #     print("v 1 diff too high on the right ", v_1_hat_new_diff[0])
-                #     print("kx, kz: ", kx, kz)
-                #     print("a, b: ", a, b)
-                # if v_1_hat_new_diff[-1] > 1e-10:
-                #     print("v 1 diff too high on the left ", v_1_hat_new_diff[-1])
-                #     print("kx, kz: ", kx, kz)
-                #     print("a, b: ", a, b)
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(v_1_hat_new, 1)
 
                 # vorticity
@@ -379,35 +347,7 @@ class NavierStokesVelVort(Equation):
 
                 vort_1_hat_new = phi_hat_new
 
-                # ys = domain.grid[1]
-                # # M = domain.diff_mats[1]
-                # # v = jnp.array([y**3 for y in domain.grid[1]])
-                # fig, ax = plt.subplots(1,1)
-                # ax.plot(ys, vel_hat[1][kx, :, kz])
-                # # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
-                # # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
-                # # ax.plot(ys, v_1_lap_hat[kx, :, kz])
-                # # ax.plot(ys, v_1_lap_hat_new)
-                # ax.plot(ys, v_1_new, "--")
-                # fig.savefig("plots/plot.pdf")
-                # fig, ax = plt.subplots(1,1)
-                # # ax.plot(ys, vel_hat[1][kx, :, kz])
-                # # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
-                # # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
-                # ax.plot(ys, v_1_lap_hat[kx, :, kz])
-                # ax.plot(ys, v_1_lap_hat_new, "--")
-                # # ax.plot(ys, v_1_new)
-                # fig.savefig("plots/plot2.pdf")
-                # print("kx: ", kx, " kz: ", kz)
-                # print("kx_: ", kx_, " kz_: ", kz_)
-                # if kx == 0 and kz == 0:
-                #     raise Exception("break")
-                # # _ = input("carry on?")
-
-                time_4 = time.time()
-
                 # compute velocities in x and z directions
-                # def rk_00(kx, kz):
                 def rk_00():
                     kx__ = 0
                     kz__ = 0
@@ -480,8 +420,6 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx, kz):
                     kx_ = domain.grid[0][kx]
                     kz_ = domain.grid[2][kz]
-                    # kx_ = kx
-                    # kz_ = kz
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1)
                     v_0_new = (
@@ -496,7 +434,6 @@ class NavierStokesVelVort(Equation):
                     kx == 0,
                     lambda kx___, kz___: jax.lax.cond(
                         kz___ == 0,
-                        # lambda kx__, kz__: rk_00(kx__, kz__),
                         lambda _, __: rk_00(),
                         lambda kx__, kz__: rk_not_00(kx__, kz__),
                         kx___,
@@ -506,25 +443,10 @@ class NavierStokesVelVort(Equation):
                     kx,
                     kz,
                 )
-                # v_0_new_field, v_2_new_field = rk_00(kx, kz) if kx == 0 and kz == 0 else rk_not_00(kx, kz)
-                time_5 = time.time()
-
-                end_time = time.time()
-                # print("times")
-                # print(time_2 - time_1)
-                # print(time_3 - time_2)
-                # print(time_4 - time_3)
-                # print(time_5 - time_4)
-                # print("total per rk step/wn: ", time.time() - time_1)
-                # print("Took ", end_time - start_time, " for single wn.")
                 return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_new_a)
 
             return fn
 
-        # vectorize = False
-        # vectorize = True
-
-        time_2 = time.time()
 
         # perform first RK step
         v_1_hat_0 = vel_hat[1]
@@ -545,8 +467,6 @@ class NavierStokesVelVort(Equation):
             jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
         )
 
-        time_3 = time.time()
-
         # solve equations
         vel_new_hat_1, other_field_1 = vel_hat.reconstruct_from_wavenumbers(
             perform_single_rk_step_for_single_wavenumber(
@@ -563,11 +483,9 @@ class NavierStokesVelVort(Equation):
             ),
             1
         )
-        time_4 = time.time()
+
         vel_new_hat_1.update_boundary_conditions()
         v_1_lap_a_new_1 = other_field_1[0]
-
-        time_5 = time.time()
 
         # update nonlinear terms
         (
@@ -637,7 +555,6 @@ class NavierStokesVelVort(Equation):
             ),
             1
         )
-        # vel_new_hat = VectorField([FourierField(self.domain_no_hat, vel_new_hat[i]) for i in self.all_dimensions()])
         vel_new_hat.update_boundary_conditions()
         v_1_lap_a_new = other_field[0]
 
@@ -649,13 +566,6 @@ class NavierStokesVelVort(Equation):
         self.append_field("v_1_lap_hat_a", v_1_lap_a_new)
         self.time += self.dt
         self.time_step += 1
-
-        # print("times")
-        # print(time_2 - start_time)
-        # print(time_3 - time_2)
-        # print(time_4 - time_3)
-        # print(time_5 - time_4)
-        # print("total per timestep: ", time.time() - start_time)
 
     def perform_time_step(self):
         return self.perform_runge_kutta_step()

@@ -9,6 +9,8 @@ from functools import partial
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
+import numpy as np
+
 from importlib import reload
 import sys
 
@@ -114,6 +116,7 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
 
 class Field:
     plotting_dir = "./plots/"
+    field_dir = "./fields/"
     performance_mode = True
 
     def __init__(self, domain, field, name="field"):
@@ -147,6 +150,17 @@ class Field:
     def FromField(cls, domain, field):
         fn = lambda X: field.eval(X)
         return Field.FromFunc(domain, fn, field.name + "_projected")
+
+    @classmethod
+    def FromFile(cls, domain, filename, name="field"):
+        out = Field(domain, None, name=name)
+        field_array = np.load(out.field_dir + filename, allow_pickle=True)
+        out.field = jnp.array(field_array.tolist())
+        return out
+
+    def save_to_file(self, filename):
+        field_array = np.array(self.field.tolist())
+        field_array.dump(self.field_dir + filename)
 
     def __repr__(self):
         # self.plot()
@@ -853,7 +867,7 @@ class VectorField:
                     other_field.append(FourierField(
                             self[0].domain_no_hat,
                             jnp.moveaxis(
-                                out_array[:, :, i, :],
+                                out_array[:, :, i+3, :],
                                 -1,
                                 self.all_nonperiodic_dimensions()[0],
                             ),
@@ -882,7 +896,7 @@ class VectorField:
                             -1,
                             self.all_nonperiodic_dimensions()[0],
                         ),
-                        "out_" + str(i),
+                        "other_" + str(i),
                     )
                     for i in self.all_dimensions()
                 ]

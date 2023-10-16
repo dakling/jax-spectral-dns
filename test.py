@@ -667,12 +667,12 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=64, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.1):
     Re = 1.5e0
 
     end_time = 8
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=24, Ny=Ny, Nz=24, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re, Nx=16, Ny=Ny, Nz=16, end_time=end_time, pertubation_factor=pertubation_factor
     )
     nse.solve()
 
@@ -937,19 +937,31 @@ def test_linear_stability():
 def test_pseudo_2d():
     Ny = 64
     # Ny = 24
-    Re = 5772.22
-    # Re = 5000
+    # Re = 5772.22
+    Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 
+    Nx = 24
+    Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
     end_time = 1
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=48, Ny=Ny, Nz=4, end_time=end_time, pertubation_factor=0.0
+        Re=Re, Nx=Nx, Ny=Ny, Nz=Nz, end_time=end_time, pertubation_factor=0.0
     )
 
-    u, v, w = lsc.velocity_field(nse.domain_no_hat)
+    make_field_file_name = lambda field_name: field_name + "_" + str(Re) + "_" + str(Nx) + "_" + str(Ny) + "_" + str(Nz)
+    try:
+        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"))
+        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"))
+        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"))
+    except FileNotFoundError:
+        print("could not find fields")
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
+    u.save_to_file(make_field_file_name("u"))
+    v.save_to_file(make_field_file_name("v"))
+    w.save_to_file(make_field_file_name("w"))
     u.plot_3d()
     v.plot_3d()
     par_fn = lambda X: 0.0 * X[0] * X[1] * X[2] - 0.41 * (1 - X[1]**2)
@@ -958,7 +970,7 @@ def test_pseudo_2d():
     w.plot_3d()
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-8
+    eps = 1e-10
     nse.set_field(
         "velocity_hat",
         0,
@@ -978,6 +990,8 @@ def test_pseudo_2d():
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
             vel = nse.get_field("velocity_hat", i).no_hat()
+            vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
+            vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
             vel_pert_abs = 0
             for i in range(3):
@@ -1061,13 +1075,13 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    # test_pseudo_2d()
+    test_pseudo_2d()
     # test_dummy_velocity_field()
 
 

@@ -252,6 +252,30 @@ class Domain:
         )
         return mat
 
+    def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self, direction):
+        def set_first_n_mat_row_to_unit(matr):
+            N = matr.shape[0]
+            n = 1
+            return jnp.block(
+                [[jnp.eye(n), jnp.zeros((n, N - n))], [matr[n:, :]]]
+            )
+
+        def set_last_n_mat_row_to_unit(matr):
+            N = matr.shape[0]
+            n = 1
+            return jnp.block(
+                [[matr[:-n, :]], [jnp.zeros((n, N - n)), jnp.eye(n)]]
+            )
+
+        mat = set_last_n_mat_row_to_unit(
+            set_first_n_mat_row_to_unit(
+                jnp.linalg.matrix_power(self.diff_mats[direction], 2)
+            )
+        )
+        return mat
+
+
+
     def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
         if (type(bc_left) != NoneType and abs(bc_left) > 1e-20) or (
             type(bc_right) != NoneType and abs(bc_right) > 1e-20

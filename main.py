@@ -4,7 +4,7 @@ import jax
 import jax.scipy as jsp
 import jax.numpy as jnp
 import numpy as np
-import time
+import os
 
 jax.config.update("jax_enable_x64", True)
 
@@ -31,6 +31,10 @@ from test import run_all_tests, run_all_tests_profiling
 
 
 def main():
+    newpaths = ['./fields/', "./plots/"]
+    for newpath in newpaths:
+        if not os.path.exists(newpath):
+            os.makedirs(newpath)
     # optimize_fd()
     # optimize_spectral()
     # optimize_channel()
