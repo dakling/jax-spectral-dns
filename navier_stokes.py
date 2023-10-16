@@ -274,7 +274,7 @@ class NavierStokesVelVort(Equation):
 
                 # wall-normal velocity
                 # p-part
-                L = D2_hom_diri
+                L = 1 / Re * D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 phi_hat = v_1_lap_hat[kx, :, kz]
@@ -361,7 +361,7 @@ class NavierStokesVelVort(Equation):
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(v_1_hat_new, 1)
 
                 # vorticity
-                L = D2_hom_diri
+                L = 1 / Re * D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 vort_1_hat = vort_hat[1]

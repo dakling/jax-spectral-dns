@@ -938,7 +938,7 @@ def test_pseudo_2d():
     Ny = 96
     # Ny = 24
     # Re = 5772.22
-    Re = 50000
+    Re = 10000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -946,14 +946,14 @@ def test_pseudo_2d():
 
     end_time = 1
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=48, Ny=Ny, Nz=2, end_time=end_time, pertubation_factor=0.0
+        Re=Re, Nx=48, Ny=Ny, Nz=4, end_time=end_time, pertubation_factor=0.0
     )
 
-    u, v, w = lsc.velocity_field(nse.domain)
+    u, v, w = lsc.velocity_field(nse.domain_no_hat)
     u.plot_3d()
     v.plot_3d()
     par_fn = lambda X: 0.0 * X[0] * X[1] * X[2] - 0.41 * (1 - X[1]**2)
-    par_field = Field.FromFunc(nse.domain, par_fn)
+    par_field = Field.FromFunc(nse.domain_no_hat, par_fn)
     v.plot_center(1, par_field)
     w.plot_3d()
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
@@ -972,7 +972,7 @@ def test_pseudo_2d():
     )
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
+    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
     plot_interval = 1
     def after_time_step(nse):
         i = nse.time_step
@@ -988,6 +988,7 @@ def test_pseudo_2d():
                 vel_pert[i].plot_3d()
                 vel_pert_abs += abs(vel_pert[i])
             print("velocity pertubation: ", vel_pert_abs)
+        input("carry on?")
 
     nse.after_time_step_fn = after_time_step
 
