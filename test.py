@@ -939,7 +939,7 @@ def test_pseudo_2d():
     Ny = 96
     # Ny = 24
     # Re = 5772.22
-    Re = 10000
+    Re = 50000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -959,7 +959,7 @@ def test_pseudo_2d():
     w.plot_3d()
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-5
+    eps = 1e-3
     nse.set_field(
         "velocity_hat",
         0,
@@ -983,9 +983,8 @@ def test_pseudo_2d():
             vel_pert_abs = 0
             for i in range(3):
                 if i == 0:
-                    vel[i].plot_3d(vel_x_ana)
-                else:
-                    vel[i].plot_3d()
+                    vel[i].plot_center(1, vel_x_ana)
+                vel[i].plot_3d()
                 vel_pert[i].name = "velocity_pertubation_" + "xyz"[i]
                 vel_pert[i].plot_3d()
                 vel_pert_abs += abs(vel_pert[i])
@@ -1062,13 +1061,13 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    # test_pseudo_2d()
+    test_pseudo_2d()
     # test_dummy_velocity_field()
 
 
