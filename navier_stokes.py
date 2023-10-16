@@ -425,6 +425,7 @@ class NavierStokesVelVort(Equation):
                         )
                         - dPdx
                         * (dx * dz) ** (1 / 2)
+                        * domain.aliasing
                         * jnp.block(
                             [
                                 jnp.ones(vel_hat[0][kx__, :, kz__].shape),
@@ -433,6 +434,7 @@ class NavierStokesVelVort(Equation):
                         )
                         - dPdz
                         * (dx * dz) ** (1 / 2)
+                        * domain.aliasing
                         * jnp.block(
                             [
                                 jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
@@ -449,6 +451,7 @@ class NavierStokesVelVort(Equation):
                         )
                         - dPdx
                         * (dx * dz) ** (1 / 2)
+                        * domain.aliasing
                         * jnp.block(
                             [
                                 jnp.ones(vel_hat[0][kx__, :, kz__].shape),
@@ -457,6 +460,7 @@ class NavierStokesVelVort(Equation):
                         )
                         - dPdz
                         * (dx * dz) ** (1 / 2)
+                        * domain.aliasing
                         * jnp.block(
                             [
                                 jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
