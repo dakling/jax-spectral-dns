@@ -769,7 +769,7 @@ class VectorField:
 
         return VectorField([curl_0, curl_1, curl_2])
 
-    def reconstruct_from_wavenumbers(self, fn):
+    def reconstruct_from_wavenumbers(self, fn, number_of_other_fields=0):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
 
         # jit = True
@@ -847,6 +847,19 @@ class VectorField:
                     )
                     for i in self.all_dimensions()
                 ]
+
+                other_field = []
+                for i in range(number_of_other_fields):
+                    other_field.append(FourierField(
+                            self[0].domain_no_hat,
+                            jnp.moveaxis(
+                                out_array[:, :, i, :],
+                                -1,
+                                self.all_nonperiodic_dimensions()[0],
+                            ),
+                            "out_" + str(i),
+                        ))
+
                 # t3 = time.time()
                 # print("time for first part ", t2-t1)
                 # print("time for second part ", t3-t2)
@@ -887,7 +900,7 @@ class VectorField:
                 print("time for part 2 ", time_3 - time_2)
                 print("time for part 3 ", time_4 - time_3)
                 print("time for part 4 ", time_5 - time_4)
-            return VectorField(out_field)
+            return (VectorField(out_field), other_field)
 
 
 class FourierField(Field):

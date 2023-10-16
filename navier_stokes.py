@@ -77,7 +77,9 @@ class NavierStokesVelVort(Equation):
     def __init__(self, shape, velocity_field, **params):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
-        super().__init__(domain, velocity_field, **params)
+
+        v_1_lap_hat_a = Field.FromFunc(self.domain_no_hat, lambda X: (X[1] + 1)/2 + 0.0 * X[2], name="v_1_lap_hat_a")
+        super().__init__(domain, velocity_field, v_1_lap_hat_a, **params)
         self.Re = params["Re"]
         self.flow_rate = self.get_flow_rate()
         self.dt = self.get_time_step()
@@ -256,6 +258,7 @@ class NavierStokesVelVort(Equation):
         def perform_single_rk_step_for_single_wavenumber(
             step,
             v_1_lap_hat,
+            v_1_lap_hat_a,
             vort_hat,
             hel_hat,
             hel_hat_old,
@@ -317,10 +320,9 @@ class NavierStokesVelVort(Equation):
                 L_inv = jnp.linalg.inv(L_)
 
                 ys = domain.grid[1]
-                v_1_lap_hat_a = v_1_lap_hat[kx, :, kz]
-                lin_func = jax.lax.map(lambda y: (y + 1) / 2, ys)
-                phi_hat_a = jnp.block([0.0, v_1_lap_hat_a[1:-1], 0.0]) + lin_func
-                # phi_hat_a = jnp.block([v_1_lap_hat_a, v_1_hat[kx, :, kz]])
+                # lin_func = jax.lax.map(lambda y: (y + 1) / 2, ys)
+                # phi_hat_a = jnp.block([0.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0]) + lin_func
+                phi_hat_a = jnp.block([1.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0])
 
                 phi_hat_new_a = L_inv @ (
                     R_ @ phi_hat_a
@@ -515,7 +517,7 @@ class NavierStokesVelVort(Equation):
                 # print(time_5 - time_4)
                 # print("total per rk step/wn: ", time.time() - time_1)
                 # print("Took ", end_time - start_time, " for single wn.")
-                return (v_0_new_field, v_1_hat_new, v_2_new_field)
+                return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_new_a)
 
             return fn
 
@@ -527,6 +529,7 @@ class NavierStokesVelVort(Equation):
         # perform first RK step
         v_1_hat_0 = vel_hat[1]
         v_1_lap_hat_0 = v_1_hat_0.laplacian()
+        v_1_lap_hat_a_0 = self.get_latest_field("v_1_lap_hat_a")
 
         # jit_update = jax.jit(self.update_nonlinear_terms_high_performance)
         # h_v_hat_0, h_g_hat_0, vort_hat_0, hel_hat_0 = self.update_nonlinear_terms(
@@ -545,10 +548,11 @@ class NavierStokesVelVort(Equation):
         time_3 = time.time()
 
         # solve equations
-        vel_new_hat_1 = vel_hat.reconstruct_from_wavenumbers(
+        vel_new_hat_1, other_field_1 = vel_hat.reconstruct_from_wavenumbers(
             perform_single_rk_step_for_single_wavenumber(
                 0,
                 v_1_lap_hat_0,
+                v_1_lap_hat_a_0,
                 vort_hat_0,
                 hel_hat_0,
                 hel_hat_0,
@@ -556,11 +560,12 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_0,
                 h_v_hat_0,
                 h_g_hat_0,
-            )
-            # vectorize=vectorize
+            ),
+            1
         )
         time_4 = time.time()
         vel_new_hat_1.update_boundary_conditions()
+        v_1_lap_a_new_1 = other_field_1[0]
 
         time_5 = time.time()
 
@@ -582,10 +587,11 @@ class NavierStokesVelVort(Equation):
         v_1_lap_hat_1 = v_1_hat_1.laplacian()
 
         # solve equations
-        vel_new_hat_2 = vel_hat.reconstruct_from_wavenumbers(
+        vel_new_hat_2, other_field_2 = vel_hat.reconstruct_from_wavenumbers(
             perform_single_rk_step_for_single_wavenumber(
                 1,
                 v_1_lap_hat_1,
+                v_1_lap_a_new_1,
                 vort_hat_1,
                 hel_hat_1,
                 hel_hat_0,
@@ -593,10 +599,11 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_1,
                 h_v_hat_0,
                 h_g_hat_0,
-            )
-            # vectorize=vectorize
+            ),
+            1
         )
         vel_new_hat_2.update_boundary_conditions()
+        v_1_lap_a_new_2 = other_field_2[0]
         # update nonlinear terms
         (
             h_v_hat_2,
@@ -615,10 +622,11 @@ class NavierStokesVelVort(Equation):
         v_1_lap_hat_2 = v_1_hat_2.laplacian()
 
         # solve equations
-        vel_new_hat = vel_hat.reconstruct_from_wavenumbers(
+        vel_new_hat, other_field  = vel_hat.reconstruct_from_wavenumbers(
             perform_single_rk_step_for_single_wavenumber(
                 2,
                 v_1_lap_hat_2,
+                v_1_lap_a_new_2,
                 vort_hat_2,
                 hel_hat_2,
                 hel_hat_1,
@@ -626,16 +634,19 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_2,
                 h_v_hat_1,
                 h_g_hat_1,
-            )
-            # vectorize=vectorize
+            ),
+            1
         )
         # vel_new_hat = VectorField([FourierField(self.domain_no_hat, vel_new_hat[i]) for i in self.all_dimensions()])
         vel_new_hat.update_boundary_conditions()
+        v_1_lap_a_new = other_field[0]
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
+        v_1_lap_a_new.name = "v_1_lap_hat_a"
+        self.append_field("v_1_lap_hat_a", v_1_lap_a_new)
         self.time += self.dt
         self.time_step += 1
 
@@ -651,7 +662,7 @@ class NavierStokesVelVort(Equation):
 
 
 def solve_navier_stokes_laminar(
-    Re=1.8e2, end_time=1e1, max_iter=100, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1
+    Re=1.8e2, end_time=1e1, max_iter=1000, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1
 ):
     Ny = Ny
     Nz = Nz or Nx + 4

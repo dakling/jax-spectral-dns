@@ -667,12 +667,12 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
-    Re = 1e0
+def test_navier_stokes_laminar(Ny=64, pertubation_factor=0.1):
+    Re = 1.5e0
 
     end_time = 8
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=12, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re, Nx=24, Ny=Ny, Nz=24, end_time=end_time, pertubation_factor=pertubation_factor
     )
     nse.solve()
 
@@ -937,8 +937,8 @@ def test_linear_stability():
 def test_pseudo_2d():
     Ny = 64
     # Ny = 24
-    # Re = 5772.22
-    Re = 5000
+    Re = 5772.22
+    # Re = 5000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -958,7 +958,7 @@ def test_pseudo_2d():
     w.plot_3d()
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-3
+    eps = 1e-8
     nse.set_field(
         "velocity_hat",
         0,
@@ -1061,13 +1061,13 @@ def run_all_tests():
     # test_cheb_integration_3D()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    # test_navier_stokes_laminar()
+    test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    test_pseudo_2d()
+    # test_pseudo_2d()
     # test_dummy_velocity_field()
 
 
