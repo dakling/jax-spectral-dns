@@ -567,13 +567,6 @@ class Field:
             out[dim].name = "nabla_" + self.name + "_" + str(dim)
         return VectorField(out)
 
-    def div(self):
-        out = self.diff(0)
-        out.name = "div_" + self.name + "_" + str(0)
-        for dim in self.all_dimensions()[1:]:
-            out += self.diff(dim)
-        return out
-
     def laplacian(self):
         out = self.diff(0, 2)
         for dim in self.all_dimensions()[1:]:
@@ -782,6 +775,14 @@ class VectorField:
         curl_2 = v_x - u_y
 
         return VectorField([curl_0, curl_1, curl_2])
+
+    def div(self):
+        out = self[0].diff(0)
+        out.name = "div_" + self.name + "_" + str(0)
+        for dim in self.all_dimensions()[1:]:
+            out += self[dim].diff(dim)
+        return out
+
 
     def reconstruct_from_wavenumbers(self, fn, number_of_other_fields=0):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
@@ -997,22 +998,14 @@ class FourierField(Field):
             self.all_nonperiodic_dimensions()[0]
         )
         n = y_mat.shape[0]
-        eye_bc = jnp.block(
-            [
-                [jnp.zeros((1, n))],
-                [jnp.zeros((n - 2, 1)), jnp.eye(n - 2), jnp.zeros((n - 2, 1))],
-                [jnp.zeros((1, n))],
-            ]
-        )
-        # k1 = self.domain.grid[self.all_periodic_dimensions()[0]][1:]
-        # k2 = self.domain.grid[self.all_periodic_dimensions()[1]][1:]
+        I = jnp.eye(n)
         k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
         k1sq = k1**2
         k2sq = k2**2
         mat = jnp.array(
             [
-                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
+                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * I + y_mat) for k2sq_ in k2sq]
                 for k1sq_ in k1sq
             ]
         )
@@ -1063,6 +1056,55 @@ class FourierField(Field):
             self.all_nonperiodic_dimensions()[0],
         )
         return FourierField(self.domain_no_hat, out_field, name=self.name + "_reconstr")
+
+    def plot_3d(self):
+        assert (
+            self.domain.number_of_dimensions == 3
+        ), "Only 3D supported for this plotting method."
+        # fig, ax = plt.subplots(1, 3)
+        fig = plt.figure(layout="constrained")
+        base_len = 100
+        grd = (base_len, base_len)
+        lx = self.domain.scale_factors[0]
+        ly = self.domain.scale_factors[1] * 2
+        lz = self.domain.scale_factors[2]
+        rows_x = int(lx / (ly + lx) * base_len)
+        cols_x = int(lz / (lz + ly) * base_len)
+        rows_y = int(lx / (ly + lx) * base_len)
+        cols_y = int(lz / (lz + ly) * base_len)
+        rows_z = int(lx / (ly + lx) * base_len)
+        cols_z = int(ly / (lz + ly) * base_len)
+        ax = [
+            plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
+            plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
+            plt.subplot2grid(grd, (rows_x, cols_y), rowspan=rows_z, colspan=cols_z),
+        ]
+        ims = []
+        for dim in self.all_dimensions():
+            N_c = len(self.domain.grid[dim]) // 2
+            other_dim = [i for i in self.all_dimensions() if i != dim]
+            ims.append(
+                ax[dim].imshow(
+                    jnp.absolute(self.field.take(indices=N_c, axis=dim)),
+                    interpolation=None,
+                    extent=[
+                        self.domain.grid[other_dim[1]][0],
+                        self.domain.grid[other_dim[1]][-1],
+                        self.domain.grid[other_dim[0]][0],
+                        self.domain.grid[other_dim[0]][-1],
+                    ],
+                )
+            )
+            ax[dim].set_xlabel("xyz"[other_dim[1]])
+            ax[dim].set_ylabel("xyz"[other_dim[0]])
+        # Find the min and max of all colors for use in setting the color scale.
+        vmin = min(image.get_array().min() for image in ims)
+        vmax = max(image.get_array().max() for image in ims)
+        norm = colors.Normalize(vmin=vmin, vmax=vmax)
+        for im in ims:
+            im.set_norm(norm)
+        fig.colorbar(ims[0], ax=ax, label=self.name)
+        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + ".pdf")
 
 
 class FourierFieldSlice(FourierField):
@@ -1130,15 +1172,8 @@ class FourierFieldSlice(FourierField):
         for direction in self.all_periodic_dimensions():
             factor += (1j * self.ks[direction]) ** 2
 
-        # unit matrix with zeros in first and  last row/col to avoid messing with bcs
-        eye_bc = jnp.block(
-            [
-                [jnp.zeros((1, n))],
-                [jnp.zeros((n - 2, 1)), jnp.eye(n - 2), jnp.zeros((n - 2, 1))],
-                [jnp.zeros((1, n))],
-            ]
-        )
-        mat = factor * eye_bc + y_mat
+        I = jnp.eye(n)
+        mat = factor * I + y_mat
         mat_inv = jnp.linalg.inv(mat)
         return mat_inv
 

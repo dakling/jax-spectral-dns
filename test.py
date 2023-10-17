@@ -667,7 +667,7 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.0):
     Re = 1.5e0
 
     end_time = 8
@@ -677,7 +677,7 @@ def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.1):
     nse.solve()
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
+    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     print("Doing post-processing")
@@ -740,7 +740,7 @@ def test_optimization():
             Re=Re, Ny=Ny, end_time=end_time, max_iter=10, pertubation_factor=0.0
         )
         nse_.max_iter = 10
-        v0_field = Field(nse_.domain, v0)
+        v0_field = Field(nse_.domain_no_hat, v0)
         vel_0 = nse_.get_initial_field("velocity_hat")
         vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
         nse_.set_field("velocity_hat", 0, vel_0_new)
@@ -752,18 +752,18 @@ def test_optimization():
     vel_x_fn_ana = (
         lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
-    v0_0 = Field.FromFunc(nse.domain, vel_x_fn_ana)
+    v0_0 = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana)
 
     v0s = [v0_0.field]
     eps = 1e3
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = Field(nse.domain, corr, name="correction")
+        corr_field = Field(nse.domain_no_hat, corr, name="correction")
         corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         print("corr (abs): " + str(abs(corr_field)))
         v0s.append(v0s[-1] + eps * corr_field.field)
-        v0_new = Field(nse.domain, v0s[-1])
+        v0_new = Field(nse.domain_no_hat, v0s[-1])
         v0_new.name = "vel_0_" + str(i)
         v0_new.plot(v0_0)
 
@@ -778,7 +778,7 @@ def test_navier_stokes_turbulent():
     # s_z = 2 * jnp.pi
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Ny=90,
+        Ny=60,
         Nx=64,
         end_time=end_time,
         pertubation_factor=0.1
@@ -935,14 +935,15 @@ def test_linear_stability():
 
 
 def test_pseudo_2d():
-    Ny = 64
+    Ny = 90
     # Ny = 24
     # Re = 5772.22
     Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 24
+    Nx = 64
+    # Nx = 4
     Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
@@ -953,9 +954,9 @@ def test_pseudo_2d():
 
     make_field_file_name = lambda field_name: field_name + "_" + str(Re) + "_" + str(Nx) + "_" + str(Ny) + "_" + str(Nz)
     try:
-        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"))
-        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"))
-        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"))
+        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
+        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
+        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
     except FileNotFoundError:
         print("could not find fields")
         u, v, w = lsc.velocity_field(nse.domain_no_hat)
@@ -964,13 +965,14 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     u.plot_3d()
     v.plot_3d()
+    w.plot_3d()
     par_fn = lambda X: 0.0 * X[0] * X[1] * X[2] - 0.41 * (1 - X[1]**2)
     par_field = Field.FromFunc(nse.domain_no_hat, par_fn)
     v.plot_center(1, par_field)
     w.plot_3d()
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-10
+    eps = 1e-5
     nse.set_field(
         "velocity_hat",
         0,
@@ -989,7 +991,8 @@ def test_pseudo_2d():
     def after_time_step(nse):
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
-            vel = nse.get_field("velocity_hat", i).no_hat()
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
             vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
             vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
@@ -998,18 +1001,20 @@ def test_pseudo_2d():
                 if i == 0:
                     vel[i].plot_center(1, vel_x_ana)
                 vel[i].plot_3d()
+                vel_hat[i].plot_3d()
                 vel_pert[i].name = "velocity_pertubation_" + "xyz"[i]
                 vel_pert[i].plot_3d()
                 vel_pert_abs += abs(vel_pert[i])
             print("velocity pertubation: ", vel_pert_abs)
-        # input("carry on?")
+            print("velocity y pertubation: ", abs(vel_pert[1]))
+        input("carry on?")
 
     nse.after_time_step_fn = after_time_step
 
     nse.solve()
 
 def test_dummy_velocity_field():
-    Re = 6000
+    Re = 1e20
 
     end_time = 50
 
@@ -1020,15 +1025,17 @@ def test_dummy_velocity_field():
         # end_time=end_time,
         # pertubation_factor=0.1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
-        Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
+        Re=Re, Ny=60, Nx=32, end_time=end_time, pertubation_factor=1
+        # Re=Re, Ny=96, Nx=64, end_time=end_time, pertubation_factor=1
     )
 
     nse.max_iter = 1e10
-    vel_x_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] )
-    # vel_y_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) )
+    vel_x_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2))
+    vel_y_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1]**2)**2 ) # fulfills bcs but breaks conti
+    vel_z_fn = (lambda X: 0.0 * X[0] * X[1] * X[2])
     vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
-    vel_y = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_y")
-    vel_z = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_z")
+    vel_y = Field.FromFunc(nse.domain_no_hat, vel_y_fn, name="velocity_y")
+    vel_z = Field.FromFunc(nse.domain_no_hat, vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
     )
