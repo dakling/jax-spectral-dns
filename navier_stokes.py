@@ -254,6 +254,9 @@ class NavierStokesVelVort(Equation):
 
 
                 # compute velocity in y direction
+                v_1_lap_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
+                    v_1_lap_hat_new_p, 1
+                )
                 v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
                     v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
@@ -285,9 +288,6 @@ class NavierStokesVelVort(Equation):
                     R_ @ phi_hat_a
                 )
 
-                # fig, ax = plt.subplots(1,1)
-                # ax.plot(self.domain_no_hat.grid[1], phi_hat_a)
-                # fig.savefig("./plots/" + "plot_v_1_lap_a_" + str(kx) + "_" + str(kz))
                 v_1_lap_new_a = phi_hat_new_a
                 # compute velocity in y direction
                 v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
@@ -296,7 +296,6 @@ class NavierStokesVelVort(Equation):
                 v_1_hat_new_a = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new_a, 1
                 )
-
                 v_1_hat_new_b = jnp.flip(v_1_hat_new_a)
 
                 # reconstruct velocity s.t. hom. Neumann is fulfilled
@@ -309,14 +308,22 @@ class NavierStokesVelVort(Equation):
                 AB = jnp.linalg.solve(M, R)
                 a, b = AB[0], AB[1]
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
+                v_1_lap_new_b = jnp.flip(v_1_lap_new_a)
+                v_1_lap_hat_new = v_1_lap_hat_new_p + a * v_1_lap_new_a + b * v_1_lap_new_b
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(v_1_hat_new, 1)
-                # if kx==1 and kz==0:
+                # if kx==0 and kz==0:
                 #     fig, ax = plt.subplots(1,1)
                 #     ys = domain.grid[1]
-                #     ax.plot(ys, vel_hat[1][kx, :, kz])
-                #     ax.plot(ys, v_1_hat_new)
+                #     # ax.plot(ys, vel_hat[1][kx, :, kz])
+                #     # ax.plot(ys, v_1_hat_new_p)
+                #     # ax.plot(ys, v_1_hat_new_a)
+                #     # ax.plot(ys, v_1_hat_new_b)
+                #     ax.plot(ys, v_1_lap_hat_new)
+                #     ax.plot(ys, v_1_lap_hat_new_p)
+                #     # ax.plot(ys, v_1_lap_new_a)
+                #     # ax.plot(ys, v_1_lap_new_b)
                 #     fig.savefig("plots/plot.pdf")
-                #     raise Exception("break")
+                # #     raise Exception("break")
 
                 # vorticity
                 L = 1 / Re * D2_hom_diri

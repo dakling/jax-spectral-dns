@@ -450,7 +450,7 @@ class Field:
         lx = self.domain.scale_factors[0]
         ly = self.domain.scale_factors[1] * 2
         lz = self.domain.scale_factors[2]
-        rows_x = int(lx / (ly + lx) * base_len)
+        rows_x = int(ly / (ly + lx) * base_len)
         cols_x = int(lz / (lz + ly) * base_len)
         rows_y = int(lx / (ly + lx) * base_len)
         cols_y = int(lz / (lz + ly) * base_len)
@@ -625,6 +625,12 @@ class VectorField:
     def min(self):
         return min([min(f) for f in self])
 
+    def __abs__(self):
+        out = 0
+        for f in self:
+            out += abs(f)
+        return out
+
     def __neg__(self):
         return self * (-1.0)
 
@@ -636,13 +642,7 @@ class VectorField:
                 new_name = self.name + " - " + other.name[1:]
             else:
                 new_name = self.name + " + " + other.name
-        fields = []
-        for i in jnp.arange(len(self)):
-            fields.append(self[i] + other[i])
-
-        out = VectorField(fields)
-        out.name = new_name
-        return out
+        return FourierField(self.domain_no_hat, self.field + other.field, name=new_name)
 
     def __sub__(self, other):
         return self + other * (-1.0)
@@ -656,13 +656,7 @@ class VectorField:
                     new_name = self.name + " * " + other.name
                 except Exception:
                     new_name = "field"
-            fields = []
-            for i in jnp.arange(len(self)):
-                fields.append(self[i] * other[i])
-
-            out = VectorField(fields)
-            out.name = new_name
-            return out
+            return FourierField(self.domain_no_hat, self.field * other.field, name=new_name)
         else:
             if self.performance_mode:
                 new_name = ""
@@ -678,13 +672,10 @@ class VectorField:
                         new_name = "(" + str(other) + ") " + self.name
                 except Exception:
                     new_name = "field"
-            fields = []
-            for i in jnp.arange(len(self)):
-                fields.append(self[i] * other)
+            return FourierField(self.domain_no_hat, self.field * other, name=new_name)
 
-            out = VectorField(fields)
-            out.name = new_name
-            return out
+    __rmul__ = __mul__
+    __lmul__ = __mul__
 
     def __truediv__(self, other):
         if type(other) == Field:
@@ -704,19 +695,7 @@ class VectorField:
                         new_name = self.name + "/ (" + str(other) + ") "
                 except Exception:
                     new_name = "field"
-            fields = []
-            for i in jnp.arange(len(self)):
-                fields.append(self[i] / other)
-
-            out = VectorField(fields)
-            out.name = new_name
-            return out
-
-    def __abs__(self):
-        out = 0
-        for f in self:
-            out += abs(f)
-        return out
+            return FourierField(self.domain_no_hat, self.field * other, name=new_name)
 
     # TODO might be unnecessary
     def update_boundary_conditions(self):
@@ -935,6 +914,9 @@ class FourierField(Field):
         out = super().__mul__(other)
         return FourierField(self.domain_no_hat, out.field, name=out.name)
 
+    __rmul__ = __mul__
+    __lmul__ = __mul__
+
     def __truediv__(self, other):
         out = super().__truediv__(other)
         return FourierField(self.domain_no_hat, out.field, name=out.name)
@@ -997,6 +979,7 @@ class FourierField(Field):
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
         ), "Poisson solution not implemented for the general case."
+        # y_mat = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows(
         y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(
             self.all_nonperiodic_dimensions()[0]
         )
@@ -1078,7 +1061,13 @@ class FourierField(Field):
         lx = self.domain.scale_factors[0]
         ly = self.domain.scale_factors[1] * 2
         lz = self.domain.scale_factors[2]
-        rows_x = int(lx / (ly + lx) * base_len)
+        # rows_x = int(lx / (ly + lx) * base_len)
+        # cols_x = int(lz / (lz + ly) * base_len)
+        # rows_y = int(lx / (ly + lx) * base_len)
+        # cols_y = int(lz / (lz + ly) * base_len)
+        # rows_z = int(lx / (ly + lx) * base_len)
+        # cols_z = int(ly / (lz + ly) * base_len)
+        rows_x = int(ly / (ly + lx) * base_len)
         cols_x = int(lz / (lz + ly) * base_len)
         rows_y = int(lx / (ly + lx) * base_len)
         cols_y = int(lz / (lz + ly) * base_len)

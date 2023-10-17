@@ -32,7 +32,7 @@ from equation import Equation
 
 
 # @partial(jax.jit, static_argnums=0)
-def update_nonlinear_terms_high_performance(domain, vel_hat_new):
+def update_nonlinear_terms_high_performance(domain, vel_hat_new, vel_base_hat):
     vel_new = jnp.array(
         [
             domain.no_hat(vel_hat_new.at[i].get())
@@ -41,14 +41,34 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     )
     vort_new = domain.curl(vel_new)
 
-    hel_new = domain.cross_product(vel_new, vort_new)
+    hel_new_ = domain.cross_product(vel_new, vort_new)
+
+    # a-term
+    vel_base = jnp.array(
+        [
+            domain.no_hat(vel_base_hat.at[i].get())
+            for i in jnp.arange(domain.number_of_dimensions)
+        ]
+    )
+    hel_new_a = domain.cross_product(vel_base, vort_new)
+
+    # b-term
+    vort_b = domain.curl(vel_base)
+    hel_new_b = domain.cross_product(vel_new, vort_b)
+
+    # hel_new = hel_new_ + hel_new_a + hel_new_b
+    # linearized version
+    hel_new = hel_new_a + hel_new_b
 
     h_v_new = (
         - domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
         + domain.diff(hel_new[1], 0, 2)
         + domain.diff(hel_new[1], 2, 2)
     )
-    h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
+    h_g_new = (
+        domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
+    )
+
 
     h_v_new_field = Field(domain, h_v_new, name="h_v_new")
     h_g_new_field = Field(domain, h_g_new, name="h_g_new")
@@ -69,8 +89,8 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
 
 
-class NavierStokesVelVort(Equation):
-    name = "Navier Stokes equation (velocity-vorticity formulation)"
+class NavierStokesVelVortPertubation(Equation):
+    name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
     max_cfl = 0.7
     # max_dt = 1e10
     max_dt = 1e-2
@@ -79,9 +99,14 @@ class NavierStokesVelVort(Equation):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
+        velocity_x_base = Field.FromFunc(self.domain_no_hat, lambda X: (1 - X[1]**2) + 0.0 * X[0] * X[2], name="velocity_x_base")
+        velocity_y_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_y_base")
+        velocity_z_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_z_base")
+        velocity_base_hat = VectorField([velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()])
+        velocity_base_hat.name = "velocity_base_hat"
         v_1_lap_hat_a = FourierField.FromFunc(self.domain_no_hat, lambda X: (X[1] + 1)/2 + 0.0 * X[0] * X[2])
         v_1_lap_hat_a.name="v_1_lap_hat_a"
-        super().__init__(domain, velocity_field, v_1_lap_hat_a, **params)
+        super().__init__(domain, velocity_field, velocity_base_hat, v_1_lap_hat_a, **params)
         self.Re = params["Re"]
         self.flow_rate = self.get_flow_rate()
         self.dt = self.get_time_step()
@@ -203,11 +228,8 @@ class NavierStokesVelVort(Equation):
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
 
-        # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
-        dPdx = -self.flow_rate * 3 / 2 / Re
-        # dPdx = - 1
-        # dPdx = 0
-        dPdz = 0  # spanwise pressure gradient should be negligble
+        dPdx = 0
+        dPdz = 0
         L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         def perform_single_rk_step_for_single_wavenumber(
@@ -347,48 +369,12 @@ class NavierStokesVelVort(Equation):
                         jnp.block(
                             [hel_hat[0][kx__, :, kz__], hel_hat[2][kx__, :, kz__]]
                         )
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.zeros(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.ones(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
                     )
                     N_00_old = (
                         jnp.block(
                             [
                                 hel_hat_old[0][kx__, :, kz__],
                                 hel_hat_old[2][kx__, :, kz__],
-                            ]
-                        )
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.zeros(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.ones(vel_hat[2][kx__, :, kz__].shape),
                             ]
                         )
                     )
@@ -430,6 +416,7 @@ class NavierStokesVelVort(Equation):
             return fn
 
 
+        vel_base_hat = self.get_latest_field("velocity_base_hat")
         # perform first RK step
         v_1_hat_0 = vel_hat[1]
         v_1_lap_hat_0 = v_1_hat_0.laplacian()
@@ -447,6 +434,9 @@ class NavierStokesVelVort(Equation):
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
+            jnp.array(
+                [vel_base_hat[0].field, vel_base_hat[1].field, vel_base_hat[2].field]
+            ),
         )
 
         # solve equations
@@ -479,6 +469,9 @@ class NavierStokesVelVort(Equation):
             self.domain_no_hat,
             jnp.array(
                 [vel_new_hat_1[0].field, vel_new_hat_1[1].field, vel_new_hat_1[2].field]
+            ),
+            jnp.array(
+                [vel_base_hat[0].field, vel_base_hat[1].field, vel_base_hat[2].field]
             ),
         )
 
@@ -514,6 +507,9 @@ class NavierStokesVelVort(Equation):
             self.domain_no_hat,
             jnp.array(
                 [vel_new_hat_2[0].field, vel_new_hat_2[1].field, vel_new_hat_2[2].field]
+            ),
+            jnp.array(
+                [vel_base_hat[0].field, vel_base_hat[1].field, vel_base_hat[2].field]
             ),
         )
 
@@ -553,24 +549,24 @@ class NavierStokesVelVort(Equation):
         return self.perform_runge_kutta_step()
 
 
-def solve_navier_stokes_laminar(
-    Re=1.8e2, end_time=1e1, max_iter=1000, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1
+def solve_navier_stokes_pertubation(
+        Re=1.8e2, end_time=1e1, max_iter=1000, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1, scale_factors=(1.87, 1.0, 0.93)
 ):
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
-    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
-
-    vel_x_fn = lambda X: jnp.pi / 3 * (
-        pertubation_factor
-        * jnp.cos(X[1] * jnp.pi / 2)
-        * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
-    ) + (1 - pertubation_factor) * vel_x_fn_ana(X)
-
+    vel_x_fn = lambda X: (0.1
+        * pertubation_factor
+        * (
+            jnp.pi
+            / 3
+            * jnp.cos(X[1] * jnp.pi / 2)
+            * jnp.cos(3 * X[0])
+            * jnp.cos(4 * X[2])
+        ))
     # add small pertubation in y and z to see if it decays
     vel_y_fn = (
         lambda X: 0.1
@@ -595,7 +591,7 @@ def solve_navier_stokes_laminar(
     vel_z = Field.FromFunc(domain, vel_z_fn, name="vel_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
+    nse = NavierStokesVelVortPertubation.FromVelocityField((Nx, Ny, Nz), vel, Re)
     nse.end_time = end_time
     nse.max_iter = max_iter
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
@@ -605,20 +601,20 @@ def solve_navier_stokes_laminar(
         if i > 0:
             vel = nse.get_field("velocity_hat", i).no_hat()
             vel_old = nse.get_field("velocity_hat", i - 1).no_hat()
-            vel[0].plot_center(1, vel_0[0], vel_x_ana)
+            vel[0].plot_center(1, vel_0[0])
             vel[1].plot_center(1, vel_0[1])
             vel[2].plot_center(1, vel_0[2])
             vel[0].plot_3d()
             vel[1].plot_3d()
             vel[2].plot_3d()
-            print(abs(vel[0] - vel_x_ana))
+            print(abs(vel[0]))
             print(abs(vel[1]))
             print(abs(vel[2]))
-            old_error = abs(vel_old[0] - vel_x_ana)
-            new_error = abs(vel[0] - vel_x_ana)
+            old_error = abs(vel_old[0])
+            new_error = abs(vel[0])
             rel_change = abs(new_error - old_error) / old_error
             print("rel_change: " + str(rel_change))
-            input("carry on?")
+            # input("carry on?")
 
     nse.after_time_step_fn = after_time_step
 

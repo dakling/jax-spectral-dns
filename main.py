@@ -24,6 +24,12 @@ except:
 from navier_stokes import solve_navier_stokes_laminar
 
 try:
+    reload(sys.modules["navier_stokes_pertubation"])
+except:
+    print("Unable to load navier-stokes-pertubation")
+from navier_stokes_pertubation import solve_navier_stokes_pertubation
+
+try:
     reload(sys.modules["test"])
 except:
     print("Unable to load")
