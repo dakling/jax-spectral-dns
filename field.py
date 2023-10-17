@@ -555,6 +555,9 @@ class Field:
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
         return self.domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
 
+    def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self, direction):
+        return self.domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(direction)
+
     def integrate(self, direction, order=1, bc_left=None, bc_right=None):
         out_bc = self.domain.integrate(self.field, direction, order, bc_left, bc_right)
         return Field(self.domain, out_bc, name=self.name + "_int")
@@ -998,14 +1001,21 @@ class FourierField(Field):
             self.all_nonperiodic_dimensions()[0]
         )
         n = y_mat.shape[0]
-        I = jnp.eye(n)
+        bc_padding = 1
+        eye_bc = jnp.block(
+            [
+                [jnp.zeros((bc_padding, n))],
+                [jnp.zeros((n - 2*bc_padding, bc_padding)), jnp.eye(n - 2*bc_padding), jnp.zeros((n - 2*bc_padding, bc_padding))],
+                [jnp.zeros((bc_padding, n))],
+            ]
+        )
         k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
         k1sq = k1**2
         k2sq = k2**2
         mat = jnp.array(
             [
-                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * I + y_mat) for k2sq_ in k2sq]
+                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
                 for k1sq_ in k1sq
             ]
         )

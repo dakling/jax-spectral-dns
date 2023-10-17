@@ -52,14 +52,20 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
     h_v_new_field = Field(domain, h_v_new, name="h_v_new")
     h_g_new_field = Field(domain, h_g_new, name="h_g_new")
-    h_v_new_field.plot_3d()
-    h_g_new_field.plot_3d()
+    h_v_new_field.plot_center(0)
+    h_v_new_field.plot_center(1)
+    h_g_new_field.plot_center(0)
+    h_g_new_field.plot_center(1)
     lap_v =  domain.diff(vel_new[1], 0, 2) + domain.diff(vel_new[1], 1, 2) + domain.diff(vel_new[1], 2, 2)
     visc_v = 1/6000 * (domain.diff(lap_v, 0, 2) + domain.diff(lap_v, 1, 2) + domain.diff(lap_v, 2, 2))
     visc_v_field = Field(domain, visc_v, name="visc_v")
-    visc_v_field.plot_3d()
+    visc_v_field.plot_center(0)
+    visc_v_field.plot_center(1)
     hel_1 = Field(domain, hel_new[1], name="hel_1")
-    hel_1.plot_3d()
+    hel_1.plot_center(0)
+    hel_1.plot_center(1)
+    # raise Exception("break")
+    # input("carry on? (from update_nonlinear_terms)")
 
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
@@ -554,12 +560,12 @@ class NavierStokesVelVort(Equation):
 
 
 def solve_navier_stokes_laminar(
-    Re=1.8e2, end_time=1e1, max_iter=1000, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1
+        Re=1.8e2, end_time=1e1, max_iter=1000, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1, scale_factors=(1.87, 1.0, 0.93)
 ):
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
@@ -618,7 +624,7 @@ def solve_navier_stokes_laminar(
             new_error = abs(vel[0] - vel_x_ana)
             rel_change = abs(new_error - old_error) / old_error
             print("rel_change: " + str(rel_change))
-            input("carry on?")
+            # input("carry on?")
 
     nse.after_time_step_fn = after_time_step
 
