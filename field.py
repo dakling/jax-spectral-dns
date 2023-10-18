@@ -245,6 +245,7 @@ class Field:
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.field) / self.number_of_dofs()
 
+
     def l2error(self, fn):
         # fine_resolution = tuple(map(lambda x: x*10, self.domain.shape))
         # fine_domain = Domain(fine_resolution, self.domain.periodic_directions)
@@ -253,6 +254,17 @@ class Field:
         # TODO supersampling
         analytical_solution = Field.FromFunc(self.domain, fn)
         return jnp.linalg.norm((self - analytical_solution).field, None)
+
+    def volume_integral(self):
+        int = Field(self.domain, self.field)
+        for i in reversed(self.all_dimensions()):
+            int = int.definite_integral(i)
+        return int
+
+    def energy(self):
+        energy = self * self
+        return energy.volume_integral()
+
 
     def eval(self, *X):
         """Evaluate field at arbitrary point X through linear interpolation. (This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
@@ -562,6 +574,36 @@ class Field:
         out_bc = self.domain.integrate(self.field, direction, order, bc_left, bc_right)
         return Field(self.domain, out_bc, name=self.name + "_int")
 
+    def definite_integral(self, direction):
+        if not self.is_periodic(direction):
+            int = self.integrate(direction, 1, bc_right=0.0)
+            if self.number_of_dimensions() == 1:
+                return int[0] - int[-1]
+            else:
+                N = len(self.domain.grid[direction])
+                inds = [i for i in self.all_dimensions() if i != direction]
+                shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
+                periodic_directions = tuple((jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist())
+                scale_factors = tuple((jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist())
+                reduced_domain = Domain(shape, periodic_directions, scale_factors=scale_factors)
+                field = jnp.take(int.field, indices=0, axis=direction) - jnp.take(int.field, indices=N-1, axis=direction)
+                return Field(reduced_domain, field)
+        else:
+            N = len(self.domain.grid[direction])
+            if self.number_of_dimensions() == 1:
+                return self.domain.scale_factors[direction] / N * jnp.sum(self.field[:])
+            else:
+                N = len(self.domain.grid[direction])
+                inds = [i for i in self.all_dimensions() if i != direction]
+                shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
+                periodic_directions = tuple((jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist())
+                scale_factors = tuple((jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist())
+                reduced_domain = Domain(shape, periodic_directions, scale_factors=scale_factors)
+                field = self.domain.scale_factors[direction] / N * np.add.reduce(self.field, axis=direction)
+                return Field(reduced_domain, field)
+
+
+
     def nabla(self):
         out = [self.diff(0)]
         out[0].name = "nabla_" + self.name + "_" + str(0)
@@ -630,6 +672,12 @@ class VectorField:
         for f in self:
             out += abs(f)
         return out
+
+    def energy(self):
+        energy = 0
+        for f in self:
+            energy += f.energy()
+        return energy
 
     def __neg__(self):
         return self * (-1.0)
@@ -942,22 +990,21 @@ class FourierField(Field):
 
     def integrate(self, direction, order=1, bc_right=None, bc_left=None):
         if direction in self.all_periodic_dimensions():
-            assert (
-                type(bc_right) == NoneType and type(bc_left) == NoneType
-            ), "Providing boundary conditions for integration along periodic direction makes no sense"
+            # assert (
+            #     type(bc_right) == NoneType and type(bc_left) == NoneType
+            # ), "Providing boundary conditions for integration along periodic direction is not supported."
             mgrid = self.domain.mgrid[direction]
             field = self.field
-            for i in reversed(self.all_periodic_dimensions()):
-                N = mgrid.shape[i]
-                inds = jnp.arange(1, N)
-                mgrid = mgrid.take(indices=inds, axis=i)
-                field = field.take(indices=inds, axis=i)
+            N = mgrid.shape[direction]
+            inds = jnp.arange(1, N)
+            mgrid = mgrid.take(indices=inds, axis=direction)
+            field = field.take(indices=inds, axis=direction)
 
             denom = (1j * mgrid) ** order
             out_0 = 0.0
             out_field = jnp.pad(
                 field / denom,
-                [(1, 0) for _ in self.all_periodic_dimensions()],
+                [(1, 0) if i == direction else (0, 0) for i in self.all_dimensions()],
                 mode="constant",
                 constant_values=out_0,
             )
@@ -969,10 +1016,18 @@ class FourierField(Field):
                     .field
                 )
             else:
-                raise NotImplementedError()
+                out_field = (
+                    super()
+                    .integrate(direction, order, bc_right=bc_right, bc_left=bc_left)
+                    .field
+                )
+
         return FourierField(
             self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
         )
+
+    def definite_integral(self, direction):
+        raise NotImplementedError()
 
     def assemble_poisson_matrix(self):
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
@@ -1080,7 +1135,7 @@ class FourierField(Field):
         ]
         ims = []
         for dim in self.all_dimensions():
-            N_c = len(self.domain.grid[dim]) // 2
+            N_c = 0
             other_dim = [i for i in self.all_dimensions() if i != dim]
             ims.append(
                 ax[dim].imshow(

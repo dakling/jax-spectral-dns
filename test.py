@@ -106,7 +106,7 @@ def test_1D_periodic():
     u_x_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_x_ana")
     u_xx_ana = Field.FromFunc(domain, func=u_diff_fn_2, name="u_xx_ana")
 
-    # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
+    u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
     tol = 8e-5
     # print(abs(u_x - u_x_ana))
     # print(abs(u_xx - u_xx_ana))
@@ -282,12 +282,14 @@ def test_fourier_1D():
     domain = Domain((Nx,), (True,), scale_factors=(scale_factor,))
     # domain = Domain((Nx,), (True,))
 
-    u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
+    # u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
+    u_fn = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor))
     u = Field.FromFunc(domain, func=u_fn, name="u_1d")
     u_hat = u.hat()
 
     u_diff_fn = (
         lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor) * 2 * jnp.pi / scale_factor
+        # lambda X: jnp.cos(X[0]) / scale_factor * jnp.exp(jnp.sin(X[0] / scale_factor))
     )
     u_diff_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_1d_diff_ana")
 
@@ -321,6 +323,10 @@ def test_fourier_1D():
     u_diff.name = "u_1d_diff"
     u_diff_2 = u_hat_diff_2.no_hat()
     u_diff_2.name = "u_1d_diff_2"
+    u_int.plot(u)
+    print(u_int[-1] - u_int[0])
+    print(u.definite_integral(0))
+    # u.integrate(0).plot(u)
     # print(abs(u_int - u_int_ana))
     # print(abs(u_int_2 - u_int_ana_2))
     # print(abs(u_diff - u_diff_ana))
@@ -428,19 +434,20 @@ def test_fourier_2D():
     u_y.name = "u_2d_y"
     u_y_2 = u_hat_y_2.no_hat()
     u_y_2.name = "u_2d_y_2"
-    u_x.plot()
-    u_y.plot()
-    u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
-    u.plot_center(1, u_y, u_y_2, u_int_y, u_int_yy)
+    u_int_x.plot(u_int_x_ana)
+    # u_x.plot()
+    # u_y.plot()
+    # u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
+    # u.plot_center(1, u_y, u_y_2, u_int_y, u_int_yy)
     tol = 1e-5
-    # print(abs(u_x - u_x_ana))
-    # print(abs(u_x_2 - u_xx_ana))
-    # print(abs(u_y - u_y_ana))
-    # print(abs(u_y_2 - u_yy_ana))
-    # print(abs(u_int_x - u_int_x_ana))
-    # print(abs(u_int_xx - u_int_xx_ana))
-    # print(abs(u_int_y - u_int_y_ana))
-    # print(abs(u_int_yy - u_int_yy_ana))
+    print(abs(u_x - u_x_ana))
+    print(abs(u_x_2 - u_xx_ana))
+    print(abs(u_y - u_y_ana))
+    print(abs(u_y_2 - u_yy_ana))
+    print(abs(u_int_x - u_int_x_ana))
+    print(abs(u_int_xx - u_int_xx_ana))
+    print(abs(u_int_y - u_int_y_ana))
+    print(abs(u_int_yy - u_int_yy_ana))
     assert abs(u_x - u_x_ana) < tol
     assert abs(u_x_2 - u_xx_ana) < tol
     assert abs(u_y - u_y_ana) < tol
@@ -454,7 +461,7 @@ def test_fourier_2D():
 def test_fourier_simple_3D():
     Nx = 24
     Ny = Nx + 4
-    Nz = Nx - 4
+    Nz = 20
     scale_factor_x = 1.0
     scale_factor_z = 2.0
     domain = Domain(
@@ -470,41 +477,71 @@ def test_fourier_simple_3D():
         * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_x)
         * jnp.cos(X[1] * jnp.pi / 2)
     )
-    u_fn = lambda X: 1.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(
-        X[2] * 2 * jnp.pi / scale_factor_z
-    ) + jnp.sin(X[1] * jnp.pi)
+    u_fn = (
+        lambda X: 1.0 *
+        (jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x))
+        + jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x))
+        + jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z)
+        + jnp.sin(X[1] * jnp.pi)
+        + 1.0
+        * jnp.cos(X[0] * 4 * jnp.pi / scale_factor_x)
+        * jnp.cos(X[2] * 4 * jnp.pi / scale_factor_z)
+        + 1.0
+        * jnp.cos(X[0] * jnp.pi * 6 / scale_factor_x)
+        * jnp.cos(X[2] * jnp.pi * 6 / scale_factor_z)
+    )
     u = Field.FromFunc(domain, func=u_fn, name="u_3d")
     v = Field.FromFunc(domain, func=u_0_fn, name="v_3d")
     w = Field.FromFunc(domain, func=u_0_fn, name="w_3d")
     U = VectorField([u, v, w])
     U_hat = U.hat()
     u_hat = U_hat[0]
-    v_hat = U_hat[1]
-    w_hat = U_hat[2]
-    u_x = u.diff(0,1)
-    u_xx = u.diff(0,2)
-    u_y = u.diff(1,1)
-    u_yy = u.diff(1,2)
-    u_z = u.diff(2,1)
-    u_zz = u.diff(2,2)
+    # v_hat = U_hat[1]
+    # w_hat = U_hat[2]
+    u_x = u.diff(0, 1)
+    u_xx = u.diff(0, 2)
+    u_y = u.diff(1, 1)
+    u_yy = u.diff(1, 2)
+    u_z = u.diff(2, 1)
+    u_zz = u.diff(2, 2)
+    # u_int_x = u.integrate(0, 1)
+    # u_int_xx = u.integrate(0, 2)
+    # u_int_yy = u.integrate(1, 2)
+    # u_int_z = u.integrate(2, 1)
+    # u_int_zz = u.integrate(2, 2)
 
-    u_hat_x = u_hat.diff(0,1)
-    u_hat_xx = u_hat.diff(0,2)
-    u_hat_y = u_hat.diff(1,1)
-    u_hat_yy = u_hat.diff(1,2)
-    u_hat_z = u_hat.diff(2,1)
-    u_hat_zz = u_hat.diff(2,2)
+    u_hat_x = u_hat.diff(0, 1)
+    u_hat_xx = u_hat.diff(0, 2)
+    u_hat_y = u_hat.diff(1, 1)
+    u_hat_yy = u_hat.diff(1, 2)
+    u_hat_z = u_hat.diff(2, 1)
+    u_hat_zz = u_hat.diff(2, 2)
+    # u_int_hat_x = u_hat.integrate(0, 1)
+    # u_int_hat_xx = u_hat.integrate(0, 2)
+    # u_int_hat_yy = u_hat.integrate(1, 2)
+    # u_int_hat_z = u_hat.integrate(2, 1)
+    # u_int_hat_zz = u_hat.integrate(2, 2)
 
     # U_nohat.plot(U)
-    # u_x.plot(u_hat_x.no_hat())
+    # u.plot()
+    u_x.plot(u_hat_x.no_hat())
+    u_xx.plot(u_hat_xx.no_hat())
+    # u_int_x.plot(u)
+    # u_int_hat_x.no_hat().plot(u)
     # u_xx.plot(u_hat_xx.no_hat())
     # print(abs(U - U_nohat))
-    # print(abs(u_hat_x.no_hat() - u_x))
-    # print(abs(u_hat_xx.no_hat() - u_xx))
-    # print(abs(u_hat_y.no_hat() - u_y))
-    # print(abs(u_hat_yy.no_hat() - u_yy))
-    # print(abs(u_hat_z.no_hat() - u_z))
-    # print(abs(u_hat_zz.no_hat() - u_zz))
+    print(abs(u_hat_x.no_hat() - u_x))
+    print(abs(u_hat_xx.no_hat() - u_xx))
+    print(abs(u_hat_y.no_hat() - u_y))
+    print(abs(u_hat_yy.no_hat() - u_yy))
+    print(abs(u_hat_z.no_hat() - u_z))
+    print(abs(u_hat_zz.no_hat() - u_zz))
+    # print(abs(u_int_hat_x.no_hat() - u_int_x))
+    # print(abs(u_int_hat_xx.no_hat() - u_int_xx))
+    # print(abs(u_int_hat_yy.no_hat() - u_int_yy))
+    # print(abs(u_int_hat_z.no_hat() - u_int_z))
+    # print(abs(u_int_hat_zz.no_hat() - u_int_zz))
     tol = 1e-9
     # assert abs(U - U_nohat) < tol
     assert abs(u_hat_x.no_hat() - u_x) < tol
@@ -513,7 +550,12 @@ def test_fourier_simple_3D():
     assert abs(u_hat_yy.no_hat() - u_yy) < tol
     assert abs(u_hat_z.no_hat() - u_z) < tol
     assert abs(u_hat_zz.no_hat() - u_zz) < tol
-    # TODO implement more discerning tests
+    # assert abs(u_int_hat_x.no_hat() - u_int_x) < tol
+    # assert abs(u_int_hat_xx.no_hat() - u_int_xx) < tol
+    # assert abs(u_int_hat_yy.no_hat() - u_int_yy) < tol
+    # assert abs(u_int_hat_z.no_hat() - u_int_z) < tol
+    # assert abs(u_int_hat_zz.no_hat() - u_int_zz) < tol
+    # TODO test integration
 
 
 def test_cheb_integration_1D():
@@ -588,6 +630,78 @@ def test_cheb_integration_3D():
     # print(abs(u_int - u_int_ana))
     assert abs(u_int - u_int_ana) < tol
 
+def test_definite_integral():
+    tol = 1e-10
+    # 1D
+    # Fourier
+    Nx = 60
+    sc_x = 1.0
+    domain_1D_fourier = Domain((Nx,), (True,), scale_factors=(sc_x,))
+    u_fn_1d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x))
+    u_1d_fourier = Field.FromFunc(domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier")
+    assert abs(u_1d_fourier.definite_integral(0) - 1.2660658777520084) < tol
+    # Chebyshev
+    domain_1D_cheb = Domain((Nx,), (False,))
+    u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
+    u_1d_cheb = Field.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
+    # print(u_1d_cheb.definite_integral(0))
+    # print(abs(u_1d_cheb.definite_integral(0) - 0.5321317555))
+    assert abs(u_1d_cheb.definite_integral(0) - 0.5321317555) < tol
+    # 2D
+    # Fourier
+    Ny = 64
+    sc_y = 2.0
+    domain_2D_fourier = Domain((Nx,Ny), (True,True), scale_factors=(sc_x,sc_y))
+    u_fn_2d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2)
+    u_2d_fourier = Field.FromFunc(domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier")
+    # print(abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+    assert (abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    assert (abs(u_2d_fourier.volume_integral() - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    # Chebyshev
+    domain_2D_cheb = Domain((Nx,Ny), (False,False))
+    u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2)
+    u_2d_cheb = Field.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
+    # print(abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+    # print((u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
+    assert (abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    assert (abs(u_2d_cheb.volume_integral() - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    # Mixed
+    domain_2D_mixed = Domain((Nx,Ny), (False,True), scale_factors=(1.0, sc_y))
+    u_2d_mixed = Field.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
+    # print(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
+    assert (abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    assert (abs(u_2d_mixed.volume_integral() - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    domain_2D_mixed_2 = Domain((Nx,Ny), (True,False), scale_factors=(sc_x, 1.0))
+    u_2d_mixed_2 = Field.FromFunc(domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2")
+    # print(abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+    assert (abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    assert (abs(u_2d_mixed_2.volume_integral() - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    # 3D
+    # Fourier
+    # Nx = 96
+    # Ny = 96
+    Nz = 96
+    sc_z = 3.0
+    domain_3D_fourier = Domain((Nx,Ny,Nz), (True,True,True), scale_factors=(sc_x,sc_y,sc_z))
+    u_fn_3d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2) * jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z)**2)
+    u_3d_fourier = Field.FromFunc(domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier")
+    # print(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)
+    assert (abs(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)) < tol
+    assert (abs(u_3d_fourier.volume_integral()- -10.84981433261992)) < tol
+    # Chebyshev
+    domain_3D_cheb = Domain((Nx,Ny,Nz), (False,False,False))
+    u_fn_3d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi)**2) + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi)**2)
+    u_3d_cheb = Field.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
+    # print(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)
+    assert (abs(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)) < tol
+    assert (abs(u_3d_cheb.volume_integral()- 10.128527022082872)) < tol
+    # Mixed
+    domain_3D_mixed = Domain((Nx,Ny,Nz), (True,False,True), scale_factors=(sc_x, 1.0, sc_z))
+    u_fn_3d_mixed = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi)**2) + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z)**2)
+    u_3d_mixed = Field.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
+    # print(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)
+    assert (abs(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)) < tol
+    assert (abs(u_3d_mixed.volume_integral()- 7.596395266449558)) < tol
 
 def test_poisson_slices():
     Nx = 24
@@ -671,7 +785,11 @@ def test_poisson_no_slices():
     # scale_factor_z = 1.5
     scale_factor_x = 2 * jnp.pi
     scale_factor_z = 2 * jnp.pi
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(scale_factor_x, 1.0, scale_factor_z))
+    domain = Domain(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(scale_factor_x, 1.0, scale_factor_z),
+    )
 
     rhs_fn = (
         lambda X: -(
@@ -709,7 +827,12 @@ def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.1):
 
     end_time = 8
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=16, Ny=Ny, Nz=16, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re,
+        Nx=16,
+        Ny=Ny,
+        Nz=16,
+        end_time=end_time,
+        pertubation_factor=pertubation_factor,
     )
     nse.max_dt = 1e10
     nse.solve()
@@ -987,35 +1110,51 @@ def test_pseudo_2d():
 
     end_time = 1
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=Nx, Ny=Ny, Nz=Nz, end_time=end_time, pertubation_factor=0.0, scale_factors=(2*(2*jnp.pi/alpha), 1.0, 1.0)
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(10 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    make_field_file_name = lambda field_name: field_name + "_" + str(Re) + "_" + str(Nx) + "_" + str(Ny) + "_" + str(Nz)
+    make_field_file_name = (
+        lambda field_name: field_name
+        + "_"
+        + str(Re)
+        + "_"
+        + str(Nx)
+        + "_"
+        + str(Ny)
+        + "_"
+        + str(Nz)
+    )
     try:
+        # raise FileNotFoundError()
         u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
         v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
         w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
     except FileNotFoundError:
         print("could not find fields")
         u, v, w = lsc.velocity_field(nse.domain_no_hat)
-    # u, v, w = lsc.velocity_field(nse.domain_no_hat)
     u.save_to_file(make_field_file_name("u"))
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
     u.plot_3d()
     v.plot_3d()
     w.plot_3d()
-    vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
+    vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-0
+    eps = 1e-7
     nse.set_field(
         "velocity_hat",
         0,
         VectorField(
             [
                 vel_x_hat + eps * u.hat(),
-                vel_y_hat + eps * v.hat(),
-                vel_z_hat + eps * w.hat(),
+                eps * v.hat(),
+                eps * w.hat(),
             ]
         ),
     )
@@ -1023,6 +1162,7 @@ def test_pseudo_2d():
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
     plot_interval = 1
+
     def after_time_step(nse):
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
@@ -1043,14 +1183,15 @@ def test_pseudo_2d():
                 vel_pert[i].plot_3d()
                 vel_pert[i].plot_center(0)
                 vel_pert[i].plot_center(1)
-                vel_pert_abs += abs(vel_pert[i])
-            print("velocity pertubation: ", vel_pert_abs)
-            print("velocity y pertubation: ", abs(vel_pert[1]))
+                vel_pert_abs += vel_pert[i].energy()
+            print("velocity pertubation energy: ", vel_pert_abs)
+            print("velocity y pertubation energy: ", vel_pert[1].energy())
         # input("carry on?")
 
     nse.after_time_step_fn = after_time_step
 
     nse.solve()
+
 
 def test_dummy_velocity_field():
     Re = 1e20
@@ -1065,13 +1206,19 @@ def test_dummy_velocity_field():
         # pertubation_factor=0.1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
         # Re=Re, Ny=60, Nx=32, end_time=end_time, pertubation_factor=1
-        Re=Re, Ny=96, Nx=64, end_time=end_time, pertubation_factor=1
+        Re=Re,
+        Ny=96,
+        Nx=64,
+        end_time=end_time,
+        pertubation_factor=1,
     )
 
     nse.max_iter = 1e10
-    vel_x_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2))
-    vel_y_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1]**2)**2 ) # fulfills bcs but breaks conti
-    vel_z_fn = (lambda X: 0.0 * X[0] * X[1] * X[2])
+    vel_x_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1] ** 2)
+    vel_y_fn = (
+        lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1] ** 2) ** 2
+    )  # fulfills bcs but breaks conti
+    vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
     vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
     vel_y = Field.FromFunc(nse.domain_no_hat, vel_y_fn, name="velocity_y")
     vel_z = Field.FromFunc(nse.domain_no_hat, vel_z_fn, name="velocity_z")
@@ -1110,12 +1257,18 @@ def test_dummy_velocity_field():
     nse.solve()
     return nse.get_latest_field("velocity_hat").no_hat().field
 
+
 def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
     Re = 1.5e0
 
     end_time = 8
     nse = solve_navier_stokes_pertubation(
-        Re=Re, Nx=16, Ny=Ny, Nz=16, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re,
+        Nx=16,
+        Ny=Ny,
+        Nz=16,
+        end_time=end_time,
+        pertubation_factor=pertubation_factor,
     )
     nse.max_dt = 1e10
     nse.solve()
@@ -1140,6 +1293,7 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
         assert abs(vel[1]) < tol
         assert abs(vel[2]) < tol
 
+
 def test_pseudo_2d_pertubation():
     Ny = 90
     # Ny = 24
@@ -1155,10 +1309,26 @@ def test_pseudo_2d_pertubation():
 
     end_time = 1
     nse = solve_navier_stokes_pertubation(
-        Re=Re, Nx=Nx, Ny=Ny, Nz=Nz, end_time=end_time, pertubation_factor=0.0, scale_factors=(2*(2*jnp.pi/alpha), 1.0, 1.0)
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    make_field_file_name = lambda field_name: field_name + "_" + str(Re) + "_" + str(Nx) + "_" + str(Ny) + "_" + str(Nz)
+    make_field_file_name = (
+        lambda field_name: field_name
+        + "_"
+        + str(Re)
+        + "_"
+        + str(Nx)
+        + "_"
+        + str(Ny)
+        + "_"
+        + str(Nz)
+    )
     try:
         u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
         v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
@@ -1189,6 +1359,7 @@ def test_pseudo_2d_pertubation():
     )
 
     plot_interval = 1
+
     def after_time_step(nse):
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
@@ -1214,7 +1385,6 @@ def test_pseudo_2d_pertubation():
     nse.solve()
 
 
-
 def run_all_tests():
     # test_1D_periodic()
     # test_1D_cheb()
@@ -1226,6 +1396,7 @@ def run_all_tests():
     # test_cheb_integration_1D()
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
+    # test_definite_integral()
     # test_poisson_slices()
     # test_poisson_no_slices()
     # test_navier_stokes_laminar()

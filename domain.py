@@ -299,6 +299,18 @@ class Domain:
                 [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
             )
 
+        def set_first_of_field(field, first):
+            N = field.shape[direction]
+            inds = jnp.arange(1, N)
+            inner = field.take(indices=inds, axis=direction)
+            out = jnp.pad(
+                inner,
+                [(0, 0) if d != direction else (1, 0) for d in self.all_dimensions()],
+                mode="constant",
+                constant_values=first,
+            )
+            return out
+
         def set_first_and_last_of_field(field, first, last):
             N = field.shape[direction]
             inds = jnp.arange(1, N - 1)
@@ -311,17 +323,38 @@ class Domain:
             )
             return out
 
-        mat = set_last_mat_row_and_col_to_unit(
-            set_first_mat_row_and_col_to_unit(
-                jnp.linalg.matrix_power(self.diff_mats[direction], order)
-            )
-        )
+        if not self.is_periodic(direction):
+            if order==1:
+                mat = set_first_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                )
+                b_right = 0.0
+                b = set_first_of_field(field, b_right)
+
+            elif order==2:
+                mat = set_last_mat_row_and_col_to_unit(
+                    set_first_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                )
+                # b_right = 0.0 if type(bc_right) != NoneType else b_right_fallback
+                # b_left = 0.0 if type(bc_left) != NoneType else b_left_fallback
+                # print(mat)
+                b_right = 0.0
+                b_left = 0.0
+                b = set_first_and_last_of_field(field, b_right, b_left)
+        else:
+            raise Exception("Integration not implemented in periodic directions, use Fourier integration instead.")
+            mat = set_first_mat_row_and_col_to_unit(
+                    jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                )
+
+            # b_right = 0.0 if type(bc_right) != NoneType else b_right_fallback
+            # b_left = 0.0 if type(bc_left) != NoneType else b_left_fallback
+            b_right = 0.0
+            b_left = 0.0
+            b = set_first_of_field(field, b_right)
         inv_mat = jnp.linalg.inv(mat)
-        # b_right = 0.0 if type(bc_right) != NoneType else b_right_fallback
-        # b_left = 0.0 if type(bc_left) != NoneType else b_left_fallback
-        b_right = 0.0
-        b_left = 0.0
-        b = set_first_and_last_of_field(field, b_right, b_left)
 
         inds = "ijk"
         int_mat_ind = "l" + inds[direction]
