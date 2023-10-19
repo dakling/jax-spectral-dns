@@ -56,8 +56,9 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new, vel_base_hat):
     vort_b = domain.curl(vel_base)
     hel_new_b = domain.cross_product(vel_new, vort_b)
 
+    # exact expression
     # hel_new = hel_new_ + hel_new_a + hel_new_b
-    # linearized version
+    # linearized expression
     hel_new = hel_new_a + hel_new_b
 
     h_v_new = (
@@ -69,24 +70,21 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new, vel_base_hat):
         domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
     )
 
-
-    h_v_new_field = Field(domain, h_v_new, name="h_v_new")
-    h_g_new_field = Field(domain, h_g_new, name="h_g_new")
-    h_v_new_field.plot_3d()
-    h_g_new_field.plot_3d()
-    lap_v =  domain.diff(vel_new[1], 0, 2) + domain.diff(vel_new[1], 1, 2) + domain.diff(vel_new[1], 2, 2)
-    visc_v = 1/6000 * (domain.diff(lap_v, 0, 2) + domain.diff(lap_v, 1, 2) + domain.diff(lap_v, 2, 2))
-    visc_v_field = Field(domain, visc_v, name="visc_v")
-    visc_v_field.plot_3d()
-    hel_1 = Field(domain, hel_new[1], name="hel_1")
-    hel_1.plot_3d()
+    conv_ns_new = []
+    for i in domain.all_dimensions():
+        out = 0
+        for k in domain.all_dimensions():
+            # out += vel_new[k] * domain.diff(vel_new[i], k)
+            out += vel_base[k] * domain.diff(vel_new[i], k)
+            out += vel_new[k] * domain.diff(vel_base[i], k)
+        conv_ns_new.append(out)
 
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
-    hel_hat_new = [domain.field_hat(hel_new[i]) for i in domain.all_dimensions()]
+    conv_ns_hat_new = [domain.field_hat(conv_ns_new[i]) for i in domain.all_dimensions()]
 
-    return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
+    return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
 
 
 class NavierStokesVelVortPertubation(Equation):
@@ -189,30 +187,6 @@ class NavierStokesVelVortPertubation(Equation):
             0
         ].assemble_poisson_matrix()
 
-    def update_nonlinear_terms(self, vel_hat_new):
-        vel_new = vel_hat_new.no_hat()
-        vort_new = vel_new.curl()
-
-        hel_new = vel_new.cross_product(vort_new)
-
-        h_v_new = (
-            -(hel_new[0].diff(0) + hel_new[2].diff(2)).diff(1)
-            + hel_new[1].diff(0, 2)
-            + hel_new[1].diff(2, 2)
-        )
-        h_g_new = hel_new[0].diff(2) - hel_new[2].diff(0)
-
-        h_v_hat_new = h_v_new.hat()
-        h_g_hat_new = h_g_new.hat()
-        vort_hat_new = vort_new.hat()
-        hel_hat_new = hel_new.hat()
-
-        # continuity_error = abs(vel_new.div())
-        # print("continuity error ", continuity_error)
-        # print("relative continuity error ", continuity_error / abs(vel_new[1]))
-
-        return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
-
     def perform_runge_kutta_step(self):
         start_time = time.time()
 
@@ -237,8 +211,8 @@ class NavierStokesVelVortPertubation(Equation):
             v_1_lap_hat,
             v_1_lap_hat_a,
             vort_hat,
-            hel_hat,
-            hel_hat_old,
+            ns_conv_hat,
+            ns_conv_hat_old,
             h_v_hat,
             h_g_hat,
             h_v_hat_old,
@@ -367,14 +341,14 @@ class NavierStokesVelVortPertubation(Equation):
                     dz = Nz * (2 * jnp.pi / domain.scale_factors[2]) ** (2)
                     N_00_new = (
                         jnp.block(
-                            [hel_hat[0][kx__, :, kz__], hel_hat[2][kx__, :, kz__]]
+                            [-ns_conv_hat[0][kx__, :, kz__], -ns_conv_hat[2][kx__, :, kz__]]
                         )
                     )
                     N_00_old = (
                         jnp.block(
                             [
-                                hel_hat_old[0][kx__, :, kz__],
-                                hel_hat_old[2][kx__, :, kz__],
+                                -ns_conv_hat_old[0][kx__, :, kz__],
+                                -ns_conv_hat_old[2][kx__, :, kz__],
                             ]
                         )
                     )
@@ -430,7 +404,7 @@ class NavierStokesVelVortPertubation(Equation):
             h_v_hat_0,
             h_g_hat_0,
             vort_hat_0,
-            hel_hat_0,
+            ns_conv_hat_0,
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
@@ -446,8 +420,8 @@ class NavierStokesVelVortPertubation(Equation):
                 v_1_lap_hat_0,
                 v_1_lap_hat_a_0,
                 vort_hat_0,
-                hel_hat_0,
-                hel_hat_0,
+                ns_conv_hat_0,
+                ns_conv_hat_0,
                 h_v_hat_0,
                 h_g_hat_0,
                 h_v_hat_0,
@@ -464,7 +438,7 @@ class NavierStokesVelVortPertubation(Equation):
             h_v_hat_1,
             h_g_hat_1,
             vort_hat_1,
-            hel_hat_1,
+            ns_conv_hat_1,
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array(
@@ -486,8 +460,8 @@ class NavierStokesVelVortPertubation(Equation):
                 v_1_lap_hat_1,
                 v_1_lap_a_new_1,
                 vort_hat_1,
-                hel_hat_1,
-                hel_hat_0,
+                ns_conv_hat_1,
+                ns_conv_hat_0,
                 h_v_hat_1,
                 h_g_hat_1,
                 h_v_hat_0,
@@ -502,7 +476,7 @@ class NavierStokesVelVortPertubation(Equation):
             h_v_hat_2,
             h_g_hat_2,
             vort_hat_2,
-            hel_hat_2,
+            ns_conv_hat_2,
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array(
@@ -524,8 +498,8 @@ class NavierStokesVelVortPertubation(Equation):
                 v_1_lap_hat_2,
                 v_1_lap_a_new_2,
                 vort_hat_2,
-                hel_hat_2,
-                hel_hat_1,
+                ns_conv_hat_2,
+                ns_conv_hat_1,
                 h_v_hat_2,
                 h_g_hat_2,
                 h_v_hat_1,
@@ -542,8 +516,6 @@ class NavierStokesVelVortPertubation(Equation):
         self.append_field("velocity_hat", vel_new_hat)
         v_1_lap_a_new.name = "v_1_lap_hat_a"
         self.append_field("v_1_lap_hat_a", v_1_lap_a_new)
-        self.time += self.dt
-        self.time_step += 1
 
     def perform_time_step(self):
         return self.perform_runge_kutta_step()

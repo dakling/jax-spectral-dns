@@ -822,19 +822,19 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=24, pertubation_factor=0.1):
     Re = 1.5e0
 
     end_time = 8
+    NavierStokesVelVort.max_dt = 1e-5
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Nx=16,
+        Nx=8,
         Ny=Ny,
-        Nz=16,
+        Nz=8,
         end_time=end_time,
         pertubation_factor=pertubation_factor,
     )
-    nse.max_dt = 1e10
     nse.solve()
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
@@ -1096,15 +1096,15 @@ def test_linear_stability():
 
 
 def test_pseudo_2d():
-    Ny = 90
+    Ny = 60
     # Ny = 24
     # Re = 5772.22
-    Re = 9000
+    Re = 6000
+    # Re = 10000
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 64
-    # Nx = 4
+    Nx = 396
     Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
@@ -1116,7 +1116,7 @@ def test_pseudo_2d():
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(10 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
     make_field_file_name = (
@@ -1135,18 +1135,16 @@ def test_pseudo_2d():
         u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
         v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
         w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
+        print("found existing fields, skipping eigenvalue computation")
     except FileNotFoundError:
         print("could not find fields")
         u, v, w = lsc.velocity_field(nse.domain_no_hat)
     u.save_to_file(make_field_file_name("u"))
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
-    u.plot_3d()
-    v.plot_3d()
-    w.plot_3d()
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-7
+    eps = 1e-1
     nse.set_field(
         "velocity_hat",
         0,
@@ -1163,38 +1161,59 @@ def test_pseudo_2d():
     vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
     plot_interval = 1
 
-    def after_time_step(nse):
+    # def after_time_step(nse):
+    def before_time_step(nse):
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
             vel_hat = nse.get_field("velocity_hat", i)
             vel = vel_hat.no_hat()
-            vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
-            vel_1_lap_a.plot_3d()
+            # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
+            # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
-            vel_pert_abs = 0
-            for i in range(3):
-                if i == 0:
-                    vel[i].plot_center(1, vel_x_ana)
-                vel[i].plot_3d()
-                vel[i].plot_center(0)
-                vel[i].plot_center(1)
-                # vel_hat[i].plot_3d()
-                vel_pert[i].name = "velocity_pertubation_" + "xyz"[i]
-                vel_pert[i].plot_3d()
-                vel_pert[i].plot_center(0)
-                vel_pert[i].plot_center(1)
-                vel_pert_abs += vel_pert[i].energy()
-            print("velocity pertubation energy: ", vel_pert_abs)
-            print("velocity y pertubation energy: ", vel_pert[1].energy())
+            vel_pert_energy = 0
+            vort = vel.curl()
+            vort_pert = vel_pert.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel_pert[j].time_step = i
+                vort_pert[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                # vel[j].plot_center(0)
+                vort[j].name = "vort_" + "xyz"[j]
+                vort[j].plot_3d()
+                vort[j].plot_3d(2)
+                # vort[j].plot_center(0)
+                # vort[j].plot_center(1)
+                if j == 0:
+                    vel[j].plot_center(1, vel_x_ana)
+                else:
+                    vel[j].plot_center(1)
+                # vel_hat[j].plot_3d()
+                vel_pert[j].name = "velocity_pertubation_" + "xyz"[j]
+                vel_pert[j].plot_3d()
+                vel_pert[j].plot_3d(2)
+                # vel_pert[j].plot_center(0)
+                # vel_pert[j].plot_center(1)
+                vel_pert_energy += vel_pert[j].energy()
+                vort_pert[j].name = "vort_pertubation_" + "xyz"[j]
+                vort_pert[j].plot_3d()
+                vort_pert[j].plot_3d(2)
+                # vort_pert[j].plot_center(0)
+                # vort_pert[j].plot_center(1)
+            print("velocity pertubation energy: ", vel_pert_energy)
         # input("carry on?")
 
-    nse.after_time_step_fn = after_time_step
+    nse.after_time_step_fn = None
+    nse.before_time_step_fn = before_time_step
 
     nse.solve()
 
 
 def test_dummy_velocity_field():
-    Re = 1e20
+    Re = 1e5
 
     end_time = 50
 
@@ -1210,13 +1229,15 @@ def test_dummy_velocity_field():
         Ny=96,
         Nx=64,
         end_time=end_time,
-        pertubation_factor=1,
+        pertubation_factor=0,
     )
 
+    sc_x = 1.87
     nse.max_iter = 1e10
-    vel_x_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1] ** 2)
+    vel_x_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + jnp.cos(X[0] * 2*jnp.pi / sc_x) + jnp.cos(X[1] * 2*jnp.pi / 1.0)
     vel_y_fn = (
-        lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1] ** 2) ** 2
+        # lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1] ** 2) ** 2
+        lambda X: 0.0 * X[0] * X[1] * X[2] + jnp.cos(X[1] * 2*jnp.pi / 1.0)
     )  # fulfills bcs but breaks conti
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
     vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
@@ -1226,12 +1247,11 @@ def test_dummy_velocity_field():
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
     )
 
-    plot_interval = 2
+    plot_interval = 1
 
     vel = nse.get_initial_field("velocity_hat").no_hat()
-    vel[0].plot_3d()
-    vel[1].plot_3d()
-    vel[2].plot_3d()
+    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
     def after_time_step(nse):
         i = nse.time_step
@@ -1239,6 +1259,7 @@ def test_dummy_velocity_field():
             vel = nse.get_field("velocity_hat", i).no_hat()
             vort_hat, _ = nse.get_vorticity_and_helicity()
             vort = vort_hat.no_hat()
+            vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
             vel[0].plot_3d()
             vel[1].plot_3d()
             vel[2].plot_3d()
@@ -1251,6 +1272,13 @@ def test_dummy_velocity_field():
             vel[0].plot_center(1)
             vel[1].plot_center(1)
             vel[2].plot_center(1)
+            vel_pert_energy = 0
+            vel_pert_abs = 0
+            for j in range(3):
+                vel_pert_energy += vel_pert[j].energy()
+                vel_pert_abs += abs(vel_pert[j])
+            print("velocity pertubation energy: ", vel_pert_energy)
+            print("velocity pertubation abs: ", vel_pert_abs)
 
     nse.after_time_step_fn = after_time_step
     # nse.after_time_step_fn = None
@@ -1295,16 +1323,16 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
 
 
 def test_pseudo_2d_pertubation():
-    Ny = 90
+    Ny = 96
     # Ny = 24
     # Re = 5772.22
     Re = 9000
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 64
+    Nx = 496
     # Nx = 4
-    Nz = 4
+    Nz = 2
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
     end_time = 1
@@ -1315,7 +1343,7 @@ def test_pseudo_2d_pertubation():
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(6 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
     make_field_file_name = (
@@ -1330,21 +1358,19 @@ def test_pseudo_2d_pertubation():
         + str(Nz)
     )
     try:
+        # raise FileNotFoundError()
         u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
         v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
         w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
+        print("found existing fields, skipping eigenvalue computation")
     except FileNotFoundError:
         print("could not find fields")
         u, v, w = lsc.velocity_field(nse.domain_no_hat)
-    # u, v, w = lsc.velocity_field(nse.domain_no_hat)
     u.save_to_file(make_field_file_name("u"))
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
-    u.plot_3d()
-    v.plot_3d()
-    w.plot_3d()
 
-    eps = 1e-0
+    eps = 1e-7
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
     nse.set_field(
         "velocity_hat",
@@ -1360,27 +1386,35 @@ def test_pseudo_2d_pertubation():
 
     plot_interval = 1
 
-    def after_time_step(nse):
+    def before_time_step(nse):
         i = nse.time_step
-        if (i - 1) % plot_interval == 0:
+        if (i) % plot_interval == 0:
             vel_hat = nse.get_field("velocity_hat", i)
             vel = vel_hat.no_hat()
-            vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
-            vel_1_lap_a.plot_3d()
+            # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
+            # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            vel_pert_abs = 0
-            for i in range(3):
-                if i == 0:
-                    vel[i].plot_center(1)
-                vel[i].plot_3d()
-                vel[i].plot_center(0)
-                vel[i].plot_center(1)
-                vel_pert_abs += abs(vel_pert[i])
-            print("velocity pertubation: ", vel_pert_abs)
-            print("velocity y pertubation: ", abs(vel_pert[1]))
+            vel_pert_energy = 0
+            vort = vel.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vort[j].name = "vorticity_" + "xyz"[j]
+                # vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+                vel_pert_energy += vel_pert[j].energy()
+            print("velocity pertubation: ", vel_pert_energy)
+            print("velocity pertubation x: ", vel_pert[0].energy())
+            print("velocity pertubation y: ", vel_pert[1].energy())
+            print("velocity pertubation z: ", vel_pert[2].energy())
         # input("carry on?")
 
-    nse.after_time_step_fn = after_time_step
+    nse.before_time_step_fn = before_time_step
+    nse.after_time_step_fn = None
 
     nse.solve()
 

@@ -116,6 +116,8 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
 
 class Field:
     plotting_dir = "./plots/"
+    plotting_format = ".pdf"
+    # plotting_format = ".png"
     field_dir = "./fields/"
     performance_mode = True
 
@@ -124,6 +126,7 @@ class Field:
         self.domain_no_hat = domain
         self.field = field
         self.name = name
+        self.time_step = 0
 
     @classmethod
     def FromFunc(cls, domain, func=None, name="field"):
@@ -176,7 +179,9 @@ class Field:
         return min(self.field.flatten())
 
     def __neg__(self):
-        return self * (-1.0)
+        ret = self * (-1.0)
+        ret.time_step = self.time_step
+        return ret
 
     def __add__(self, other):
         if self.performance_mode:
@@ -186,7 +191,9 @@ class Field:
                 new_name = self.name + " - " + other.name[1:]
             else:
                 new_name = self.name + " + " + other.name
-        return Field(self.domain, self.field + other.field, name=new_name)
+        ret = Field(self.domain, self.field + other.field, name=new_name)
+        ret.time_step = self.time_step
+        return ret
 
     def __sub__(self, other):
         return self + other * (-1.0)
@@ -200,7 +207,9 @@ class Field:
                     new_name = self.name + " * " + other.name
                 except Exception:
                     new_name = "field"
-            return Field(self.domain, self.field * other.field, name=new_name)
+            ret = Field(self.domain, self.field * other.field, name=new_name)
+            ret.time_step = self.time_step
+            return ret
         else:
             if self.performance_mode:
                 new_name = ""
@@ -216,7 +225,9 @@ class Field:
                         new_name = "(" + str(other) + ") " + self.name
                 except Exception:
                     new_name = "field"
-            return Field(self.domain, self.field * other, name=new_name)
+            ret = Field(self.domain, self.field * other, name=new_name)
+            ret.time_step = self.time_step
+            return ret
 
     __rmul__ = __mul__
     __lmul__ = __mul__
@@ -239,7 +250,9 @@ class Field:
                         new_name = self.name + "/ (" + str(other) + ") "
                 except Exception:
                     new_name = "field"
-            return Field(self.domain, self.field * other, name=new_name)
+            ret = Field(self.domain, self.field * other, name=new_name)
+            ret.time_step = self.time_step
+            return ret
 
     def __abs__(self):
         # TODO use integration or something more sophisticated
@@ -262,7 +275,7 @@ class Field:
         return int
 
     def energy(self):
-        energy = self * self
+        energy = 0.5 * self * self
         return energy.volume_integral()
 
 
@@ -322,7 +335,9 @@ class Field:
                     label=other_field.name,
                 )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + ".pdf")
+            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_latest" + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            plt.close(fig)
         elif self.domain.number_of_dimensions == 2:
             fig, ax = plt.subplots(1, 1)
             other_dim = [i for i in self.all_dimensions() if i != dimension][0]
@@ -346,8 +361,20 @@ class Field:
                 + self.name
                 + "_"
                 + ["x", "y"][dimension]
-                + ".pdf"
+                + "_latest"
+                + self.plotting_format
             )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_cl_"
+                + self.name
+                + "_"
+                + ["x", "y"][dimension]
+                + "_t_"
+                + str(self.time_step)
+                + self.plotting_format
+            )
+            plt.close(fig)
         elif self.domain.number_of_dimensions == 3:
             fig, ax = plt.subplots(1, 1)
             other_dim = [i for i in self.all_dimensions() if i != dimension]
@@ -375,8 +402,20 @@ class Field:
                 + self.name
                 + "_"
                 + ["x", "y", "z"][dimension]
-                + ".pdf"
+                + "_latest"
+                + self.plotting_format
             )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_cl_"
+                + self.name
+                + "_"
+                + ["x", "y", "z"][dimension]
+                + "_t_"
+                + str(self.time_step)
+                + self.plotting_format
+            )
+            plt.close(fig)
         else:
             raise Exception("Not implemented yet")
 
@@ -396,7 +435,10 @@ class Field:
                     label=other_field.name,
                 )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
+            fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            plt.close(fig)
+
 
         elif self.domain.number_of_dimensions == 2:
             fig = plt.figure(figsize=(15, 5))
@@ -424,7 +466,9 @@ class Field:
                         self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field
                     )
                 fig.legend()
-                fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
+                fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
+                fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+                plt.close(fig)
         elif self.domain.number_of_dimensions == 3:
             fig, ax = plt.subplots(1, 3, figsize=(15, 5))
             for dimension in self.all_dimensions():
@@ -447,67 +491,111 @@ class Field:
                         label=other_field.name,
                     )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_" + self.name + ".pdf")
+            fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            plt.close(fig)
         else:
             raise Exception("Not implemented yet")
 
-    def plot_3d(self):
+    def plot_3d(self, direction=None):
+        if type(direction) != NoneType:
+            self.plot_3d_single(direction)
+        else:
+            assert (
+                self.domain.number_of_dimensions == 3
+            ), "Only 3D supported for this plotting method."
+            # fig, ax = plt.subplots(1, 3)
+            fig = plt.figure(layout="constrained")
+            base_len = 100
+            grd = (base_len, base_len)
+            lx = self.domain.scale_factors[0]
+            ly = self.domain.scale_factors[1] * 2
+            lz = self.domain.scale_factors[2]
+            rows_x = int(ly / (ly + lx) * base_len)
+            cols_x = int(lz / (lz + ly) * base_len)
+            rows_y = int(lx / (ly + lx) * base_len)
+            cols_y = int(lz / (lz + ly) * base_len)
+            rows_z = int(lx / (ly + lx) * base_len)
+            cols_z = int(ly / (lz + ly) * base_len)
+            ax = [
+                plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
+                plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
+                plt.subplot2grid(grd, (rows_x, cols_y), rowspan=rows_z, colspan=cols_z),
+            ]
+            # grd = (10, 6)
+            # ax = [
+            #     plt.subplot2grid(grd, (0, 0), rowspan=2, colspan=6),
+            #     plt.subplot2grid(grd, (2, 0), rowspan=6, colspan=6),
+            #     plt.subplot2grid(grd, (8, 0), rowspan=2, colspan=6),
+            # ]
+            ims = []
+            for dim in self.all_dimensions():
+                N_c = len(self.domain.grid[dim]) // 2
+                other_dim = [i for i in self.all_dimensions() if i != dim]
+                ims.append(
+                    ax[dim].imshow(
+                        self.field.take(indices=N_c, axis=dim),
+                        # labels=dict(x="xyz"[other_dim[0]], y="xyz"[other_dim[1]], color="Productivity"),
+                        # x=self.domain.grid[other_dim[0]],
+                        # y=self.domain.grid[other_dim[1]],
+                        interpolation=None,
+                        extent=[
+                            self.domain.grid[other_dim[1]][0],
+                            self.domain.grid[other_dim[1]][-1],
+                            self.domain.grid[other_dim[0]][0],
+                            self.domain.grid[other_dim[0]][-1],
+                        ],
+                    )
+                )
+                ax[dim].set_xlabel("xyz"[other_dim[1]])
+                ax[dim].set_ylabel("xyz"[other_dim[0]])
+            # Find the min and max of all colors for use in setting the color scale.
+            vmin = min(image.get_array().min() for image in ims)
+            vmax = max(image.get_array().max() for image in ims)
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            for im in ims:
+                im.set_norm(norm)
+            fig.colorbar(ims[0], ax=ax, label=self.name)
+            fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_latest" + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            plt.close(fig)
+
+    def plot_3d_single(self, dim):
         assert (
             self.domain.number_of_dimensions == 3
         ), "Only 3D supported for this plotting method."
-        # fig, ax = plt.subplots(1, 3)
-        fig = plt.figure(layout="constrained")
-        base_len = 100
-        grd = (base_len, base_len)
-        lx = self.domain.scale_factors[0]
-        ly = self.domain.scale_factors[1] * 2
-        lz = self.domain.scale_factors[2]
-        rows_x = int(ly / (ly + lx) * base_len)
-        cols_x = int(lz / (lz + ly) * base_len)
-        rows_y = int(lx / (ly + lx) * base_len)
-        cols_y = int(lz / (lz + ly) * base_len)
-        rows_z = int(lx / (ly + lx) * base_len)
-        cols_z = int(ly / (lz + ly) * base_len)
-        ax = [
-            plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
-            plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
-            plt.subplot2grid(grd, (rows_x, cols_y), rowspan=rows_z, colspan=cols_z),
-        ]
-        # grd = (10, 6)
-        # ax = [
-        #     plt.subplot2grid(grd, (0, 0), rowspan=2, colspan=6),
-        #     plt.subplot2grid(grd, (2, 0), rowspan=6, colspan=6),
-        #     plt.subplot2grid(grd, (8, 0), rowspan=2, colspan=6),
-        # ]
+        fig, ax = plt.subplots(1,1)
         ims = []
-        for dim in self.all_dimensions():
-            N_c = len(self.domain.grid[dim]) // 2
-            other_dim = [i for i in self.all_dimensions() if i != dim]
-            ims.append(
-                ax[dim].imshow(
-                    self.field.take(indices=N_c, axis=dim),
-                    # labels=dict(x="xyz"[other_dim[0]], y="xyz"[other_dim[1]], color="Productivity"),
-                    # x=self.domain.grid[other_dim[0]],
-                    # y=self.domain.grid[other_dim[1]],
+        N_c = len(self.domain.grid[dim]) // 2
+        other_dim = [i for i in self.all_dimensions() if i != dim]
+        ims.append(
+            ax.imshow(
+                self.field.take(indices=N_c, axis=dim).T,
+                # labels=dict(x="xyz"[other_dim[0]], y="xyz"[other_dim[1]], color="Productivity"),
+                # x=self.domain.grid[other_dim[0]],
+                # y=self.domain.grid[other_dim[1]],
                     interpolation=None,
-                    extent=[
-                        self.domain.grid[other_dim[1]][0],
-                        self.domain.grid[other_dim[1]][-1],
-                        self.domain.grid[other_dim[0]][0],
-                        self.domain.grid[other_dim[0]][-1],
-                    ],
-                )
+                extent=[
+                    self.domain.grid[other_dim[0]][0],
+                    self.domain.grid[other_dim[0]][-1],
+                    self.domain.grid[other_dim[1]][0],
+                    self.domain.grid[other_dim[1]][-1],
+                ],
             )
-            ax[dim].set_xlabel("xyz"[other_dim[1]])
-            ax[dim].set_ylabel("xyz"[other_dim[0]])
+        )
+        ax.set_xlabel("xyz"[other_dim[0]])
+        ax.set_ylabel("xyz"[other_dim[1]])
         # Find the min and max of all colors for use in setting the color scale.
         vmin = min(image.get_array().min() for image in ims)
         vmax = max(image.get_array().max() for image in ims)
         norm = colors.Normalize(vmin=vmin, vmax=vmax)
         for im in ims:
             im.set_norm(norm)
-        fig.colorbar(ims[0], ax=ax, label=self.name)
-        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + ".pdf")
+        # fig.colorbar(ims[0], ax=ax, label=self.name, orientation="horizontal")
+        fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+        fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_latest" + self.plotting_format)
+        fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+        plt.close(fig)
 
     def all_dimensions(self):
         return self.domain.all_dimensions()
@@ -554,7 +642,9 @@ class Field:
 
     def hat(self):
         # self.field_hat = FourierField.FromField(self)
-        return FourierField.FromField(self)
+        out = FourierField.FromField(self)
+        out.time_step = self.time_step
+        return out
 
     def diff(self, direction, order=1):
         name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
@@ -610,6 +700,7 @@ class Field:
         for dim in self.all_dimensions()[1:]:
             out.append(self.diff(dim))
             out[dim].name = "nabla_" + self.name + "_" + str(dim)
+            out[dim].time_step = self.time_step
         return VectorField(out)
 
     def laplacian(self):
@@ -617,6 +708,7 @@ class Field:
         for dim in self.all_dimensions()[1:]:
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
+        out.time_step = self.time_step
         return out
 
     def perform_explicit_euler_step(self, eq, dt, i):
@@ -679,71 +771,75 @@ class VectorField:
             energy += f.energy()
         return energy
 
-    def __neg__(self):
-        return self * (-1.0)
+#     def __neg__(self):
+#         return self * (-1.0)
 
-    def __add__(self, other):
-        if self.performance_mode:
-            new_name = ""
-        else:
-            if other.name[0] == "-":
-                new_name = self.name + " - " + other.name[1:]
-            else:
-                new_name = self.name + " + " + other.name
-        return FourierField(self.domain_no_hat, self.field + other.field, name=new_name)
+#     def __add__(self, other):
+#         if self.performance_mode:
+#             new_name = ""
+#         else:
+#             if other.name[0] == "-":
+#                 new_name = self.name + " - " + other.name[1:]
+#             else:
+#                 new_name = self.name + " + " + other.name
+#         return FourierField(self.domain_no_hat, self.field + other.field, name=new_name)
 
-    def __sub__(self, other):
-        return self + other * (-1.0)
+#     def __sub__(self, other):
+#         return self + other * (-1.0)
 
-    def __mul__(self, other):
-        if isinstance(other, Field):
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    new_name = self.name + " * " + other.name
-                except Exception:
-                    new_name = "field"
-            return FourierField(self.domain_no_hat, self.field * other.field, name=new_name)
-        else:
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    if other.real >= 0:
-                        new_name = str(other) + self.name
-                    elif other == 1:
-                        new_name = self.name
-                    elif other == -1:
-                        new_name = "-" + self.name
-                    else:
-                        new_name = "(" + str(other) + ") " + self.name
-                except Exception:
-                    new_name = "field"
-            return FourierField(self.domain_no_hat, self.field * other, name=new_name)
+#     def __mul__(self, other):
+#         if isinstance(other, Field):
+#             if self.performance_mode:
+#                 new_name = ""
+#             else:
+#                 try:
+#                     new_name = self.name + " * " + other.name
+#                 except Exception:
+#                     new_name = "field"
+#             return FourierField(self.domain_no_hat, self.field * other.field, name=new_name)
+#         else:
+#             if self.performance_mode:
+#                 new_name = ""
+#             else:
+#                 try:
+#                     if other.real >= 0:
+#                         new_name = str(other) + self.name
+#                     elif other == 1:
+#                         new_name = self.name
+#                     elif other == -1:
+#                         new_name = "-" + self.name
+#                     else:
+#                         new_name = "(" + str(other) + ") " + self.name
+#                 except Exception:
+#                     new_name = "field"
+#             return FourierField(self.domain_no_hat, self.field * other, name=new_name)
 
-    __rmul__ = __mul__
-    __lmul__ = __mul__
+#     __rmul__ = __mul__
+#     __lmul__ = __mul__
 
-    def __truediv__(self, other):
-        if type(other) == Field:
-            raise Exception("Don't know how to divide by another field")
-        else:
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    if other.real >= 0:
-                        new_name = self.name + "/" + other
-                    elif other == 1:
-                        new_name = self.name
-                    elif other == -1:
-                        new_name = "-" + self.name
-                    else:
-                        new_name = self.name + "/ (" + str(other) + ") "
-                except Exception:
-                    new_name = "field"
-            return FourierField(self.domain_no_hat, self.field * other, name=new_name)
+#     def __truediv__(self, other):
+#         if type(other) == Field:
+#             raise Exception("Don't know how to divide by another field")
+#         else:
+#             if self.performance_mode:
+#                 new_name = ""
+#             else:
+#                 try:
+#                     if other.real >= 0:
+#                         new_name = self.name + "/" + other
+#                     elif other == 1:
+#                         new_name = self.name
+#                     elif other == -1:
+#                         new_name = "-" + self.name
+#                     else:
+#                         new_name = self.name + "/ (" + str(other) + ") "
+#                 except Exception:
+#                     new_name = "field"
+#             return FourierField(self.domain_no_hat, self.field * other, name=new_name)
+
+    def get_time_step(self):
+        time_steps = [f.time_step for f in self]
+        return max(time_steps)
 
     # TODO might be unnecessary
     def update_boundary_conditions(self):
@@ -785,7 +881,13 @@ class VectorField:
         out_0 = self[2] * other[1] - self[1] * other[2]
         out_1 = self[0] * other[2] - self[2] * other[0]
         out_2 = self[1] * other[0] - self[0] * other[1]
-        return VectorField([out_0, out_1, out_2])
+
+        time_step = self.get_time_step()
+        out = [out_0, out_1, out_2]
+        for f in out:
+            f.time_step = time_step
+
+        return VectorField(out)
 
     def curl(self):
         assert len(self) == 3, "rotation only defined in 3 dimensions"
@@ -804,7 +906,12 @@ class VectorField:
         curl_1 = u_z - w_x
         curl_2 = v_x - u_y
 
-        return VectorField([curl_0, curl_1, curl_2])
+        time_step = self.get_time_step()
+        out = [curl_0, curl_1, curl_2]
+        for f in out:
+            f.time_step = time_step
+
+        return VectorField(out)
 
     def div(self):
         out = self[0].diff(0)
@@ -1086,7 +1193,9 @@ class FourierField(Field):
 
     def no_hat(self):
         out = self.domain_no_hat.no_hat(self.field)
-        return Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
+        out_field = Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
+        out_field.time_step = self.time_step
+        return out_field
 
     def reconstruct_from_wavenumbers(self, fn, vectorize=False):
         if vectorize:
@@ -1158,7 +1267,9 @@ class FourierField(Field):
         for im in ims:
             im.set_norm(norm)
         fig.colorbar(ims[0], ax=ax, label=self.name)
-        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + ".pdf")
+        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_latest" + self.plotting_format)
+        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+        plt.close(fig)
 
 
 class FourierFieldSlice(FourierField):

@@ -41,14 +41,29 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     )
     vort_new = domain.curl(vel_new)
 
-    hel_new = domain.cross_product(vel_new, vort_new)
+    vel_new_sq = 0
+    for i in domain.all_dimensions():
+        vel_new_sq += vel_new[i] * vel_new[i]
+    vel_new_sq_nabla = []
+    for i in domain.all_dimensions():
+        vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
+
+    hel_new = domain.cross_product(vel_new, vort_new) + 1/2 * jnp.array(vel_new_sq_nabla)
 
     h_v_new = (
         - domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
         + domain.diff(hel_new[1], 0, 2)
         + domain.diff(hel_new[1], 2, 2)
     )
-    h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
+
+    h_g_new = (domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0))
+
+    # conv_ns_new = []
+    # for i in domain.all_dimensions():
+    #     out = 0
+    #     for k in domain.all_dimensions():
+    #         out += vel_new[k] * domain.diff(vel_new[i], k)
+    #     conv_ns_new.append(out)
 
     h_v_new_field = Field(domain, h_v_new, name="h_v_new")
     h_g_new_field = Field(domain, h_g_new, name="h_g_new")
@@ -57,29 +72,44 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     h_g_new_field.plot_center(0)
     h_g_new_field.plot_center(1)
     lap_v =  domain.diff(vel_new[1], 0, 2) + domain.diff(vel_new[1], 1, 2) + domain.diff(vel_new[1], 2, 2)
-    visc_v = 1/6000 * (domain.diff(lap_v, 0, 2) + domain.diff(lap_v, 1, 2) + domain.diff(lap_v, 2, 2))
+    visc_v = 1/1e5 * (domain.diff(lap_v, 0, 2) + domain.diff(lap_v, 1, 2) + domain.diff(lap_v, 2, 2))
     visc_v_field = Field(domain, visc_v, name="visc_v")
     visc_v_field.plot_center(0)
-    visc_v_field.plot_center(1)
-    hel_1 = Field(domain, hel_new[1], name="hel_1")
-    hel_1.plot_center(0)
-    hel_1.plot_center(1)
+    # visc_v_field.plot_center(1)
+    visc_v_field.plot_center(1, h_v_new_field)
+    hel_new_field_0 = Field(domain, hel_new[0], name="hel_0")
+    hel_new_field_0.plot_3d(2)
+    hel_new_field_0.plot_center(0)
+    hel_new_field_0.plot_center(1)
+    hel_new_field_1 = Field(domain, hel_new[1], name="hel_1")
+    hel_new_field_1.plot_3d(2)
+    hel_new_field_1.plot_center(0)
+    hel_new_field_1.plot_center(1)
+    hel_new_field_2 = Field(domain, hel_new[2], name="hel_2")
+    hel_new_field_2.plot_3d(2)
+    # conv_ns_0 = Field(domain, conv_ns_new[0], name="conv_ns_0")
+    # conv_ns_0.plot_center(0)
+    # conv_ns_0.plot_center(1, hel_new_field_0)
+    # conv_ns_1 = Field(domain, conv_ns_new[1], name="conv_ns_1")
+    # conv_ns_1.plot_center(0)
+    # conv_ns_1.plot_center(1)
     # raise Exception("break")
     # input("carry on? (from update_nonlinear_terms)")
 
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
-    hel_hat_new = [domain.field_hat(hel_new[i]) for i in domain.all_dimensions()]
+    # conv_ns_hat_new = [domain.field_hat(conv_ns_new[i]) for i in domain.all_dimensions()]
+    conv_ns_hat_new = [domain.field_hat(hel_new[i]) for i in domain.all_dimensions()]
 
-    return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
+    return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
 
 
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
     max_cfl = 0.7
     # max_dt = 1e10
-    max_dt = 1e-2
+    max_dt = 1e-8
 
     def __init__(self, shape, velocity_field, **params):
         domain = velocity_field[0].domain
@@ -89,7 +119,8 @@ class NavierStokesVelVort(Equation):
         v_1_lap_hat_a.name="v_1_lap_hat_a"
         super().__init__(domain, velocity_field, v_1_lap_hat_a, **params)
         self.Re = params["Re"]
-        self.flow_rate = self.get_flow_rate()
+        # self.flow_rate = self.get_flow_rate()
+        self.update_flow_rate()
         self.dt = self.get_time_step()
         self.poisson_mat = None
         self.lhs_mat_inv = []
@@ -124,7 +155,13 @@ class NavierStokesVelVort(Equation):
 
     def get_flow_rate(self):
         vel_hat = self.get_latest_field("velocity_hat")
-        return vel_hat[0].no_hat().integrate(1, 1, 0.0).field[0, 0, 0]
+        return vel_hat[0].no_hat().definite_integral(1)[0,0]
+        # print(vel_hat[0].no_hat().definite_integral(1)[-1,-1])
+        # print(vel_hat[0].no_hat().volume_integral()/(self.domain.scale_factors[0] * self.domain.scale_factors[2]))
+        # return vel_hat[0].no_hat().volume_integral()/(self.domain.scale_factors[0] * self.domain.scale_factors[2])
+
+    def update_flow_rate(self):
+        self.flow_rate = self.get_flow_rate()
 
     def get_cheb_mat_2_homogeneous_dirichlet(self):
         return self.get_initial_field("velocity_hat")[
@@ -170,30 +207,6 @@ class NavierStokesVelVort(Equation):
             0
         ].assemble_poisson_matrix()
 
-    def update_nonlinear_terms(self, vel_hat_new):
-        vel_new = vel_hat_new.no_hat()
-        vort_new = vel_new.curl()
-
-        hel_new = vel_new.cross_product(vort_new)
-
-        h_v_new = (
-            -(hel_new[0].diff(0) + hel_new[2].diff(2)).diff(1)
-            + hel_new[1].diff(0, 2)
-            + hel_new[1].diff(2, 2)
-        )
-        h_g_new = hel_new[0].diff(2) - hel_new[2].diff(0)
-
-        h_v_hat_new = h_v_new.hat()
-        h_g_hat_new = h_g_new.hat()
-        vort_hat_new = vort_new.hat()
-        hel_hat_new = hel_new.hat()
-
-        # continuity_error = abs(vel_new.div())
-        # print("continuity error ", continuity_error)
-        # print("relative continuity error ", continuity_error / abs(vel_new[1]))
-
-        return (h_v_hat_new, h_g_hat_new, vort_hat_new, hel_hat_new)
-
     def perform_runge_kutta_step(self):
         start_time = time.time()
 
@@ -221,8 +234,8 @@ class NavierStokesVelVort(Equation):
             v_1_lap_hat,
             v_1_lap_hat_a,
             vort_hat,
-            hel_hat,
-            hel_hat_old,
+            conv_ns_hat,
+            conv_ns_hat_old,
             h_v_hat,
             h_g_hat,
             h_v_hat_old,
@@ -240,17 +253,17 @@ class NavierStokesVelVort(Equation):
                 L = 1 / Re * D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
-                phi_hat = v_1_lap_hat[kx, :, kz]
+                phi_hat_lap = v_1_lap_hat[kx, :, kz]
 
-                N_new = h_v_hat[kx, :, kz]
-                N_old = h_v_hat_old[kx, :, kz]
-                phi_hat_new = lhs_mat_inv @ (
-                    rhs_mat @ phi_hat
+                N_new = -h_v_hat[kx, :, kz]
+                N_old = -h_v_hat_old[kx, :, kz]
+                phi_hat_lap_new = lhs_mat_inv @ (
+                    rhs_mat @ phi_hat_lap
                     + (self.dt * gamma[step]) * N_new
                     + (self.dt * xi[step]) * N_old
                 )
 
-                v_1_lap_hat_new_p = phi_hat_new
+                v_1_lap_hat_new_p = phi_hat_lap_new
 
 
                 # compute velocity in y direction
@@ -330,17 +343,17 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 vort_1_hat = vort_hat[1]
-                phi_hat = vort_1_hat[kx, :, kz]
+                phi_vort_hat = vort_1_hat[kx, :, kz]
 
-                N_new = h_g_hat[kx, :, kz]
-                N_old = h_g_hat_old[kx, :, kz]
-                phi_hat_new = lhs_mat_inv @ (
-                    rhs_mat @ phi_hat
+                N_new = -h_g_hat[kx, :, kz]
+                N_old = -h_g_hat_old[kx, :, kz]
+                phi_hat_vort_new = lhs_mat_inv @ (
+                    rhs_mat @ phi_vort_hat
                     + (self.dt * gamma[step]) * N_new
                     + (self.dt * xi[step]) * N_old
                 )
 
-                vort_1_hat_new = phi_hat_new
+                vort_1_hat_new = phi_hat_vort_new
 
                 # compute velocities in x and z directions
                 def rk_00():
@@ -358,7 +371,7 @@ class NavierStokesVelVort(Equation):
                     dz = Nz * (2 * jnp.pi / domain.scale_factors[2]) ** (2)
                     N_00_new = (
                         jnp.block(
-                            [hel_hat[0][kx__, :, kz__], hel_hat[2][kx__, :, kz__]]
+                            [-conv_ns_hat[0][kx__, :, kz__], -conv_ns_hat[2][kx__, :, kz__]]
                         )
                         - dPdx
                         * (dx * dz) ** (1 / 2)
@@ -382,8 +395,8 @@ class NavierStokesVelVort(Equation):
                     N_00_old = (
                         jnp.block(
                             [
-                                hel_hat_old[0][kx__, :, kz__],
-                                hel_hat_old[2][kx__, :, kz__],
+                                -conv_ns_hat_old[0][kx__, :, kz__],
+                                -conv_ns_hat_old[2][kx__, :, kz__],
                             ]
                         )
                         - dPdx
@@ -456,7 +469,7 @@ class NavierStokesVelVort(Equation):
             h_v_hat_0,
             h_g_hat_0,
             vort_hat_0,
-            hel_hat_0,
+            conv_ns_hat_0,
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
@@ -469,8 +482,8 @@ class NavierStokesVelVort(Equation):
                 v_1_lap_hat_0,
                 v_1_lap_hat_a_0,
                 vort_hat_0,
-                hel_hat_0,
-                hel_hat_0,
+                conv_ns_hat_0,
+                conv_ns_hat_0,
                 h_v_hat_0,
                 h_g_hat_0,
                 h_v_hat_0,
@@ -487,7 +500,7 @@ class NavierStokesVelVort(Equation):
             h_v_hat_1,
             h_g_hat_1,
             vort_hat_1,
-            hel_hat_1,
+            conv_ns_hat_1,
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array(
@@ -506,8 +519,8 @@ class NavierStokesVelVort(Equation):
                 v_1_lap_hat_1,
                 v_1_lap_a_new_1,
                 vort_hat_1,
-                hel_hat_1,
-                hel_hat_0,
+                conv_ns_hat_1,
+                conv_ns_hat_0,
                 h_v_hat_1,
                 h_g_hat_1,
                 h_v_hat_0,
@@ -522,7 +535,7 @@ class NavierStokesVelVort(Equation):
             h_v_hat_2,
             h_g_hat_2,
             vort_hat_2,
-            hel_hat_2,
+            conv_ns_hat_2,
         ) = update_nonlinear_terms_high_performance(
             self.domain_no_hat,
             jnp.array(
@@ -541,8 +554,8 @@ class NavierStokesVelVort(Equation):
                 v_1_lap_hat_2,
                 v_1_lap_a_new_2,
                 vort_hat_2,
-                hel_hat_2,
-                hel_hat_1,
+                conv_ns_hat_2,
+                conv_ns_hat_1,
                 h_v_hat_2,
                 h_g_hat_2,
                 h_v_hat_1,
@@ -559,11 +572,212 @@ class NavierStokesVelVort(Equation):
         self.append_field("velocity_hat", vel_new_hat)
         v_1_lap_a_new.name = "v_1_lap_hat_a"
         self.append_field("v_1_lap_hat_a", v_1_lap_a_new)
-        self.time += self.dt
-        self.time_step += 1
+
+    def perform_explicit_euler_step(self):
+
+        self.dt = self.get_time_step()
+
+        Re = self.Re
+        dPdx = -self.flow_rate * 3 / 2 / Re
+        # dPdx = - 1
+        # dPdx = 0
+        dPdz = 0  # spanwise pressure gradient should be negligble
+        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
+        # D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
+        n = D2_hom_diri.shape[0]
+        Z = jnp.zeros((n, n))
+        L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+
+        vel_hat = self.get_latest_field("velocity_hat")
+
+        def perform_single_exp_euler_step_for_single_wavenumber(
+            step,
+            v_1_lap_hat,
+            v_1_lap_hat_a,
+            vort_hat,
+            conv_ns_hat,
+            h_v_hat,
+            h_g_hat,
+        ):
+            def fn(K):
+                domain = self.domain
+                kx = K[0]
+                kz = K[1]
+                kx_ = domain.grid[0][kx]
+                kz_ = domain.grid[2][kz]
+                # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
+
+                # wall-normal velocity
+                # p-part
+                L = 1 / Re * D2_hom_diri
+
+                phi_hat = v_1_lap_hat[kx, :, kz]
+
+                N_new = -h_v_hat[kx, :, kz]
+                phi_hat_new = phi_hat + self.dt * (L @ phi_hat + N_new)
+                v_1_lap_hat_new_p = phi_hat_new
+
+
+                # compute velocity in y direction
+                v_1_lap_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
+                    v_1_lap_hat_new_p, 1
+                )
+                v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
+                    v_1_lap_hat_new_p, self.poisson_mat, kx, kz
+                )
+                v_1_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
+                    v_1_hat_new_p, 1
+                )
+
+                # a-part
+                L_a = 1 / Re * D2_hom_diri
+
+                phi_hat_a = jnp.block([1.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0])
+
+                phi_hat_new_a = phi_hat_a + self.dt * (L_a @ phi_hat_a)
+
+                v_1_lap_new_a = phi_hat_new_a
+                # compute velocity in y direction
+                v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
+                    v_1_lap_new_a, self.poisson_mat, kx, kz
+                )
+                v_1_hat_new_a = domain.update_boundary_conditions_fourier_field_slice(
+                    v_1_hat_new_a, 1
+                )
+                v_1_hat_new_b = jnp.flip(v_1_hat_new_a)
+
+                # reconstruct velocity s.t. hom. Neumann is fulfilled
+                v_1_hat_new_p_diff = domain.diff_fourier_field_slice(v_1_hat_new_p, 1)
+                v_1_hat_new_a_diff = domain.diff_fourier_field_slice(v_1_hat_new_a, 1)
+                v_1_hat_new_b_diff = domain.diff_fourier_field_slice(v_1_hat_new_b, 1)
+                M = jnp.array([[v_1_hat_new_a_diff[0], v_1_hat_new_b_diff[0]],
+                               [v_1_hat_new_a_diff[-1], v_1_hat_new_b_diff[-1]]])
+                R = jnp.array([-v_1_hat_new_p_diff[0], -v_1_hat_new_p_diff[-1]])
+                AB = jnp.linalg.solve(M, R)
+                a, b = AB[0], AB[1]
+                v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
+                v_1_lap_new_b = jnp.flip(v_1_lap_new_a)
+                v_1_lap_hat_new = v_1_lap_hat_new_p + a * v_1_lap_new_a + b * v_1_lap_new_b
+                v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(v_1_hat_new, 1)
+
+                # vorticity
+                L = 1 / Re * D2_hom_diri
+                lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
+
+                vort_1_hat = vort_hat[1]
+                phi_hat = vort_1_hat[kx, :, kz]
+
+                N_new = -h_g_hat[kx, :, kz]
+                phi_hat_new = phi_hat + self.dt * (L @ phi_hat + N_new)
+                vort_1_hat_new = phi_hat_new
+
+                # compute velocities in x and z directions
+                def rk_00():
+                    kx__ = 0
+                    kz__ = 0
+
+                    v_hat = jnp.block(
+                        [vel_hat[0][kx__, :, kz__], vel_hat[2][kx__, :, kz__]]
+                    )
+                    Nx = len(domain.grid[0])
+                    Nz = len(domain.grid[2])
+                    dx = Nx * (2 * jnp.pi / domain.scale_factors[0]) ** (2)
+                    dz = Nz * (2 * jnp.pi / domain.scale_factors[2]) ** (2)
+                    N_00_new = (
+                        jnp.block(
+                            [-conv_ns_hat[0][kx__, :, kz__], -conv_ns_hat[2][kx__, :, kz__]]
+                        )
+                        - dPdx
+                        * (dx * dz) ** (1 / 2)
+                        * domain.aliasing
+                        * jnp.block(
+                            [
+                                jnp.ones(vel_hat[0][kx__, :, kz__].shape),
+                                jnp.zeros(vel_hat[2][kx__, :, kz__].shape),
+                            ]
+                        )
+                        - dPdz
+                        * (dx * dz) ** (1 / 2)
+                        * domain.aliasing
+                        * jnp.block(
+                            [
+                                jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
+                                jnp.ones(vel_hat[2][kx__, :, kz__].shape),
+                            ]
+                        )
+                    )
+                    v_hat_new = v_hat + self.dt * (L_NS @ v_hat + N_00_new)
+                    return (v_hat_new[:n], v_hat_new[n:])
+
+                def rk_not_00(kx, kz):
+                    kx_ = domain.grid[0][kx]
+                    kz_ = domain.grid[2][kz]
+                    minus_kx_kz_sq = -(kx_**2 + kz_**2)
+                    v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1)
+                    v_0_new = (
+                        -1j * kx_ * v_1_new_y + 1j * kz_ * vort_1_hat_new
+                    ) / minus_kx_kz_sq
+                    v_2_new = (
+                        -1j * kz_ * v_1_new_y - 1j * kx_ * vort_1_hat_new
+                    ) / minus_kx_kz_sq
+                    return (v_0_new, v_2_new)
+
+                v_0_new_field, v_2_new_field = jax.lax.cond(
+                    kx == 0,
+                    lambda kx___, kz___: jax.lax.cond(
+                        kz___ == 0,
+                        lambda _, __: rk_00(),
+                        lambda kx__, kz__: rk_not_00(kx__, kz__),
+                        kx___,
+                        kz___,
+                    ),
+                    lambda kx___, kz___: rk_not_00(kx___, kz___),
+                    kx,
+                    kz,
+                )
+                return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_new_a)
+
+            return fn
+        v_1_hat_0 = vel_hat[1]
+        v_1_lap_hat_0 = v_1_hat_0.laplacian()
+        v_1_lap_hat_a_0 = self.get_latest_field("v_1_lap_hat_a")
+
+        (
+            h_v_hat_0,
+            h_g_hat_0,
+            vort_hat_0,
+            conv_ns_hat_0,
+        ) = update_nonlinear_terms_high_performance(
+            self.domain_no_hat,
+            jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
+        )
+
+        # solve equations
+        vel_new_hat, other_field = vel_hat.reconstruct_from_wavenumbers(
+            perform_single_exp_euler_step_for_single_wavenumber(
+                0,
+                v_1_lap_hat_0,
+                v_1_lap_hat_a_0,
+                vort_hat_0,
+                conv_ns_hat_0,
+                h_v_hat_0,
+                h_g_hat_0,
+            ),
+            1
+        )
+        # vel_new_hat.update_boundary_conditions()
+        v_1_lap_a_new = other_field[0]
+
+        vel_new_hat.name = "velocity_hat"
+        for i in jnp.arange(len(vel_new_hat)):
+            vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
+        self.append_field("velocity_hat", vel_new_hat)
+        v_1_lap_a_new.name = "v_1_lap_hat_a"
+        self.append_field("v_1_lap_hat_a", v_1_lap_a_new)
 
     def perform_time_step(self):
-        return self.perform_runge_kutta_step()
+        # return self.perform_runge_kutta_step()
+        return self.perform_explicit_euler_step()
 
 
 def solve_navier_stokes_laminar(
@@ -591,7 +805,8 @@ def solve_navier_stokes_laminar(
         * (
             jnp.pi
             / 3
-            * jnp.cos(X[1] * jnp.pi / 2)
+            # * jnp.cos(X[1] * jnp.pi / 2)
+            * (1 - X[1]**2)**2
             * jnp.cos(3 * X[0])
             * jnp.cos(4 * X[2])
         )

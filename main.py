@@ -5,6 +5,9 @@ import jax.scipy as jsp
 import jax.numpy as jnp
 import numpy as np
 import os
+from pathlib import Path
+# import warnings
+# warnings.filterwarnings("ignore")
 
 jax.config.update("jax_enable_x64", True)
 
@@ -35,12 +38,19 @@ except:
     print("Unable to load")
 from test import run_all_tests, run_all_tests_profiling
 
-
-def main():
+def init():
     newpaths = ['./fields/', "./plots/"]
     for newpath in newpaths:
         if not os.path.exists(newpath):
             os.makedirs(newpath)
+    # clean plotting dir
+    [f.unlink() for f in Path(newpaths[1]).glob("*.pdf") if f.is_file()]
+    [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
+    [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
+
+def main():
+    init()
+
     # optimize_fd()
     # optimize_spectral()
     # optimize_channel()
