@@ -1297,39 +1297,65 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
         end_time=end_time,
         pertubation_factor=pertubation_factor,
     )
-    nse.max_dt = 1e10
+
+    plot_interval = 1
+    def before_time_step(nse):
+        i = nse.time_step
+        if (i) % plot_interval == 0:
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
+            vel_pert = VectorField([vel[0], vel[1], vel[2]])
+            vel_pert_energy = 0
+            vort = vel.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vort[j].name = "vorticity_" + "xyz"[j]
+                # vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+                vel_pert_energy += vel_pert[j].energy()
+            print("velocity pertubation: ", vel_pert_energy)
+            print("velocity pertubation x: ", vel_pert[0].energy())
+            print("velocity pertubation y: ", vel_pert[1].energy())
+            print("velocity pertubation z: ", vel_pert[2].energy())
+        # input("carry on?")
+
+    nse.before_time_step_fn = before_time_step
+    # nse.max_dt = 1e10
     nse.solve()
 
-    vel_x_fn_ana = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     print("Doing post-processing")
     for i in jnp.arange(nse.time_step)[-4:]:
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
-        vel[0].plot_center(1, vel_0[0], vel_x_ana)
+        vel[0].plot_center(1, vel_0[0])
         vel[1].plot_center(1, vel_0[1])
         vel[2].plot_center(1, vel_0[2])
-        tol = 6e-5
-        print(abs(vel[0] - vel_x_ana))
+        tol = 1.7e-5
+        print(abs(vel[0]))
         print(abs(vel[1]))
         print(abs(vel[2]))
         # check that the simulation is really converged
-        assert abs(vel[0] - vel_x_ana) < tol
+        assert abs(vel[0]) < tol
         assert abs(vel[1]) < tol
         assert abs(vel[2]) < tol
 
 
 def test_pseudo_2d_pertubation():
-    Ny = 96
+    Ny = 64
     # Ny = 24
     # Re = 5772.22
     Re = 9000
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 496
+    Nx = 96
     # Nx = 4
     Nz = 2
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
@@ -1432,7 +1458,7 @@ def run_all_tests():
     # test_definite_integral()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
@@ -1441,7 +1467,7 @@ def run_all_tests():
     # test_pseudo_2d()
     # test_dummy_velocity_field()
     # test_pertubation_laminar()
-    # test_pseudo_2d_pertubation()
+    test_pseudo_2d_pertubation()
 
 
 def run_all_tests_profiling():

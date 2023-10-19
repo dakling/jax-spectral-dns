@@ -16,8 +16,8 @@ NoneType = type(None)
 
 class Domain:
 
-    aliasing = 3 / 2
-    # aliasing = 1
+    # aliasing = 3 / 2
+    aliasing = 1
 
     def __init__(self, shape, periodic_directions=None, scale_factors=None):
         self.number_of_dimensions = len(shape)

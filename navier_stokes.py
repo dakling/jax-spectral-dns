@@ -121,8 +121,9 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
-    # max_cfl = 0.7
-    max_cfl = 5e-2
+    max_cfl = 0.7
+    # max_cfl = 0.7/10
+    # max_cfl = 5e-2
     max_dt = 1e10
     # max_dt = 1e-8
 
@@ -130,11 +131,12 @@ class NavierStokesVelVort(Equation):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
-        v_1_lap_hat_a = FourierField.FromFunc(
-            self.domain_no_hat, lambda X: (X[1] + 1) / 2 + 0.0 * X[0] * X[2]
-        )
-        v_1_lap_hat_a.name = "v_1_lap_hat_a"
-        super().__init__(domain, velocity_field, v_1_lap_hat_a, **params)
+        # v_1_lap_hat_a = FourierField.FromFunc(
+        #     self.domain_no_hat, lambda X: (X[1] + 1) / 2 + 0.0 * X[0] * X[2]
+        # )
+        # v_1_lap_hat_a.name = "v_1_lap_hat_a"
+        # super().__init__(domain, velocity_field, v_1_lap_hat_a, **params)
+        super().__init__(domain, velocity_field, **params)
         self.Re = params["Re"]
         # self.flow_rate = self.get_flow_rate()
         self.update_flow_rate()
@@ -346,10 +348,6 @@ class NavierStokesVelVort(Equation):
                 AB = jnp.linalg.solve(M, R)
                 a, b = AB[0], AB[1]
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
-                v_1_lap_new_b = jnp.flip(v_1_lap_new_a)
-                v_1_lap_hat_new = (
-                    v_1_lap_hat_new_p + a * v_1_lap_new_a + b * v_1_lap_new_b
-                )
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new, 1
                 )
@@ -828,15 +826,17 @@ class NavierStokesVelVort(Equation):
 
         Re = self.Re
         dPdx = -self.flow_rate * 3 / 2 / Re
+        # dPdx = -self.flow_rate * 3 / 2 / Re * (5/8 + 1/16 - 1/32)
         # dPdx = - 1
         # dPdx = 0
         dPdz = 0  # spanwise pressure gradient should be negligble
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
+        D2_hom_diri_with_cols = self.get_cheb_mat_2_homogeneous_dirichlet()
         # D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
-        L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        L_NS = 1 / Re * jnp.block([[D2_hom_diri_with_cols, Z], [Z, D2_hom_diri_with_cols]])
         I = jnp.eye(n)
 
         vel_hat = self.get_latest_field("velocity_hat")
@@ -844,7 +844,6 @@ class NavierStokesVelVort(Equation):
 
         def perform_single_cn_ab_step_for_single_wavenumber(
             v_1_lap_hat,
-            v_1_lap_hat_a,
             vort_hat,
             conv_ns_hat,
             conv_ns_hat_old,
@@ -859,11 +858,11 @@ class NavierStokesVelVort(Equation):
                 kz = K[1]
                 kx_ = domain.grid[0][kx]
                 kz_ = domain.grid[2][kz]
-                # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
 
                 # wall-normal velocity
                 # p-part
-                L_p_y = 1 / Re * D2_hom_diri
+                # L_p_y = 1 / Re * D2_hom_diri
+                L_p_y = 1 / Re * D2_hom_diri_with_cols
 
                 L_p = L_p_y + I * (-(kx_**2 + kz_**2))
 
@@ -891,17 +890,15 @@ class NavierStokesVelVort(Equation):
                     v_1_hat_new_p, 1
                 )
 
-                # a-part
-                # TODO do this like in kmm? right now this is still hoyas-style
-                L_a_y = 1 / Re * D2_hom_diri
+                # a-part -> can be solved analytically
+                k = jnp.sqrt(2 * Re / dt / (1 - dt/2*Re * (- kx_**2 - kz_**2)))
+                A = jnp.exp(2*k) / (jnp.exp(3*k) - jnp.exp(k))
+                B = - 1 / (jnp.exp(3*k) - jnp.exp(k))
+                fn_ana = lambda y: A * jnp.exp(k * y) + B * jnp.exp(- k * y)
 
-                L_a = L_a_y + I * (-(kx_**2 + kz_**2))
-
-                rhs_mat_a = I + dt / (2 * Re) * L_a
-                lhs_mat_a = I - dt / (2 * Re) * L_a
-                phi_a_hat = jnp.block([1.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0])
-
-                phi_a_hat_new = jnp.linalg.solve(lhs_mat_a, rhs_mat_a @ phi_a_hat)
+                ys = self.domain_no_hat.grid[1]
+                # phi_a_hat_new = jnp.array(list(map(fn_ana, ys)))
+                phi_a_hat_new = jax.lax.map(fn_ana, ys)
 
                 v_1_lap_new_a = phi_a_hat_new
                 # compute velocity in y direction
@@ -927,13 +924,12 @@ class NavierStokesVelVort(Equation):
                 AB = jnp.linalg.solve(M, R)
                 a, b = AB[0], AB[1]
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
-                v_1_lap_new_b = jnp.flip(v_1_lap_new_a)
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new, 1
                 )
 
                 # vorticity
-                L_vort_y = 1 / Re * D2_hom_diri
+                L_vort_y = 1 / Re * D2_hom_diri_with_cols
                 L_vort = L_vort_y + I * (-(kx_**2 + kz_**2))
 
                 rhs_mat_vort = I + dt / (2 * Re) * L_vort
@@ -1049,13 +1045,12 @@ class NavierStokesVelVort(Equation):
                     kx,
                     kz,
                 )
-                return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_new_a)
+                return (v_0_new_field, v_1_hat_new, v_2_new_field)
 
             return fn
 
         v_1_hat_0 = vel_hat[1]
         v_1_lap_hat_0 = v_1_hat_0.laplacian()
-        v_1_lap_hat_a_0 = self.get_latest_field("v_1_lap_hat_a")
 
         (
             h_v_hat_0,
@@ -1080,10 +1075,9 @@ class NavierStokesVelVort(Equation):
         )
 
         # solve equations
-        vel_new_hat, other_field = vel_hat.reconstruct_from_wavenumbers(
+        vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
             perform_single_cn_ab_step_for_single_wavenumber(
                 v_1_lap_hat_0,
-                v_1_lap_hat_a_0,
                 vort_hat_0,
                 conv_ns_hat_0,
                 conv_ns_hat_0_old,
@@ -1092,17 +1086,13 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_0_old,
                 h_g_hat_0_old,
             ),
-            1,
         )
         vel_new_hat.update_boundary_conditions()
-        v_1_lap_a_new = other_field[0]
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
-        v_1_lap_a_new.name = "v_1_lap_hat_a"
-        self.append_field("v_1_lap_hat_a", v_1_lap_a_new)
 
     def perform_time_step(self):
         # return self.perform_runge_kutta_step()
