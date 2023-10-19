@@ -891,10 +891,16 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # a-part -> can be solved analytically
-                k = jnp.sqrt(2 * Re / dt / (1 - dt/2*Re * (- kx_**2 - kz_**2)))
+                denom = jnp.sqrt((2*Re - dt * (- kx_**2 - kz_**2)))
+                # k = jnp.min(jnp.array([jnp.sqrt(2 * Re / dt) / denom, 200]))
+                k = jnp.min(jnp.array([jnp.sqrt(dt) / denom, 1e20]))
                 A = jnp.exp(2*k) / (jnp.exp(3*k) - jnp.exp(k))
                 B = - 1 / (jnp.exp(3*k) - jnp.exp(k))
-                fn_ana = lambda y: A * jnp.exp(k * y) + B * jnp.exp(- k * y)
+                fn_ana = lambda y: jax.lax.cond(
+                    abs(denom) > 1e-30,
+                    lambda _: (A * jnp.exp(k * y) + B * jnp.exp(- k * y)),
+                    lambda _: ((y + 1)/2),
+                    denom)
 
                 ys = self.domain_no_hat.grid[1]
                 # phi_a_hat_new = jnp.array(list(map(fn_ana, ys)))

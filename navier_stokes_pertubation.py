@@ -602,8 +602,9 @@ class NavierStokesVelVortPertubation(Equation):
                 )
 
                 # a-part -> can be solved analytically
-                denom = jnp.sqrt((1 - dt/2*Re * (- kx_**2 - kz_**2)))
-                k = jnp.sqrt(2 * Re / dt) / denom
+                denom = jnp.sqrt((2*Re - dt * (- kx_**2 - kz_**2)))
+                # k = jnp.min(jnp.array([jnp.sqrt(2 * Re / dt) / denom, 200]))
+                k = jnp.min(jnp.array([jnp.sqrt(dt) / denom, 1e20]))
                 A = jnp.exp(2*k) / (jnp.exp(3*k) - jnp.exp(k))
                 B = - 1 / (jnp.exp(3*k) - jnp.exp(k))
                 fn_ana = lambda y: jax.lax.cond(
@@ -615,6 +616,13 @@ class NavierStokesVelVortPertubation(Equation):
                 ys = self.domain_no_hat.grid[1]
                 # phi_a_hat_new = jnp.array(list(map(fn_ana, ys)))
                 phi_a_hat_new = jax.lax.map(fn_ana, ys)
+                # if jnp.isnan(jnp.sum(phi_a_hat_new)):
+                #     print(kx, " ", kz)
+                #     print(k)
+                #     print(A)
+                #     print(B)
+                #     print(fn_ana(0))
+                # assert not jnp.isnan(jnp.sum(phi_a_hat_new)), "nan found in phi_a_hat_0, denom: " + str(denom)
 
                 v_1_lap_new_a = phi_a_hat_new
                 # compute velocity in y direction
@@ -780,6 +788,12 @@ class NavierStokesVelVortPertubation(Equation):
                 [vel_base_hat[0].field, vel_base_hat[1].field, vel_base_hat[2].field]
             ),
         )
+        assert not jnp.isnan(jnp.sum(v_1_lap_hat_0.field)), "nan found in v_1_lap_hat_0"
+        assert not jnp.isnan(jnp.sum(h_v_hat_0)), "nan found in h_v_hat_0"
+        assert not jnp.isnan(jnp.sum(h_g_hat_0)), "nan found in h_g_hat_0"
+        for i in range(3):
+            assert not jnp.isnan(jnp.sum(vort_hat_0[i])), "nan found in vort_hat_0_" + str(i)
+            assert not jnp.isnan(jnp.sum(conv_ns_hat_0[i])), "nan found in conv_ns_hat_0" + str(i)
         # old step (# TODO cache this)
         (
             h_v_hat_0_old,
@@ -795,6 +809,10 @@ class NavierStokesVelVortPertubation(Equation):
                 [vel_base_hat[0].field, vel_base_hat[1].field, vel_base_hat[2].field]
             ),
         )
+        assert not jnp.isnan(jnp.sum(h_v_hat_0_old)), "nan found in h_v_hat_0_old"
+        assert not jnp.isnan(jnp.sum(h_g_hat_0_old)), "nan found in h_g_hat_0_old"
+        for i in range(3):
+            assert not jnp.isnan(jnp.sum(conv_ns_hat_0_old[i])), "nan found in conv_ns_hat_0_old" + str(i)
 
         # solve equations
         vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
@@ -810,6 +828,9 @@ class NavierStokesVelVortPertubation(Equation):
             ),
             1,
         )
+        assert not jnp.isnan(jnp.sum(vel_new_hat[0].field)), "nan found in vel_new_hat[0]"
+        assert not jnp.isnan(jnp.sum(vel_new_hat[1].field)), "nan found in vel_new_hat[1]"
+        assert not jnp.isnan(jnp.sum(vel_new_hat[2].field)), "nan found in vel_new_hat[2]"
         vel_new_hat.update_boundary_conditions()
 
         vel_new_hat.name = "velocity_hat"
