@@ -822,16 +822,16 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=24, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=48, pertubation_factor=0.1):
     Re = 1.5e0
 
     end_time = 8
-    NavierStokesVelVort.max_dt = 1e-5
+    # NavierStokesVelVort.max_dt = 1e-5
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Nx=8,
+        Nx=16,
         Ny=Ny,
-        Nz=8,
+        Nz=16,
         end_time=end_time,
         pertubation_factor=pertubation_factor,
     )
@@ -1099,8 +1099,7 @@ def test_pseudo_2d():
     Ny = 60
     # Ny = 24
     # Re = 5772.22
-    Re = 6000
-    # Re = 10000
+    Re = 10000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -1144,7 +1143,7 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-1
+    eps = 1e-3
     nse.set_field(
         "velocity_hat",
         0,
@@ -1433,13 +1432,13 @@ def run_all_tests():
     # test_definite_integral()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    # test_navier_stokes_laminar()
+    test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    test_pseudo_2d()
+    # test_pseudo_2d()
     # test_dummy_velocity_field()
     # test_pertubation_laminar()
     # test_pseudo_2d_pertubation()
