@@ -197,8 +197,8 @@ class NavierStokesVelVort(Equation):
 
     def update_flow_rate(self):
         self.flow_rate = self.get_flow_rate()
-        dPdx = -self.flow_rate * 3 / 2 / self.Re
-        # dPdx = -self.flow_rate / self.Re
+        # dPdx = -self.flow_rate * 3 / 2 / self.Re
+        dPdx = -self.flow_rate / self.Re
         self.dpdx = Field.FromFunc(
             self.domain_no_hat, lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()
@@ -299,11 +299,6 @@ class NavierStokesVelVort(Equation):
         n = D2_hom_diri_only_rows.shape[0]
         Z = jnp.zeros((n, n))
 
-        # TODO how to generalize this to the turbulent case? Why is the number of grid points important?
-        dPdx = -self.flow_rate * 3 / 2 / Re
-        # dPdx = - 1
-        # dPdx = 0
-        dPdz = 0  # spanwise pressure gradient should be negligble
         L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
         # L_NS = 1 / Re * jnp.block([[D2_hom_diri_only_rows, Z], [Z, D2_hom_diri_only_rows]])
 
@@ -459,25 +454,12 @@ class NavierStokesVelVort(Equation):
                                 -conv_ns_hat[2][kx__, :, kz__],
                             ]
                         )
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.zeros(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.ones(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                    )
+                     + jnp.block(
+                        [
+                            -self.dpdx[kx__, :, kz__],
+                            -self.dpdz[kx__, :, kz__],
+                        ]
+                    ))
                     N_00_old = (
                         jnp.block(
                             [
@@ -485,25 +467,12 @@ class NavierStokesVelVort(Equation):
                                 -conv_ns_hat_old[2][kx__, :, kz__],
                             ]
                         )
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.zeros(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.ones(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                    )
+                     + jnp.block(
+                        [
+                            -self.dpdx[kx__, :, kz__],
+                            -self.dpdz[kx__, :, kz__],
+                        ]
+                    ))
                     v_hat_new = lhs_mat_00_inv @ (
                         rhs_mat_00 @ v_hat
                         + (self.dt * gamma[step]) * N_00_new
@@ -662,10 +631,6 @@ class NavierStokesVelVort(Equation):
         self.dt = self.get_time_step()
 
         Re = self.Re
-        dPdx = -self.flow_rate * 3 / 2 / Re
-        # dPdx = - 1
-        # dPdx = 0
-        dPdz = 0  # spanwise pressure gradient should be negligble
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         # D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         n = D2_hom_diri.shape[0]
@@ -787,23 +752,11 @@ class NavierStokesVelVort(Equation):
                                 -conv_ns_hat[2][kx__, :, kz__],
                             ]
                         )
-                        - dPdx
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.ones(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.zeros(vel_hat[2][kx__, :, kz__].shape),
-                            ]
-                        )
-                        - dPdz
-                        * (dx * dz) ** (1 / 2)
-                        * domain.aliasing
-                        * jnp.block(
-                            [
-                                jnp.zeros(vel_hat[0][kx__, :, kz__].shape),
-                                jnp.ones(vel_hat[2][kx__, :, kz__].shape),
-                            ]
+                        + jnp.block(
+                        [
+                            -self.dpdx[kx__, :, kz__],
+                            -self.dpdz[kx__, :, kz__],
+                        ]
                         )
                     )
                     v_hat_new = v_hat + self.dt * (L_NS @ v_hat + N_00_new)
@@ -891,6 +844,7 @@ class NavierStokesVelVort(Equation):
         self.dt = self.get_time_step()
         dt = self.dt
 
+        # Re = self.Re * 2 / 3 # TODO
         Re = self.Re
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         D2_hom_diri_with_cols = self.get_cheb_mat_2_homogeneous_dirichlet()
@@ -931,8 +885,10 @@ class NavierStokesVelVort(Equation):
 
                 phi_p_hat = v_1_lap_hat[kx, :, kz]
 
-                N_p_new = 2/3 * h_v_hat[kx, :, kz] # TODO 2/3???
-                N_p_old = 2/3 * h_v_hat_old[kx, :, kz]
+                # N_p_new = 2/3 * h_v_hat[kx, :, kz] # TODO 2/3???
+                # N_p_old = 2/3 * h_v_hat_old[kx, :, kz]
+                N_p_new = h_v_hat[kx, :, kz]
+                N_p_old = h_v_hat_old[kx, :, kz]
                 rhs_mat_p = I + dt / (2 * Re) * L_p
                 lhs_mat_p = I - dt / (2 * Re) * L_p
                 phi_p_hat_new = jnp.linalg.solve(
@@ -991,9 +947,9 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 R = jnp.array([-v_1_hat_new_p_diff[0], -v_1_hat_new_p_diff[-1]])
-                AB = jnp.linalg.solve(M, R)
-                # AB = jnp.linalg.lstsq(M, R)
-                a, b = AB[0], AB[1]
+                # AB = jnp.linalg.solve(M, R)
+                # a, b = AB[0], AB[1]
+                a, b = jnp.linalg.lstsq(M, R)[0]
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new, 1
@@ -1008,8 +964,10 @@ class NavierStokesVelVort(Equation):
                 vort_1_hat = vort_hat[1]
                 phi_vort_hat = vort_1_hat[kx, :, kz]
 
-                N_vort_new = 2/3 * h_g_hat[kx, :, kz] # TODO why 2/3???
-                N_vort_old = 2/3 * h_g_hat_old[kx, :, kz]
+                # N_vort_new = 2/3 * h_g_hat[kx, :, kz] # TODO why 2/3???
+                # N_vort_old = 2/3 * h_g_hat_old[kx, :, kz]
+                N_vort_new = h_g_hat[kx, :, kz] # TODO why 2/3???
+                N_vort_old = h_g_hat_old[kx, :, kz]
                 phi_vort_hat_new = jnp.linalg.solve(
                     lhs_mat_vort,
                     rhs_mat_vort @ phi_vort_hat
@@ -1029,7 +987,7 @@ class NavierStokesVelVort(Equation):
                     L_NS = L_NS_y + I_ * (-(kx_**2) - kz_**2)
                     rhs_mat_ns = I_ + dt / (2 * Re) * L_NS
                     lhs_mat_ns = I_ - dt / (2 * Re) * L_NS
-                    N_00_new = 2/3 * (jnp.block( # TODO why 2/3????
+                    N_00_new = 1 * (jnp.block( # TODO maybe 2/3????
                         [
                             -conv_ns_hat[0][kx__, :, kz__],
                             -conv_ns_hat[2][kx__, :, kz__],
@@ -1040,7 +998,7 @@ class NavierStokesVelVort(Equation):
                             -self.dpdz[kx__, :, kz__],
                         ]
                     ))
-                    N_00_old = 2/3 * (jnp.block(
+                    N_00_old = 1 * (jnp.block(
                         [
                             -conv_ns_hat_old[0][kx__, :, kz__],
                             -conv_ns_hat_old[2][kx__, :, kz__],
@@ -1057,7 +1015,7 @@ class NavierStokesVelVort(Equation):
                     )
                     # v_hat_new = jnp.linalg.solve(
                     #     lhs_mat_ns,
-                    #     rhs_mat_ns @ v_hat + dt * 2/3 * N_00_new, # Euler instead of AB
+                    #     rhs_mat_ns @ v_hat + dt * N_00_new, # Euler instead of AB
                     # )
                     return (v_hat_new[:n], v_hat_new[n:])
 

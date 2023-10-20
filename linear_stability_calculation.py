@@ -34,6 +34,7 @@ from field import Field
 
 class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, n=50):
+        # self.Re = Re * 2 / 3 # TODO
         self.Re = Re
         self.alpha = alpha
         self.n = n  # chebychev resolution

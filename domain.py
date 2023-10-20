@@ -16,8 +16,8 @@ NoneType = type(None)
 
 class Domain:
 
-    # aliasing = 3 / 2
-    aliasing = 1
+    aliasing = 3 / 2
+    # aliasing = 1
 
     def __init__(self, shape, periodic_directions=None, scale_factors=None):
         self.number_of_dimensions = len(shape)
@@ -311,6 +311,18 @@ class Domain:
             )
             return out
 
+        def set_last_of_field(field, first):
+            N = field.shape[direction]
+            inds = jnp.arange(0, N-1)
+            inner = field.take(indices=inds, axis=direction)
+            out = jnp.pad(
+                inner,
+                [(0, 0) if d != direction else (0, 1) for d in self.all_dimensions()],
+                mode="constant",
+                constant_values=first,
+            )
+            return out
+
         def set_first_and_last_of_field(field, first, last):
             N = field.shape[direction]
             inds = jnp.arange(1, N - 1)
@@ -325,13 +337,19 @@ class Domain:
 
         if not self.is_periodic(direction):
             if order==1:
-                mat = set_first_mat_row_and_col_to_unit(
-                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
-                )
-                b_right = 0.0
-                b = set_first_of_field(field, b_right)
+                if type(bc_right) != NoneType and type(bc_left) == NoneType:
+                    mat = set_first_mat_row_and_col_to_unit(
+                            jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                    b = set_first_of_field(field, bc_right)
+                elif type(bc_left) != NoneType and type(bc_right) == NoneType:
+                    mat = set_last_mat_row_and_col_to_unit(
+                            jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                    b = set_last_of_field(field, bc_left)
 
             elif order==2:
+            # if True:
                 mat = set_last_mat_row_and_col_to_unit(
                     set_first_mat_row_and_col_to_unit(
                         jnp.linalg.matrix_power(self.diff_mats[direction], order)

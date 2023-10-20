@@ -76,11 +76,11 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     conv_ns_new_b = -jnp.array(hel_new_b) + 1 / 2 * jnp.array(vel_new_sq_nabla_b)
 
     # exact expression
-    hel_new = hel_new_ + hel_new_a + hel_new_b
-    conv_ns_new = conv_ns_new_ + conv_ns_new_a + conv_ns_new_b
+    # hel_new = hel_new_ + hel_new_a + hel_new_b
+    # conv_ns_new = conv_ns_new_ + conv_ns_new_a + conv_ns_new_b
     # linearized expression
-    # hel_new = hel_new_a + hel_new_b
-    # conv_ns_new = conv_ns_new_a + conv_ns_new_b
+    hel_new = hel_new_a + hel_new_b
+    conv_ns_new = conv_ns_new_a + conv_ns_new_b
 
     h_v_new = (
         - domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
