@@ -38,6 +38,12 @@ except:
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
+    reload(sys.modules["navier_stokes_pertubation"])
+except:
+    print("Unable to load navier-stokes-pertubation")
+from navier_stokes_pertubation import solve_navier_stokes_pertubation
+
+try:
     reload(sys.modules["linear_stability_calculation"])
 except:
     print("Unable to load linear stability")
@@ -277,11 +283,13 @@ def test_fourier_1D():
     # domain = Domain((Nx,), (True,))
 
     u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
+    # u_fn = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor))
     u = Field.FromFunc(domain, func=u_fn, name="u_1d")
     u_hat = u.hat()
 
     u_diff_fn = (
         lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor) * 2 * jnp.pi / scale_factor
+        # lambda X: jnp.cos(X[0]) / scale_factor * jnp.exp(jnp.sin(X[0] / scale_factor))
     )
     u_diff_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_1d_diff_ana")
 
@@ -315,6 +323,8 @@ def test_fourier_1D():
     u_diff.name = "u_1d_diff"
     u_diff_2 = u_hat_diff_2.no_hat()
     u_diff_2.name = "u_1d_diff_2"
+    u_int.plot(u)
+    # u.integrate(0).plot(u)
     # print(abs(u_int - u_int_ana))
     # print(abs(u_int_2 - u_int_ana_2))
     # print(abs(u_diff - u_diff_ana))
@@ -422,10 +432,11 @@ def test_fourier_2D():
     u_y.name = "u_2d_y"
     u_y_2 = u_hat_y_2.no_hat()
     u_y_2.name = "u_2d_y_2"
-    u_x.plot()
-    u_y.plot()
-    u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
-    u.plot_center(1, u_y, u_y_2, u_int_y, u_int_yy)
+    u_int_x.plot(u_int_x_ana)
+    # u_x.plot()
+    # u_y.plot()
+    # u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
+    # u.plot_center(1, u_y, u_y_2, u_int_y, u_int_yy)
     tol = 1e-5
     # print(abs(u_x - u_x_ana))
     # print(abs(u_x_2 - u_xx_ana))
@@ -448,7 +459,7 @@ def test_fourier_2D():
 def test_fourier_simple_3D():
     Nx = 24
     Ny = Nx + 4
-    Nz = Nx - 4
+    Nz = 20
     scale_factor_x = 1.0
     scale_factor_z = 2.0
     domain = Domain(
@@ -464,19 +475,85 @@ def test_fourier_simple_3D():
         * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_x)
         * jnp.cos(X[1] * jnp.pi / 2)
     )
-    u_fn = lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(
-        X[2] * 2 * jnp.pi / scale_factor_z
-    ) + jnp.sin(X[1] * jnp.pi)
+    u_fn = (
+        lambda X: 1.0 *
+        (jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x))
+        + jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x))
+        + jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
+        * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z)
+        + jnp.sin(X[1] * jnp.pi)
+        + 1.0
+        * jnp.cos(X[0] * 4 * jnp.pi / scale_factor_x)
+        * jnp.cos(X[2] * 4 * jnp.pi / scale_factor_z)
+        + 1.0
+        * jnp.cos(X[0] * jnp.pi * 6 / scale_factor_x)
+        * jnp.cos(X[2] * jnp.pi * 6 / scale_factor_z)
+    )
     u = Field.FromFunc(domain, func=u_fn, name="u_3d")
     v = Field.FromFunc(domain, func=u_0_fn, name="v_3d")
     w = Field.FromFunc(domain, func=u_0_fn, name="w_3d")
     U = VectorField([u, v, w])
     U_hat = U.hat()
-    U_nohat = U_hat.no_hat()
+    u_hat = U_hat[0]
+    # v_hat = U_hat[1]
+    # w_hat = U_hat[2]
+    u_x = u.diff(0, 1)
+    u_xx = u.diff(0, 2)
+    u_y = u.diff(1, 1)
+    u_yy = u.diff(1, 2)
+    u_z = u.diff(2, 1)
+    u_zz = u.diff(2, 2)
+    # u_int_x = u.integrate(0, 1)
+    # u_int_xx = u.integrate(0, 2)
+    # u_int_yy = u.integrate(1, 2)
+    # u_int_z = u.integrate(2, 1)
+    # u_int_zz = u.integrate(2, 2)
+
+    u_hat_x = u_hat.diff(0, 1)
+    u_hat_xx = u_hat.diff(0, 2)
+    u_hat_y = u_hat.diff(1, 1)
+    u_hat_yy = u_hat.diff(1, 2)
+    u_hat_z = u_hat.diff(2, 1)
+    u_hat_zz = u_hat.diff(2, 2)
+    # u_int_hat_x = u_hat.integrate(0, 1)
+    # u_int_hat_xx = u_hat.integrate(0, 2)
+    # u_int_hat_yy = u_hat.integrate(1, 2)
+    # u_int_hat_z = u_hat.integrate(2, 1)
+    # u_int_hat_zz = u_hat.integrate(2, 2)
+
     # U_nohat.plot(U)
+    # u.plot()
+    u_x.plot(u_hat_x.no_hat())
+    u_xx.plot(u_hat_xx.no_hat())
+    # u_int_x.plot(u)
+    # u_int_hat_x.no_hat().plot(u)
+    # u_xx.plot(u_hat_xx.no_hat())
+    # print(abs(U - U_nohat))
+    # print(abs(u_hat_x.no_hat() - u_x))
+    # print(abs(u_hat_xx.no_hat() - u_xx))
+    # print(abs(u_hat_y.no_hat() - u_y))
+    # print(abs(u_hat_yy.no_hat() - u_yy))
+    # print(abs(u_hat_z.no_hat() - u_z))
+    # print(abs(u_hat_zz.no_hat() - u_zz))
+    # print(abs(u_int_hat_x.no_hat() - u_int_x))
+    # print(abs(u_int_hat_xx.no_hat() - u_int_xx))
+    # print(abs(u_int_hat_yy.no_hat() - u_int_yy))
+    # print(abs(u_int_hat_z.no_hat() - u_int_z))
+    # print(abs(u_int_hat_zz.no_hat() - u_int_zz))
     tol = 1e-9
-    assert abs(U - U_nohat) < tol
-    # TODO implement more discerning tests
+    # assert abs(U - U_nohat) < tol
+    assert abs(u_hat_x.no_hat() - u_x) < tol
+    assert abs(u_hat_xx.no_hat() - u_xx) < tol
+    assert abs(u_hat_y.no_hat() - u_y) < tol
+    assert abs(u_hat_yy.no_hat() - u_yy) < tol
+    assert abs(u_hat_z.no_hat() - u_z) < tol
+    assert abs(u_hat_zz.no_hat() - u_zz) < tol
+    # assert abs(u_int_hat_x.no_hat() - u_int_x) < tol
+    # assert abs(u_int_hat_xx.no_hat() - u_int_xx) < tol
+    # assert abs(u_int_hat_yy.no_hat() - u_int_yy) < tol
+    # assert abs(u_int_hat_z.no_hat() - u_int_z) < tol
+    # assert abs(u_int_hat_zz.no_hat() - u_int_zz) < tol
+    # TODO test integration
 
 
 def test_cheb_integration_1D():
@@ -517,8 +594,8 @@ def test_cheb_integration_2D():
     u_int_2 = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
     u_int_1.name = "u_int_1"
     u_int_2.name = "u_int_2"
-    u_int_1.plot(u, u_int_1_ana)
-    u_int_2.plot(u, u_int_2_ana)
+    # u_int_1.plot(u, u_int_1_ana)
+    # u_int_2.plot(u, u_int_2_ana)
 
     tol = 1e-7
     # print(abs(u_int_1 - u_int_1_ana))
@@ -545,12 +622,84 @@ def test_cheb_integration_3D():
     u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_3d_int_ana")
     u_int = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
     u_int.name = "u_int"
-    u_int.plot(u_int_ana)
+    # u_int.plot(u_int_ana)
 
     tol = 1e-8
     # print(abs(u_int - u_int_ana))
     assert abs(u_int - u_int_ana) < tol
 
+def test_definite_integral():
+    tol = 1e-10
+    # 1D
+    # Fourier
+    Nx = 60
+    sc_x = 1.0
+    domain_1D_fourier = Domain((Nx,), (True,), scale_factors=(sc_x,))
+    u_fn_1d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x))
+    u_1d_fourier = Field.FromFunc(domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier")
+    assert abs(u_1d_fourier.definite_integral(0) - 1.2660658777520084) < tol
+    # Chebyshev
+    domain_1D_cheb = Domain((Nx,), (False,))
+    u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
+    u_1d_cheb = Field.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
+    # print(u_1d_cheb.definite_integral(0))
+    # print(abs(u_1d_cheb.definite_integral(0) - 0.5321317555))
+    assert abs(u_1d_cheb.definite_integral(0) - 0.5321317555) < tol
+    # 2D
+    # Fourier
+    Ny = 64
+    sc_y = 2.0
+    domain_2D_fourier = Domain((Nx,Ny), (True,True), scale_factors=(sc_x,sc_y))
+    u_fn_2d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2)
+    u_2d_fourier = Field.FromFunc(domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier")
+    # print(abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+    assert (abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    assert (abs(u_2d_fourier.volume_integral() - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    # Chebyshev
+    domain_2D_cheb = Domain((Nx,Ny), (False,False))
+    u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2)
+    u_2d_cheb = Field.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
+    # print(abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+    # print((u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
+    assert (abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    assert (abs(u_2d_cheb.volume_integral() - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    # Mixed
+    domain_2D_mixed = Domain((Nx,Ny), (False,True), scale_factors=(1.0, sc_y))
+    u_2d_mixed = Field.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
+    # print(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
+    assert (abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    assert (abs(u_2d_mixed.volume_integral() - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol
+    domain_2D_mixed_2 = Domain((Nx,Ny), (True,False), scale_factors=(sc_x, 1.0))
+    u_2d_mixed_2 = Field.FromFunc(domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2")
+    # print(abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+    assert (abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    assert (abs(u_2d_mixed_2.volume_integral() - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol
+    # 3D
+    # Fourier
+    # Nx = 96
+    # Ny = 96
+    Nz = 96
+    sc_z = 3.0
+    domain_3D_fourier = Domain((Nx,Ny,Nz), (True,True,True), scale_factors=(sc_x,sc_y,sc_z))
+    u_fn_3d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2) * jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z)**2)
+    u_3d_fourier = Field.FromFunc(domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier")
+    # print(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)
+    assert (abs(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)) < tol
+    assert (abs(u_3d_fourier.volume_integral()- -10.84981433261992)) < tol
+    # Chebyshev
+    domain_3D_cheb = Domain((Nx,Ny,Nz), (False,False,False))
+    u_fn_3d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi)**2) + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi)**2)
+    u_3d_cheb = Field.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
+    # print(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)
+    assert (abs(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)) < tol
+    assert (abs(u_3d_cheb.volume_integral()- 10.128527022082872)) < tol
+    # Mixed
+    domain_3D_mixed = Domain((Nx,Ny,Nz), (True,False,True), scale_factors=(sc_x, 1.0, sc_z))
+    u_fn_3d_mixed = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi)**2) + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z)**2)
+    u_3d_mixed = Field.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
+    # print(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)
+    assert (abs(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)) < tol
+    assert (abs(u_3d_mixed.volume_integral()- 7.596395266449558)) < tol
 
 def test_poisson_slices():
     Nx = 24
@@ -618,7 +767,7 @@ def test_poisson_slices():
     print(str(time.time() - start_time) + " seconds used for reconstruction.")
     out = out_hat.no_hat()
 
-    u_ana.plot(out)
+    # u_ana.plot(out)
 
     tol = 1e-8
     # print(abs(u_ana - out))
@@ -634,7 +783,11 @@ def test_poisson_no_slices():
     # scale_factor_z = 1.5
     scale_factor_x = 2 * jnp.pi
     scale_factor_z = 2 * jnp.pi
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=(scale_factor_x, 1.0, scale_factor_z))
+    domain = Domain(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(scale_factor_x, 1.0, scale_factor_z),
+    )
 
     rhs_fn = (
         lambda X: -(
@@ -667,17 +820,23 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=40, pertubation_factor=0.1):
-    Re = 1e0
+def test_navier_stokes_laminar(Ny=96, pertubation_factor=0.1):
+    Re = 1.5e0
 
     end_time = 8
+    NavierStokesVelVort.max_dt = 1e10
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=12, Ny=Ny, end_time=end_time, pertubation_factor=pertubation_factor
+        Re=Re,
+        Nx=24,
+        Ny=Ny,
+        Nz=16,
+        end_time=end_time,
+        pertubation_factor=pertubation_factor,
     )
     nse.solve()
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
+    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     print("Doing post-processing")
@@ -740,7 +899,7 @@ def test_optimization():
             Re=Re, Ny=Ny, end_time=end_time, max_iter=10, pertubation_factor=0.0
         )
         nse_.max_iter = 10
-        v0_field = Field(nse_.domain, v0)
+        v0_field = Field(nse_.domain_no_hat, v0)
         vel_0 = nse_.get_initial_field("velocity_hat")
         vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
         nse_.set_field("velocity_hat", 0, vel_0_new)
@@ -752,18 +911,18 @@ def test_optimization():
     vel_x_fn_ana = (
         lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
-    v0_0 = Field.FromFunc(nse.domain, vel_x_fn_ana)
+    v0_0 = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana)
 
     v0s = [v0_0.field]
     eps = 1e3
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = Field(nse.domain, corr, name="correction")
+        corr_field = Field(nse.domain_no_hat, corr, name="correction")
         corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         print("corr (abs): " + str(abs(corr_field)))
         v0s.append(v0s[-1] + eps * corr_field.field)
-        v0_new = Field(nse.domain, v0s[-1])
+        v0_new = Field(nse.domain_no_hat, v0s[-1])
         v0_new.name = "vel_0_" + str(i)
         v0_new.plot(v0_0)
 
@@ -778,7 +937,7 @@ def test_navier_stokes_turbulent():
     # s_z = 2 * jnp.pi
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Ny=90,
+        Ny=60,
         Nx=64,
         end_time=end_time,
         pertubation_factor=0.1
@@ -935,28 +1094,52 @@ def test_linear_stability():
 
 
 def test_pseudo_2d():
-    Ny = 96
+    Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 50000
+    Re = 5000
     alpha = 1.02056
     # alpha = 1.0
 
+    Nx = 496
+    Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
-    end_time = 1
+    end_time = 100
     nse = solve_navier_stokes_laminar(
-        Re=Re, Nx=48, Ny=Ny, Nz=2, end_time=end_time, pertubation_factor=0.0
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    u, v, w = lsc.velocity_field(nse.domain)
-    u.plot_3d()
-    v.plot_3d()
-    par_fn = lambda X: 0.0 * X[0] * X[1] * X[2] - 0.41 * (1 - X[1]**2)
-    par_field = Field.FromFunc(nse.domain, par_fn)
-    v.plot_center(1, par_field)
-    w.plot_3d()
-    vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
+    make_field_file_name = (
+        lambda field_name: field_name
+        + "_"
+        + str(Re)
+        + "_"
+        + str(Nx)
+        + "_"
+        + str(Ny)
+        + "_"
+        + str(Nz)
+    )
+    try:
+        # raise FileNotFoundError()
+        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
+        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
+        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
+        print("found existing fields, skipping eigenvalue computation")
+    except FileNotFoundError:
+        print("could not find fields")
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
+    u.save_to_file(make_field_file_name("u"))
+    v.save_to_file(make_field_file_name("v"))
+    w.save_to_file(make_field_file_name("w"))
+    vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
     eps = 1e-3
     nse.set_field(
@@ -965,36 +1148,71 @@ def test_pseudo_2d():
         VectorField(
             [
                 vel_x_hat + eps * u.hat(),
-                vel_y_hat + eps * v.hat(),
-                vel_z_hat + eps * w.hat(),
+                eps * v.hat(),
+                eps * w.hat(),
             ]
         ),
     )
 
-    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
-    plot_interval = 1
-    def after_time_step(nse):
-        i = nse.time_step
-        if (i - 1) % plot_interval == 0:
-            vel = nse.get_field("velocity_hat", i).no_hat()
-            vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
-            vel_pert_abs = 0
-            for i in range(3):
-                if i == 0:
-                    vel[i].plot_center(1, vel_x_ana)
-                vel[i].plot_3d()
-                vel_pert[i].name = "velocity_pertubation_" + "xyz"[i]
-                vel_pert[i].plot_3d()
-                vel_pert_abs += abs(vel_pert[i])
-            print("velocity pertubation: ", vel_pert_abs)
+    plot_interval = 10
 
-    nse.after_time_step_fn = after_time_step
+    # def after_time_step(nse):
+    def before_time_step(nse):
+        i = nse.time_step
+        if i % plot_interval == 0:
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
+            vel_x_max = vel[0].max()
+            print("vel_x_max: ", vel_x_max)
+            vel_x_fn_ana = lambda X: - vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+            vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
+            # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
+            # vel_1_lap_a.plot_3d()
+            vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
+            vel_pert_energy = 0
+            vort = vel.curl()
+            vort_pert = vel_pert.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel_pert[j].time_step = i
+                vort_pert[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                # vel[j].plot_center(0)
+                vort[j].name = "vort_" + "xyz"[j]
+                vort[j].plot_3d()
+                vort[j].plot_3d(2)
+                # vort[j].plot_center(0)
+                # vort[j].plot_center(1)
+                if j == 0:
+                    vel[j].plot_center(1, vel_x_ana)
+                else:
+                    vel[j].plot_center(1)
+                # vel_hat[j].plot_3d()
+                vel_pert[j].name = "velocity_pertubation_" + "xyz"[j]
+                vel_pert[j].plot_3d()
+                vel_pert[j].plot_3d(2)
+                # vel_pert[j].plot_center(0)
+                # vel_pert[j].plot_center(1)
+                vel_pert_energy += vel_pert[j].energy()
+                vort_pert[j].name = "vort_pertubation_" + "xyz"[j]
+                vort_pert[j].plot_3d()
+                vort_pert[j].plot_3d(2)
+                # vort_pert[j].plot_center(0)
+                # vort_pert[j].plot_center(1)
+            print("velocity pertubation energy: ", vel_pert_energy)
+        # input("carry on?")
+
+    nse.after_time_step_fn = None
+    nse.before_time_step_fn = before_time_step
 
     nse.solve()
 
+
 def test_dummy_velocity_field():
-    Re = 6000
+    Re = 1e5
 
     end_time = 50
 
@@ -1005,25 +1223,34 @@ def test_dummy_velocity_field():
         # end_time=end_time,
         # pertubation_factor=0.1
         # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
-        Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
+        # Re=Re, Ny=60, Nx=32, end_time=end_time, pertubation_factor=1
+        Re=Re,
+        Ny=96,
+        Nx=64,
+        end_time=end_time,
+        pertubation_factor=0,
     )
 
+    sc_x = 1.87
     nse.max_iter = 1e10
-    vel_x_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] )
-    # vel_y_fn = (lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) )
+    vel_x_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + jnp.cos(X[0] * 2*jnp.pi / sc_x) + jnp.cos(X[1] * 2*jnp.pi / 1.0)
+    vel_y_fn = (
+        # lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1] ** 2) ** 2
+        lambda X: 0.0 * X[0] * X[1] * X[2] + jnp.cos(X[1] * 2*jnp.pi / 1.0)
+    )  # fulfills bcs but breaks conti
+    vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
     vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
-    vel_y = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_y")
-    vel_z = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_z")
+    vel_y = Field.FromFunc(nse.domain_no_hat, vel_y_fn, name="velocity_y")
+    vel_z = Field.FromFunc(nse.domain_no_hat, vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
     )
 
-    plot_interval = 2
+    plot_interval = 1
 
     vel = nse.get_initial_field("velocity_hat").no_hat()
-    vel[0].plot_3d()
-    vel[1].plot_3d()
-    vel[2].plot_3d()
+    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
     def after_time_step(nse):
         i = nse.time_step
@@ -1031,20 +1258,189 @@ def test_dummy_velocity_field():
             vel = nse.get_field("velocity_hat", i).no_hat()
             vort_hat, _ = nse.get_vorticity_and_helicity()
             vort = vort_hat.no_hat()
+            vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
             vel[0].plot_3d()
             vel[1].plot_3d()
             vel[2].plot_3d()
             vort[0].plot_3d()
             vort[1].plot_3d()
             vort[2].plot_3d()
+            vel[0].plot_center(0)
+            vel[1].plot_center(0)
+            vel[2].plot_center(0)
             vel[0].plot_center(1)
             vel[1].plot_center(1)
             vel[2].plot_center(1)
+            vel_pert_energy = 0
+            vel_pert_abs = 0
+            for j in range(3):
+                vel_pert_energy += vel_pert[j].energy()
+                vel_pert_abs += abs(vel_pert[j])
+            print("velocity pertubation energy: ", vel_pert_energy)
+            print("velocity pertubation abs: ", vel_pert_abs)
 
     nse.after_time_step_fn = after_time_step
     # nse.after_time_step_fn = None
     nse.solve()
     return nse.get_latest_field("velocity_hat").no_hat().field
+
+
+def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
+    Re = 1.5e0
+
+    end_time = 8
+    nse = solve_navier_stokes_pertubation(
+        Re=Re,
+        Nx=16,
+        Ny=Ny,
+        Nz=16,
+        end_time=end_time,
+        pertubation_factor=pertubation_factor,
+    )
+
+    plot_interval = 1
+    def before_time_step(nse):
+        i = nse.time_step
+        if (i) % plot_interval == 0:
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
+            vel_pert = VectorField([vel[0], vel[1], vel[2]])
+            vel_pert_energy = 0
+            vort = vel.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vort[j].name = "vorticity_" + "xyz"[j]
+                # vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+                vel_pert_energy += vel_pert[j].energy()
+            print("velocity pertubation: ", vel_pert_energy)
+            print("velocity pertubation x: ", vel_pert[0].energy())
+            print("velocity pertubation y: ", vel_pert[1].energy())
+            print("velocity pertubation z: ", vel_pert[2].energy())
+        # input("carry on?")
+
+    nse.before_time_step_fn = before_time_step
+    # nse.max_dt = 1e10
+    nse.solve()
+
+
+    vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+    print("Doing post-processing")
+    for i in jnp.arange(nse.time_step)[-4:]:
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+        vel[0].plot_center(1, vel_0[0])
+        vel[1].plot_center(1, vel_0[1])
+        vel[2].plot_center(1, vel_0[2])
+        tol = 1.7e-5
+        print(abs(vel[0]))
+        print(abs(vel[1]))
+        print(abs(vel[2]))
+        # check that the simulation is really converged
+        assert abs(vel[0]) < tol
+        assert abs(vel[1]) < tol
+        assert abs(vel[2]) < tol
+
+
+def test_pseudo_2d_pertubation():
+    Ny = 96
+    # Ny = 24
+    # Re = 5772.22
+    Re = 5500
+    alpha = 1.02056
+    # alpha = 1.0
+
+    Nx = 496
+    Nz = 2
+    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+
+    end_time = 10
+    nse = solve_navier_stokes_pertubation(
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
+    )
+
+    make_field_file_name = (
+        lambda field_name: field_name
+        + "_"
+        + str(Re)
+        + "_"
+        + str(Nx)
+        + "_"
+        + str(Ny)
+        + "_"
+        + str(Nz)
+    )
+    try:
+        # raise FileNotFoundError()
+        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
+        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
+        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
+        print("found existing fields, skipping eigenvalue computation")
+    except FileNotFoundError:
+        print("could not find fields")
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
+    u.save_to_file(make_field_file_name("u"))
+    v.save_to_file(make_field_file_name("v"))
+    w.save_to_file(make_field_file_name("w"))
+
+    eps = 1e-3
+    vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
+    nse.set_field(
+        "velocity_hat",
+        0,
+        VectorField(
+            [
+                eps * u.hat(),
+                eps * v.hat(),
+                eps * w.hat(),
+            ]
+        ),
+    )
+
+    plot_interval = 10
+
+    def before_time_step(nse):
+        i = nse.time_step
+        if i % plot_interval == 0:
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
+            # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
+            # vel_1_lap_a.plot_3d()
+            vel_pert = VectorField([vel[0], vel[1], vel[2]])
+            vel_pert_energy = 0
+            vort = vel.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vort[j].name = "vorticity_" + "xyz"[j]
+                # vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+                vel_pert_energy += vel_pert[j].energy()
+            print("velocity pertubation: ", vel_pert_energy)
+            print("velocity pertubation x: ", vel_pert[0].energy())
+            print("velocity pertubation y: ", vel_pert[1].energy())
+            print("velocity pertubation z: ", vel_pert[2].energy())
+        # input("carry on?")
+
+    nse.before_time_step_fn = before_time_step
+    nse.after_time_step_fn = None
+
+    nse.solve()
 
 
 def run_all_tests():
@@ -1058,16 +1454,19 @@ def run_all_tests():
     # test_cheb_integration_1D()
     # test_cheb_integration_2D()
     # test_cheb_integration_3D()
+    # test_definite_integral()
     # test_poisson_slices()
     # test_poisson_no_slices()
-    test_navier_stokes_laminar()
+    # test_navier_stokes_laminar()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    # test_pseudo_2d()
+    test_pseudo_2d()
     # test_dummy_velocity_field()
+    # test_pertubation_laminar()
+    # test_pseudo_2d_pertubation()
 
 
 def run_all_tests_profiling():

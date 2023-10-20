@@ -34,6 +34,7 @@ from field import Field
 
 class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, n=50):
+        # self.Re = Re * 2 / 3 # TODO
         self.Re = Re
         self.alpha = alpha
         self.n = n  # chebychev resolution
@@ -152,12 +153,9 @@ class LinearStabilityCalculation:
 
     def velocity_field(self, domain, mode=0):
         assert domain.number_of_dimensions == 3, "this only makes sense in 3D."
+        self.n = len(domain.grid[1])
         print("calculating eigenvalues")
-        try:
-            if None in [self.A, self.B]:
-                self.calculate_eigenvalues()
-        except ValueError:
-            pass
+        self.calculate_eigenvalues()
 
         evec = self.eigenvectors[mode]
 

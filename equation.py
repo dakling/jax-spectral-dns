@@ -101,6 +101,12 @@ class Equation:
     def prepare(self):
         pass
 
+    def update_time(self):
+        self.time += self.dt
+        self.time_step += 1
+        for _, field in self.fields.items():
+            field[-1].time_step = self.time_step
+
     def solve(self):
         self.prepare()
         while not self.done():
@@ -117,6 +123,7 @@ class Equation:
             start_time = time.time()
             self.before_time_step()
             self.perform_time_step()
+            self.update_time()
             self.after_time_step()
             print("Took " + str(time.time() - start_time) + " seconds")
 
