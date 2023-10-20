@@ -116,8 +116,8 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
 
 class Field:
     plotting_dir = "./plots/"
-    plotting_format = ".pdf"
-    # plotting_format = ".png"
+    # plotting_format = ".pdf"
+    plotting_format = ".png"
     field_dir = "./fields/"
     performance_mode = True
 
@@ -336,7 +336,8 @@ class Field:
                 )
             fig.legend()
             fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
             plt.close(fig)
         elif self.domain.number_of_dimensions == 2:
             fig, ax = plt.subplots(1, 1)
@@ -371,7 +372,7 @@ class Field:
                 + "_"
                 + ["x", "y"][dimension]
                 + "_t_"
-                + str(self.time_step)
+                + "{:06}".format(self.time_step)
                 + self.plotting_format
             )
             plt.close(fig)
@@ -412,7 +413,7 @@ class Field:
                 + "_"
                 + ["x", "y", "z"][dimension]
                 + "_t_"
-                + str(self.time_step)
+                + "{:06}".format(self.time_step)
                 + self.plotting_format
             )
             plt.close(fig)
@@ -436,7 +437,7 @@ class Field:
                 )
             fig.legend()
             fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
             plt.close(fig)
 
 
@@ -467,7 +468,7 @@ class Field:
                     )
                 fig.legend()
                 fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
-                fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+                fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
                 plt.close(fig)
         elif self.domain.number_of_dimensions == 3:
             fig, ax = plt.subplots(1, 3, figsize=(15, 5))
@@ -492,7 +493,7 @@ class Field:
                     )
             fig.legend()
             fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
             plt.close(fig)
         else:
             raise Exception("Not implemented yet")
@@ -557,7 +558,7 @@ class Field:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name)
             fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+            fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
             plt.close(fig)
 
     def plot_3d_single(self, dim):
@@ -594,7 +595,7 @@ class Field:
         # fig.colorbar(ims[0], ax=ax, label=self.name, orientation="horizontal")
         fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
         fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_latest" + self.plotting_format)
-        fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+        fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
         plt.close(fig)
 
     def all_dimensions(self):
@@ -1268,7 +1269,7 @@ class FourierField(Field):
             im.set_norm(norm)
         fig.colorbar(ims[0], ax=ax, label=self.name)
         fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_latest" + self.plotting_format)
-        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
         plt.close(fig)
 
 

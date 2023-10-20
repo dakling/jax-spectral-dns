@@ -1097,18 +1097,18 @@ def test_linear_stability():
 
     # TODO set pressure correctly
 def test_pseudo_2d():
-    Ny = 60
+    Ny = 90
     # Ny = 24
     # Re = 5772.22
-    Re = 9000
+    Re = 5000
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 396
-    Nz = 4
+    Nx = 496
+    Nz = 2
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
-    end_time = 1
+    end_time = 100
     nse = solve_navier_stokes_laminar(
         Re=Re,
         Nx=Nx,
@@ -1144,7 +1144,7 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-0
+    eps = 1e-4
     nse.set_field(
         "velocity_hat",
         0,
@@ -1159,12 +1159,12 @@ def test_pseudo_2d():
 
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
-    plot_interval = 1
+    plot_interval = 10
 
     # def after_time_step(nse):
     def before_time_step(nse):
         i = nse.time_step
-        if (i - 1) % plot_interval == 0:
+        if i % plot_interval == 0:
             vel_hat = nse.get_field("velocity_hat", i)
             vel = vel_hat.no_hat()
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
@@ -1349,14 +1349,14 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
 
 
 def test_pseudo_2d_pertubation():
-    Ny = 64
+    Ny = 96
     # Ny = 24
     # Re = 5772.22
-    Re = 1000
+    Re = 5000
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 96
+    Nx = 496
     # Nx = 4
     Nz = 2
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
@@ -1369,7 +1369,7 @@ def test_pseudo_2d_pertubation():
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(6 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
     make_field_file_name = (
@@ -1396,7 +1396,7 @@ def test_pseudo_2d_pertubation():
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
 
-    eps = 1e-1
+    eps = 1e-7
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
     nse.set_field(
         "velocity_hat",
@@ -1410,7 +1410,7 @@ def test_pseudo_2d_pertubation():
         ),
     )
 
-    plot_interval = 1
+    plot_interval = 10
 
     def before_time_step(nse):
         i = nse.time_step
@@ -1465,10 +1465,10 @@ def run_all_tests():
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    test_pseudo_2d()
+    # test_pseudo_2d()
     # test_dummy_velocity_field()
     # test_pertubation_laminar()
-    # test_pseudo_2d_pertubation()
+    test_pseudo_2d_pertubation()
 
 
 def run_all_tests_profiling():

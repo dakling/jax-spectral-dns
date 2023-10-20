@@ -50,7 +50,8 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     for i in domain.all_dimensions():
         vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
 
-    hel_new_ = domain.cross_product(vel_new, vort_new) - 1 / 2 * jnp.array(vel_new_sq_nabla)
+    hel_new_ = domain.cross_product(vel_new, vort_new)
+    conv_ns_new_ = -jnp.array(hel_new_) + 1 / 2 * jnp.array(vel_new_sq_nabla)
 
     # a-term
     vel_base = jnp.array(
@@ -65,17 +66,21 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     vel_new_sq_nabla_a = []
     for i in domain.all_dimensions():
         vel_new_sq_nabla_a.append(domain.diff(vel_new_sq_a, i))
-    hel_new_a = domain.cross_product(vel_base, vort_new) - 1 / 2 * jnp.array(vel_new_sq_nabla_a)
+    hel_new_a = domain.cross_product(vel_base, vort_new)
+    conv_ns_new_a = -jnp.array(hel_new_a) + 1 / 2 * jnp.array(vel_new_sq_nabla_a)
 
     # b-term
     vort_b = domain.curl(vel_base)
     vel_new_sq_nabla_b = vel_new_sq_nabla_a
-    hel_new_b = domain.cross_product(vel_new, vort_b) - 1 / 2 * jnp.array(vel_new_sq_nabla_b)
+    hel_new_b = domain.cross_product(vel_new, vort_b)
+    conv_ns_new_b = -jnp.array(hel_new_b) + 1 / 2 * jnp.array(vel_new_sq_nabla_b)
 
     # exact expression
     hel_new = hel_new_ + hel_new_a + hel_new_b
+    conv_ns_new = conv_ns_new_ + conv_ns_new_a + conv_ns_new_b
     # linearized expression
     # hel_new = hel_new_a + hel_new_b
+    # conv_ns_new = conv_ns_new_a + conv_ns_new_b
 
     h_v_new = (
         - domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
@@ -98,7 +103,7 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
-    conv_ns_hat_new = [domain.field_hat(-hel_new[i]) for i in domain.all_dimensions()]
+    conv_ns_hat_new = [domain.field_hat(conv_ns_new[i]) for i in domain.all_dimensions()]
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
 
@@ -106,8 +111,8 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
 class NavierStokesVelVortPertubation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
     max_cfl = 0.7
-    max_dt = 1e10
-    # max_dt = 1e-2
+    # max_dt = 1e10
+    max_dt = 1e-2
 
     def __init__(self, shape, velocity_field, **params):
         domain = velocity_field[0].domain
@@ -122,9 +127,10 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         # v_1_lap_hat_a.name="v_1_lap_hat_a"
         # super().__init__(domain, velocity_field, velocity_base_hat, v_1_lap_hat_a, **params)
         super().__init__(domain, velocity_field, velocity_base_hat, **params)
-        self.nonlinear_update_fn = update_nonlinear_terms_high_performance_pertubation
+        self.nonlinear_update_fn = lambda dom, vel: update_nonlinear_terms_high_performance_pertubation(dom, vel, jnp.array([ velocity_base_hat[0].field, velocity_base_hat[1].field, velocity_base_hat[2].field ]))
 
     def update_flow_rate(self):
+        self.flow_rate = 0.0
         self.dpdx = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]).hat()
         self.dpdz = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]).hat()
 
