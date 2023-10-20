@@ -1100,7 +1100,7 @@ def test_pseudo_2d():
     Ny = 60
     # Ny = 24
     # Re = 5772.22
-    Re = 5000
+    Re = 9000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -1131,7 +1131,7 @@ def test_pseudo_2d():
         + str(Nz)
     )
     try:
-        raise FileNotFoundError()
+        # raise FileNotFoundError()
         u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
         v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
         w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
@@ -1144,7 +1144,7 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-3
+    eps = 1e-0
     nse.set_field(
         "velocity_hat",
         0,

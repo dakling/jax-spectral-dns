@@ -484,9 +484,9 @@ class Domain:
         return jnp.array([curl_0, curl_1, curl_2])
 
     def cross_product(self, field_1, field_2):
-        out_0 = field_1[2] * field_2[1] - field_1[1] * field_2[2]
-        out_1 = field_1[0] * field_2[2] - field_1[2] * field_2[0]
-        out_2 = field_1[1] * field_2[0] - field_1[0] * field_2[1]
+        out_0 = field_1[1] * field_2[2] - field_1[2] * field_2[1]
+        out_1 = field_1[2] * field_2[0] - field_1[0] * field_2[2]
+        out_2 = field_1[0] * field_2[1] - field_1[1] * field_2[0]
         return jnp.array([out_0, out_1, out_2])
 
 

@@ -878,9 +878,9 @@ class VectorField:
             self[i].plot(*other_fields_i)
 
     def cross_product(self, other):
-        out_0 = self[2] * other[1] - self[1] * other[2]
-        out_1 = self[0] * other[2] - self[2] * other[0]
-        out_2 = self[1] * other[0] - self[0] * other[1]
+        out_0 = self[1] * other[2] - self[2] * other[1]
+        out_1 = self[2] * other[0] - self[0] * other[2]
+        out_2 = self[0] * other[1] - self[1] * other[0]
 
         time_step = self.get_time_step()
         out = [out_0, out_1, out_2]
