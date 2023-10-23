@@ -292,7 +292,7 @@ class NavierStokesVelVort(Equation):
         vel_hat = self.get_latest_field("velocity_hat")
 
         # start runge-kutta stepping
-        _, _, gamma, xi = self.get_rk_parameters()
+        alpha, beta, gamma, xi = self.get_rk_parameters()
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
@@ -323,8 +323,8 @@ class NavierStokesVelVort(Equation):
 
                 # wall-normal velocity
                 # p-part
-                # L = 1 / Re * D2_hom_diri
-                L = 1 / Re * D2_hom_diri_only_rows
+                L = 1 / Re * D2_hom_diri # why does this one lead to decay of v?
+                # L = 1 / Re * D2_hom_diri_only_rows
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 phi_hat_lap = v_1_lap_hat[kx, :, kz]
@@ -340,14 +340,18 @@ class NavierStokesVelVort(Equation):
                     + (self.dt * xi[step]) * N_old
                 )
 
+                # ####
+                # lhs_phi_ = phi_hat_lap_new -
+                # ####
+
                 v_1_lap_hat_new_p = phi_hat_lap_new
 
                 # compute velocity in y direction
-                v_1_lap_hat_new_p = (
-                    domain.update_boundary_conditions_fourier_field_slice(
-                        v_1_lap_hat_new_p, 1
-                    )
-                )
+                # v_1_lap_hat_new_p = (
+                #     domain.update_boundary_conditions_fourier_field_slice(
+                #         v_1_lap_hat_new_p, 1
+                #     )
+                # )
                 v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
                     v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
@@ -355,32 +359,71 @@ class NavierStokesVelVort(Equation):
                     v_1_hat_new_p, 1
                 )
 
-                # a-part -> can be solved analytically
+                # # a-part -> can be solved analytically
                 dt = self.dt
-                denom = jnp.sqrt((2 * Re - dt * (-(kx_**2) - kz_**2)))
-                # k = jnp.min(jnp.array([jnp.sqrt(2 * Re / dt) / denom, 200]))
-                k = jnp.min(jnp.array([jnp.sqrt(dt) / denom, 1e20]))
+                # k = -(kx_**2 + kz_**2) # more in line with RK (stationary result)
+                k = jnp.min(jnp.array([ jnp.sqrt((Re / beta[step] - dt * (- kx_**2 - kz_**2)))/ jnp.sqrt(dt), 2e2]))
+                # k = jnp.min(jnp.array([ jnp.sqrt((2 * Re - dt * (- kx_**2 - kz_**2)))/ jnp.sqrt(dt), 2e2]))
                 A = jnp.exp(2 * k) / (jnp.exp(3 * k) - jnp.exp(k))
                 B = -1 / (jnp.exp(3 * k) - jnp.exp(k))
-                fn_ana = lambda y: jax.lax.cond(
-                    abs(denom) > 1e-30,
-                    lambda _: (A * jnp.exp(k * y) + B * jnp.exp(-k * y)),
-                    lambda _: ((y + 1) / 2),
-                    denom,
-                )
+                # fn_ana = lambda y: jax.lax.cond(
+                #     abs(denom) > 1e-30,
+                #     lambda _: (A * jnp.exp(k * y) + B * jnp.exp(-k * y)),
+                #     lambda _: ((y + 1) / 2),
+                #     denom,
+                # )
+                fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
 
                 ys = self.domain_no_hat.grid[1]
                 # phi_a_hat_new = jnp.array(list(map(fn_ana, ys)))
                 phi_a_hat_new = jax.lax.map(fn_ana, ys)
 
-                v_1_lap_new_a = phi_a_hat_new
+                v_1_lap_hat_new_a = phi_a_hat_new
+
+                # # a - part (non-analytically)
+                # L_a_y = 1 / Re * D2_hom_diri
+
+                # I = jnp.eye(L_a_y.shape[0])
+                # L_a = L_a_y + I * (-(kx_**2 + kz_**2)) / Re
+
+                # def set_nth_mat_row_to_unit(matr, n):
+                #     N = matr.shape[0]
+                #     return jnp.block(
+                #         [[matr[:n, :]], [jnp.eye(N)[n,:]], [matr[n+1:, :]]]
+                #     )
+                # def set_nth_mat_col_to_unit(matr, n):
+                #     return set_nth_mat_row_to_unit(matr.T, n).T
+
+                # def set_nth_mat_row_and_col_to_unit(matr, n):
+                #     return set_nth_mat_row_to_unit(set_nth_mat_col_to_unit(matr, n), n)
+
+                # L_ = I - beta[step] * self.dt * L_a
+                # R_ = I + alpha[step] * self.dt * L_a
+                # for i in [0, n-1]:
+                #     L_ = set_nth_mat_row_and_col_to_unit(L_, i)
+                #     R_ = set_nth_mat_row_and_col_to_unit(R_, i)
+
+                # L_inv = jnp.linalg.inv(L_)
+
+                # ys = domain.grid[1]
+                # v_1_lap_hat_a = v_1_lap_hat[kx, :, kz]
+                # lin_func = jax.lax.map(lambda y: (y + 1) / 2, ys)
+                # phi_hat_a = jnp.block([0.0, v_1_lap_hat_a[1:-1], 0.0]) + lin_func
+                # # phi_hat_a = jnp.block([1.0, v_1_lap_hat_a[1:-1], 0.0])
+
+                # phi_hat_new_a = L_inv @ (
+                #     R_ @ phi_hat_a
+                # )
+                # v_1_lap_hat_new_a = phi_hat_new_a
+
                 # compute velocity in y direction
                 v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
-                    v_1_lap_new_a, self.poisson_mat, kx, kz
+                    v_1_lap_hat_new_a, self.poisson_mat, kx, kz
                 )
                 v_1_hat_new_a = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new_a, 1
                 )
+
                 v_1_hat_new_b = jnp.flip(v_1_hat_new_a)
 
                 # reconstruct velocity s.t. hom. Neumann is fulfilled
@@ -396,13 +439,37 @@ class NavierStokesVelVort(Equation):
                 R = jnp.array([-v_1_hat_new_p_diff[0], -v_1_hat_new_p_diff[-1]])
                 AB = jnp.linalg.solve(M, R)
                 a, b = AB[0], AB[1]
+                # a, b = jnp.linalg.lstsq(M, R)[0]
+                # a = jax.lax.cond(jnp.isnan(a),
+                #              lambda _: 0.0j,
+                #              lambda _: a,
+                #              a)
+                # b = jax.lax.cond(jnp.isnan(b),
+                #              lambda _: 0.0j,
+                #              lambda _: b,
+                #              b)
+                # print(a, b)
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new, 1
                 )
 
+                # if kx == 4 and kz == 0:
+                #     fig, ax = plt.subplots(1,1)
+                #     # ax.plot(ys, v_1_hat_new)
+                #     # ax.plot(ys, v_1_lap_hat_new_p)
+                #     ax.plot(ys, v_1_lap_hat[kx, :, kz])
+                #     ax.plot(ys, v_1_lap_hat_new_p + a * v_1_lap_hat_new_a + b * jnp.flip(v_1_lap_hat_new_a))
+                #     # ax.plot(ys, v_1_lap_hat_new_a)
+                #     # ax.plot(ys, vel_hat[1][kx, :, kz])
+                #     # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
+                #     # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
+                #     fig.savefig("plots/plot.pdf")
+                #     raise Exception("break")
+
                 # vorticity
-                L = 1 / Re * D2_hom_diri_only_rows
+                # L = 1 / Re * D2_hom_diri_only_rows
+                L = 1 / Re * D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 vort_1_hat = vort_hat[1]
@@ -466,6 +533,16 @@ class NavierStokesVelVort(Equation):
                         + (self.dt * gamma[step]) * N_00_new
                         + (self.dt * xi[step]) * N_00_old
                     )
+                    # fig, ax = plt.subplots(1,1)
+                    # ax.plot(ys, -self.dpdx[kx__, :, kz__])
+                    # gam = sum(gamma)
+                    # xis = sum(xi)
+                    # print(gam)
+                    # print(xis)
+                    # ax.plot(ys, (gam * N_00_new[:n] + xis * N_00_old[:n]), "--")
+                    # ax.plot(ys, v_hat[:n])
+                    # fig.savefig("plots/plot.pdf")
+                    # raise Exception("break")
                     return (v_hat_new[:n], v_hat_new[n:])
 
                 def rk_not_00(kx, kz):
@@ -481,6 +558,7 @@ class NavierStokesVelVort(Equation):
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
+                # v_0_new_field, v_2_new_field = rk_00()
                 v_0_new_field, v_2_new_field = jax.lax.cond(
                     kx == 0,
                     lambda kx___, kz___: jax.lax.cond(
@@ -494,10 +572,19 @@ class NavierStokesVelVort(Equation):
                     kx,
                     kz,
                 )
-                return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_new_a)
+                return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_a)
 
             return fn
 
+        # # print((vel_hat[1].field))
+        # print(jnp.min(vel_hat[1].field))
+        # print(jnp.max(vel_hat[1].field))
+        # a = vel_hat[1].field.real
+        # ind = jnp.unravel_index(jnp.argmax(a, axis=None), a.shape)
+        # print(ind)
+        # ind = jnp.unravel_index(jnp.argmin(a, axis=None), a.shape)
+        # print(ind)
+        # # print(jnp.argmax(vel_hat[1].field))
 
         number_of_rk_steps = 3
 
@@ -583,7 +670,7 @@ class NavierStokesVelVort(Equation):
                 # wall-normal velocity
                 # p-part
                 L_y = 1 / Re * D2_hom_diri
-                L = L_y + I * (-(kx_**2 + kz_**2))
+                L = L_y + I * (-(kx_**2 + kz_**2)) / Re
 
                 phi_hat = v_1_lap_hat[kx, :, kz]
 
@@ -606,7 +693,7 @@ class NavierStokesVelVort(Equation):
 
                 # a-part
                 L_a_y = 1 / Re * D2_hom_diri
-                L_a = L_a_y + I * (-(kx_**2 + kz_**2))
+                L_a = L_a_y + I * (-(kx_**2 + kz_**2)) / Re
 
                 phi_hat_a = jnp.block([1.0, v_1_lap_hat_a[kx, 1:-1, kz], 0.0])
 
@@ -633,8 +720,9 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 R = jnp.array([-v_1_hat_new_p_diff[0], -v_1_hat_new_p_diff[-1]])
-                AB = jnp.linalg.solve(M, R)
-                a, b = AB[0], AB[1]
+                # AB = jnp.linalg.solve(M, R)
+                # a, b = AB[0], AB[1]
+                a, b = jnp.linalg.lstsq(M, R)[0]
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
                 v_1_lap_new_b = jnp.flip(v_1_lap_new_a)
                 v_1_lap_hat_new = (
@@ -646,7 +734,7 @@ class NavierStokesVelVort(Equation):
 
                 # vorticity
                 L_vort_y = 1 / Re * D2_hom_diri
-                L = L_vort_y + I * (-(kx_**2 + kz_**2))
+                L = L_vort_y + I * (-(kx_**2 + kz_**2)) / Re
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 vort_1_hat = vort_hat[1]
@@ -769,9 +857,9 @@ class NavierStokesVelVort(Equation):
 
         # Re = self.Re * 2 / 3 # TODO
         Re = self.Re
-        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
+        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         D2_hom_diri_with_cols = self.get_cheb_mat_2_homogeneous_dirichlet()
-        n = D2_hom_diri.shape[0]
+        n = D2_hom_diri_with_cols.shape[0]
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
         L_NS_y = (
@@ -807,12 +895,10 @@ class NavierStokesVelVort(Equation):
 
                 phi_p_hat = v_1_lap_hat[kx, :, kz]
 
-                # N_p_new = 2/3 * h_v_hat[kx, :, kz] # TODO 2/3???
-                # N_p_old = 2/3 * h_v_hat_old[kx, :, kz]
                 N_p_new = h_v_hat[kx, :, kz]
                 N_p_old = h_v_hat_old[kx, :, kz]
-                rhs_mat_p = I + dt / (2 * Re) * L_p
-                lhs_mat_p = I - dt / (2 * Re) * L_p
+                rhs_mat_p = I + dt / 2 * L_p
+                lhs_mat_p = I - dt / 2 * L_p
                 phi_p_hat_new = jnp.linalg.solve(
                     lhs_mat_p, rhs_mat_p @ phi_p_hat + dt / 2 * (3 * N_p_new - N_p_old)
                 )
@@ -832,17 +918,16 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # a-part -> can be solved analytically
-                denom = jnp.sqrt((2 * Re - dt * (-(kx_**2) - kz_**2)))
-                # k = jnp.min(jnp.array([jnp.sqrt(2 * Re / dt) / denom, 200]))
-                k = jnp.min(jnp.array([jnp.sqrt(dt) / denom, 1e20]))
+                k = jnp.min(jnp.array([ jnp.sqrt((2 * Re - dt * (- kx_**2 - kz_**2)))/ jnp.sqrt(dt), 1e2]))
                 A = jnp.exp(2 * k) / (jnp.exp(3 * k) - jnp.exp(k))
                 B = -1 / (jnp.exp(3 * k) - jnp.exp(k))
-                fn_ana = lambda y: jax.lax.cond(
-                    abs(denom) > 1e-30,
-                    lambda _: (A * jnp.exp(k * y) + B * jnp.exp(-k * y)),
-                    lambda _: ((y + 1) / 2),
-                    denom,
-                )
+                # fn_ana = lambda y: jax.lax.cond(
+                #     abs(denom) > 1e-30,
+                #     lambda _: (A * jnp.exp(k * y) + B * jnp.exp(-k * y)),
+                #     lambda _: ((y + 1) / 2),
+                #     denom,
+                # )
+                fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
 
                 ys = self.domain_no_hat.grid[1]
                 # phi_a_hat_new = jnp.array(list(map(fn_ana, ys)))
@@ -877,17 +962,28 @@ class NavierStokesVelVort(Equation):
                     v_1_hat_new, 1
                 )
 
+                # if kx == 4 and kz == 0:
+                #     fig, ax = plt.subplots(1,1)
+                #     # ax.plot(ys, v_1_hat_new)
+                #     # ax.plot(ys, v_1_lap_hat_new_p)
+                #     ax.plot(ys, v_1_lap_hat[kx, :, kz])
+                #     # ax.plot(ys, v_1_lap_hat_new_p + a * v_1_lap_new_a + b * jnp.flip(v_1_lap_new_a))
+                #     ax.plot(ys, v_1_lap_new_a)
+                #     # ax.plot(ys, vel_hat[1][kx, :, kz])
+                #     # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
+                #     # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
+                #     fig.savefig("plots/plot.pdf")
+                #     raise Exception("break")
+
                 # vorticity
                 L_vort_y = 1 / Re * D2_hom_diri_with_cols
                 L_vort = L_vort_y + I * (-(kx_**2 + kz_**2)) / Re
 
-                rhs_mat_vort = I + dt / (2 * Re) * L_vort
-                lhs_mat_vort = I - dt / (2 * Re) * L_vort
+                rhs_mat_vort = I + dt / 2 * L_vort
+                lhs_mat_vort = I - dt / 2 * L_vort
                 vort_1_hat = vort_hat[1]
                 phi_vort_hat = vort_1_hat[kx, :, kz]
 
-                # N_vort_new = 2/3 * h_g_hat[kx, :, kz] # TODO why 2/3???
-                # N_vort_old = 2/3 * h_g_hat_old[kx, :, kz]
                 N_vort_new = h_g_hat[kx, :, kz]
                 N_vort_old = h_g_hat_old[kx, :, kz]
                 phi_vort_hat_new = jnp.linalg.solve(
@@ -907,9 +1003,9 @@ class NavierStokesVelVort(Equation):
                     )
                     I_ = jnp.eye(2 * n)
                     L_NS = L_NS_y + I_ * (-(kx_**2) - kz_**2) / Re
-                    rhs_mat_ns = I_ + dt / (2 * Re) * L_NS
-                    lhs_mat_ns = I_ - dt / (2 * Re) * L_NS
-                    N_00_new = 1 * (jnp.block( # TODO maybe 2/3????
+                    rhs_mat_ns = I_ + dt / 2 * L_NS
+                    lhs_mat_ns = I_ - dt / 2 * L_NS
+                    N_00_new = 1 * (jnp.block(
                         [
                             -conv_ns_hat[0][kx__, :, kz__],
                             -conv_ns_hat[2][kx__, :, kz__],
@@ -935,10 +1031,6 @@ class NavierStokesVelVort(Equation):
                         lhs_mat_ns,
                         rhs_mat_ns @ v_hat + dt / 2 * (3 * N_00_new - N_00_old),
                     )
-                    # v_hat_new = jnp.linalg.solve(
-                    #     lhs_mat_ns,
-                    #     rhs_mat_ns @ v_hat + dt * N_00_new, # Euler instead of AB
-                    # )
                     return (v_hat_new[:n], v_hat_new[n:])
 
                 def rk_not_00(kx, kz):
@@ -953,7 +1045,6 @@ class NavierStokesVelVort(Equation):
                         -1j * kz_ * v_1_new_y - 1j * kx_ * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
-
                 v_0_new_field, v_2_new_field = jax.lax.cond(
                     kx == 0,
                     lambda kx___, kz___: jax.lax.cond(
@@ -1006,9 +1097,9 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     def perform_time_step(self):
-        return self.perform_runge_kutta_step()
+        # return self.perform_runge_kutta_step()
+        return self.perform_cn_ab_step()
         # return self.perform_explicit_euler_step()
-        # return self.perform_cn_ab_step()
 
 
 def solve_navier_stokes_laminar(

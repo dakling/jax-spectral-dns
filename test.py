@@ -1184,8 +1184,8 @@ def test_pseudo_2d():
                 vort[j].name = "vort_" + "xyz"[j]
                 vort[j].plot_3d()
                 vort[j].plot_3d(2)
-                # vort[j].plot_center(0)
-                # vort[j].plot_center(1)
+                vort[j].plot_center(0)
+                vort[j].plot_center(1)
                 if j == 0:
                     vel[j].plot_center(1, vel_x_ana)
                 else:

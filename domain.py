@@ -214,23 +214,7 @@ class Domain:
         return f_diff
 
     def diff_fourier_field_slice(self, field, direction, order=1):
-        # inds = "ijk"
-        # diff_mat_ind = "l" + inds[0]
-        # other_inds = "".join(
-        #     [
-        #         ind
-        #         for ind in inds[0 : 1]
-        #         if ind != inds[0]
-        #     ]
-        # )
-        # target_inds = other_inds[:0] + "l" + other_inds[0:]
-        # field_ind = inds[0 : 1]
-        # ind = field_ind + "," + diff_mat_ind + "->" + target_inds
-        # f_diff = jnp.einsum(
-        #     ind, field, jnp.linalg.matrix_power(self.diff_mats[direction], order)
-        # )
         return jnp.linalg.matrix_power(self.diff_mats[direction], order) @ field
-        # return f_diff
 
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
         def set_first_mat_row_and_col_to_unit(matr):
