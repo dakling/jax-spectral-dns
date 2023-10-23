@@ -1097,7 +1097,7 @@ def test_pseudo_2d():
     Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 5000
+    Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 

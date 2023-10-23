@@ -50,8 +50,10 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     for i in domain.all_dimensions():
         vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
 
-    hel_new_ = domain.cross_product(vel_new, vort_new)
-    conv_ns_new_ = -jnp.array(hel_new_) + 1 / 2 * jnp.array(vel_new_sq_nabla)
+    # hel_new_ = domain.cross_product(vel_new, vort_new)
+    # conv_ns_new_ = -jnp.array(hel_new_) + 1 / 2 * jnp.array(vel_new_sq_nabla)
+    hel_new_ = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(vel_new_sq_nabla)
+    conv_ns_new_ = - hel_new_
 
     # a-term
     vel_base = jnp.array(
@@ -66,14 +68,18 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     vel_new_sq_nabla_a = []
     for i in domain.all_dimensions():
         vel_new_sq_nabla_a.append(domain.diff(vel_new_sq_a, i))
-    hel_new_a = domain.cross_product(vel_base, vort_new)
-    conv_ns_new_a = -jnp.array(hel_new_a) + 1 / 2 * jnp.array(vel_new_sq_nabla_a)
+    # hel_new_a = domain.cross_product(vel_base, vort_new)
+    # conv_ns_new_a = -jnp.array(hel_new_a) + 1 / 2 * jnp.array(vel_new_sq_nabla_a)
+    hel_new_a = jnp.array(domain.cross_product(vel_base, vort_new)) - 1 / 2 * jnp.array(vel_new_sq_nabla_a)
+    conv_ns_new_a = - hel_new_a
 
     # b-term
     vort_b = domain.curl(vel_base)
     vel_new_sq_nabla_b = vel_new_sq_nabla_a
-    hel_new_b = domain.cross_product(vel_new, vort_b)
-    conv_ns_new_b = -jnp.array(hel_new_b) + 1 / 2 * jnp.array(vel_new_sq_nabla_b)
+    # hel_new_b = domain.cross_product(vel_new, vort_b)
+    # conv_ns_new_b = -jnp.array(hel_new_b) + 1 / 2 * jnp.array(vel_new_sq_nabla_b)
+    hel_new_b = jnp.array(domain.cross_product(vel_new, vort_b)) - 1 / 2 * jnp.array(vel_new_sq_nabla_b)
+    conv_ns_new_b = - hel_new_b
 
     # exact expression
     # hel_new = hel_new_ + hel_new_a + hel_new_b

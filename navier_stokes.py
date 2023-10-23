@@ -48,9 +48,13 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     for i in domain.all_dimensions():
         vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
 
-    hel_new = domain.cross_product(vel_new, vort_new)
+    # hel_new = domain.cross_product(vel_new, vort_new)
 
-    conv_ns_new = -jnp.array(hel_new) + 1 / 2 * jnp.array(vel_new_sq_nabla)
+    # conv_ns_new = -jnp.array(hel_new) + 1 / 2 * jnp.array(vel_new_sq_nabla)
+
+    hel_new = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(vel_new_sq_nabla)
+
+    conv_ns_new = - hel_new
 
     h_v_new = (
         -domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
