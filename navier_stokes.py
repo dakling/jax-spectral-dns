@@ -275,7 +275,7 @@ class NavierStokesVelVort(Equation):
         alpha, beta, _, _ = self.get_rk_parameters()
         n = Ly.shape[0]
         I = jnp.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2))
+        L = Ly + I * (-(kx**2 + kz**2)) / self.Re
         lhs_mat_inv = jnp.linalg.inv(I - beta[i] * self.dt * L)
         rhs_mat = I + alpha[i] * self.dt * L
         return (lhs_mat_inv, rhs_mat)
@@ -780,7 +780,6 @@ class NavierStokesVelVort(Equation):
         I = jnp.eye(n)
 
         vel_hat = self.get_latest_field("velocity_hat")
-        vel_hat_old = self.get_field("velocity_hat", max(0, self.time_step - 1))
 
         def perform_single_cn_ab_step_for_single_wavenumber(
             v_1_lap_hat,
@@ -804,7 +803,7 @@ class NavierStokesVelVort(Equation):
                 # L_p_y = 1 / Re * D2_hom_diri
                 L_p_y = 1 / Re * D2_hom_diri_with_cols
 
-                L_p = L_p_y + I * (-(kx_**2 + kz_**2))
+                L_p = L_p_y + I * (-(kx_**2 + kz_**2)) / Re
 
                 phi_p_hat = v_1_lap_hat[kx, :, kz]
 
@@ -880,7 +879,7 @@ class NavierStokesVelVort(Equation):
 
                 # vorticity
                 L_vort_y = 1 / Re * D2_hom_diri_with_cols
-                L_vort = L_vort_y + I * (-(kx_**2 + kz_**2))
+                L_vort = L_vort_y + I * (-(kx_**2 + kz_**2)) / Re
 
                 rhs_mat_vort = I + dt / (2 * Re) * L_vort
                 lhs_mat_vort = I - dt / (2 * Re) * L_vort
@@ -889,7 +888,7 @@ class NavierStokesVelVort(Equation):
 
                 # N_vort_new = 2/3 * h_g_hat[kx, :, kz] # TODO why 2/3???
                 # N_vort_old = 2/3 * h_g_hat_old[kx, :, kz]
-                N_vort_new = h_g_hat[kx, :, kz] # TODO why 2/3???
+                N_vort_new = h_g_hat[kx, :, kz]
                 N_vort_old = h_g_hat_old[kx, :, kz]
                 phi_vort_hat_new = jnp.linalg.solve(
                     lhs_mat_vort,
@@ -907,7 +906,7 @@ class NavierStokesVelVort(Equation):
                         [vel_hat[0][kx__, :, kz__], vel_hat[2][kx__, :, kz__]]
                     )
                     I_ = jnp.eye(2 * n)
-                    L_NS = L_NS_y + I_ * (-(kx_**2) - kz_**2)
+                    L_NS = L_NS_y + I_ * (-(kx_**2) - kz_**2) / Re
                     rhs_mat_ns = I_ + dt / (2 * Re) * L_NS
                     lhs_mat_ns = I_ - dt / (2 * Re) * L_NS
                     N_00_new = 1 * (jnp.block( # TODO maybe 2/3????
