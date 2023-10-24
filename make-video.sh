@@ -2,8 +2,8 @@
 
 
 # ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_vort_pertubation_y_t_*.png' -vcodec libx264 -crf 22 plots/vort_pert_y.mp4
-ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_velocity_pertubation_x_t_*.png' -vcodec libx264 -crf 22 vel_pert_x_Re_5500.mp4
-ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_velocity_pertubation_y_t_*.png' -vcodec libx264 -crf 22 vel_pert_y_Re_5500.mp4
+ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_velocity_pertubation_x_t_*.png' -vcodec libx264 -crf 22 vel_pert_x_Re_6000.mp4
+ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_velocity_pertubation_y_t_*.png' -vcodec libx264 -crf 22 vel_pert_y_Re_6000.mp4
 
 # ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_vorticity_y_t_*.png' -vcodec libx264 -crf 22 plots/vort_y.mp4
 # ffmpeg -framerate 4 -f image2  -pattern_type glob -i 'plots/plot_3d_z_velocity_x_t_*.png' -vcodec libx264 -crf 22 plots/vel_x.mp4

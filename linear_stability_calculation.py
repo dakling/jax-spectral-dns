@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-
+from types import NoneType
 import numpy as np
+import jax.numpy as jnp
 from numpy.linalg import svd
 from scipy.linalg import eig, cholesky
 from scipy.sparse.linalg import eigs
@@ -51,12 +52,7 @@ class LinearStabilityCalculation:
         domain = Domain((n,), (False,))
         self.ys = domain.grid[0]
 
-        self.U = None
-        self.Uy = None
-        self.Uyy = None
-        self.intU = None
-        self.UG = None
-        self.UGy = None
+        self.velocity_field_ = None
 
     def assemble_matrix_fast(self):
         n = self.n
@@ -171,20 +167,24 @@ class LinearStabilityCalculation:
             out = np.moveaxis(out, 0, -1)
             return out
 
-        # print(self.eigenvalues[0])
-        # print(v_vec)
-        # fig, ax = plt.subplots(1,1)
-        # ax.plot(self.ys, [np.sum([(v_vec[k] * phi(k, 0, self.ys[i]) * np.exp(1j * self.alpha * 0)).real for k in range(self.n)]) for i in range(self.n)])
-        # fig.savefig("plots/dummy.pdf")
-        # raise Exception("break")
-
         print("calculating velocity pertubations in 3D")
         u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
         v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
         w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
         print("done calculating velocity pertubations in 3D")
 
+        self.velocity_field_ = (u_field, v_field, w_field)
         return (u_field, v_field, w_field)
+
+    def energy_over_time(self, domain, mode=0):
+        if type(self.velocity_field_)  == NoneType:
+            self.velocity_field(domain, mode)
+        def out(t):
+            energy = 0
+            for dim in domain.all_dimensions():
+                energy += (self.velocity_field[dim] * (jnp.exp(1j * self.alpha - 1j * self.eigenvalues[mode] * t)).real).energy()
+            return energy
+        return out
 
     def print_welcome(self):
         print("starting linear stability calculation")  # TODO more info

@@ -1097,8 +1097,8 @@ def test_pseudo_2d():
     Ny = 64
     # Ny = 24
     # Re = 5772.22
-    # Re = 6000
-    Re = 5500
+    Re = 6000
+    # Re = 5500
     alpha = 1.02056
     # alpha = 1.0
 
@@ -1155,6 +1155,7 @@ def test_pseudo_2d():
         ),
     )
 
+    energy_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)(t)
     plot_interval = 10
 
     # def after_time_step(nse):
@@ -1179,46 +1180,36 @@ def test_pseudo_2d():
             vel_x_ana_old = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old")
             vel_pert_old = VectorField([vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]])
             vel_pert_energy = 0
-            vort = vel.curl()
-            vort_pert = vel_pert.curl()
-            for j in range(3):
+            for j in range(2):
                 vel[j].time_step = i
-                vort[j].time_step = i
                 vel_pert[j].time_step = i
-                vort_pert[j].time_step = i
                 vel[j].name = "velocity_" + "xyz"[j]
-                vel[j].plot_3d()
                 vel[j].plot_3d(2)
                 # vel[j].plot_center(0)
-                vort[j].name = "vort_" + "xyz"[j]
-                vort[j].plot_3d()
-                vort[j].plot_3d(2)
-                vort[j].plot_center(0)
-                vort[j].plot_center(1)
                 if j == 0:
                     vel[j].plot_center(1, vel_x_ana)
                 elif j == 1:
                     vel[j].plot_center(1, vel_pert_0)
-                else:
-                    vel[j].plot_center(1)
                 # vel_hat[j].plot_3d()
                 vel_pert[j].name = "velocity_pertubation_" + "xyz"[j]
                 vel_pert[j].plot_3d()
                 vel_pert[j].plot_3d(2)
                 # vel_pert[j].plot_center(0)
                 # vel_pert[j].plot_center(1)
-                vel_pert_energy += vel_pert[j].energy()
-                vort_pert[j].name = "vort_pertubation_" + "xyz"[j]
-                vort_pert[j].plot_3d()
-                vort_pert[j].plot_3d(2)
-                # vort_pert[j].plot_center(0)
-                # vort_pert[j].plot_center(1)
+            vel_pert_energy = vel_pert.energy()
+            print("analytical velocity pertubation energy: ", energy_over_time_fn(nse.time))
             print("velocity pertubation energy: ", vel_pert_energy)
+            print("velocity pertubation energy x: ", vel_pert[0].energy())
+            print("velocity pertubation energy y: ", vel_pert[1].energy())
+            print("velocity pertubation energy z: ", vel_pert[1].energy())
             vel_pert_energy_old = vel_pert_old.energy()
             if vel_pert_energy - vel_pert_energy_old >= 0:
                 print("velocity pertubation energy increase: ", vel_pert_energy - vel_pert_energy_old)
             else:
                 print("velocity pertubation energy decrease: ", - (vel_pert_energy - vel_pert_energy_old))
+            print("velocity pertubation energy x change: ", vel_pert[0].energy() - vel_pert_old[0].energy())
+            print("velocity pertubation energy y change: ", vel_pert[1].energy() - vel_pert_old[1].energy())
+            print("velocity pertubation energy z change: ", vel_pert[2].energy() - vel_pert_old[2].energy())
         # input("carry on?")
 
     nse.after_time_step_fn = None

@@ -31,7 +31,6 @@ except:
 from equation import Equation
 
 
-# @partial(jax.jit, static_argnums=0)
 def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     vel_new = jnp.array(
         [
@@ -64,49 +63,6 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
     h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
 
-    # h_v_new_field = Field(domain, h_v_new, name="h_v_new")
-    # h_g_new_field = Field(domain, h_g_new, name="h_g_new")
-    # h_v_new_field.plot_center(0)
-    # h_v_new_field.plot_center(1)
-    # h_g_new_field.plot_center(0)
-    # h_g_new_field.plot_center(1)
-    # lap_v = (
-    #     domain.diff(vel_new[1], 0, 2)
-    #     + domain.diff(vel_new[1], 1, 2)
-    #     + domain.diff(vel_new[1], 2, 2)
-    # )
-    # visc_v = (
-    #     1
-    #     / 1e5
-    #     * (
-    #         domain.diff(lap_v, 0, 2)
-    #         + domain.diff(lap_v, 1, 2)
-    #         + domain.diff(lap_v, 2, 2)
-    #     )
-    # )
-    # visc_v_field = Field(domain, visc_v, name="visc_v")
-    # visc_v_field.plot_center(0)
-    # # visc_v_field.plot_center(1)
-    # visc_v_field.plot_center(1, h_v_new_field)
-    # hel_new_field_0 = Field(domain, hel_new[0], name="hel_0")
-    # hel_new_field_0.plot_3d(2)
-    # hel_new_field_0.plot_center(0)
-    # hel_new_field_0.plot_center(1)
-    # hel_new_field_1 = Field(domain, hel_new[1], name="hel_1")
-    # hel_new_field_1.plot_3d(2)
-    # hel_new_field_1.plot_center(0)
-    # hel_new_field_1.plot_center(1)
-    # hel_new_field_2 = Field(domain, hel_new[2], name="hel_2")
-    # hel_new_field_2.plot_3d(2)
-    # conv_ns_0 = Field(domain, conv_ns_new[0], name="conv_ns_0")
-    # conv_ns_0.plot_center(0)
-    # conv_ns_0.plot_center(1, hel_new_field_0)
-    # conv_ns_1 = Field(domain, conv_ns_new[1], name="conv_ns_1")
-    # conv_ns_1.plot_center(0)
-    # conv_ns_1.plot_center(1)
-    # raise Exception("break")
-    # input("carry on? (from update_nonlinear_terms)")
-
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
@@ -119,11 +75,11 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
-    max_cfl = 0.7
+    max_cfl = 0.7 / 3
     # max_cfl = 0.7/10
     # max_cfl = 5e-2
     # max_dt = 1e10
-    max_dt = 1e-2
+    max_dt = 1e-2 / 3
     # u_max_over_u_tau = 1e2
     u_max_over_u_tau = 1e0
 
@@ -301,7 +257,7 @@ class NavierStokesVelVort(Equation):
         vel_hat = self.get_latest_field("velocity_hat")
 
         # start runge-kutta stepping
-        _, beta, gamma, xi = self.get_rk_parameters()
+        alpha, beta, gamma, xi = self.get_rk_parameters()
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
@@ -310,7 +266,6 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
 
         L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        # L_NS = 1 / Re * jnp.block([[D2_hom_diri_only_rows, Z], [Z, D2_hom_diri_only_rows]])
 
         def perform_single_rk_step_for_single_wavenumber(
             step,
@@ -332,8 +287,7 @@ class NavierStokesVelVort(Equation):
 
                 # wall-normal velocity
                 # p-part
-                L = 1 / Re * D2_hom_diri # why does this one lead to decay of v?
-                # L = 1 / Re * D2_hom_diri_only_rows
+                L = 1 / Re * D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
                 phi_hat_lap = v_1_lap_hat[kx, :, kz]
@@ -352,11 +306,11 @@ class NavierStokesVelVort(Equation):
                 v_1_lap_hat_new_p = phi_hat_lap_new
 
                 # compute velocity in y direction
-                # v_1_lap_hat_new_p = (
-                #     domain.update_boundary_conditions_fourier_field_slice(
-                #         v_1_lap_hat_new_p, 1
-                #     )
-                # )
+                v_1_lap_hat_new_p = (
+                    domain.update_boundary_conditions_fourier_field_slice(
+                        v_1_lap_hat_new_p, 1
+                    )
+                )
                 v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
                     v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
@@ -366,7 +320,7 @@ class NavierStokesVelVort(Equation):
 
                 # # a-part -> can be solved analytically
                 dt = self.dt
-                k = jnp.min(jnp.array([ jnp.sqrt(((1/beta[step]) * Re / dt - (- kx_**2 - kz_**2))), 7e2]))
+                k = jnp.min(jnp.array([jnp.sqrt(((1/(beta[step])) * Re / dt - (- kx_**2 - kz_**2))), 7e2]))
                 A = 1 / (jnp.exp(k) - jnp.exp(-k))
                 B = - jnp.exp(-2 * k) / (jnp.exp(k) - jnp.exp(-k))
                 fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
@@ -418,7 +372,6 @@ class NavierStokesVelVort(Equation):
                 #     raise Exception("break")
 
                 # vorticity
-                # L = 1 / Re * D2_hom_diri_only_rows
                 L = 1 / Re * D2_hom_diri
                 lhs_mat_inv, rhs_mat = self.assemble_rk_matrices(L, kx_, kz_, step)
 
@@ -498,7 +451,6 @@ class NavierStokesVelVort(Equation):
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
-                # v_0_new_field, v_2_new_field = rk_00()
                 v_0_new_field, v_2_new_field = jax.lax.cond(
                     kx == 0,
                     lambda kx___, kz___: jax.lax.cond(
@@ -572,7 +524,6 @@ class NavierStokesVelVort(Equation):
         self.dt = self.get_time_step()
         dt = self.dt
 
-        # Re = self.Re * 2 / 3 # TODO
         Re = self.Re_tau
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri.shape[0]
@@ -818,8 +769,8 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     def perform_time_step(self):
-        return self.perform_runge_kutta_step()
-        # return self.perform_cn_ab_step()
+        # return self.perform_runge_kutta_step()
+        return self.perform_cn_ab_step()
 
 
 def solve_navier_stokes_laminar(
@@ -880,7 +831,7 @@ def solve_navier_stokes_laminar(
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
 
     plot_interval = 10
-    def after_time_step(nse):
+    def before_time_step(nse):
         i = nse.time_step
         if (i-1) % plot_interval == 0:
             vel = nse.get_field("velocity_hat", i).no_hat()
@@ -898,8 +849,7 @@ def solve_navier_stokes_laminar(
             new_error = abs(vel[0] - vel_x_ana)
             rel_change = abs(new_error - old_error) / old_error
             print("rel_change: " + str(rel_change))
-            # input("carry on?")
 
-    nse.after_time_step_fn = after_time_step
+    nse.before_time_step_fn = before_time_step
 
     return nse
