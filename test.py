@@ -1097,7 +1097,8 @@ def test_pseudo_2d():
     Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 6000
+    # Re = 6000
+    Re = 5500
     alpha = 1.02056
     # alpha = 1.0
 
@@ -1214,7 +1215,7 @@ def test_pseudo_2d():
                 # vort_pert[j].plot_center(1)
             print("velocity pertubation energy: ", vel_pert_energy)
             vel_pert_energy_old = vel_pert_old.energy()
-            if vel_pert_energy - vel_pert_energy_old > 0:
+            if vel_pert_energy - vel_pert_energy_old >= 0:
                 print("velocity pertubation energy increase: ", vel_pert_energy - vel_pert_energy_old)
             else:
                 print("velocity pertubation energy decrease: ", - (vel_pert_energy - vel_pert_energy_old))

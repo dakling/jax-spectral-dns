@@ -6,7 +6,7 @@ import math
 import jax
 import jax.numpy as jnp
 from functools import partial
-import matplotlib.pyplot as plt
+import matplotlib.figure as figure
 from matplotlib import colors
 
 import numpy as np
@@ -42,26 +42,6 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
         out_array = jnp.array(
             [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
         )
-        # out_array = jnp.array([[fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints])
-        # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn((k1_, k2_)))(k1_ints))(k2_ints))
-        # out_array = [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
-        # t2 = time.time()
-        # out_field = [
-        #     FourierField(
-        #         field[0].domain_no_hat,
-        #         jnp.moveaxis(
-        #             jnp.array(
-        #                 [[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
-        #             ),
-        #             # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2_ints))(k1_ints)),
-        #             # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
-        #             -1,
-        #             field.all_nonperiodic_dimensions()[0],
-        #         ),
-        #         "out_" + str(i),
-        #     )
-        #     for i in field.all_dimensions()
-        # ]
         out_field = jnp.array(
             [
                 jnp.moveaxis(
@@ -72,9 +52,6 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
                 for i in domain.all_dimensions()
             ]
         )
-        # t3 = time.time()
-        # print("time for first part ", t2-t1)
-        # print("time for second part ", t3-t2)
 
     # might be better on GPUs? TODO: fix bug
     else:
@@ -85,19 +62,7 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
         jit_fn_vec = jax.vmap(jit_fn)
         # jit_fn_vec = jax.vmap(fn)
         Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
-        # t1 = time.time()
-        time_3 = time.time()
         out_array = jnp.array(jit_fn_vec(K))
-        time_4 = time.time()
-        # t2 = time.time()
-        # out_field = jnp.array([
-        #         jnp.moveaxis(
-        #             out_array[i,:,:].reshape(Nx, Nz, Ny),
-        #             -1,
-        #             domain.all_nonperiodic_dimensions()[0],
-        #         )
-        #     for i in domain.all_dimensions()
-        # ])
         out_field = jax.lax.map(
             lambda i: jnp.moveaxis(
                 out_array[i, :, :].reshape(Nx, Nz, Ny),
@@ -106,11 +71,6 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
             ),
             jnp.arange(domain.number_of_dimensions),
         )
-        time_5 = time.time()
-        print("time for part 1 ", time_2 - time_1)
-        print("time for part 2 ", time_3 - time_2)
-        print("time for part 3 ", time_4 - time_3)
-        print("time for part 4 ", time_5 - time_4)
     return out_field
 
 
@@ -258,12 +218,7 @@ class Field:
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.field) / self.number_of_dofs()
 
-
     def l2error(self, fn):
-        # fine_resolution = tuple(map(lambda x: x*10, self.domain.shape))
-        # fine_domain = Domain(fine_resolution, self.domain.periodic_directions)
-        # analytical_solution = Field.FromFunc(fine_domain, fn)
-        # fine_field = Field.FromFunc(fine_domain, lambda X: self.eval(*X) + 0.0*X[0] * X[1] * X[2])
         # TODO supersampling
         analytical_solution = Field.FromFunc(self.domain, fn)
         return jnp.linalg.norm((self - analytical_solution).field, None)
@@ -277,7 +232,6 @@ class Field:
     def energy(self):
         energy = 0.5 * self * self
         return energy.volume_integral()
-
 
     def eval(self, *X):
         """Evaluate field at arbitrary point X through linear interpolation. (This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
@@ -325,7 +279,8 @@ class Field:
 
     def plot_center(self, dimension, *other_fields):
         if self.domain.number_of_dimensions == 1:
-            fig, ax = plt.subplots(1, 1)
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
             ax.plot(self.domain.grid[0], self.field, label=self.name)
             for other_field in other_fields:
                 ax.plot(
@@ -335,12 +290,27 @@ class Field:
                     label=other_field.name,
                 )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_latest" + self.plotting_format)
+            fig.savefig(
+                self.plotting_dir
+                + "plot_cl_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
             # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-            plt.close(fig)
+            fig.savefig(
+                self.plotting_dir
+                + "plot_cl_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
+            # plt.close(fig)
         elif self.domain.number_of_dimensions == 2:
-            fig, ax = plt.subplots(1, 1)
+            # fig, ax = plt.subplots(1, 1)
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
             other_dim = [i for i in self.all_dimensions() if i != dimension][0]
             N_c = len(self.domain.grid[other_dim]) // 2
             ax.plot(
@@ -375,9 +345,11 @@ class Field:
                 + "{:06}".format(self.time_step)
                 + self.plotting_format
             )
-            plt.close(fig)
+            # plt.close(fig)
         elif self.domain.number_of_dimensions == 3:
-            fig, ax = plt.subplots(1, 1)
+            # fig, ax = plt.subplots(1, 1)
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
             other_dim = [i for i in self.all_dimensions() if i != dimension]
             N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
             ax.plot(
@@ -416,13 +388,13 @@ class Field:
                 + "{:06}".format(self.time_step)
                 + self.plotting_format
             )
-            plt.close(fig)
         else:
             raise Exception("Not implemented yet")
 
     def plot(self, *other_fields):
         if self.domain.number_of_dimensions == 1:
-            fig, ax = plt.subplots(1, 1)
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
             ax.plot(
                 self.domain.grid[0],
                 self.field,
@@ -436,13 +408,24 @@ class Field:
                     label=other_field.name,
                 )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-            plt.close(fig)
-
+            fig.savefig(
+                self.plotting_dir
+                + "plot_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
 
         elif self.domain.number_of_dimensions == 2:
-            fig = plt.figure(figsize=(15, 5))
+            fig = figure.Figure(figsize=(15, 5))
             ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
             ax3d = fig.add_subplot(1, 3, 3, projection="3d")
             for dimension in self.all_dimensions():
@@ -467,11 +450,24 @@ class Field:
                         self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field
                     )
                 fig.legend()
-                fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
-                fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-                plt.close(fig)
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
         elif self.domain.number_of_dimensions == 3:
-            fig, ax = plt.subplots(1, 3, figsize=(15, 5))
+            fig = figure.Figure()
+            ax = fig.subplots(1, 3, figsize=(15, 5))
             for dimension in self.all_dimensions():
                 other_dim = [i for i in self.all_dimensions() if i != dimension]
                 N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
@@ -492,9 +488,21 @@ class Field:
                         label=other_field.name,
                     )
             fig.legend()
-            fig.savefig(self.plotting_dir + "plot_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-            plt.close(fig)
+            fig.savefig(
+                self.plotting_dir
+                + "plot_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
         else:
             raise Exception("Not implemented yet")
 
@@ -505,8 +513,7 @@ class Field:
             assert (
                 self.domain.number_of_dimensions == 3
             ), "Only 3D supported for this plotting method."
-            # fig, ax = plt.subplots(1, 3)
-            fig = plt.figure(layout="constrained")
+            fig = figure.Figure(layout="constrained")
             base_len = 100
             grd = (base_len, base_len)
             lx = self.domain.scale_factors[0]
@@ -519,16 +526,16 @@ class Field:
             rows_z = int(lx / (ly + lx) * base_len)
             cols_z = int(ly / (lz + ly) * base_len)
             ax = [
-                plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
-                plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
-                plt.subplot2grid(grd, (rows_x, cols_y), rowspan=rows_z, colspan=cols_z),
+                fig.add_subplot(fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]),
+                fig.add_subplot(
+                    fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
+                ),
+                fig.add_subplot(
+                    fig.add_gridspec(*grd)[
+                        rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
+                    ]
+                ),
             ]
-            # grd = (10, 6)
-            # ax = [
-            #     plt.subplot2grid(grd, (0, 0), rowspan=2, colspan=6),
-            #     plt.subplot2grid(grd, (2, 0), rowspan=6, colspan=6),
-            #     plt.subplot2grid(grd, (8, 0), rowspan=2, colspan=6),
-            # ]
             ims = []
             for dim in self.all_dimensions():
                 N_c = len(self.domain.grid[dim]) // 2
@@ -536,9 +543,6 @@ class Field:
                 ims.append(
                     ax[dim].imshow(
                         self.field.take(indices=N_c, axis=dim),
-                        # labels=dict(x="xyz"[other_dim[0]], y="xyz"[other_dim[1]], color="Productivity"),
-                        # x=self.domain.grid[other_dim[0]],
-                        # y=self.domain.grid[other_dim[1]],
                         interpolation=None,
                         extent=[
                             self.domain.grid[other_dim[1]][0],
@@ -557,25 +561,35 @@ class Field:
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name)
-            fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_latest" + self.plotting_format)
-            fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-            plt.close(fig)
+            fig.savefig(
+                self.plotting_dir
+                + "plot_3d_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_3d_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
 
     def plot_3d_single(self, dim):
         assert (
             self.domain.number_of_dimensions == 3
         ), "Only 3D supported for this plotting method."
-        fig, ax = plt.subplots(1,1)
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
         ims = []
         N_c = len(self.domain.grid[dim]) // 2
         other_dim = [i for i in self.all_dimensions() if i != dim]
         ims.append(
             ax.imshow(
                 self.field.take(indices=N_c, axis=dim).T,
-                # labels=dict(x="xyz"[other_dim[0]], y="xyz"[other_dim[1]], color="Productivity"),
-                # x=self.domain.grid[other_dim[0]],
-                # y=self.domain.grid[other_dim[1]],
-                    interpolation=None,
+                interpolation=None,
                 extent=[
                     self.domain.grid[other_dim[0]][0],
                     self.domain.grid[other_dim[0]][-1],
@@ -592,11 +606,26 @@ class Field:
         norm = colors.Normalize(vmin=vmin, vmax=vmax)
         for im in ims:
             im.set_norm(norm)
-        # fig.colorbar(ims[0], ax=ax, label=self.name, orientation="horizontal")
         fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
-        fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_latest" + self.plotting_format)
-        fig.savefig(self.plotting_dir + "plot_3d_" + "xyz"[dim] + "_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-        plt.close(fig)
+        fig.savefig(
+            self.plotting_dir
+            + "plot_3d_"
+            + "xyz"[dim]
+            + "_"
+            + self.name
+            + "_latest"
+            + self.plotting_format
+        )
+        fig.savefig(
+            self.plotting_dir
+            + "plot_3d_"
+            + "xyz"[dim]
+            + "_"
+            + self.name
+            + "_t_"
+            + "{:06}".format(self.time_step)
+            + self.plotting_format
+        )
 
     def all_dimensions(self):
         return self.domain.all_dimensions()
@@ -642,7 +671,6 @@ class Field:
             )
 
     def hat(self):
-        # self.field_hat = FourierField.FromField(self)
         out = FourierField.FromField(self)
         out.time_step = self.time_step
         return out
@@ -674,10 +702,18 @@ class Field:
                 N = len(self.domain.grid[direction])
                 inds = [i for i in self.all_dimensions() if i != direction]
                 shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
-                periodic_directions = tuple((jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist())
-                scale_factors = tuple((jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist())
-                reduced_domain = Domain(shape, periodic_directions, scale_factors=scale_factors)
-                field = jnp.take(int.field, indices=0, axis=direction) - jnp.take(int.field, indices=N-1, axis=direction)
+                periodic_directions = tuple(
+                    (jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist()
+                )
+                scale_factors = tuple(
+                    (jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist()
+                )
+                reduced_domain = Domain(
+                    shape, periodic_directions, scale_factors=scale_factors
+                )
+                field = jnp.take(int.field, indices=0, axis=direction) - jnp.take(
+                    int.field, indices=N - 1, axis=direction
+                )
                 return Field(reduced_domain, field)
         else:
             N = len(self.domain.grid[direction])
@@ -687,13 +723,21 @@ class Field:
                 N = len(self.domain.grid[direction])
                 inds = [i for i in self.all_dimensions() if i != direction]
                 shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
-                periodic_directions = tuple((jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist())
-                scale_factors = tuple((jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist())
-                reduced_domain = Domain(shape, periodic_directions, scale_factors=scale_factors)
-                field = self.domain.scale_factors[direction] / N * np.add.reduce(self.field, axis=direction)
+                periodic_directions = tuple(
+                    (jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist()
+                )
+                scale_factors = tuple(
+                    (jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist()
+                )
+                reduced_domain = Domain(
+                    shape, periodic_directions, scale_factors=scale_factors
+                )
+                field = (
+                    self.domain.scale_factors[direction]
+                    / N
+                    * np.add.reduce(self.field, axis=direction)
+                )
                 return Field(reduced_domain, field)
-
-
 
     def nabla(self):
         out = [self.diff(0)]
@@ -767,76 +811,10 @@ class VectorField:
         return out
 
     def energy(self):
-        en= 0
+        en = 0
         for f in self:
             en += f.energy()
         return en
-
-#     def __neg__(self):
-#         return self * (-1.0)
-
-#     def __add__(self, other):
-#         if self.performance_mode:
-#             new_name = ""
-#         else:
-#             if other.name[0] == "-":
-#                 new_name = self.name + " - " + other.name[1:]
-#             else:
-#                 new_name = self.name + " + " + other.name
-#         return FourierField(self.domain_no_hat, self.field + other.field, name=new_name)
-
-#     def __sub__(self, other):
-#         return self + other * (-1.0)
-
-#     def __mul__(self, other):
-#         if isinstance(other, Field):
-#             if self.performance_mode:
-#                 new_name = ""
-#             else:
-#                 try:
-#                     new_name = self.name + " * " + other.name
-#                 except Exception:
-#                     new_name = "field"
-#             return FourierField(self.domain_no_hat, self.field * other.field, name=new_name)
-#         else:
-#             if self.performance_mode:
-#                 new_name = ""
-#             else:
-#                 try:
-#                     if other.real >= 0:
-#                         new_name = str(other) + self.name
-#                     elif other == 1:
-#                         new_name = self.name
-#                     elif other == -1:
-#                         new_name = "-" + self.name
-#                     else:
-#                         new_name = "(" + str(other) + ") " + self.name
-#                 except Exception:
-#                     new_name = "field"
-#             return FourierField(self.domain_no_hat, self.field * other, name=new_name)
-
-#     __rmul__ = __mul__
-#     __lmul__ = __mul__
-
-#     def __truediv__(self, other):
-#         if type(other) == Field:
-#             raise Exception("Don't know how to divide by another field")
-#         else:
-#             if self.performance_mode:
-#                 new_name = ""
-#             else:
-#                 try:
-#                     if other.real >= 0:
-#                         new_name = self.name + "/" + other
-#                     elif other == 1:
-#                         new_name = self.name
-#                     elif other == -1:
-#                         new_name = "-" + self.name
-#                     else:
-#                         new_name = self.name + "/ (" + str(other) + ") "
-#                 except Exception:
-#                     new_name = "field"
-#             return FourierField(self.domain_no_hat, self.field * other, name=new_name)
 
     def get_time_step(self):
         time_steps = [f.time_step for f in self]
@@ -849,23 +827,12 @@ class VectorField:
 
     def all_dimensions(self):
         return self[0].domain.all_dimensions()
-        # return jnp.arange(self[0].domain.number_of_dimensions)
 
     def all_periodic_dimensions(self):
         return self[0].domain.all_periodic_dimensions()
-        # return [
-        #     self.all_dimensions()[d]
-        #     for d in self.all_dimensions()
-        #     if self[0].domain.periodic_directions[d]
-        # ]
 
     def all_nonperiodic_dimensions(self):
         return self[0].domain.all_nonperiodic_dimensions()
-        # return [
-        #     self.all_dimensions()[d]
-        #     for d in self.all_dimensions()
-        #     if not self[0].domain.periodic_directions[d]
-        # ]
 
     def hat(self):
         return VectorField([f.hat() for f in self])
@@ -921,7 +888,6 @@ class VectorField:
             out += self[dim].diff(dim)
         return out
 
-
     def reconstruct_from_wavenumbers(self, fn, number_of_other_fields=0):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
 
@@ -932,7 +898,6 @@ class VectorField:
         vectorize = False
 
         if jit:
-            # jit_fn = jax.jit(fn)
             time_1 = time.time()
             out_field = reconstruct_from_wavenumbers_jit(self[0].domain_no_hat, fn)
             time_2 = time.time()
@@ -968,26 +933,6 @@ class VectorField:
                 out_array = jnp.array(
                     [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
                 )
-                # out_array = jnp.array([[fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints])
-                # out_array = jnp.array(jax.vmap(lambda k2_: jax.vmap(lambda k1_: jit_fn((k1_, k2_)))(k1_ints))(k2_ints))
-                # out_array = [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
-                # t2 = time.time()
-                # out_field = [
-                #     FourierField(
-                #         self[0].domain_no_hat,
-                #         jnp.moveaxis(
-                #             jnp.array(
-                #                 [[out_array[k1_][k2_][i] for k2_ in k2_ints] for k1_ in k1_ints]
-                #             ),
-                #             # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array.at[k1_,k2_,i].get())(k2_ints))(k1_ints)),
-                #             # jnp.array(jax.vmap(lambda k1_: jax.vmap(lambda k2_: out_array[k1_][k2_].get()[i])(k2))(k1)),
-                #             -1,
-                #             self.all_nonperiodic_dimensions()[0],
-                #         ),
-                #         "out_" + str(i),
-                #     )
-                #     for i in self.all_dimensions()
-                # ]
                 out_field = [
                     FourierField(
                         self[0].domain_no_hat,
@@ -1003,30 +948,25 @@ class VectorField:
 
                 other_field = []
                 for i in range(number_of_other_fields):
-                    other_field.append(FourierField(
+                    other_field.append(
+                        FourierField(
                             self[0].domain_no_hat,
                             jnp.moveaxis(
-                                out_array[:, :, i+3, :],
+                                out_array[:, :, i + 3, :],
                                 -1,
                                 self.all_nonperiodic_dimensions()[0],
                             ),
                             "out_" + str(i),
-                        ))
-
-                # t3 = time.time()
-                # print("time for first part ", t2-t1)
-                # print("time for second part ", t3-t2)
+                        )
+                    )
 
             # might be better on GPUs? TODO: fix bug
             else:
-                time_2 = time.time()
                 K1, K2 = jnp.meshgrid(k1_ints, k2_ints)
                 K = jnp.array(list(zip(K1.flatten(), K2.flatten())))
                 jit_fn_vec = jax.vmap(jit_fn)
                 Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
-                time_3 = time.time()
                 out_array = jnp.array(jit_fn_vec(K))
-                time_4 = time.time()
                 out_field = [
                     FourierField(
                         self[0].domain_no_hat,
@@ -1039,20 +979,6 @@ class VectorField:
                     )
                     for i in self.all_dimensions()
                 ]
-                # out_field = jax.lax.map(
-                #     lambda i:
-                #     jnp.moveaxis(
-                #         out_array[i,:,:].reshape(Nx, Nz, Ny),
-                #         -1,
-                #         self[0].domain.all_nonperiodic_dimensions()[0],
-                #     ),
-                #     jnp.arange(self[0].domain.number_of_dimensions)
-                # )
-                time_5 = time.time()
-                print("time for part 1 ", time_2 - time_1)
-                print("time for part 2 ", time_3 - time_2)
-                print("time for part 3 ", time_4 - time_3)
-                print("time for part 4 ", time_5 - time_4)
             return (VectorField(out_field), other_field)
 
 
@@ -1098,9 +1024,6 @@ class FourierField(Field):
 
     def integrate(self, direction, order=1, bc_right=None, bc_left=None):
         if direction in self.all_periodic_dimensions():
-            # assert (
-            #     type(bc_right) == NoneType and type(bc_left) == NoneType
-            # ), "Providing boundary conditions for integration along periodic direction is not supported."
             mgrid = self.domain.mgrid[direction]
             field = self.field
             N = mgrid.shape[direction]
@@ -1151,7 +1074,11 @@ class FourierField(Field):
         eye_bc = jnp.block(
             [
                 [jnp.zeros((bc_padding, n))],
-                [jnp.zeros((n - 2*bc_padding, bc_padding)), jnp.eye(n - 2*bc_padding), jnp.zeros((n - 2*bc_padding, bc_padding))],
+                [
+                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
+                    jnp.eye(n - 2 * bc_padding),
+                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
+                ],
                 [jnp.zeros((bc_padding, n))],
             ]
         )
@@ -1176,10 +1103,6 @@ class FourierField(Field):
         if type(mat) == NoneType:
             mat = self.assemble_poisson_matrix()
         field = rhs_hat
-        # for i in reversed(self.all_periodic_dimensions()):
-        #     N = field.shape[i]
-        #     inds = jnp.arange(1, N)
-        #     field = field.take(indices=inds, axis=i)
         out_field = jnp.pad(
             jnp.einsum("ijkl,ilj->ikj", mat, field),
             [
@@ -1189,7 +1112,9 @@ class FourierField(Field):
             mode="constant",
             constant_values=0.0,
         )
-        out_fourier = FourierField(self.domain_no_hat, out_field, name=self.name + "_poisson")
+        out_fourier = FourierField(
+            self.domain_no_hat, out_field, name=self.name + "_poisson"
+        )
         return out_fourier
 
     def no_hat(self):
@@ -1215,63 +1140,6 @@ class FourierField(Field):
         )
         return FourierField(self.domain_no_hat, out_field, name=self.name + "_reconstr")
 
-    def plot_3d(self):
-        assert (
-            self.domain.number_of_dimensions == 3
-        ), "Only 3D supported for this plotting method."
-        # fig, ax = plt.subplots(1, 3)
-        fig = plt.figure(layout="constrained")
-        base_len = 100
-        grd = (base_len, base_len)
-        lx = self.domain.scale_factors[0]
-        ly = self.domain.scale_factors[1] * 2
-        lz = self.domain.scale_factors[2]
-        # rows_x = int(lx / (ly + lx) * base_len)
-        # cols_x = int(lz / (lz + ly) * base_len)
-        # rows_y = int(lx / (ly + lx) * base_len)
-        # cols_y = int(lz / (lz + ly) * base_len)
-        # rows_z = int(lx / (ly + lx) * base_len)
-        # cols_z = int(ly / (lz + ly) * base_len)
-        rows_x = int(ly / (ly + lx) * base_len)
-        cols_x = int(lz / (lz + ly) * base_len)
-        rows_y = int(lx / (ly + lx) * base_len)
-        cols_y = int(lz / (lz + ly) * base_len)
-        rows_z = int(lx / (ly + lx) * base_len)
-        cols_z = int(ly / (lz + ly) * base_len)
-        ax = [
-            plt.subplot2grid(grd, (0, 0), rowspan=rows_x, colspan=cols_x),
-            plt.subplot2grid(grd, (rows_x, 0), rowspan=rows_y, colspan=cols_y),
-            plt.subplot2grid(grd, (rows_x, cols_y), rowspan=rows_z, colspan=cols_z),
-        ]
-        ims = []
-        for dim in self.all_dimensions():
-            N_c = 0
-            other_dim = [i for i in self.all_dimensions() if i != dim]
-            ims.append(
-                ax[dim].imshow(
-                    jnp.absolute(self.field.take(indices=N_c, axis=dim)),
-                    interpolation=None,
-                    extent=[
-                        self.domain.grid[other_dim[1]][0],
-                        self.domain.grid[other_dim[1]][-1],
-                        self.domain.grid[other_dim[0]][0],
-                        self.domain.grid[other_dim[0]][-1],
-                    ],
-                )
-            )
-            ax[dim].set_xlabel("xyz"[other_dim[1]])
-            ax[dim].set_ylabel("xyz"[other_dim[0]])
-        # Find the min and max of all colors for use in setting the color scale.
-        vmin = min(image.get_array().min() for image in ims)
-        vmax = max(image.get_array().max() for image in ims)
-        norm = colors.Normalize(vmin=vmin, vmax=vmax)
-        for im in ims:
-            im.set_norm(norm)
-        fig.colorbar(ims[0], ax=ax, label=self.name)
-        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_latest" + self.plotting_format)
-        fig.savefig(self.plotting_dir + "plot_3d_" + self.name + "_t_" + "{:06}".format(self.time_step) + self.plotting_format)
-        plt.close(fig)
-
 
 class FourierFieldSlice(FourierField):
     def __init__(
@@ -1290,7 +1158,6 @@ class FourierFieldSlice(FourierField):
 
     def all_dimensions(self):
         return range(len(self.ks))
-        # return jnp.arange(len(self.ks))
 
     def all_periodic_dimensions(self):
         return [
@@ -1306,7 +1173,6 @@ class FourierFieldSlice(FourierField):
         if direction in self.all_periodic_dimensions():
             out_field = (1j * self.ks[direction]) ** order * self.field
         else:
-            # out_field = super().diff(1, order).field
             out_field = self.domain.diff(self.field, 0, order)
         return FourierFieldSlice(
             self.domain_no_hat,
@@ -1360,7 +1226,6 @@ class FourierFieldSlice(FourierField):
             *self.ks_raw,
             ks_int=self.ks_int[jnp.array(self.all_periodic_dimensions())]
         )
-        # self.field = out_fourier.field
         return out_fourier
 
     def update_boundary_conditions(self):
