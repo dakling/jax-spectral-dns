@@ -1143,7 +1143,7 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 5e-1
+    eps = 5e-3
     nse.init_velocity(
         VectorField(
             [
@@ -1397,15 +1397,16 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
 
 
 def test_pseudo_2d_pertubation():
-    Ny = 96
+    Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 5500
+    Re = 3000
+    # Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 
     Nx = 496
-    Nz = 2
+    Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
     end_time = 10
@@ -1445,20 +1446,32 @@ def test_pseudo_2d_pertubation():
 
     eps = 1e-3
     vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
-    nse.set_field(
-        "velocity_hat",
-        0,
+    nse.init_velocity(
         VectorField(
             [
-                eps * u.hat(),
+                vel_x_hat + eps * u.hat(),
                 eps * v.hat(),
                 eps * w.hat(),
             ]
         ),
     )
 
+    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.domain_no_hat)
+    energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
+    energy_x_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)[0](t, 0)
+    energy_y_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)[0](t, 1)
+    print("eigenvalue: ", ev)
     plot_interval = 10
 
+    vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
+    vel_pert_0.name = "veloctity_y_0"
+    ts = []
+    energy_t = []
+    energy_x_t = []
+    energy_y_t = []
+    energy_t_ana = []
+    energy_x_t_ana = []
+    energy_y_t_ana = []
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
@@ -1467,7 +1480,7 @@ def test_pseudo_2d_pertubation():
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
             # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            vel_pert_energy = 0
+            vel_pert_old = nse.get_field("velocity_hat", max(0, i-1)).no_hat()
             vort = vel.curl()
             for j in range(3):
                 vel[j].time_step = i
@@ -1479,11 +1492,46 @@ def test_pseudo_2d_pertubation():
                 vort[j].plot_3d(2)
                 vel[j].plot_center(0)
                 vel[j].plot_center(1)
-                vel_pert_energy += vel_pert[j].energy()
-            print("velocity pertubation: ", vel_pert_energy)
-            print("velocity pertubation x: ", vel_pert[0].energy())
-            print("velocity pertubation y: ", vel_pert[1].energy())
-            print("velocity pertubation z: ", vel_pert[2].energy())
+            vel_pert_energy = vel_pert.energy()
+            print("analytical velocity pertubation energy: ", energy_over_time_fn(nse.time))
+            print("velocity pertubation energy: ", vel_pert_energy)
+            print("velocity pertubation energy x: ", vel_pert[0].energy())
+            print("analytical velocity pertubation energy x: ", energy_x_over_time_fn(nse.time))
+            print("velocity pertubation energy y: ", vel_pert[1].energy())
+            print("analytical velocity pertubation energy y: ", energy_y_over_time_fn(nse.time))
+            print("velocity pertubation energy z: ", vel_pert[2].energy())
+            vel_pert_energy_old = vel_pert_old.energy()
+            if vel_pert_energy - vel_pert_energy_old >= 0:
+                print("velocity pertubation energy increase: ", vel_pert_energy - vel_pert_energy_old)
+            else:
+                print("velocity pertubation energy decrease: ", - (vel_pert_energy - vel_pert_energy_old))
+            print("velocity pertubation energy x change: ", vel_pert[0].energy() - vel_pert_old[0].energy())
+            print("velocity pertubation energy y change: ", vel_pert[1].energy() - vel_pert_old[1].energy())
+            print("velocity pertubation energy z change: ", vel_pert[2].energy() - vel_pert_old[2].energy())
+            ts.append(nse.time)
+            energy_t.append(vel_pert_energy)
+            energy_x_t.append(vel_pert[0].energy())
+            energy_y_t.append(vel_pert[1].energy())
+            energy_t_ana.append(energy_over_time_fn(nse.time))
+            energy_x_t_ana.append(energy_x_over_time_fn(nse.time))
+            energy_y_t_ana.append(energy_y_over_time_fn(nse.time))
+            # if i > plot_interval * 3:
+            if True:
+                fig = figure.Figure()
+                ax = fig.subplots(1,1)
+                ax.plot(ts, energy_t_ana)
+                ax.plot(ts, energy_t, ".")
+                fig.savefig("plots/energy_t.pdf")
+                fig = figure.Figure()
+                ax = fig.subplots(1,1)
+                ax.plot(ts, energy_x_t_ana)
+                ax.plot(ts, energy_x_t, ".")
+                fig.savefig("plots/energy_x_t.pdf")
+                fig = figure.Figure()
+                ax = fig.subplots(1,1)
+                ax.plot(ts, energy_y_t_ana)
+                ax.plot(ts, energy_y_t, ".")
+                fig.savefig("plots/energy_y_t.pdf")
         # input("carry on?")
 
     nse.before_time_step_fn = before_time_step
@@ -1513,10 +1561,10 @@ def run_all_tests():
     # return test_navier_stokes_turbulent()
     # test_vmap()
     # test_transient_growth()
-    test_pseudo_2d()
+    # test_pseudo_2d()
     # test_dummy_velocity_field()
     # test_pertubation_laminar()
-    # test_pseudo_2d_pertubation()
+    test_pseudo_2d_pertubation()
 
 
 def run_all_tests_profiling():

@@ -120,8 +120,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
     # max_dt = 1e10
     max_dt = 1e-2
 
-    def __init__(self, shape, velocity_field, **params):
-        domain = velocity_field[0].domain
+    def __init__(self, velocity_field, **params):
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
         velocity_x_base = Field.FromFunc(self.domain_no_hat, lambda X: self.u_max_over_u_tau * (1 - X[1]**2) + 0.0 * X[0] * X[2], name="velocity_x_base")
@@ -129,10 +128,8 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         velocity_z_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_z_base")
         velocity_base_hat = VectorField([velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()])
         velocity_base_hat.name = "velocity_base_hat"
-        # v_1_lap_hat_a = FourierField.FromFunc(self.domain_no_hat, lambda X: (X[1] + 1)/2 + 0.0 * X[0] * X[2])
-        # v_1_lap_hat_a.name="v_1_lap_hat_a"
-        # super().__init__(domain, velocity_field, velocity_base_hat, v_1_lap_hat_a, **params)
-        super().__init__(domain, velocity_field, velocity_base_hat, **params)
+
+        super().__init__(velocity_field, velocity_base_hat, **params)
         self.nonlinear_update_fn = lambda dom, vel: update_nonlinear_terms_high_performance_pertubation(dom, vel, jnp.array([ velocity_base_hat[0].field, velocity_base_hat[1].field, velocity_base_hat[2].field ]))
 
     def update_flow_rate(self):
@@ -183,7 +180,7 @@ def solve_navier_stokes_pertubation(
     vel_z = Field.FromFunc(domain, vel_z_fn, name="vel_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVortPertubation.FromVelocityField((Nx, Ny, Nz), vel, Re)
+    nse = NavierStokesVelVortPertubation.FromVelocityField(vel, Re)
     nse.end_time = end_time
     nse.max_iter = max_iter
 
