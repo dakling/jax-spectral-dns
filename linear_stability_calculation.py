@@ -14,6 +14,8 @@ import timeit
 from importlib import reload
 import sys
 
+from navier_stokes import NavierStokesVelVort
+
 try:
     reload(sys.modules["cheb"])
 except:
@@ -30,15 +32,14 @@ try:
     reload(sys.modules["field"])
 except:
     pass
-from field import Field
+from field import Field, VectorField
 
 
 class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, n=50):
-        # self.Re = Re * 2 / 3 # TODO
         self.Re = Re
         self.alpha = alpha
-        self.n = n  # chebychev resolution
+        self.n = int(n * Domain.aliasing)  # chebychev resolution
 
         self.A = None
         self.B = None
@@ -48,17 +49,19 @@ class LinearStabilityCalculation:
         self.C = None
         self.growth = []
 
-        # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*n)) for i in range(n)] # gauss-lobatto points (SH2001, p. 488)
-        domain = Domain((n,), (False,))
-        self.ys = domain.grid[0]
+        self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
+        # domain = Domain((n,), (False,))
+        # self.ys = domain.grid[0]
 
         self.velocity_field_ = None
 
     def assemble_matrix_fast(self):
+        # n = self.n - 2
         n = self.n
         alpha = self.alpha
         Re = self.Re
 
+        # ys = self.ys[1:-1]
         ys = self.ys
 
         noOfEqs = 4
@@ -143,8 +146,9 @@ class LinearStabilityCalculation:
         # sort eigenvals
         eevs = [(eigvals[i], eigvecs[:, i]) for i in range(len(eigvals))]
         eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
-        self.eigenvalues = [eev[0] for eev in eevs]
+        self.eigenvalues = np.array([eev[0] for eev in eevs])
         self.eigenvectors = [eev[1] for eev in eevs]
+        self.eigenvalues.dump("fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n))
         return self.eigenvalues, self.eigenvectors
 
     def velocity_field(self, domain, mode=0):
@@ -157,6 +161,7 @@ class LinearStabilityCalculation:
 
         u_vec, v_vec, w_vec, _ = np.split(evec, 4)
 
+        # TODO interpolate (if numerical error is too large)
         def to_3d_field(eigenvector):
             phi_mat = np.zeros((self.n, self.n), dtype=np.complex128)
             for i in range(self.n):
@@ -173,18 +178,25 @@ class LinearStabilityCalculation:
         w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
         print("done calculating velocity pertubations in 3D")
 
-        self.velocity_field_ = (u_field, v_field, w_field)
+        self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return (u_field, v_field, w_field)
 
     def energy_over_time(self, domain, mode=0):
         if type(self.velocity_field_)  == NoneType:
             self.velocity_field(domain, mode)
-        def out(t):
-            energy = 0
-            for dim in domain.all_dimensions():
-                energy += (self.velocity_field[dim] * (jnp.exp(1j * self.alpha - 1j * self.eigenvalues[mode] * t)).real).energy()
+        try:
+            self.eigenvalues = np.load("fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n), allow_pickle=True)
+        except FileNotFoundError:
+            self.calculate_eigenvalues()
+        def out(t, dim=None):
+            if type(dim) == NoneType:
+                energy = 0
+                for d in domain.all_dimensions():
+                    energy += (self.velocity_field_[d] * (jnp.exp(- 1j * self.eigenvalues[mode] * t)).real).energy()
+            else:
+                energy = (self.velocity_field_[dim] * (jnp.exp(- 1j * self.eigenvalues[mode] * t)).real).energy()
             return energy
-        return out
+        return (out, self.eigenvalues[mode])
 
     def print_welcome(self):
         print("starting linear stability calculation")  # TODO more info

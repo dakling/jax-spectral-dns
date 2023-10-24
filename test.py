@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
 from matplotlib import legend
-import matplotlib.pyplot as plt
+import matplotlib.figure as figure
 from matplotlib import legend
 from numpy import float128
 import scipy as sc
@@ -1082,13 +1082,13 @@ def test_vmap():
 
 
 def test_linear_stability():
-    n = 24
+    n = 64
     Re = 5772.22
     alpha = 1.02056
 
     lsc = LinearStabilityCalculation(Re, alpha, n)
     evs, _ = lsc.calculate_eigenvalues()
-    # print(evs)
+    # print(evs[0])
     # print(evecs[0])
     assert evs[0].real <= 0.0 and evs[0].real >= -1e-8
 
@@ -1097,8 +1097,8 @@ def test_pseudo_2d():
     Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 6000
-    # Re = 5500
+    # Re = 6000
+    Re = 5500
     alpha = 1.02056
     # alpha = 1.0
 
@@ -1134,6 +1134,7 @@ def test_pseudo_2d():
         v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
         w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
         print("found existing fields, skipping eigenvalue computation")
+        lsc.velocity_field_ = (u, v, w)
     except FileNotFoundError:
         print("could not find fields")
         u, v, w = lsc.velocity_field(nse.domain_no_hat)
@@ -1142,10 +1143,8 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-1
-    nse.set_field(
-        "velocity_hat",
-        0,
+    eps = 5e-1
+    nse.init_velocity(
         VectorField(
             [
                 vel_x_hat + eps * u.hat(),
@@ -1155,12 +1154,22 @@ def test_pseudo_2d():
         ),
     )
 
-    energy_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)(t)
+    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.domain_no_hat)
+    energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
+    energy_x_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)[0](t, 0)
+    energy_y_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)[0](t, 1)
+    print("eigenvalue: ", ev)
     plot_interval = 10
 
-    # def after_time_step(nse):
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
+    ts = []
+    energy_t = []
+    energy_x_t = []
+    energy_y_t = []
+    energy_t_ana = []
+    energy_x_t_ana = []
+    energy_y_t_ana = []
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
@@ -1180,6 +1189,12 @@ def test_pseudo_2d():
             vel_x_ana_old = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old")
             vel_pert_old = VectorField([vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]])
             vel_pert_energy = 0
+            v_1_lap_p = nse.get_latest_field("v_1_lap_hat_p").no_hat()
+            v_1_lap_p_0 = nse.get_initial_field("v_1_lap_hat_p").no_hat()
+            v_1_lap_p.time_step = i
+            v_1_lap_p.plot_3d(2)
+            v_1_lap_p.plot_center(0)
+            v_1_lap_p.plot_center(1, v_1_lap_p_0)
             for j in range(2):
                 vel[j].time_step = i
                 vel_pert[j].time_step = i
@@ -1200,7 +1215,9 @@ def test_pseudo_2d():
             print("analytical velocity pertubation energy: ", energy_over_time_fn(nse.time))
             print("velocity pertubation energy: ", vel_pert_energy)
             print("velocity pertubation energy x: ", vel_pert[0].energy())
+            print("analytical velocity pertubation energy x: ", energy_x_over_time_fn(nse.time))
             print("velocity pertubation energy y: ", vel_pert[1].energy())
+            print("analytical velocity pertubation energy y: ", energy_y_over_time_fn(nse.time))
             print("velocity pertubation energy z: ", vel_pert[1].energy())
             vel_pert_energy_old = vel_pert_old.energy()
             if vel_pert_energy - vel_pert_energy_old >= 0:
@@ -1210,6 +1227,30 @@ def test_pseudo_2d():
             print("velocity pertubation energy x change: ", vel_pert[0].energy() - vel_pert_old[0].energy())
             print("velocity pertubation energy y change: ", vel_pert[1].energy() - vel_pert_old[1].energy())
             print("velocity pertubation energy z change: ", vel_pert[2].energy() - vel_pert_old[2].energy())
+            ts.append(nse.time)
+            energy_t.append(vel_pert_energy)
+            energy_x_t.append(vel_pert[0].energy())
+            energy_y_t.append(vel_pert[1].energy())
+            energy_t_ana.append(energy_over_time_fn(nse.time))
+            energy_x_t_ana.append(energy_x_over_time_fn(nse.time))
+            energy_y_t_ana.append(energy_y_over_time_fn(nse.time))
+            # if i > plot_interval * 3:
+            if True:
+                fig = figure.Figure()
+                ax = fig.subplots(1,1)
+                ax.plot(ts, energy_t_ana)
+                ax.plot(ts, energy_t, ".")
+                fig.savefig("plots/energy_t.pdf")
+                fig = figure.Figure()
+                ax = fig.subplots(1,1)
+                ax.plot(ts, energy_x_t_ana)
+                ax.plot(ts, energy_x_t, ".")
+                fig.savefig("plots/energy_x_t.pdf")
+                fig = figure.Figure()
+                ax = fig.subplots(1,1)
+                ax.plot(ts, energy_y_t_ana)
+                ax.plot(ts, energy_y_t, ".")
+                fig.savefig("plots/energy_y_t.pdf")
         # input("carry on?")
 
     nse.after_time_step_fn = None
@@ -1466,6 +1507,7 @@ def run_all_tests():
     # test_poisson_slices()
     # test_poisson_no_slices()
     # test_navier_stokes_laminar()
+    # test_linear_stability()
     # test_navier_stokes_laminar_convergence()
     # test_optimization()
     # return test_navier_stokes_turbulent()

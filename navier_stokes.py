@@ -83,7 +83,7 @@ class NavierStokesVelVort(Equation):
     # u_max_over_u_tau = 1e2
     u_max_over_u_tau = 1e0
 
-    def __init__(self, shape, velocity_field, base_field=None, **params):
+    def __init__(self, velocity_field, base_field=None, **params):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
@@ -101,6 +101,10 @@ class NavierStokesVelVort(Equation):
             vort_hat_field,
             conv_ns_hat_field
         ) = self.update_nonlinear_terms(velocity_field)
+        # v_1_lap_hat_p = velocity_field[1].no_hat().laplacian().hat()
+        v_1_lap_hat_p = velocity_field[1].laplacian()
+        v_1_lap_hat_p.name = "v_1_lap_hat_p"
+        v_1_lap_hat_p.update_boundary_conditions()
         self.poisson_mat = None
         self.lhs_mat_inv = []
         self.rhs_mat = []
@@ -112,6 +116,7 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_field,
                 vort_hat_field,
                 conv_ns_hat_field,
+                v_1_lap_hat_p,
                 **params
             )
         else:
@@ -123,6 +128,7 @@ class NavierStokesVelVort(Equation):
                 vort_hat_field,
                 conv_ns_hat_field,
                 base_field,
+                v_1_lap_hat_p,
                 **params
             )
         self.dt = self.get_time_step()
@@ -130,10 +136,10 @@ class NavierStokesVelVort(Equation):
         print("calculated flow rate: ", self.flow_rate)
 
     @classmethod
-    def FromVelocityField(cls, shape, velocity_field, Re=1.8e2, end_time=1e0):
+    def FromVelocityField(cls, velocity_field, Re=1.8e2, end_time=1e0):
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
-        return cls(shape, velocity_field_hat, Re=Re, end_time=end_time)
+        return cls(velocity_field_hat, Re=Re, end_time=end_time)
 
     @classmethod
     def FromRandom(cls, shape, Re, end_time=1e0):
@@ -143,7 +149,23 @@ class NavierStokesVelVort(Equation):
         vel_z = Field.FromRandom(domain, name="u2")
         # vel_y.update_boundary_conditions()
         vel = VectorField([vel_x, vel_y, vel_z], "velocity")
-        return cls.FromVelocityField(shape, vel, Re, end_time=end_time)
+        return cls.FromVelocityField(vel, Re, end_time=end_time)
+
+    def init_velocity(self, velocity_hat):
+        self.set_field(
+            "velocity_hat",
+            0,
+            velocity_hat
+        )
+        v_1_lap_hat_p = velocity_hat[1].laplacian()
+        v_1_lap_hat_p.name = "v_1_lap_hat_p"
+        v_1_lap_hat_p.update_boundary_conditions()
+        self.set_field(
+            "v_1_lap_hat_p",
+            0,
+            v_1_lap_hat_p
+        )
+
 
     def get_vorticity_and_helicity(self):
         velocity_field_hat = self.get_latest_field("velocity_hat")
@@ -537,7 +559,7 @@ class NavierStokesVelVort(Equation):
         vel_hat = self.get_latest_field("velocity_hat")
 
         def perform_single_cn_ab_step_for_single_wavenumber(
-            v_1_lap_hat,
+            v_1_lap_hat_p,
             vort_hat,
             conv_ns_hat,
             conv_ns_hat_old,
@@ -559,7 +581,7 @@ class NavierStokesVelVort(Equation):
 
                 L_p = L_p_y + I * (-(kx_**2 + kz_**2)) / Re
 
-                phi_p_hat = v_1_lap_hat[kx, :, kz]
+                phi_p_hat = v_1_lap_hat_p[kx, :, kz]
 
                 N_p_new = h_v_hat[kx, :, kz]
                 N_p_old = h_v_hat_old[kx, :, kz]
@@ -730,12 +752,11 @@ class NavierStokesVelVort(Equation):
                     kx,
                     kz,
                 )
-                return (v_0_new_field, v_1_hat_new, v_2_new_field)
+                return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_p)
 
             return fn
 
-        v_1_hat_0 = vel_hat[1]
-        v_1_lap_hat_0 = v_1_hat_0.laplacian()
+        v_1_lap_hat_p = self.get_latest_field("v_1_lap_hat_p")
 
         h_v_hat_0 = self.get_latest_field("h_v_hat").field
         h_g_hat_0 = self.get_latest_field("h_g_hat").field
@@ -747,9 +768,9 @@ class NavierStokesVelVort(Equation):
         conv_ns_hat_0_old = self.get_field("conv_ns_hat", max(0, self.time_step)).field
 
         # solve equations
-        vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
+        vel_new_hat, other_field = vel_hat.reconstruct_from_wavenumbers(
             perform_single_cn_ab_step_for_single_wavenumber(
-                v_1_lap_hat_0,
+                v_1_lap_hat_p,
                 vort_hat_0,
                 conv_ns_hat_0,
                 conv_ns_hat_0_old,
@@ -758,13 +779,19 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_0_old,
                 h_g_hat_0_old,
             ),
+            1
         )
         vel_new_hat.update_boundary_conditions()
+        v_1_lap_hat_p_new = other_field[0]
+        v_1_lap_hat_p_new.update_boundary_conditions()
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
+
+        v_1_lap_hat_p_new.name = "v_1_lap_hat_p"
+        self.append_field("v_1_lap_hat_p", v_1_lap_hat_p_new)
 
         self.update_nonlinear_terms()
 
@@ -825,7 +852,7 @@ def solve_navier_stokes_laminar(
     vel_z = Field.FromFunc(domain, vel_z_fn, name="vel_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVort.FromVelocityField((Nx, Ny, Nz), vel, Re)
+    nse = NavierStokesVelVort.FromVelocityField(vel, Re)
     nse.end_time = end_time
     nse.max_iter = max_iter
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
