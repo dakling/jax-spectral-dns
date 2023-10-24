@@ -123,13 +123,20 @@ class NavierStokesVelVort(Equation):
     # max_cfl = 0.7/10
     # max_cfl = 5e-2
     # max_dt = 1e10
-    max_dt = 1e-2
+    max_dt = 1e-4
+    u_max_over_u_tau = 1e2
 
     def __init__(self, shape, velocity_field, base_field=None, **params):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
-        self.Re = params["Re"]
+        try:
+            self.Re_tau = params["Re_tau"]
+        except KeyError:
+            try:
+                self.Re_tau = params["Re"] / self.u_max_over_u_tau
+            except KeyError:
+                raise Exception("Either Re or Re_tau has to be given as a parameter.")
         self.nonlinear_update_fn = update_nonlinear_terms_high_performance
         (
             h_v_hat_field,
@@ -199,7 +206,8 @@ class NavierStokesVelVort(Equation):
 
     def update_flow_rate(self):
         self.flow_rate = self.get_flow_rate()
-        dPdx = -self.flow_rate * 3 / 2 / self.Re
+        # dPdx = -self.flow_rate * 3 / 2 / (self.Re_tau * self.u_max_over_u_tau)
+        dPdx = -self.flow_rate * 3 / 2 / self.Re_tau
         # dPdx = -self.flow_rate / self.Re
         self.dpdx = Field.FromFunc(
             self.domain_no_hat, lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
@@ -275,7 +283,7 @@ class NavierStokesVelVort(Equation):
         alpha, beta, _, _ = self.get_rk_parameters()
         n = Ly.shape[0]
         I = jnp.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / self.Re
+        L = Ly + I * (-(kx**2 + kz**2)) / self.Re_tau
         lhs_mat_inv = jnp.linalg.inv(I - beta[i] * self.dt * L)
         rhs_mat = I + alpha[i] * self.dt * L
         return (lhs_mat_inv, rhs_mat)
@@ -288,7 +296,7 @@ class NavierStokesVelVort(Equation):
     def perform_runge_kutta_step(self):
 
         self.dt = self.get_time_step()
-        Re = self.Re
+        Re = self.Re_tau
         vel_hat = self.get_latest_field("velocity_hat")
 
         # start runge-kutta stepping
@@ -640,7 +648,7 @@ class NavierStokesVelVort(Equation):
     def perform_explicit_euler_step(self):
         self.dt = self.get_time_step()
 
-        Re = self.Re
+        Re = self.Re_tau
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         # D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         n = D2_hom_diri.shape[0]
@@ -856,7 +864,7 @@ class NavierStokesVelVort(Equation):
         dt = self.dt
 
         # Re = self.Re * 2 / 3 # TODO
-        Re = self.Re
+        Re = self.Re_tau
         # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
         D2_hom_diri_with_cols = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2_hom_diri_with_cols.shape[0]
@@ -895,6 +903,8 @@ class NavierStokesVelVort(Equation):
 
                 phi_p_hat = v_1_lap_hat[kx, :, kz]
 
+                # phi_p_hat = domain.update_boundary_conditions_fourier_field_slice(phi_p_hat, 1)
+
                 N_p_new = h_v_hat[kx, :, kz]
                 N_p_old = h_v_hat_old[kx, :, kz]
                 rhs_mat_p = I + dt / 2 * L_p
@@ -905,11 +915,11 @@ class NavierStokesVelVort(Equation):
                 v_1_lap_hat_new_p = phi_p_hat_new
 
                 # compute velocity in y direction
-                v_1_lap_hat_new_p = (
-                    domain.update_boundary_conditions_fourier_field_slice(
-                        v_1_lap_hat_new_p, 1
-                    )
-                )
+                # v_1_lap_hat_new_p = (
+                #     domain.update_boundary_conditions_fourier_field_slice(
+                #         v_1_lap_hat_new_p, 1
+                #     )
+                # )
                 v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
                     v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
@@ -918,9 +928,9 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # a-part -> can be solved analytically
-                k = jnp.min(jnp.array([ jnp.sqrt((2 * Re - dt * (- kx_**2 - kz_**2)))/ jnp.sqrt(dt), 1e2]))
-                A = jnp.exp(2 * k) / (jnp.exp(3 * k) - jnp.exp(k))
-                B = -1 / (jnp.exp(3 * k) - jnp.exp(k))
+                k = jnp.min(jnp.array([ jnp.sqrt((2 * Re / dt - (- kx_**2 - kz_**2))), 7e2]))
+                A = 1 / (jnp.exp(k) - jnp.exp(-k))
+                B = - jnp.exp(-2 * k) / (jnp.exp(k) - jnp.exp(-k))
                 # fn_ana = lambda y: jax.lax.cond(
                 #     abs(denom) > 1e-30,
                 #     lambda _: (A * jnp.exp(k * y) + B * jnp.exp(-k * y)),
@@ -931,12 +941,26 @@ class NavierStokesVelVort(Equation):
 
                 ys = self.domain_no_hat.grid[1]
                 # phi_a_hat_new = jnp.array(list(map(fn_ana, ys)))
-                phi_a_hat_new = jax.lax.map(fn_ana, ys)
+                v_1_lap_hat_new_a = jax.lax.map(fn_ana, ys)
 
-                v_1_lap_new_a = phi_a_hat_new
+                # a-part (numerical solution)
+                # L_a_y = 1 / Re * D2_hom_diri_with_cols
+
+                # L_a = L_a_y + I * (-(kx_**2 + kz_**2)) / Re
+
+                # lhs_mat_a = I - dt / 2 * L_a
+
+                # phi_a_hat = jnp.block([0.0, jnp.zeros(n-2), 1.0])
+
+                # phi_a_hat_new = jnp.linalg.solve(
+                #     lhs_mat_a, phi_a_hat
+                # )
+
+                # v_1_lap_new_a = jnp.block([0.0, phi_a_hat_new[1:-1], 1.0])
+
                 # compute velocity in y direction
                 v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
-                    v_1_lap_new_a, self.poisson_mat, kx, kz
+                    v_1_lap_hat_new_a, self.poisson_mat, kx, kz
                 )
                 v_1_hat_new_a = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new_a, 1
@@ -957,18 +981,29 @@ class NavierStokesVelVort(Equation):
                 # AB = jnp.linalg.solve(M, R)
                 # a, b = AB[0], AB[1]
                 a, b = jnp.linalg.lstsq(M, R)[0]
+                # # handle possible nonuniqueness in the solution
+                # v_1_lap_hat_new = v_1_lap_hat_new_p + a * v_1_lap_hat_new_a + b * jnp.flip(v_1_lap_hat_new_a)
+                # v_1_lap_hat_new_ = - v_1_lap_hat_new_p - a * v_1_lap_hat_new_a - b * jnp.flip(v_1_lap_hat_new_a)
+                # if jnp.linalg.norm(v_1_lap_hat_new_ - v_1_lap_hat[kx, :, kz]) < jnp.linalg.norm(v_1_lap_hat_new - v_1_lap_hat[kx, :, kz]):
+                #     v_1_hat_new = - v_1_hat_new_p - a * v_1_hat_new_a - b * v_1_hat_new_b
+                # else:
+                #     v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
                 v_1_hat_new = v_1_hat_new_p + a * v_1_hat_new_a + b * v_1_hat_new_b
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new, 1
                 )
+                # print(M, R)
+                # print(a, b)
 
                 # if kx == 4 and kz == 0:
                 #     fig, ax = plt.subplots(1,1)
+                #     ys = self.domain_no_hat.grid[1]
                 #     # ax.plot(ys, v_1_hat_new)
-                #     # ax.plot(ys, v_1_lap_hat_new_p)
+                #     ax.plot(ys, v_1_lap_hat_new_p)
                 #     ax.plot(ys, v_1_lap_hat[kx, :, kz])
-                #     # ax.plot(ys, v_1_lap_hat_new_p + a * v_1_lap_new_a + b * jnp.flip(v_1_lap_new_a))
-                #     ax.plot(ys, v_1_lap_new_a)
+                #     # ax.plot(ys, v_1_lap_hat_new_p + a * v_1_lap_hat_new_a + b * jnp.flip(v_1_lap_hat_new_a))
+                #     # ax.plot(ys, - v_1_lap_hat_new_p - a * v_1_lap_hat_new_a - b * jnp.flip(v_1_lap_hat_new_a))
+                #     # ax.plot(ys, v_1_lap_hat_new_a)
                 #     # ax.plot(ys, vel_hat[1][kx, :, kz])
                 #     # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
                 #     # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
@@ -1118,10 +1153,10 @@ def solve_navier_stokes_laminar(
     domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
-    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_fn_ana = lambda X: -1 * NavierStokesVelVort.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
-    vel_x_fn = lambda X: jnp.pi / 3 * (
+    vel_x_fn = lambda X: jnp.pi / 3 * NavierStokesVelVort.u_max_over_u_tau * (
         pertubation_factor
         * jnp.cos(X[1] * jnp.pi / 2)
         * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
@@ -1131,6 +1166,7 @@ def solve_navier_stokes_laminar(
     vel_y_fn = (
         lambda X: 0.1
         * pertubation_factor
+        * NavierStokesVelVort.u_max_over_u_tau
         * (
             jnp.pi
             / 3
@@ -1145,6 +1181,7 @@ def solve_navier_stokes_laminar(
         * jnp.pi
         / 3
         * pertubation_factor
+        * NavierStokesVelVort.u_max_over_u_tau
         * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
     )
     vel_x = Field.FromFunc(domain, vel_x_fn, name="vel_x")

@@ -767,10 +767,10 @@ class VectorField:
         return out
 
     def energy(self):
-        energy = 0
+        en= 0
         for f in self:
-            energy += f.energy()
-        return energy
+            en += f.energy()
+        return en
 
 #     def __neg__(self):
 #         return self * (-1.0)

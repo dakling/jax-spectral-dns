@@ -835,7 +835,7 @@ def test_navier_stokes_laminar(Ny=96, pertubation_factor=0.1):
     )
     nse.solve()
 
-    vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_fn_ana = lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
@@ -1141,7 +1141,7 @@ def test_pseudo_2d():
     w.save_to_file(make_field_file_name("w"))
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
 
-    eps = 1e-3
+    eps = 1e-1
     nse.set_field(
         "velocity_hat",
         0,
@@ -1157,6 +1157,8 @@ def test_pseudo_2d():
     plot_interval = 10
 
     # def after_time_step(nse):
+    vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
+    vel_pert_0.name = "veloctity_y_0"
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
@@ -1169,6 +1171,12 @@ def test_pseudo_2d():
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
             # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
+            vel_hat_old = nse.get_field("velocity_hat", max(0, i-1))
+            vel_old = vel_hat_old.no_hat()
+            vel_x_max_old = vel_old[0].max()
+            vel_x_fn_ana_old = lambda X: - vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+            vel_x_ana_old = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old")
+            vel_pert_old = VectorField([vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]])
             vel_pert_energy = 0
             vort = vel.curl()
             vort_pert = vel_pert.curl()
@@ -1188,6 +1196,8 @@ def test_pseudo_2d():
                 vort[j].plot_center(1)
                 if j == 0:
                     vel[j].plot_center(1, vel_x_ana)
+                elif j == 1:
+                    vel[j].plot_center(1, vel_pert_0)
                 else:
                     vel[j].plot_center(1)
                 # vel_hat[j].plot_3d()
@@ -1203,10 +1213,16 @@ def test_pseudo_2d():
                 # vort_pert[j].plot_center(0)
                 # vort_pert[j].plot_center(1)
             print("velocity pertubation energy: ", vel_pert_energy)
+            vel_pert_energy_old = vel_pert_old.energy()
+            if vel_pert_energy - vel_pert_energy_old > 0:
+                print("velocity pertubation energy increase: ", vel_pert_energy - vel_pert_energy_old)
+            else:
+                print("velocity pertubation energy decrease: ", - (vel_pert_energy - vel_pert_energy_old))
         # input("carry on?")
 
     nse.after_time_step_fn = None
     nse.before_time_step_fn = before_time_step
+    # nse.before_time_step_fn = None
 
     nse.solve()
 

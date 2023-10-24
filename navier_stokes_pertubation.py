@@ -124,7 +124,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         domain = velocity_field[0].domain
         self.domain_no_hat = velocity_field[0].domain_no_hat
 
-        velocity_x_base = Field.FromFunc(self.domain_no_hat, lambda X: (1 - X[1]**2) + 0.0 * X[0] * X[2], name="velocity_x_base")
+        velocity_x_base = Field.FromFunc(self.domain_no_hat, lambda X: self.u_max_over_u_tau * (1 - X[1]**2) + 0.0 * X[0] * X[2], name="velocity_x_base")
         velocity_y_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_y_base")
         velocity_z_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_z_base")
         velocity_base_hat = VectorField([velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()])
