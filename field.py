@@ -144,6 +144,7 @@ class Field:
         return ret
 
     def __add__(self, other):
+        assert not isinstance(other, FourierField), "Attempted to add a Field and a Fourier Field."
         if self.performance_mode:
             new_name = ""
         else:
@@ -156,10 +157,12 @@ class Field:
         return ret
 
     def __sub__(self, other):
+        assert not isinstance(other, FourierField), "Attempted to subtract a Field and a Fourier Field."
         return self + other * (-1.0)
 
     def __mul__(self, other):
         if isinstance(other, Field):
+            assert not isinstance(other, FourierField), "Attempted to multiply a Field and a Fourier Field."
             if self.performance_mode:
                 new_name = ""
             else:
@@ -798,6 +801,34 @@ class VectorField:
             out += str(elem)
         return out
 
+    def __add__(self, other):
+        out = []
+        for i in range(len(self)):
+            out.append(self[i] + other[i])
+        return VectorField(out)
+
+    def __sub__(self, other):
+        return self + (-1) * other
+
+    def __mul__(self, other):
+        out = []
+        if isinstance(other, Field):
+            for i in range(len(self)):
+                out.append(self[i] * other[i])
+        else:
+            for i in range(len(self)):
+                out.append(self[i] * other)
+        return VectorField(out)
+
+    __rmul__ = __mul__
+    __lmul__ = __mul__
+
+    def __truediv__(self, other):
+        out = []
+        for i in range(len(self)):
+            out.append(self[i] / other)
+        return VectorField(out)
+
     def max(self):
         return max([max(f) for f in self])
 
@@ -989,10 +1020,13 @@ class FourierField(Field):
         self.domain = domain.hat()
 
     def __add__(self, other):
+        assert isinstance(other, FourierField), "Attempted to add a Fourier Field and a Field."
         out = super().__add__(other)
         return FourierField(self.domain_no_hat, out.field, name=out.name)
 
     def __mul__(self, other):
+        if isinstance(other, Field):
+            assert isinstance(other, FourierField), "Attempted to multiply a Fourier Field and a Field."
         out = super().__mul__(other)
         return FourierField(self.domain_no_hat, out.field, name=out.name)
 

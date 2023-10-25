@@ -15,6 +15,8 @@ NoneType = type(None)
 
 
 class Domain:
+    """Class that mainly contains the grid information and implements some basic
+    operations that can be performed on it."""
     aliasing = 3 / 2
     # aliasing = 1
 
@@ -76,6 +78,9 @@ class Domain:
         ]
 
     def get_cheb_grid(self, N, scale_factor=1.0):
+        """Assemble a Chebyshev grid with N points on the interval [-1, 1],
+        unless scaled to a different interval using scale_factor (currently not
+        implemented)."""
         assert (
             scale_factor == 1.0
         ), "different scaling of Chebyshev direction not implemented yet."
@@ -85,6 +90,8 @@ class Domain:
         )  # gauss-lobatto points with endpoints
 
     def get_fourier_grid(self, N, scale_factor=2 * jnp.pi):
+        """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
+        unless scaled to a different interval using scale_factor."""
         if N % 2 != 0:
             print(
                 "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
@@ -95,6 +102,8 @@ class Domain:
         )[:-1]
 
     def hat(self):
+        """Create a Fourier transform of the present domain in all periodic
+        directions and return the resulting domain."""
         def fftshift(inp, i):
             if self.periodic_directions[i]:
                 N = len(inp)
@@ -124,6 +133,8 @@ class Domain:
         return out
 
     def assemble_cheb_diff_mat(self, i, order=1):
+        """Assemble a 1D Chebyshev differentiation matrix in direction i with
+        differentiation order order."""
         xs = self.grid[i]
         N = len(xs)
         c = jnp.block([2.0, jnp.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** jnp.arange(0, N)
@@ -133,6 +144,8 @@ class Domain:
         return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
 
     def assemble_fourier_diff_mat(self, i, order=1):
+        """Assemble a 1D Fourier differentiation matrix in direction i with
+        differentiation order order."""
         n = self.number_of_cells(i)
         if n % 2 != 0:
             raise Exception("Fourier discretization points must be even!")
@@ -144,6 +157,8 @@ class Domain:
         return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
 
     def diff(self, field, direction, order=1):
+        """Calculate and return the derivative of given order for field in
+        direction."""
         inds = "ijk"
         diff_mat_ind = "l" + inds[direction]
         other_inds = "".join(
@@ -162,6 +177,8 @@ class Domain:
         return f_diff
 
     def diff_fourier_field_slice(self, field, direction, order=1):
+        """Calculate and return the derivative of given order for a Fourier
+        field slice in direction."""
         return jnp.linalg.matrix_power(self.diff_mats[direction], order) @ field
 
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):

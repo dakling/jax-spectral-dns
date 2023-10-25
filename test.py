@@ -1401,8 +1401,8 @@ def test_pseudo_2d_pertubation():
     Ny = 96
     # Ny = 24
     # Re = 5772.22
-    # Re = 5500
-    Re = 6000
+    Re = 5500
+    # Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 
