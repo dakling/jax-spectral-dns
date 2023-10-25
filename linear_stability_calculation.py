@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-
+from types import NoneType
 import numpy as np
+import jax.numpy as jnp
 from numpy.linalg import svd
 from scipy.linalg import eig, cholesky
 from scipy.sparse.linalg import eigs
@@ -12,6 +13,8 @@ import timeit
 
 from importlib import reload
 import sys
+
+from navier_stokes import NavierStokesVelVort
 
 try:
     reload(sys.modules["cheb"])
@@ -29,14 +32,14 @@ try:
     reload(sys.modules["field"])
 except:
     pass
-from field import Field
+from field import Field, VectorField
 
 
 class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, n=50):
-        # self.Re = Re * 2 / 3 # TODO
         self.Re = Re
         self.alpha = alpha
+        # self.n = int(n * Domain.aliasing)  # chebychev resolution
         self.n = n  # chebychev resolution
 
         self.A = None
@@ -47,23 +50,18 @@ class LinearStabilityCalculation:
         self.C = None
         self.growth = []
 
-        # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*n)) for i in range(n)] # gauss-lobatto points (SH2001, p. 488)
+        # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
         domain = Domain((n,), (False,))
         self.ys = domain.grid[0]
 
-        self.U = None
-        self.Uy = None
-        self.Uyy = None
-        self.intU = None
-        self.UG = None
-        self.UGy = None
+        self.velocity_field_ = None
 
     def assemble_matrix_fast(self):
-        n = self.n
         alpha = self.alpha
         Re = self.Re
 
         ys = self.ys
+        n = len(ys)
 
         noOfEqs = 4
         N = n * noOfEqs
@@ -73,8 +71,8 @@ class LinearStabilityCalculation:
         I = 0 + 1j
 
         def local_to_global_index(j, k, eq, var):
-            jj = j + eq * self.n
-            kk = k + var * self.n
+            jj = j + eq * n
+            kk = k + var * n
             return (jj, kk)
 
         u_fun = lambda y: (1 - y**2)
@@ -128,9 +126,19 @@ class LinearStabilityCalculation:
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
 
+        # A[0, 0] = 1.0
+        # A[-1, -1] = 1.0
+        # B[0, 0] = 1.0
+        # B[-1, -1] = 1.0
         self.A = A
         self.B = B
+        A_mat = self.read_mat("A.mat", "A")
+        B_mat = self.read_mat("B.mat", "B")
         return (A, B)
+
+    def read_mat(self, file, key):
+        return scipy.io.loadmat(file)[key]
+
 
     def calculate_eigenvalues(self):
         try:
@@ -140,15 +148,16 @@ class LinearStabilityCalculation:
             pass
         eigvals, eigvecs = eig(self.A, self.B)
 
-        # scale spurious e'value out of the picture
+        # scale any spurious eigenvalues out of the picture
         for j in range(len(eigvals)):
             if eigvals[j].real > 1:
                 eigvals[j] = -1e12
         # sort eigenvals
         eevs = [(eigvals[i], eigvecs[:, i]) for i in range(len(eigvals))]
         eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
-        self.eigenvalues = [eev[0] for eev in eevs]
+        self.eigenvalues = np.array([eev[0] for eev in eevs])
         self.eigenvectors = [eev[1] for eev in eevs]
+        self.eigenvalues.dump("fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n))
         return self.eigenvalues, self.eigenvectors
 
     def velocity_field(self, domain, mode=0):
@@ -171,20 +180,52 @@ class LinearStabilityCalculation:
             out = np.moveaxis(out, 0, -1)
             return out
 
-        # print(self.eigenvalues[0])
-        # print(v_vec)
-        # fig, ax = plt.subplots(1,1)
-        # ax.plot(self.ys, [np.sum([(v_vec[k] * phi(k, 0, self.ys[i]) * np.exp(1j * self.alpha * 0)).real for k in range(self.n)]) for i in range(self.n)])
-        # fig.savefig("plots/dummy.pdf")
-        # raise Exception("break")
-
         print("calculating velocity pertubations in 3D")
         u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
         v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
         w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
         print("done calculating velocity pertubations in 3D")
 
+        self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return (u_field, v_field, w_field)
+
+    def energy_over_time(self, domain, mode=0, eps=1.0):
+        if type(self.velocity_field_)  == NoneType:
+            try:
+                Nx = domain.number_of_cells(0)
+                Ny = domain.number_of_cells(1)
+                Nz = domain.number_of_cells(2)
+                make_field_file_name = (
+                    lambda field_name: field_name
+                    + "_"
+                    + str(self.Re)
+                    + "_"
+                    + str(Nx)
+                    + "_"
+                    + str(Ny)
+                    + "_"
+                    + str(Nz)
+                )
+                u = Field.FromFile(domain, make_field_file_name("u"), name="u_pert")
+                v = Field.FromFile(domain, make_field_file_name("v"), name="v_pert")
+                w = Field.FromFile(domain, make_field_file_name("w"), name="w_pert")
+                self.velocity_field_ = VectorField([u, v, w])
+            except FileNotFoundError:
+                print("Fields not found, performing eigenvalue computation.")
+                self.velocity_field(domain, mode)
+        try:
+            self.eigenvalues = np.load("fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n), allow_pickle=True)
+        except FileNotFoundError:
+            self.calculate_eigenvalues()
+        def out(t, dim=None):
+            if type(dim) == NoneType:
+                energy = 0
+                for d in domain.all_dimensions():
+                    energy += (self.velocity_field_[d] * (jnp.exp(self.eigenvalues[mode].real * t))).energy()
+            else:
+                energy = (self.velocity_field_[dim] * (jnp.exp(self.eigenvalues[mode].real * t))).energy()
+            return eps**2 * energy
+        return (out, self.eigenvalues[mode])
 
     def print_welcome(self):
         print("starting linear stability calculation")  # TODO more info
