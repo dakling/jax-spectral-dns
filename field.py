@@ -244,7 +244,7 @@ class Field:
         interpolant = []
         weights = []
         for dim in self.all_dimensions():
-            for i in jnp.arange(len(grd[dim])):
+            for i in jnp.arange(self.domain.number_of_cells(dim)):
                 if (grd[dim][i] - X[dim]) * (grd[dim][i + 1] - X[dim]) <= 0:
                     interpolant.append(i)
                     weights.append(
@@ -312,7 +312,7 @@ class Field:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             other_dim = [i for i in self.all_dimensions() if i != dimension][0]
-            N_c = len(self.domain.grid[other_dim]) // 2
+            N_c = self.domain.number_of_cells(other_dim) // 2
             ax.plot(
                 self.domain.grid[dimension],
                 self.field.take(indices=N_c, axis=other_dim),
@@ -351,7 +351,7 @@ class Field:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             other_dim = [i for i in self.all_dimensions() if i != dimension]
-            N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
+            N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
             ax.plot(
                 self.domain.grid[dimension],
                 self.field.take(indices=N_c[1], axis=other_dim[1]).take(
@@ -430,7 +430,7 @@ class Field:
             ax3d = fig.add_subplot(1, 3, 3, projection="3d")
             for dimension in self.all_dimensions():
                 other_dim = [i for i in self.all_dimensions() if i != dimension][0]
-                N_c = len(self.domain.grid[other_dim]) // 2
+                N_c = self.domain.number_of_cells(other_dim) // 2
                 ax[dimension].plot(
                     self.domain.grid[dimension],
                     self.field.take(indices=N_c, axis=other_dim),
@@ -470,7 +470,7 @@ class Field:
             ax = fig.subplots(1, 3, figsize=(15, 5))
             for dimension in self.all_dimensions():
                 other_dim = [i for i in self.all_dimensions() if i != dimension]
-                N_c = [len(self.domain.grid[dim]) // 2 for dim in other_dim]
+                N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
                 ax[dimension].plot(
                     self.domain.grid[dimension],
                     self.field.take(indices=N_c[1], axis=other_dim[1]).take(
@@ -538,7 +538,7 @@ class Field:
             ]
             ims = []
             for dim in self.all_dimensions():
-                N_c = len(self.domain.grid[dim]) // 2
+                N_c = self.domain.number_of_cells(dim) // 2
                 other_dim = [i for i in self.all_dimensions() if i != dim]
                 ims.append(
                     ax[dim].imshow(
@@ -584,7 +584,7 @@ class Field:
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         ims = []
-        N_c = len(self.domain.grid[dim]) // 2
+        N_c = self.domain.number_of_cells(dim) // 2
         other_dim = [i for i in self.all_dimensions() if i != dim]
         ims.append(
             ax.imshow(
@@ -657,7 +657,7 @@ class Field:
         for dim in self.all_nonperiodic_dimensions():
             self.field = jnp.take(
                 self.field,
-                jnp.arange(len(self.domain.grid[dim]))[1:-1],
+                jnp.arange(self.domain.number_of_cells(dim))[1:-1],
                 axis=dim,
             )
             self.field = jnp.pad(
@@ -699,7 +699,7 @@ class Field:
             if self.number_of_dimensions() == 1:
                 return int[0] - int[-1]
             else:
-                N = len(self.domain.grid[direction])
+                N = self.domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
                 shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
                 periodic_directions = tuple(
@@ -716,11 +716,11 @@ class Field:
                 )
                 return Field(reduced_domain, field)
         else:
-            N = len(self.domain.grid[direction])
+            N = self.domain.number_of_cells(direction)
             if self.number_of_dimensions() == 1:
                 return self.domain.scale_factors[direction] / N * jnp.sum(self.field[:])
             else:
-                N = len(self.domain.grid[direction])
+                N = self.domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
                 shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
                 periodic_directions = tuple(

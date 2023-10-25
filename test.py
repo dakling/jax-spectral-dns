@@ -1398,7 +1398,7 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
 
 
 def test_pseudo_2d_pertubation():
-    Ny = 64
+    Ny = 96
     # Ny = 24
     # Re = 5772.22
     # Re = 5500
@@ -1406,7 +1406,7 @@ def test_pseudo_2d_pertubation():
     alpha = 1.02056
     # alpha = 1.0
 
-    Nx = 496
+    Nx = 200
     Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
@@ -1418,7 +1418,7 @@ def test_pseudo_2d_pertubation():
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
     make_field_file_name = (
@@ -1426,11 +1426,11 @@ def test_pseudo_2d_pertubation():
         + "_"
         + str(Re)
         + "_"
-        + str(Nx)
+        + str(nse.domain_no_hat.number_of_cells(0))
         + "_"
-        + str(Ny)
+        + str(nse.domain_no_hat.number_of_cells(1))
         + "_"
-        + str(Nz)
+        + str(nse.domain_no_hat.number_of_cells(2))
     )
     try:
         # raise FileNotFoundError()
@@ -1491,14 +1491,8 @@ def test_pseudo_2d_pertubation():
                 vel[j].plot_center(0)
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
-            print("analytical velocity pertubation energy: ", energy_over_time_fn(nse.time))
-            print("velocity pertubation energy: ", vel_pert_energy)
-            print("velocity pertubation energy x: ", vel_pert[0].energy())
-            print("analytical velocity pertubation energy x: ", energy_x_over_time_fn(nse.time))
-            print("velocity pertubation energy y: ", vel_pert[1].energy())
-            print("analytical velocity pertubation energy y: ", energy_y_over_time_fn(nse.time))
-            print("velocity pertubation energy z: ", vel_pert[2].energy())
             vel_pert_energy_old = vel_pert_old.energy()
+            print("\n\n")
             if vel_pert_energy - vel_pert_energy_old >= 0:
                 print("velocity pertubation energy increase: ", vel_pert_energy - vel_pert_energy_old)
             else:
@@ -1506,6 +1500,11 @@ def test_pseudo_2d_pertubation():
             print("velocity pertubation energy x change: ", vel_pert[0].energy() - vel_pert_old[0].energy())
             print("velocity pertubation energy y change: ", vel_pert[1].energy() - vel_pert_old[1].energy())
             print("velocity pertubation energy z change: ", vel_pert[2].energy() - vel_pert_old[2].energy())
+            print("")
+            print("velocity pertubation energy: ", vel_pert_energy)
+            print("velocity pertubation energy x: ", vel_pert[0].energy())
+            print("velocity pertubation energy y: ", vel_pert[1].energy())
+            print("velocity pertubation energy z: ", vel_pert[2].energy())
             ts.append(nse.time)
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())

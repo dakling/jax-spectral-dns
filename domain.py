@@ -51,6 +51,9 @@ class Domain:
                 self.diff_mats.append(self.assemble_cheb_diff_mat(dim))
         self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
 
+    def number_of_cells(self, direction):
+        return len(self.grid[direction])
+
     def all_dimensions(self):
         return range(self.number_of_dimensions)
         # return jnp.arange(self.number_of_dimensions)
@@ -105,7 +108,7 @@ class Domain:
 
         Ns = []
         for i in self.all_dimensions():
-            Ns.append(len(self.grid[i]) / self.aliasing)
+            Ns.append(self.number_of_cells(i) / self.aliasing)
         fourier_grid = []
         for i in self.all_dimensions():
             if self.periodic_directions[i]:
@@ -130,7 +133,7 @@ class Domain:
         return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
 
     def assemble_fourier_diff_mat(self, i, order=1):
-        n = len(self.grid[i])
+        n = self.number_of_cells(i)
         if n % 2 != 0:
             raise Exception("Fourier discretization points must be even!")
         h = 2 * jnp.pi / n
@@ -322,7 +325,7 @@ class Domain:
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
         out_field = jnp.take(
             field,
-            jnp.arange(len(self.grid[non_periodic_direction]))[1:-1],
+            jnp.arange(self.number_of_cells(non_periodic_direction))[1:-1],
             axis=0,
         )
         out_field = jnp.pad(
@@ -338,7 +341,7 @@ class Domain:
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        Ns = [int(len(self.grid[i]) * 1 / self.aliasing) for i in self.all_dimensions()]
+        Ns = [int(self.number_of_cells(i) * 1 / self.aliasing) for i in self.all_dimensions()]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
         for i in self.all_periodic_dimensions():
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
@@ -362,7 +365,7 @@ class Domain:
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        Ns = [len(self.grid[i]) for i in self.all_dimensions()]
+        Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
         ks = [
             int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
             for i in self.all_dimensions()

@@ -191,7 +191,28 @@ class LinearStabilityCalculation:
 
     def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_)  == NoneType:
-            self.velocity_field(domain, mode)
+            try:
+                Nx = domain.number_of_cells(0)
+                Ny = domain.number_of_cells(1)
+                Nz = domain.number_of_cells(2)
+                make_field_file_name = (
+                    lambda field_name: field_name
+                    + "_"
+                    + str(self.Re)
+                    + "_"
+                    + str(Nx)
+                    + "_"
+                    + str(Ny)
+                    + "_"
+                    + str(Nz)
+                )
+                u = Field.FromFile(domain, make_field_file_name("u"), name="u_pert")
+                v = Field.FromFile(domain, make_field_file_name("v"), name="v_pert")
+                w = Field.FromFile(domain, make_field_file_name("w"), name="w_pert")
+                self.velocity_field_ = VectorField([u, v, w])
+            except FileNotFoundError:
+                print("Fields not found, performing eigenvalue computation.")
+                self.velocity_field(domain, mode)
         try:
             self.eigenvalues = np.load("fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n), allow_pickle=True)
         except FileNotFoundError:
