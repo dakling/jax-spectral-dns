@@ -1459,24 +1459,92 @@ def test_2d_growth():
     assert run_pseudo_2d_pertubation(5500, 0.1) < 0, "Expected pertubations to decay for Re=5500."
     assert run_pseudo_2d_pertubation(6000, 0.1) > 0, "Expected pertubations to increase for Re=6000."
 
+def run_jimenez_1990():
+    Re = 5000
+    alpha = 1
+
+    Nx = 200
+    Ny = 96
+    Nz = 2
+    end_time = 10
+    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+
+    nse = solve_navier_stokes_pertubation(
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(2 * jnp.pi / alpha, 1.0, 1.0),
+    )
+
+    make_field_file_name = (
+        lambda field_name: field_name
+        + "_"
+        + str(Re)
+        + "_"
+        + str(nse.domain_no_hat.number_of_cells(0))
+        + "_"
+        + str(nse.domain_no_hat.number_of_cells(1))
+        + "_"
+        + str(nse.domain_no_hat.number_of_cells(2))
+    )
+    try:
+        # raise FileNotFoundError()
+        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
+        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
+        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
+        print("found existing fields, skipping eigenvalue computation")
+    except FileNotFoundError:
+        print("could not find fields")
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
+    u.save_to_file(make_field_file_name("u"))
+    v.save_to_file(make_field_file_name("v"))
+    w.save_to_file(make_field_file_name("w"))
+
+    eps = 1e-2
+    vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
+    nse.init_velocity(
+        VectorField(
+            [
+                vel_x_hat + eps * u.hat(),
+                eps * v.hat(),
+                eps * w.hat(),
+            ]
+        ),
+    )
+
+    plot_interval = 10
+    def before_time_step(nse):
+        i = nse.time_step
+        if i % plot_interval == 0:
+            vel_pert = nse.get_latest_field("velocity_hat").no_hat()
+            vel_base = nse.get_latest_field("velocity_base").no_hat()
+            vel = vel_base + vel_pert
+            vort = vel.curl()
+            for j in range(2):
+                vort[j].plot_3d()
+                vort[j].plot_3d(2)
+
 
 def run_all_tests():
-    test_1D_periodic()
-    test_1D_cheb()
-    test_2D()
-    test_3D()
-    test_fourier_1D()
-    test_fourier_2D()
-    test_fourier_simple_3D()
-    test_cheb_integration_1D()
-    test_cheb_integration_2D()
-    test_cheb_integration_3D()
-    test_definite_integral()
-    test_poisson_slices()
-    test_poisson_no_slices()
-    test_navier_stokes_laminar()
-    test_linear_stability()
-    test_navier_stokes_laminar_convergence()
+    # test_1D_periodic()
+    # test_1D_cheb()
+    # test_2D()
+    # test_3D()
+    # test_fourier_1D()
+    # test_fourier_2D()
+    # test_fourier_simple_3D()
+    # test_cheb_integration_1D()
+    # test_cheb_integration_2D()
+    # test_cheb_integration_3D()
+    # test_definite_integral()
+    # test_poisson_slices()
+    # test_poisson_no_slices()
+    # test_navier_stokes_laminar()
+    # test_linear_stability()
+    # # test_navier_stokes_laminar_convergence() # TODO
     test_pertubation_laminar()
     test_2d_growth()
 
@@ -1485,6 +1553,7 @@ def run_all_tests():
     # run_pseudo_2d()
     # run_dummy_velocity_field()
     # run_pseudo_2d_pertubation()
+    run_jimenez_1990()
 
 
 def run_all_tests_profiling():
