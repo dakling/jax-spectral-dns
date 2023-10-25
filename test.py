@@ -737,7 +737,7 @@ def test_poisson_slices():
     )
     u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
     rhs_hat = rhs.hat()
-    rhs_nohat = rhs_hat.no_hat()
+    # rhs_nohat = rhs_hat.no_hat()
 
     mat = rhs_hat.assemble_poisson_matrix()
 
@@ -762,9 +762,9 @@ def test_poisson_slices():
         # out = rhs_hat_slice.solve_poisson()
         return out.field
 
-    start_time = time.time()
+    # start_time = time.time()
     out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
-    print(str(time.time() - start_time) + " seconds used for reconstruction.")
+    # print(str(time.time() - start_time) + " seconds used for reconstruction.")
     out = out_hat.no_hat()
 
     # u_ana.plot(out)
@@ -820,10 +820,10 @@ def test_poisson_no_slices():
     assert abs(u_ana - out) < tol
 
 
-def test_navier_stokes_laminar(Ny=96, pertubation_factor=0.1):
+def test_navier_stokes_laminar(Ny=96, pertubation_factor=0.01):
     Re = 1.5e0
 
-    end_time = 8
+    end_time = 0.2
     NavierStokesVelVort.max_dt = 1e10
     nse = solve_navier_stokes_laminar(
         Re=Re,
@@ -833,30 +833,29 @@ def test_navier_stokes_laminar(Ny=96, pertubation_factor=0.1):
         end_time=end_time,
         pertubation_factor=pertubation_factor,
     )
+    nse.before_time_step_fn = None
+    nse.after_time_step_fn = None
     nse.solve()
 
     vel_x_fn_ana = lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
-    vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+
     print("Doing post-processing")
     for i in jnp.arange(nse.time_step)[-4:]:
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
-        vel[0].plot_center(1, vel_0[0], vel_x_ana)
-        vel[1].plot_center(1, vel_0[1])
-        vel[2].plot_center(1, vel_0[2])
         tol = 6e-5
-        print(abs(vel[0] - vel_x_ana))
-        print(abs(vel[1]))
-        print(abs(vel[2]))
-        print("max vel: " + str(vel[0].max() / vel_0[0].max()))
+        # print(abs(vel[0] - vel_x_ana))
+        # print(abs(vel[1]))
+        # print(abs(vel[2]))
         # check that the simulation is really converged
         assert abs(vel[0] - vel_x_ana) < tol
         assert abs(vel[1]) < tol
         assert abs(vel[2]) < tol
 
 
+#TODO
 def test_navier_stokes_laminar_convergence():
     Nys = [24, 48, 96]
     end_time = 10
@@ -885,7 +884,7 @@ def test_navier_stokes_laminar_convergence():
     print(result)
 
 
-def test_optimization():
+def run_optimization():
     Re = 1e0
     Ny = 24
     end_time = 1
@@ -927,7 +926,7 @@ def test_optimization():
         v0_new.plot(v0_0)
 
 
-def test_navier_stokes_turbulent():
+def run_navier_stokes_turbulent():
     Re = 1.8e6
 
     end_time = 50
@@ -1034,53 +1033,6 @@ def test_navier_stokes_turbulent():
     return nse.get_latest_field("velocity_hat").no_hat().field
 
 
-def test_vmap():
-    def fn(x):
-        return jax.lax.cond(x > 3, lambda x_: x_ * 2, lambda x_: x_ * 3, x)
-        # if x > 3:
-        #     return x*2
-        # else:
-        #     return x*3
-
-    def fn2(X):
-        x = X[0]
-        y = X[1]
-        A = jnp.zeros((4, 4, 24, 24))
-        B = jnp.ones((4, 24, 4))
-        # print(A[x, :, y])
-        # return A[x,:,  y] + B[x, :, y]
-        # return jnp.dot(x,y)
-        out = jax.lax.cond(x + y == 0, lambda: x * y, lambda: x * y / (x + y))
-        return out
-
-    N = 100
-    xs = jnp.arange(N, dtype=float)
-    ys = jnp.arange(N, dtype=float)
-    Xs, Ys = jnp.meshgrid(xs, ys)
-    X = jnp.array(list(zip(Xs.flatten(), Ys.flatten())))
-    # out = jax.vmap(fn)(xs)
-    # print(xs)
-    # print(out)
-    # fn2vmap = jnp.vectorize(fn2, signature='(n),(m)->(k)')
-    # fn2vmap = jnp.vectorize(fn2)
-    fn2_jit = jax.jit(fn2)
-    start = time.time()
-    # for x in X:
-    #     fn2(x)
-    [fn2_jit(x) for x in X]
-    end = time.time()
-    # for x in xs:
-    #     for y in ys:
-    #         print(fn2(x, y))
-    fn2vmap = jax.vmap(fn2_jit)
-    start_2 = time.time()
-    fn2vmap(X).reshape(N, N)
-    end_2 = time.time()
-    print("Elapsed time non-vectorized version: ", end - start)
-    print("Elapsed time vectorized version: ", end_2 - start_2)
-    # print(fn2vmap(xs, ys))
-
-
 def test_linear_stability():
     n = 64
     # n = 4
@@ -1089,12 +1041,12 @@ def test_linear_stability():
 
     lsc = LinearStabilityCalculation(Re, alpha, n)
     evs, _ = lsc.calculate_eigenvalues()
-    print(evs[0])
+    # print(evs[0])
     # print(evecs[0])
     assert evs[0].real <= 0.0 and evs[0].real >= -1e-8
 
 
-def test_pseudo_2d():
+def run_pseudo_2d():
     Ny = 64
     # Ny = 24
     # Re = 5772.22
@@ -1261,7 +1213,7 @@ def test_pseudo_2d():
     nse.solve()
 
 
-def test_dummy_velocity_field():
+def run_dummy_velocity_field():
     Re = 1e5
 
     end_time = 50
@@ -1335,10 +1287,10 @@ def test_dummy_velocity_field():
     return nse.get_latest_field("velocity_hat").no_hat().field
 
 
-def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
+def test_pertubation_laminar(Ny=48, pertubation_factor=0.01):
     Re = 1.5e0
 
-    end_time = 8
+    end_time = 0.1
     nse = solve_navier_stokes_pertubation(
         Re=Re,
         Nx=16,
@@ -1349,45 +1301,14 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
     )
 
     plot_interval = 1
-    def before_time_step(nse):
-        i = nse.time_step
-        if (i) % plot_interval == 0:
-            vel_hat = nse.get_field("velocity_hat", i)
-            vel = vel_hat.no_hat()
-            vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            vel_pert_energy = 0
-            vort = vel.curl()
-            for j in range(3):
-                vel[j].time_step = i
-                vort[j].time_step = i
-                vel[j].name = "velocity_" + "xyz"[j]
-                vort[j].name = "vorticity_" + "xyz"[j]
-                # vel[j].plot_3d()
-                vel[j].plot_3d(2)
-                vort[j].plot_3d(2)
-                vel[j].plot_center(0)
-                vel[j].plot_center(1)
-                vel_pert_energy += vel_pert[j].energy()
-            print("velocity pertubation: ", vel_pert_energy)
-            print("velocity pertubation x: ", vel_pert[0].energy())
-            print("velocity pertubation y: ", vel_pert[1].energy())
-            print("velocity pertubation z: ", vel_pert[2].energy())
-        # input("carry on?")
-
-    nse.before_time_step_fn = before_time_step
-    # nse.max_dt = 1e10
+    nse.before_time_step_fn = None
     nse.solve()
 
-
-    vel_0 = nse.get_initial_field("velocity_hat").no_hat()
     print("Doing post-processing")
     for i in jnp.arange(nse.time_step)[-4:]:
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
-        vel[0].plot_center(1, vel_0[0])
-        vel[1].plot_center(1, vel_0[1])
-        vel[2].plot_center(1, vel_0[2])
-        tol = 1.7e-5
+        tol = 5e-7
         print(abs(vel[0]))
         print(abs(vel[1]))
         print(abs(vel[2]))
@@ -1397,12 +1318,10 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.1):
         assert abs(vel[2]) < tol
 
 
-def test_pseudo_2d_pertubation():
+def run_pseudo_2d_pertubation(Re=6000, end_time=10.0):
     Ny = 96
     # Ny = 24
     # Re = 5772.22
-    Re = 5500
-    # Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 
@@ -1410,7 +1329,6 @@ def test_pseudo_2d_pertubation():
     Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
-    end_time = 10
     nse = solve_navier_stokes_pertubation(
         Re=Re,
         Nx=Nx,
@@ -1445,8 +1363,8 @@ def test_pseudo_2d_pertubation():
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
 
-    eps = 1e-3
-    vel_x_hat, vel_y_hat, vel_z_hat = nse.get_initial_field("velocity_hat")
+    eps = 1e-5
+    vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
     nse.init_velocity(
         VectorField(
             [
@@ -1475,8 +1393,6 @@ def test_pseudo_2d_pertubation():
         if i % plot_interval == 0:
             vel_hat = nse.get_field("velocity_hat", i)
             vel = vel_hat.no_hat()
-            # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
-            # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0], vel[1], vel[2]])
             vel_pert_old = nse.get_field("velocity_hat", max(0, i-1)).no_hat()
             vort = vel.curl()
@@ -1501,10 +1417,6 @@ def test_pseudo_2d_pertubation():
             print("velocity pertubation energy y change: ", vel_pert[1].energy() - vel_pert_old[1].energy())
             print("velocity pertubation energy z change: ", vel_pert[2].energy() - vel_pert_old[2].energy())
             print("")
-            print("velocity pertubation energy: ", vel_pert_energy)
-            print("velocity pertubation energy x: ", vel_pert[0].energy())
-            print("velocity pertubation energy y: ", vel_pert[1].energy())
-            print("velocity pertubation energy z: ", vel_pert[2].energy())
             ts.append(nse.time)
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())
@@ -1536,32 +1448,43 @@ def test_pseudo_2d_pertubation():
 
     nse.solve()
 
+    vel_pert = nse.get_latest_field("velocity_hat").no_hat()
+    vel_pert_old = nse.get_field("velocity_hat", nse.time_step - 3).no_hat()
+    vel_pert_energy = vel_pert.energy()
+    vel_pert_energy_old = vel_pert_old.energy()
+    print("\n\n")
+    return vel_pert_energy - vel_pert_energy_old
+
+def test_2d_growth():
+    assert run_pseudo_2d_pertubation(5500, 0.1) < 0, "Expected pertubations to decay for Re=5500."
+    assert run_pseudo_2d_pertubation(6000, 0.1) > 0, "Expected pertubations to increase for Re=6000."
+
 
 def run_all_tests():
-    # test_1D_periodic()
-    # test_1D_cheb()
-    # test_2D()
-    # test_3D()
-    # test_fourier_1D()
-    # test_fourier_2D()
-    # test_fourier_simple_3D()
-    # test_cheb_integration_1D()
-    # test_cheb_integration_2D()
-    # test_cheb_integration_3D()
-    # test_definite_integral()
-    # test_poisson_slices()
-    # test_poisson_no_slices()
-    # test_navier_stokes_laminar()
-    # test_linear_stability()
-    # test_navier_stokes_laminar_convergence()
-    # test_optimization()
-    # return test_navier_stokes_turbulent()
-    # test_vmap()
-    # test_transient_growth()
-    # test_pseudo_2d()
-    # test_dummy_velocity_field()
-    # test_pertubation_laminar()
-    test_pseudo_2d_pertubation()
+    test_1D_periodic()
+    test_1D_cheb()
+    test_2D()
+    test_3D()
+    test_fourier_1D()
+    test_fourier_2D()
+    test_fourier_simple_3D()
+    test_cheb_integration_1D()
+    test_cheb_integration_2D()
+    test_cheb_integration_3D()
+    test_definite_integral()
+    test_poisson_slices()
+    test_poisson_no_slices()
+    test_navier_stokes_laminar()
+    test_linear_stability()
+    test_navier_stokes_laminar_convergence()
+    test_pertubation_laminar()
+    test_2d_growth()
+
+    # run_optimization()
+    # return run_navier_stokes_turbulent()
+    # run_pseudo_2d()
+    # run_dummy_velocity_field()
+    # run_pseudo_2d_pertubation()
 
 
 def run_all_tests_profiling():

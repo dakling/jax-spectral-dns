@@ -470,7 +470,8 @@ class Field:
                 )
         elif self.domain.number_of_dimensions == 3:
             fig = figure.Figure()
-            ax = fig.subplots(1, 3, figsize=(15, 5))
+            # ax = fig.subplots(1, 3, figsize=(15, 5))
+            ax = fig.subplots(1, 3)
             for dimension in self.all_dimensions():
                 other_dim = [i for i in self.all_dimensions() if i != dimension]
                 N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
@@ -1021,14 +1022,50 @@ class FourierField(Field):
 
     def __add__(self, other):
         assert isinstance(other, FourierField), "Attempted to add a Fourier Field and a Field."
-        out = super().__add__(other)
-        return FourierField(self.domain_no_hat, out.field, name=out.name)
+        if self.performance_mode:
+            new_name = ""
+        else:
+            if other.name[0] == "-":
+                new_name = self.name + " - " + other.name[1:]
+            else:
+                new_name = self.name + " + " + other.name
+        ret = FourierField(self.domain_no_hat, self.field + other.field, name=new_name)
+        ret.time_step = self.time_step
+        return ret
 
     def __mul__(self, other):
         if isinstance(other, Field):
             assert isinstance(other, FourierField), "Attempted to multiply a Fourier Field and a Field."
-        out = super().__mul__(other)
-        return FourierField(self.domain_no_hat, out.field, name=out.name)
+
+        if isinstance(other, FourierField):
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    new_name = self.name + " * " + other.name
+                except Exception:
+                    new_name = "field"
+            ret = FourierField(self.domain_no_hat, self.field * other.field, name=new_name)
+            ret.time_step = self.time_step
+            return ret
+        else:
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = str(other) + self.name
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = "(" + str(other) + ") " + self.name
+                except Exception:
+                    new_name = "field"
+            ret = FourierField(self.domain_no_hat, self.field * other, name=new_name)
+            ret.time_step = self.time_step
+            return ret
 
     __rmul__ = __mul__
     __lmul__ = __mul__
@@ -1090,6 +1127,15 @@ class FourierField(Field):
         return FourierField(
             self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
         )
+
+    # def laplacian(self):
+    #     out = self.diff(0, 2)
+    #     for dim in self.all_dimensions()[1:]:
+    #         out += self.diff(dim, 2)
+    #     out.name = "lap_" + self.name
+    #     out.time_step = self.time_step
+    #     return out
+
 
     def definite_integral(self, direction):
         raise NotImplementedError()

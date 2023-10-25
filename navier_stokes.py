@@ -101,10 +101,6 @@ class NavierStokesVelVort(Equation):
             vort_hat_field,
             conv_ns_hat_field
         ) = self.update_nonlinear_terms(velocity_field)
-        # v_1_lap_hat_p = velocity_field[1].no_hat().laplacian().hat()
-        v_1_lap_hat_p = velocity_field[1].laplacian()
-        v_1_lap_hat_p.name = "v_1_lap_hat_p"
-        v_1_lap_hat_p.update_boundary_conditions()
         self.poisson_mat = None
         self.lhs_mat_inv = []
         self.rhs_mat = []
@@ -116,7 +112,6 @@ class NavierStokesVelVort(Equation):
                 h_g_hat_field,
                 vort_hat_field,
                 conv_ns_hat_field,
-                v_1_lap_hat_p,
                 **params
             )
         else:
@@ -128,7 +123,6 @@ class NavierStokesVelVort(Equation):
                 vort_hat_field,
                 conv_ns_hat_field,
                 base_field,
-                v_1_lap_hat_p,
                 **params
             )
         self.dt = self.get_time_step()
@@ -156,14 +150,6 @@ class NavierStokesVelVort(Equation):
             "velocity_hat",
             0,
             velocity_hat
-        )
-        v_1_lap_hat_p = velocity_hat[1].laplacian()
-        v_1_lap_hat_p.name = "v_1_lap_hat_p"
-        v_1_lap_hat_p.update_boundary_conditions()
-        self.set_field(
-            "v_1_lap_hat_p",
-            0,
-            v_1_lap_hat_p
         )
 
 
@@ -756,7 +742,6 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
-        # v_1_lap_hat_p = self.get_latest_field("v_1_lap_hat_p")
         v_1_lap_hat = vel_hat[1].laplacian()
 
         h_v_hat_0 = self.get_latest_field("h_v_hat").field
@@ -781,19 +766,13 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_0_old,
                 h_g_hat_0_old,
             ),
-            0
         )
         vel_new_hat.update_boundary_conditions()
-        # v_1_lap_hat_p_new = other_field[0]
-        # v_1_lap_hat_p_new.update_boundary_conditions()
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
-
-        # v_1_lap_hat_p_new.name = "v_1_lap_hat_p"
-        # self.append_field("v_1_lap_hat_p", v_1_lap_hat_p_new)
 
         self.update_nonlinear_terms()
 
