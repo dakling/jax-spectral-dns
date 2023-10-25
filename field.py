@@ -8,6 +8,9 @@ import jax.numpy as jnp
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib import colors
+import matplotlib.cm as cm
+from scipy.interpolate import griddata
+import matplotlib.tri as tri
 
 import numpy as np
 
@@ -111,8 +114,29 @@ class Field:
 
     @classmethod
     def FromField(cls, domain, field):
-        fn = lambda X: field.eval(X)
-        return Field.FromFunc(domain, fn, field.name + "_projected")
+        """Interpolate existing Field field onto a new Domain domain."""
+        # TODO testing + performance improvements needed
+        assert not isinstance(field, FourierField), "Attempted to interpolate a Field from a FourierField."
+        out = []
+        if domain.number_of_dimensions == 1:
+            for x in domain.grid[0]:
+                out.append(field.eval(x))
+        elif domain.number_of_dimensions == 2:
+            for x in domain.grid[0]:
+                for y in domain.grid[1]:
+                    out.append(field.eval([x, y]))
+            out = jnp.array(out)
+            out.reshape(domain.number_of_cells(0), domain.number_of_cells(1))
+        elif domain.number_of_dimensions == 3:
+            for x in domain.grid[0]:
+                for y in domain.grid[1]:
+                    for z in domain.grid[2]:
+                        out.append(field.eval([x, y, z]))
+            out = jnp.array(out)
+            out.reshape(domain.number_of_cells(0), domain.number_of_cells(1), domain.number_of_cells(2))
+        else:
+            raise NotImplementedError("Number of dimensions not supported.")
+        return Field(domain, out, field.name + "_projected")
 
     @classmethod
     def FromFile(cls, domain, filename, name="field"):
@@ -217,6 +241,10 @@ class Field:
             ret.time_step = self.time_step
             return ret
 
+    def shift(self, value):
+        out_field = self.field + value
+        return Field(self.domain, out_field, name=self.name)
+
     def __abs__(self):
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.field) / self.number_of_dofs()
@@ -236,14 +264,9 @@ class Field:
         energy = 0.5 * self * self
         return energy.volume_integral()
 
-    def eval(self, *X):
-        """Evaluate field at arbitrary point X through linear interpolation. (This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
+    def eval(self, X):
+        """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
         grd = self.domain.grid
-        print(grd)
-        print(len(grd))
-        print(X)
-        print(len(X))
-        print(len(X[0]))
         interpolant = []
         weights = []
         for dim in self.all_dimensions():
@@ -631,6 +654,47 @@ class Field:
             + self.plotting_format
         )
 
+    def plot_isolines(self, normal_direction, isolines=None):
+        if type(isolines) == NoneType:
+            isolines = [0, 1.5, 2.5, 3.5]
+            isolines += [- i for i in isolines[1:]]
+            isolines.sort()
+
+        fig = figure.Figure()
+        ax = fig.subplots(1,1)
+        directions = [i for i in self.all_dimensions() if i != normal_direction]
+        x = self.domain.grid[directions[0]]
+        y = self.domain.grid[directions[1]]
+        X, Y = jnp.meshgrid(x, y)
+        N_c = self.domain.number_of_cells(normal_direction) // 2
+        f = self.field.take(indices=N_c, axis=normal_direction).T
+        cmap = colors.ListedColormap([('gray', 0.3), 'white'])
+        bounds=[-1e10,0,1e10]
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+        ax.imshow(f, interpolation='gaussian', origin='lower',
+                  cmap=cmap, norm=norm, extent=(x[0], x[-1], y[0], y[-1]))
+        CS= ax.contour(X, Y, f, isolines)
+        ax.clabel(CS, inline=True, fontsize=10)
+        fig.savefig(
+            self.plotting_dir
+            + "plot_iso_"
+            + "xyz"[normal_direction]
+            + "_"
+            + self.name
+            + "_t_"
+            + "{:06}".format(self.time_step)
+            + self.plotting_format
+        )
+        fig.savefig(
+            self.plotting_dir
+            + "plot_iso_"
+            + "xyz"[normal_direction]
+            + "_"
+            + self.name
+            + "_latest"
+            + self.plotting_format
+        )
+
     def all_dimensions(self):
         return self.domain.all_dimensions()
 
@@ -771,9 +835,10 @@ class Field:
 
 
 class VectorField:
-    def __init__(self, elements, name="vector_field"):
+    def __init__(self, elements, name=None):
         self.elements = elements
         self.name = name
+        self.domain = elements[0].domain
 
     def __getattr__(self, attr):
         def on_all(*args, **kwargs):
@@ -830,6 +895,12 @@ class VectorField:
             out.append(self[i] / other)
         return VectorField(out)
 
+    def shift(self, value):
+        out = []
+        for f in self:
+            out.append(f.shift(value))
+        return VectorField(out)
+
     def max(self):
         return max([max(f) for f in self])
 
@@ -852,7 +923,18 @@ class VectorField:
         time_steps = [f.time_step for f in self]
         return max(time_steps)
 
-    # TODO might be unnecessary
+    def get_name(self):
+        if type(self.name) != NoneType:
+            return self.name
+        if len(self) == 1:
+            return self[0].name
+        else:
+            name = self[0].name
+            for i in range(len(self)):
+                name = set(name).intersection(self[i].name)
+            return name
+
+
     def update_boundary_conditions(self):
         for field in self:
             field.update_boundary_conditions()
@@ -1013,6 +1095,55 @@ class VectorField:
                 ]
             return (VectorField(out_field), other_field)
 
+    def plot_streamlines(self, normal_direction, isolines=None):
+        fig = figure.Figure()
+        ax = fig.subplots(1,1)
+        directions = [i for i in self.all_dimensions() if i != normal_direction]
+        x = self.domain.grid[directions[0]]
+        y = jnp.flip(self.domain.grid[directions[1]])
+        N = self.domain.number_of_cells(directions[1]) * 2
+        xi = jnp.linspace(x[0], x[1], N)
+        yi = jnp.linspace(y[0], y[1], N)
+        N_c = self.domain.number_of_cells(normal_direction) // 2
+        U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
+        V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
+        domain_2d = Domain(
+                (
+                    self[0].domain.shape[directions[0]],
+                    self[0].domain.shape[directions[1]],
+                ),
+            periodic_directions=(
+                self[0].domain.periodic_directions[directions[0]],
+                self[0].domain.periodic_directions[directions[1]],
+            ),
+            scale_factors=(
+                self[0].domain.scale_factors[directions[0]],
+                self[0].domain.scale_factors[directions[1]],
+            )
+        )
+        domain_2d_iso = Domain(
+            (N, N),
+            periodic_directions=(
+                self[0].domain.periodic_directions[directions[0]],
+                self[0].domain.periodic_directions[directions[1]],
+            ),
+            scale_factors=(
+                self[0].domain.scale_factors[directions[0]],
+                self[0].domain.scale_factors[directions[1]],
+            )
+        )
+        u_2d = Field(domain_2d, U)
+        u_2d_iso = Field.FromField(domain_2d_iso, u_2d)
+        v_2d = Field(domain_2d, V)
+        v_2d_iso = Field.FromField(domain_2d_iso, v_2d)
+        ax.streamplot(x, y, u_2d_iso.field, v_2d_iso.field)
+        fig.savefig(
+            self[0].plotting_dir
+            + "plot_cl_"
+            + self.get_name()
+            + "_latest"
+            + self[0].plotting_format
+        )
 
 class FourierField(Field):
     def __init__(self, domain, field, name="field_hat"):
@@ -1418,3 +1549,7 @@ class FourierFieldSlice(FourierField):
                 *self.ks_raw,
                 ks_int=self.ks_int
             )
+
+    def shift(self, value):
+        out_field = self.field + value
+        return FourierField(self.domain_no_hat, out_field, name=self.name)

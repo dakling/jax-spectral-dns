@@ -75,11 +75,11 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
-    max_cfl = 0.7 / 3
+    max_cfl = 0.1
     # max_cfl = 0.7/10
     # max_cfl = 5e-2
     # max_dt = 1e10
-    max_dt = 1e-2 / 3
+    max_dt = 3e-3
     # u_max_over_u_tau = 1e2
     u_max_over_u_tau = 1e0
 
