@@ -1083,12 +1083,13 @@ def test_vmap():
 
 def test_linear_stability():
     n = 64
+    # n = 4
     Re = 5772.22
     alpha = 1.02056
 
     lsc = LinearStabilityCalculation(Re, alpha, n)
     evs, _ = lsc.calculate_eigenvalues()
-    # print(evs[0])
+    print(evs[0])
     # print(evecs[0])
     assert evs[0].real <= 0.0 and evs[0].real >= -1e-8
 
@@ -1400,8 +1401,8 @@ def test_pseudo_2d_pertubation():
     Ny = 64
     # Ny = 24
     # Re = 5772.22
-    Re = 3000
-    # Re = 6000
+    # Re = 5500
+    Re = 6000
     alpha = 1.02056
     # alpha = 1.0
 

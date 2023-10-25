@@ -279,7 +279,7 @@ class NavierStokesVelVort(Equation):
         vel_hat = self.get_latest_field("velocity_hat")
 
         # start runge-kutta stepping
-        alpha, beta, gamma, xi = self.get_rk_parameters()
+        _, beta, gamma, xi = self.get_rk_parameters()
 
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         D2_hom_diri_only_rows = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows()
@@ -756,7 +756,8 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
-        v_1_lap_hat_p = self.get_latest_field("v_1_lap_hat_p")
+        # v_1_lap_hat_p = self.get_latest_field("v_1_lap_hat_p")
+        v_1_lap_hat = vel_hat[1].laplacian()
 
         h_v_hat_0 = self.get_latest_field("h_v_hat").field
         h_g_hat_0 = self.get_latest_field("h_g_hat").field
@@ -768,9 +769,10 @@ class NavierStokesVelVort(Equation):
         conv_ns_hat_0_old = self.get_field("conv_ns_hat", max(0, self.time_step)).field
 
         # solve equations
-        vel_new_hat, other_field = vel_hat.reconstruct_from_wavenumbers(
+        vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
             perform_single_cn_ab_step_for_single_wavenumber(
-                v_1_lap_hat_p,
+                # v_1_lap_hat_p,
+                v_1_lap_hat,
                 vort_hat_0,
                 conv_ns_hat_0,
                 conv_ns_hat_0_old,
@@ -779,19 +781,19 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_0_old,
                 h_g_hat_0_old,
             ),
-            1
+            0
         )
         vel_new_hat.update_boundary_conditions()
-        v_1_lap_hat_p_new = other_field[0]
-        v_1_lap_hat_p_new.update_boundary_conditions()
+        # v_1_lap_hat_p_new = other_field[0]
+        # v_1_lap_hat_p_new.update_boundary_conditions()
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
 
-        v_1_lap_hat_p_new.name = "v_1_lap_hat_p"
-        self.append_field("v_1_lap_hat_p", v_1_lap_hat_p_new)
+        # v_1_lap_hat_p_new.name = "v_1_lap_hat_p"
+        # self.append_field("v_1_lap_hat_p", v_1_lap_hat_p_new)
 
         self.update_nonlinear_terms()
 

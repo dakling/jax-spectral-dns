@@ -39,7 +39,8 @@ class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, n=50):
         self.Re = Re
         self.alpha = alpha
-        self.n = int(n * Domain.aliasing)  # chebychev resolution
+        # self.n = int(n * Domain.aliasing)  # chebychev resolution
+        self.n = n  # chebychev resolution
 
         self.A = None
         self.B = None
@@ -49,20 +50,18 @@ class LinearStabilityCalculation:
         self.C = None
         self.growth = []
 
-        self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
-        # domain = Domain((n,), (False,))
-        # self.ys = domain.grid[0]
+        # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
+        domain = Domain((n,), (False,))
+        self.ys = domain.grid[0]
 
         self.velocity_field_ = None
 
     def assemble_matrix_fast(self):
-        # n = self.n - 2
-        n = self.n
         alpha = self.alpha
         Re = self.Re
 
-        # ys = self.ys[1:-1]
         ys = self.ys
+        n = len(ys)
 
         noOfEqs = 4
         N = n * noOfEqs
@@ -72,8 +71,8 @@ class LinearStabilityCalculation:
         I = 0 + 1j
 
         def local_to_global_index(j, k, eq, var):
-            jj = j + eq * self.n
-            kk = k + var * self.n
+            jj = j + eq * n
+            kk = k + var * n
             return (jj, kk)
 
         u_fun = lambda y: (1 - y**2)
@@ -127,9 +126,19 @@ class LinearStabilityCalculation:
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
 
+        # A[0, 0] = 1.0
+        # A[-1, -1] = 1.0
+        # B[0, 0] = 1.0
+        # B[-1, -1] = 1.0
         self.A = A
         self.B = B
+        A_mat = self.read_mat("A.mat", "A")
+        B_mat = self.read_mat("B.mat", "B")
         return (A, B)
+
+    def read_mat(self, file, key):
+        return scipy.io.loadmat(file)[key]
+
 
     def calculate_eigenvalues(self):
         try:
@@ -139,7 +148,7 @@ class LinearStabilityCalculation:
             pass
         eigvals, eigvecs = eig(self.A, self.B)
 
-        # scale spurious e'value out of the picture
+        # scale any spurious eigenvalues out of the picture
         for j in range(len(eigvals)):
             if eigvals[j].real > 1:
                 eigvals[j] = -1e12
@@ -161,7 +170,6 @@ class LinearStabilityCalculation:
 
         u_vec, v_vec, w_vec, _ = np.split(evec, 4)
 
-        # TODO interpolate (if numerical error is too large)
         def to_3d_field(eigenvector):
             phi_mat = np.zeros((self.n, self.n), dtype=np.complex128)
             for i in range(self.n):
@@ -192,9 +200,9 @@ class LinearStabilityCalculation:
             if type(dim) == NoneType:
                 energy = 0
                 for d in domain.all_dimensions():
-                    energy += (self.velocity_field_[d] * (jnp.exp(- 1j * self.eigenvalues[mode] * t)).real).energy()
+                    energy += (self.velocity_field_[d] * (jnp.exp(self.eigenvalues[mode] * t)).real).energy()
             else:
-                energy = (self.velocity_field_[dim] * (jnp.exp(- 1j * self.eigenvalues[mode] * t)).real).energy()
+                energy = (self.velocity_field_[dim] * (jnp.exp(self.eigenvalues[mode] * t)).real).energy()
             return energy
         return (out, self.eigenvalues[mode])
 
