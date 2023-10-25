@@ -189,7 +189,7 @@ class LinearStabilityCalculation:
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return (u_field, v_field, w_field)
 
-    def energy_over_time(self, domain, mode=0):
+    def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_)  == NoneType:
             self.velocity_field(domain, mode)
         try:
@@ -200,10 +200,10 @@ class LinearStabilityCalculation:
             if type(dim) == NoneType:
                 energy = 0
                 for d in domain.all_dimensions():
-                    energy += (self.velocity_field_[d] * (jnp.exp(self.eigenvalues[mode] * t)).real).energy()
+                    energy += (self.velocity_field_[d] * (jnp.exp(self.eigenvalues[mode].real * t))).energy()
             else:
-                energy = (self.velocity_field_[dim] * (jnp.exp(self.eigenvalues[mode] * t)).real).energy()
-            return energy
+                energy = (self.velocity_field_[dim] * (jnp.exp(self.eigenvalues[mode].real * t))).energy()
+            return eps**2 * energy
         return (out, self.eigenvalues[mode])
 
     def print_welcome(self):

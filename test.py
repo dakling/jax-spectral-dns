@@ -1457,10 +1457,7 @@ def test_pseudo_2d_pertubation():
         ),
     )
 
-    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.domain_no_hat)
-    energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
-    energy_x_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)[0](t, 0)
-    energy_y_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(nse.domain_no_hat)[0](t, 1)
+    energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps)
     print("eigenvalue: ", ev)
     plot_interval = 10
 
@@ -1514,26 +1511,26 @@ def test_pseudo_2d_pertubation():
             energy_x_t.append(vel_pert[0].energy())
             energy_y_t.append(vel_pert[1].energy())
             energy_t_ana.append(energy_over_time_fn(nse.time))
-            energy_x_t_ana.append(energy_x_over_time_fn(nse.time))
-            energy_y_t_ana.append(energy_y_over_time_fn(nse.time))
-            # if i > plot_interval * 3:
-            if True:
-                fig = figure.Figure()
-                ax = fig.subplots(1,1)
-                ax.plot(ts, energy_t_ana)
-                ax.plot(ts, energy_t, ".")
-                fig.savefig("plots/energy_t.pdf")
-                fig = figure.Figure()
-                ax = fig.subplots(1,1)
-                ax.plot(ts, energy_x_t_ana)
-                ax.plot(ts, energy_x_t, ".")
-                fig.savefig("plots/energy_x_t.pdf")
-                fig = figure.Figure()
-                ax = fig.subplots(1,1)
-                ax.plot(ts, energy_y_t_ana)
-                ax.plot(ts, energy_y_t, ".")
-                fig.savefig("plots/energy_y_t.pdf")
-        # input("carry on?")
+            energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
+            energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
+            fig = figure.Figure()
+            ax = fig.subplots(1,1)
+            ax.plot(ts, energy_t_ana, label="analytical growth")
+            ax.plot(ts, energy_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_t.pdf")
+            fig = figure.Figure()
+            ax = fig.subplots(1,1)
+            ax.plot(ts, energy_x_t_ana, label="analytical growth")
+            ax.plot(ts, energy_x_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_x_t.pdf")
+            fig = figure.Figure()
+            ax = fig.subplots(1,1)
+            ax.plot(ts, energy_y_t_ana, label="analytical growth")
+            ax.plot(ts, energy_y_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_y_t.pdf")
 
     nse.before_time_step_fn = before_time_step
     nse.after_time_step_fn = None
