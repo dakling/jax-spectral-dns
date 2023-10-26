@@ -3,6 +3,7 @@
 import unittest
 import jax
 import jax.numpy as jnp
+from pathlib import Path
 
 # from cProfile import Profile
 # from pstats import SortKey, Stats
@@ -50,13 +51,18 @@ except:
     print("Unable to load examples")
 from examples import run_pseudo_2d_pertubation
 
-try:
-    reload(sys.modules["main"])
-except:
-    print("Unable to load main")
-from main import init
-
 NoneType = type(None)
+
+
+def init():
+    newpaths = ['./fields/', "./plots/"]
+    for newpath in newpaths:
+        if not os.path.exists(newpath):
+            os.makedirs(newpath)
+    # clean plotting dir
+    [f.unlink() for f in Path(newpaths[1]).glob("*.pdf") if f.is_file()]
+    [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
+    [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
 
 class TestProject(unittest.TestCase):
 

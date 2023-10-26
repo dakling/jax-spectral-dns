@@ -36,8 +36,7 @@ try:
     reload(sys.modules["test"])
 except:
     print("Unable to load test")
-from test import TestProject
-
+from test import TestProject, init
 
 try:
     reload(sys.modules["examples"])
@@ -45,16 +44,6 @@ except:
     print("Unable to load examples")
 from examples import run_jimenez_1990, run_transient_growth
 
-
-def init():
-    newpaths = ['./fields/', "./plots/"]
-    for newpath in newpaths:
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-    # clean plotting dir
-    [f.unlink() for f in Path(newpaths[1]).glob("*.pdf") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
 
 def main():
     init()

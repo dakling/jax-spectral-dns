@@ -674,7 +674,7 @@ def run_transient_growth():
 
     eps = 1e-2
 
-    number_of_modes = 60
+    number_of_modes = 5
 
     Nx = 200
     Ny = 96
