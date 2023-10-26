@@ -34,7 +34,7 @@ from equation import Equation
 
 
 # @partial(jax.jit, static_argnums=0)
-def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel_base_hat):
+def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel_base_hat, linearize=False):
     vel_new = jnp.array(
         [
             domain.no_hat(vel_hat_new.at[i].get())
@@ -44,8 +44,8 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     vort_new = domain.curl(vel_new)
 
     vel_new_sq = 0
-    for i in domain.all_dimensions():
-        vel_new_sq += vel_new[i] * vel_new[i]
+    for j in domain.all_dimensions():
+        vel_new_sq += vel_new[j] * vel_new[j]
     vel_new_sq_nabla = []
     for i in domain.all_dimensions():
         vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
@@ -53,7 +53,6 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     # hel_new_ = domain.cross_product(vel_new, vort_new)
     # conv_ns_new_ = -jnp.array(hel_new_) + 1 / 2 * jnp.array(vel_new_sq_nabla)
     hel_new_ = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(vel_new_sq_nabla)
-    conv_ns_new_ = - hel_new_
 
     # a-term
     vel_base = jnp.array(
@@ -63,34 +62,20 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
         ]
     )
     vel_new_sq_a = 0
-    for i in domain.all_dimensions():
-        vel_new_sq_a += vel_new[i] * vel_base[i]
+    for j in domain.all_dimensions():
+        vel_new_sq_a += vel_new[j] * vel_base[j]
     vel_new_sq_nabla_a = []
     for i in domain.all_dimensions():
         vel_new_sq_nabla_a.append(domain.diff(vel_new_sq_a, i))
-    # hel_new_a = domain.cross_product(vel_base, vort_new)
-    # conv_ns_new_a = -jnp.array(hel_new_a) + 1 / 2 * jnp.array(vel_new_sq_nabla_a)
     hel_new_a = jnp.array(domain.cross_product(vel_base, vort_new)) - 1 / 2 * jnp.array(vel_new_sq_nabla_a)
-    conv_ns_new_a = - hel_new_a
 
     # b-term
-    vort_b = domain.curl(vel_base)
+    vort_base = domain.curl(vel_base)
     vel_new_sq_nabla_b = vel_new_sq_nabla_a
-    # hel_new_b = domain.cross_product(vel_new, vort_b)
-    # conv_ns_new_b = -jnp.array(hel_new_b) + 1 / 2 * jnp.array(vel_new_sq_nabla_b)
-    hel_new_b = jnp.array(domain.cross_product(vel_new, vort_b)) - 1 / 2 * jnp.array(vel_new_sq_nabla_b)
-    conv_ns_new_b = - hel_new_b
+    hel_new_b = jnp.array(domain.cross_product(vel_new, vort_base)) - 1 / 2 * jnp.array(vel_new_sq_nabla_b)
 
-    linearize = False
-    # linearize = True
-    if linearize:
-        # exact expression
-        hel_new = hel_new_a + hel_new_b
-        conv_ns_new = conv_ns_new_a + conv_ns_new_b
-    else:
-        # linearized expression
-        hel_new = hel_new_ + hel_new_a + hel_new_b
-        conv_ns_new = conv_ns_new_ + conv_ns_new_a + conv_ns_new_b
+    hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
+    conv_ns_new = - hel_new
 
     h_v_new = (
         - domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
@@ -134,12 +119,20 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         velocity_base_hat.name = "velocity_base_hat"
 
         super().__init__(velocity_field, velocity_base_hat, **params)
-        self.nonlinear_update_fn = lambda dom, vel: update_nonlinear_terms_high_performance_pertubation(dom, vel, jnp.array([ velocity_base_hat[0].field, velocity_base_hat[1].field, velocity_base_hat[2].field ]))
+        try:
+            self.linearize = params["linearize"]
+        except KeyError:
+            self.linearize = False
+        self.set_linearize(self.linearize)
 
     def update_flow_rate(self):
         self.flow_rate = 0.0
         self.dpdx = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]).hat()
         self.dpdz = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]).hat()
+
+    def set_linearize(self, lin):
+        self.linearize = lin
+        self.nonlinear_update_fn = lambda dom, vel: update_nonlinear_terms_high_performance_pertubation(dom, vel, jnp.array([ velocity_base_hat[0].field, velocity_base_hat[1].field, velocity_base_hat[2].field ]), linearize=self.linearize)
 
 
 def solve_navier_stokes_pertubation(

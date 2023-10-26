@@ -10,7 +10,6 @@ import matplotlib.figure as figure
 from matplotlib import colors
 import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator
-import numbers
 
 import numpy as np
 
@@ -1147,7 +1146,7 @@ class VectorField:
         Ui = np.array([[ interp_u([[x_, y_]])[0] for x_ in xi ] for y_ in yi])
         Vi = np.array([[ interp_v([[x_, y_]])[0] for x_ in xi ] for y_ in yi])
 
-        ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False)
+        ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.2)
         fig.savefig(
             self[0].plotting_dir
             + "plot_streamlines_"

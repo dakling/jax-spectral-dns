@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
 make_video(){
-    ffmpeg -f image2 -r 6 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4"
+    # ffmpeg -y -f image2 -r 6 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4"
     convert "plots/plot_$1_t_*.png" "img/$2.gif"
 }
 

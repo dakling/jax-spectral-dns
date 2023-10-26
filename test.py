@@ -1318,7 +1318,7 @@ def test_pertubation_laminar(Ny=48, pertubation_factor=0.01):
         assert abs(vel[2]) < tol
 
 
-def run_pseudo_2d_pertubation(Re=6000, end_time=10.0):
+def run_pseudo_2d_pertubation(Re=6000, end_time=10.0, eps=1e-15, linearize=False):
     Ny = 96
     # Ny = 24
     # Re = 5772.22
@@ -1338,6 +1338,8 @@ def run_pseudo_2d_pertubation(Re=6000, end_time=10.0):
         pertubation_factor=0.0,
         scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
+
+    nse.set_linearize(linearize)
 
     make_field_file_name = (
         lambda field_name: field_name
@@ -1363,7 +1365,6 @@ def run_pseudo_2d_pertubation(Re=6000, end_time=10.0):
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
 
-    eps = 1e-15
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
     nse.init_velocity(
         VectorField(
@@ -1511,7 +1512,7 @@ def run_jimenez_1990():
 
     vel_pert = VectorField([u, v, w])
     vort_pert = vel_pert.curl()
-    eps = 3e-2 * jnp.sqrt(vort_pert.energy())
+    eps = 1e-2 * jnp.sqrt(vort_pert.energy())
     vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
     nse.init_velocity(
         VectorField(
@@ -1533,7 +1534,7 @@ def run_jimenez_1990():
             vort = vel.curl()
             vort.set_name("vorticity")
             vort.set_time_step(i)
-            vel_moving_frame = vel.shift([0.353, 0, 0])
+            vel_moving_frame = vel.shift([-0.353, 0, 0])
             vel_moving_frame.set_name("velocity_moving_frame")
             vel_moving_frame.set_time_step(i)
             vel_moving_frame.plot_streamlines(2)
@@ -1546,6 +1547,10 @@ def run_jimenez_1990():
 
     nse.before_time_step_fn = before_time_step
     nse.solve()
+
+def run_transient_growth():
+    pass # TODO - reproduce the growth and decay seen in Lozano-Duran and produced by Rich's matlab script
+
 
 
 def run_all_tests():

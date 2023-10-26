@@ -18,8 +18,9 @@ class Domain:
     """Class that mainly contains information on the independent variables of
     the problem (i.e. the basis) and implements some operations that can be
     performed on it."""
-    # aliasing = 3 / 2
-    aliasing = 1
+
+    # aliasing = 3 / 2 # prevent aliasing using the 3/2-rule
+    aliasing = 1 # no antialiasing (requires finer resolution)
 
     def __init__(self, shape, periodic_directions=None, scale_factors=None):
         self.number_of_dimensions = len(shape)
@@ -85,7 +86,8 @@ class Domain:
         assert (
             scale_factor == 1.0
         ), "different scaling of Chebyshev direction not implemented yet."
-        n = int(N * self.aliasing)
+        # n = int(N * self.aliasing)
+        n = N
         return jnp.array(
             [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
         )  # gauss-lobatto points with endpoints
