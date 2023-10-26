@@ -19,8 +19,8 @@ class Domain:
     the problem (i.e. the basis) and implements some operations that can be
     performed on it."""
 
-    # aliasing = 3 / 2 # prevent aliasing using the 3/2-rule
-    aliasing = 1 # no antialiasing (requires finer resolution)
+    aliasing = 3 / 2 # prevent aliasing using the 3/2-rule
+    # aliasing = 1 # no antialiasing (requires finer resolution)
 
     def __init__(self, shape, periodic_directions=None, scale_factors=None):
         self.number_of_dimensions = len(shape)

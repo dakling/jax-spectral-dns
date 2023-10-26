@@ -157,8 +157,9 @@ class LinearStabilityCalculation:
     def velocity_field(self, domain, mode=0):
         assert domain.number_of_dimensions == 3, "this only makes sense in 3D."
         self.n = len(domain.grid[1])
-        print("calculating eigenvalues")
-        self.calculate_eigenvalues()
+        if type(self.eigenvalues) == NoneType:
+            print("calculating eigenvalues")
+            self.calculate_eigenvalues()
 
         evec = self.eigenvectors[mode]
 
