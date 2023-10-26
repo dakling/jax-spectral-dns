@@ -1051,7 +1051,6 @@ class TestProject(unittest.TestCase):
             pertubation_factor=pertubation_factor,
         )
 
-        plot_interval = 1
         nse.before_time_step_fn = None
         nse.solve()
 
@@ -1069,9 +1068,9 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
-        growth_5500 = run_pseudo_2d_pertubation(5500, 0.1)
+        growth_5500 = run_pseudo_2d_pertubation(Re=5500, end_time=0.1, eps=1e-2, linearize=True)
         # growth_6000 = run_pseudo_2d_pertubation(6000, 0.3) # TODO tweak this until it works reliably
-        growth_6500 = run_pseudo_2d_pertubation(6500, 0.2)
+        growth_6500 = run_pseudo_2d_pertubation(Re=6500, end_time=0.2, eps=1e-2, linearize=True)
         # print("growth_5500: ", growth_5500)
         # print("growth_6000: ", growth_6000)
         # print("growth_6500: ", growth_6500)
