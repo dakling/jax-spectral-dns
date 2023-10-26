@@ -19,16 +19,16 @@ Navier-Stokes DNS solver.
 
 ### Running a case
 
-Check out the functions defined in `test.py` for examples. The functions
-starting with "test" can also be used in order to check that everything is
-working fine. Functions that run the solver but to not contain any quantitative
-test start with "run".
+Check out the functions defined in `examples.py` and `test.py` for examples. The
+functions in `test.py` are used in order to check that everything is working
+fine. Functions in `examples.py` run the solver but to not contain any
+quantitative test start with "run".
 
 ## Example outputs
 
 ### run_jimenez_1990
 
-Result of the function `run_jimenez_1990` in `test.py`, which reproduces the
+Result of the function `run_jimenez_1990` in `examples.py`, which reproduces the
 case documented in Figure 1 of "Transition to turbulence in two-dimensional
 Poiseuille flow" by Javier Jimenez (1990, Journal of Fluid Mechanics, vol 218,
 pp 265-297)
