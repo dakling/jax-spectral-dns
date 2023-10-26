@@ -428,7 +428,7 @@ def run_dummy_velocity_field():
 
 
 
-def run_pseudo_2d_pertubation(Re=6000, alpha=1.02056, end_time=10.0, eps=1e-15, linearize=False):
+def run_pseudo_2d_pertubation(Re=6000, alpha=1.02056, end_time=10.0, eps=1e-5, linearize=False):
 
     Nx = 200
     Ny = 96
@@ -674,7 +674,7 @@ def run_transient_growth():
 
     eps = 1e-2
 
-    number_of_modes = 5
+    number_of_modes = 30
 
     Nx = 200
     Ny = 96
@@ -741,8 +741,6 @@ def run_transient_growth():
         U * eps_
     )
 
-    energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
-    print("eigenvalue: ", ev)
     plot_interval = 10
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -751,9 +749,6 @@ def run_transient_growth():
     energy_t = []
     energy_x_t = []
     energy_y_t = []
-    energy_t_ana = []
-    energy_x_t_ana = []
-    energy_y_t_ana = []
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
@@ -787,25 +782,19 @@ def run_transient_growth():
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())
             energy_y_t.append(vel_pert[1].energy())
-            energy_t_ana.append(energy_over_time_fn(nse.time))
-            energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
-            energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
             fig = figure.Figure()
             ax = fig.subplots(1,1)
-            ax.plot(ts, energy_t_ana, label="analytical growth")
-            ax.plot(ts, energy_t, ".", label="numerical growth")
+            ax.plot(ts, energy_t, ".", label="growth")
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
             fig = figure.Figure()
             ax = fig.subplots(1,1)
-            ax.plot(ts, energy_x_t_ana, label="analytical growth")
-            ax.plot(ts, energy_x_t, ".", label="numerical growth")
+            ax.plot(ts, energy_x_t, ".", label="growth")
             fig.legend()
             fig.savefig("plots/energy_x_t.pdf")
             fig = figure.Figure()
             ax = fig.subplots(1,1)
-            ax.plot(ts, energy_y_t_ana, label="analytical growth")
-            ax.plot(ts, energy_y_t, ".", label="numerical growth")
+            ax.plot(ts, energy_y_t, ".", label="growth")
             fig.legend()
             fig.savefig("plots/energy_y_t.pdf")
 
