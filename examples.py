@@ -3,6 +3,7 @@
 import jax.numpy as jnp
 from pathlib import Path
 import matplotlib.figure as figure
+from numpy import genfromtxt
 
 from importlib import reload
 import sys
@@ -525,6 +526,7 @@ def run_pseudo_2d_pertubation(
     )
 
     eps_ = eps * jnp.sqrt(U.energy())
+    print(jnp.sqrt(U.energy()))
 
     nse.init_velocity(U * eps_)
 
@@ -833,6 +835,7 @@ def run_transient_growth():
     energy_t = []
     energy_x_t = []
     energy_y_t = []
+    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',')
 
     def before_time_step(nse):
         i = nse.time_step
@@ -882,21 +885,26 @@ def run_transient_growth():
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())
             energy_y_t.append(vel_pert[1].energy())
+
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_t, ".", label="growth")
+            ax.plot(ts, energy_t, ".", label="growth (DNS)")
+            ax.autoscale(False)
+            ax.plot(rh_93_data, "--", label="growth (Reddy/Henningson 1993)")
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_x_t, ".", label="growth")
-            fig.legend()
-            fig.savefig("plots/energy_x_t.pdf")
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_y_t, ".", label="growth")
-            fig.legend()
-            fig.savefig("plots/energy_y_t.pdf")
+
+            fig_x = figure.Figure()
+            ax_x = fig_x.subplots(1, 1)
+            ax_x.plot(ts, energy_x_t, ".", label="growth")
+            fig_x.legend()
+            fig_x.savefig("plots/energy_x_t.pdf")
+
+            fig_y = figure.Figure()
+            ax_y = fig_y.subplots(1, 1)
+            ax_y.plot(ts, energy_y_t, ".", label="growth")
+            fig_y.legend()
+            fig_y.savefig("plots/energy_y_t.pdf")
 
     nse.before_time_step_fn = before_time_step
     nse.after_time_step_fn = None
