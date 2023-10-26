@@ -828,14 +828,15 @@ def run_transient_growth():
 
     plot_interval = 10
 
-    vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
+    vel_pert = nse.get_initial_field("velocity_hat").no_hat()
+    vel_pert_0 = vel_pert[1]
     vel_pert_0.name = "veloctity_y_0"
     ts = []
     energy_t = []
     energy_x_t = []
     energy_y_t = []
-    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',')
-    energy_0 = vel_pert_0.energy()
+    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',').T
+    energy_0 = vel_pert.energy()
 
     def before_time_step(nse):
         i = nse.time_step
@@ -889,8 +890,8 @@ def run_transient_growth():
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
-            ax.autoscale(False)
-            ax.plot(rh_93_data, "--", label="growth (Reddy/Henningson 1993)")
+            ax.autoscale(False, axis='x')
+            ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
 
