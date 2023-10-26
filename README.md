@@ -33,6 +33,5 @@ case documented in Figure 1 of "Transition to turbulence in two-dimensional
 Poiseuille flow" by Javier Jimenez (1990, Journal of Fluid Mechanics, vol 218,
 pp 265-297)
 
-![vorticity at Re 5000]( ./img/vort_z_Re_5000_jimenez1990.gif )
+![Re 5000]( ./img/Re_5000_jimenez_1990.gif )
 
-![vorticity at Re 5000 (isolines)]( ./img/vort_z_Re_5000_isolines_jimenez1990.gif )

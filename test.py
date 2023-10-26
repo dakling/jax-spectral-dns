@@ -1524,7 +1524,7 @@ def run_jimenez_1990():
         ),
     )
 
-    plot_interval = 10
+    plot_interval = 30
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
