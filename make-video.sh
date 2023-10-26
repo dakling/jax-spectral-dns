@@ -6,16 +6,28 @@ make_video(){
 }
 
 combine_three(){
-    convert "$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
-    convert "$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
-    convert "$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif
+    convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
+    convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
+    convert "./img/$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif
     for f in a-*.gif; do convert $f ${f/a/b} ${f/a/c} +append $f; done  # append frames side-by-side
     convert -loop 0 -delay 20 a-*.gif "img/$1.gif"               # rejoin frames
     rm a*.gif b*.gif c*.gif                                     #clean up
 }
 
+
+# for run_jimenez_1990
+
 # make_video 3d_z_vorticity_z vort_z_Re_5000_jimenez1990
 # make_video iso_z_vorticity_z vort_z_Re_5000_isolines_jimenez1990
 # make_video streamlines_velocity_moving_frame velocity_moving_frame_Re_5000_streamlines_jimenez1990
 
-combine_three ./img/Re_5000_jimenez_1990 ./img/velocity_moving_frame_Re_5000_streamlines_jimenez1990 ./img/vort_z_Re_5000_isolines_jimenez1990 ./img/vort_z_Re_5000_jimenez1990
+# combine_three Re_5000_jimenez_1990 velocity_moving_frame_Re_5000_streamlines_jimenez1990 vort_z_Re_5000_isolines_jimenez1990 vort_z_Re_5000_jimenez1990
+
+
+# for run_transient_growth
+
+# make_video 3d_z_velocity_x Re_3000_velocity_x
+# make_video 3d_z_velocity_y Re_3000_velocity_y
+# make_video 3d_z_vorticity_z Re_3000_vorticity_z
+
+combine_three Re_3000_transient_growth Re_3000_velocity_x Re_3000_velocity_y Re_3000_vorticity_z

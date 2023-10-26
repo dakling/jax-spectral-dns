@@ -526,12 +526,10 @@ def run_pseudo_2d_pertubation(
     )
 
     eps_ = eps * jnp.sqrt(U.energy())
-    print(jnp.sqrt(U.energy()))
 
     nse.init_velocity(U * eps_)
 
     energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
-    print("eigenvalue: ", ev)
     plot_interval = 10
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -564,6 +562,7 @@ def run_pseudo_2d_pertubation(
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             vel_pert_energy_old = vel_pert_old.energy()
+            print("velocity pertubation energy: ", vel_pert_energy)
             print("\n\n")
             if vel_pert_energy - vel_pert_energy_old >= 0:
                 print(
@@ -759,7 +758,7 @@ def run_transient_growth():
     Re = 3000
     alpha = 1
 
-    eps = 1e-2
+    eps = 1e-1
 
     number_of_modes = 30
 
@@ -836,6 +835,7 @@ def run_transient_growth():
     energy_x_t = []
     energy_y_t = []
     rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',')
+    energy_0 = vel_pert_0.energy()
 
     def before_time_step(nse):
         i = nse.time_step
@@ -882,9 +882,9 @@ def run_transient_growth():
             )
             print("")
             ts.append(nse.time)
-            energy_t.append(vel_pert_energy)
-            energy_x_t.append(vel_pert[0].energy())
-            energy_y_t.append(vel_pert[1].energy())
+            energy_t.append(vel_pert_energy / energy_0)
+            energy_x_t.append(vel_pert[0].energy() / energy_0)
+            energy_y_t.append(vel_pert[1].energy() / energy_0)
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)

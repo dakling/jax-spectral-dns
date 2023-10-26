@@ -33,10 +33,10 @@ except:
 from navier_stokes_pertubation import solve_navier_stokes_pertubation
 
 try:
-    reload(sys.modules["test"])
+    reload(sys.modules["test_project"])
 except:
     print("Unable to load test")
-from test import TestProject, init
+from test_project import TestProject, init
 
 try:
     reload(sys.modules["examples"])
