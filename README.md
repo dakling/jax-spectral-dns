@@ -17,12 +17,18 @@ Navier-Stokes DNS solver.
 - [jax](https://github.com/google/jax)
 - (notably, [jax-cfd](https://github.com/google/jax-cfd) is not needed.)
 
+### Checking if everything is set up correctly
+
+Run `python test.py` in order to verify that all tests are running correctly.
+Any state committed to the main branch should pass all tests (this is not
+necessarily true for other branches).
+
 ### Running a case
 
 Check out the functions defined in `examples.py` and `test.py` for examples. The
 functions in `test.py` are used in order to check that everything is working
 fine. Functions in `examples.py` run the solver but to not contain any
-quantitative test start with "run".
+quantitative tests.
 
 ## Example outputs
 
