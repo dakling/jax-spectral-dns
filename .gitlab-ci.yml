@@ -16,12 +16,10 @@
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
-stages:          # List of stages for jobs, and their order of execution
-  - test
+default:
+    image: ghcr.io/nvidia/jax:nightly-2023-10-26-linux-amd64
 
-
-unit-test-job:   # This job runs in the test stage.
-  stage: test    # It only starts when the job in the build stage completes successfully.
+test:   # This job runs in the test stage.
   script:
     - echo "Running unit tests..."
     - python test.py
