@@ -136,7 +136,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
 
 
 def solve_navier_stokes_pertubation(
-        Re=1.8e2, end_time=1e1, max_iter=1000, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1, scale_factors=(1.87, 1.0, 0.93)
+        Re=1.8e2, end_time=1e1, max_iter=1e8, Nx=6, Ny=40, Nz=None, pertubation_factor=0.1, scale_factors=(1.87, 1.0, 0.93)
 ):
     Ny = Ny
     Nz = Nz or Nx + 4

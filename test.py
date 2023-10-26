@@ -1473,7 +1473,7 @@ def run_jimenez_1990():
     Nx = 84
     Ny = 130
     Nz = 2
-    end_time = 10
+    end_time = 1000
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
     nse = solve_navier_stokes_pertubation(

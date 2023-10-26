@@ -126,14 +126,8 @@ class LinearStabilityCalculation:
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
 
-        # A[0, 0] = 1.0
-        # A[-1, -1] = 1.0
-        # B[0, 0] = 1.0
-        # B[-1, -1] = 1.0
         self.A = A
         self.B = B
-        A_mat = self.read_mat("A.mat", "A")
-        B_mat = self.read_mat("B.mat", "B")
         return (A, B)
 
     def read_mat(self, file, key):
