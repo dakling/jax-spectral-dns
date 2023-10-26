@@ -1,13 +1,10 @@
 #!/usr/bin/env sh
 
+make_video(){
+    ffmpeg -f image2 -r 6 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4"
+    convert "plots/plot_$1_t_*.png" "img/$2.gif"
+}
 
-# ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_vort_pertubation_y_t_*.png' -vcodec libx264 -crf 22 plots/vort_pert_y.mp4
-# ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_velocity_pertubation_x_t_*.png' -vcodec libx264 -crf 22 vel_pert_x_Re_6000.mp4
-# ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_velocity_pertubation_y_t_*.png' -vcodec libx264 -crf 22 vel_pert_y_Re_6000.mp4
-
-# ffmpeg -f image2 -r 4 -pattern_type glob -i 'plots/plot_3d_z_vorticity_y_t_*.png' -vcodec libx264 -crf 22 plots/vort_y.mp4
-# ffmpeg -framerate 4 -f image2  -pattern_type glob -i 'plots/plot_3d_z_velocity_x_t_*.png' -vcodec libx264 -crf 22 plots/vel_x.mp4
-# ffmpeg -framerate 4 -f image2  -pattern_type glob -i 'plots/plot_3d_z_velocity_y_t_*.png' -vcodec libx264 -crf 22 plots/vel_y.mp4
-
-ffmpeg -f image2 -r 6 -pattern_type glob -i 'plots/plot_3d_z_vorticity_z_t_*.png' -vcodec libx264 -crf 22 vort_z_Re_5000_jimenez1990.mp4
-ffmpeg -f image2 -r 6 -pattern_type glob -i 'plots/plot_iso_z_vorticity_z_t_*.png' -vcodec libx264 -crf 22 vort_z_iso_Re_5000_jimenez1990.mp4
+make_video 3d_z_vorticity_z vort_z_Re_5000_jimenez1990
+make_video iso_z_vorticity_z vort_z_Re_5000_isolines_jimenez1990
+make_video streamlines_velocity_moving_frame velocity_moving_frame_Re_5000_streamlines_jimenez1990

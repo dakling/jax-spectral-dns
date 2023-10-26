@@ -1,16 +1,17 @@
 # Jax-Optim
 
 This repository contains a spectral solver written in python. Notably, the
-library jax is used, so that automatic differentiation is supported. The main
-purpose of this project is to implement a Navier-Stokes DNS solver. 
+library [jax](https://github.com/google/jax) is used, so that automatic
+differentiation is supported. The main purpose of this project is to implement a
+Navier-Stokes DNS solver. 
 
 ## Getting started
 
 ### Dependencies
 
-- python
+- python, obviously
 - [jax](https://github.com/google/jax)
-- notably, [jax-cfd](https://github.com/google/jax-cfd) is not needed.
+- (notably, [jax-cfd](https://github.com/google/jax-cfd) is not needed.)
 
 ### Running a case
 
@@ -21,4 +22,5 @@ test start with "run".
 
 ## Example outputs
 
-![vorticity at Re 5000](img/vort_z_Re_5000.gif)
+![vorticity at Re 5000]( ./img/vort_z_Re_5000_jimenez1990.gif )
+![vorticity at Re 5000 (isolines)]( ./img/vort_z_Re_5000_isolines_jimenez1990.gif )
