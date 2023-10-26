@@ -59,7 +59,8 @@ def init():
 def main():
     init()
 
-    run_jimenez_1990()
+    # run_jimenez_1990()
+    run_transient_growth()
 
     # run tests
     # tp = TestProject()

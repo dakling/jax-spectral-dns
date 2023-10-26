@@ -3,17 +3,9 @@
 import unittest
 import jax
 import jax.numpy as jnp
-import jax.scipy as jsc
-from matplotlib import legend
-import matplotlib.figure as figure
-from matplotlib import legend
-from numpy import float128
-import scipy as sc
-import scipy.optimize as optimization
-import time
 
-from cProfile import Profile
-from pstats import SortKey, Stats
+# from cProfile import Profile
+# from pstats import SortKey, Stats
 
 # import numpy as np
 
@@ -116,7 +108,7 @@ class TestProject(unittest.TestCase):
         u_x_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_x_ana")
         u_xx_ana = Field.FromFunc(domain, func=u_diff_fn_2, name="u_xx_ana")
 
-        u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
+        # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
         tol = 8e-5
         # print(abs(u_x - u_x_ana))
         # print(abs(u_xx - u_xx_ana))
@@ -173,8 +165,8 @@ class TestProject(unittest.TestCase):
             name="u_yy_ana",
         )
 
-        u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
-        u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
+        # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
+        # u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
         tol = 5e-5
         # print(abs(u_x - u_x_ana))
         # print(abs(u_xx - u_xx_ana))
@@ -266,9 +258,9 @@ class TestProject(unittest.TestCase):
             name="u_zz_ana",
         )
 
-        u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
-        u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
-        u.plot_center(2, u_z, u_zz, u_z_ana, u_zz_ana)
+        # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
+        # u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
+        # u.plot_center(2, u_z, u_zz, u_z_ana, u_zz_ana)
 
         # print(abs(u_x - u_x_ana))
         # print(abs(u_xx - u_xx_ana))
@@ -333,7 +325,7 @@ class TestProject(unittest.TestCase):
         u_diff.name = "u_1d_diff"
         u_diff_2 = u_hat_diff_2.no_hat()
         u_diff_2.name = "u_1d_diff_2"
-        u_int.plot(u)
+        # u_int.plot(u)
         # u.integrate(0).plot(u)
         # print(abs(u_int - u_int_ana))
         # print(abs(u_int_2 - u_int_ana_2))
@@ -442,7 +434,7 @@ class TestProject(unittest.TestCase):
         u_y.name = "u_2d_y"
         u_y_2 = u_hat_y_2.no_hat()
         u_y_2.name = "u_2d_y_2"
-        u_int_x.plot(u_int_x_ana)
+        # u_int_x.plot(u_int_x_ana)
         # u_x.plot()
         # u_y.plot()
         # u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
@@ -533,8 +525,8 @@ class TestProject(unittest.TestCase):
 
         # U_nohat.plot(U)
         # u.plot()
-        u_x.plot(u_hat_x.no_hat())
-        u_xx.plot(u_hat_xx.no_hat())
+        # u_x.plot(u_hat_x.no_hat())
+        # u_xx.plot(u_hat_xx.no_hat())
         # u_int_x.plot(u)
         # u_int_hat_x.no_hat().plot(u)
         # u_xx.plot(u_hat_xx.no_hat())
@@ -577,7 +569,7 @@ class TestProject(unittest.TestCase):
         u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_1d_int_ana")
         u_int = u.integrate(0, order=2, bc_left=0.0, bc_right=0.0)
         u_int.name = "u_int"
-        u_int.plot(u, u_int_ana)
+        # u_int.plot(u, u_int_ana)
 
         tol = 1e-7
         # print(abs(u_int - u_int_ana))

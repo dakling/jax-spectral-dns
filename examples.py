@@ -428,14 +428,10 @@ def run_dummy_velocity_field():
 
 
 
-def run_pseudo_2d_pertubation(Re=6000, end_time=10.0, eps=1e-15, linearize=False):
-    Ny = 96
-    # Ny = 24
-    # Re = 5772.22
-    alpha = 1.02056
-    # alpha = 1.0
+def run_pseudo_2d_pertubation(Re=6000, alpha=1.02056, end_time=10.0, eps=1e-15, linearize=False):
 
     Nx = 200
+    Ny = 96
     Nz = 4
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
@@ -670,4 +666,4 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 def run_transient_growth():
-    pass # TODO - reproduce the growth and decay seen in Lozano-Duran and produced by Rich's matlab script
+    run_pseudo_2d_pertubation(Re=3000, alpha=1, end_time=50)
