@@ -18,8 +18,9 @@
 
 default:
     image: ghcr.io/nvidia/jax:nightly-2023-10-26-linux-amd64
-    before_script: pip install matplotlib
-    before_script: pip install pytest
+    before_script:
+        - pip install matplotlib
+        - pip install pytest
 
 test:   # This job runs in the test stage.
   script:
