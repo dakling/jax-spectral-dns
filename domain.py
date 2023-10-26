@@ -15,8 +15,9 @@ NoneType = type(None)
 
 
 class Domain:
-    """Class that mainly contains the grid information and implements some basic
-    operations that can be performed on it."""
+    """Class that mainly contains information on the independent variables of
+    the problem (i.e. the basis) and implements some operations that can be
+    performed on it."""
     # aliasing = 3 / 2
     aliasing = 1
 
@@ -182,6 +183,10 @@ class Domain:
         return jnp.linalg.matrix_power(self.diff_mats[direction], order) @ field
 
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
+        """Assemble the Chebyshev differentiation matrix of second order with
+        homogeneous Dirichlet boundary conditions enforced by setting the first
+        and last rows and columns to one (diagonal elements) and zero
+        (off-diagonal elements)"""
         def set_first_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
             return jnp.block(
@@ -201,25 +206,10 @@ class Domain:
         )
         return mat
 
-    def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self, direction):
-        def set_first_n_mat_row_to_unit(matr):
-            N = matr.shape[0]
-            n = 1
-            return jnp.block([[jnp.eye(n), jnp.zeros((n, N - n))], [matr[n:, :]]])
-
-        def set_last_n_mat_row_to_unit(matr):
-            N = matr.shape[0]
-            n = 1
-            return jnp.block([[matr[:-n, :]], [jnp.zeros((n, N - n)), jnp.eye(n)]])
-
-        mat = set_last_n_mat_row_to_unit(
-            set_first_n_mat_row_to_unit(
-                jnp.linalg.matrix_power(self.diff_mats[direction], 2)
-            )
-        )
-        return mat
-
     def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
+        """Calculate the integral or order for field in direction subject to the
+        boundary conditions bc_left and/or bc_right. Since this is difficult to
+        generalize, only cases that are needed are implemented."""
         if (type(bc_left) != NoneType and abs(bc_left) > 1e-20) or (
             type(bc_right) != NoneType and abs(bc_right) > 1e-20
         ):
@@ -331,6 +321,9 @@ class Domain:
         return out_bc
 
     def solve_poisson_fourier_field_slice(self, field, mat, k1, k2):
+        """Solve the poisson equation with field as the right-hand side for a
+        one-dimensional slice at the wavenumbers k1 and k2. Use the provided
+        differentiation matrix mat."""
         mat_inv = mat[k1, k2, :, :]
         rhs_hat = field
         out_field = mat_inv @ rhs_hat
@@ -339,7 +332,9 @@ class Domain:
     def update_boundary_conditions_fourier_field_slice(
         self, field, non_periodic_direction
     ):
-        """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
+        """Set the boundary conditions for a one-dimensional slice of a field
+        along the non_periodic_direction. This assumes homogeneous dirichlet
+        conditions in all non-periodic directions"""
         out_field = jnp.take(
             field,
             jnp.arange(self.number_of_cells(non_periodic_direction))[1:-1],
@@ -354,6 +349,7 @@ class Domain:
         return out_field
 
     def no_hat(self, field):
+        """Compute the inverse Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
@@ -378,6 +374,7 @@ class Domain:
         return out
 
     def field_hat(self, field):
+        """Compute the Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
@@ -401,6 +398,7 @@ class Domain:
         return out
 
     def curl(self, field):
+        """Compute the curl of field."""
         assert len(field) == 3, "rotation only defined in 3 dimensions"
         u_y = self.diff(field[0], 1)
         u_z = self.diff(field[0], 2)
@@ -416,6 +414,7 @@ class Domain:
         return jnp.array([curl_0, curl_1, curl_2])
 
     def cross_product(self, field_1, field_2):
+        """Compute the cross (or vector) product of field_1 and field_2."""
         out_0 = field_1[1] * field_2[2] - field_1[2] * field_2[1]
         out_1 = field_1[2] * field_2[0] - field_1[0] * field_2[2]
         out_2 = field_1[0] * field_2[1] - field_1[1] * field_2[0]
@@ -423,4 +422,5 @@ class Domain:
 
 
 class FourierDomain(Domain):
+    """Same as Domain but lives in Fourier space."""
     pass

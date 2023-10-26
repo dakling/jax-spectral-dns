@@ -9,8 +9,8 @@ from functools import partial
 import matplotlib.figure as figure
 from matplotlib import colors
 import matplotlib.cm as cm
-from scipy.interpolate import griddata
-import matplotlib.tri as tri
+from scipy.interpolate import RegularGridInterpolator
+import numbers
 
 import numpy as np
 
@@ -78,6 +78,8 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
 
 
 class Field:
+    """Class that holds the information needed to describe a dependent variable
+    and to perform operations on it."""
     plotting_dir = "./plots/"
     # plotting_format = ".pdf"
     plotting_format = ".png"
@@ -93,6 +95,7 @@ class Field:
 
     @classmethod
     def FromFunc(cls, domain, func=None, name="field"):
+        """Construct from function func depending on the independent variables described by domain."""
         if not func:
             func = lambda x: 0.0 * math.prod(x)
         field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
@@ -100,6 +103,7 @@ class Field:
 
     @classmethod
     def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
+        """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
         zero_field = Field.FromFunc(domain)
@@ -114,7 +118,8 @@ class Field:
 
     @classmethod
     def FromField(cls, domain, field):
-        """Interpolate existing Field field onto a new Domain domain."""
+        """Construct a new field depending on the independent variables described by
+        domain by interpolating a given field."""
         # TODO testing + performance improvements needed
         assert not isinstance(field, FourierField), "Attempted to interpolate a Field from a FourierField."
         out = []
@@ -140,14 +145,33 @@ class Field:
 
     @classmethod
     def FromFile(cls, domain, filename, name="field"):
+        """Construct new field depending on the independent variables described
+        by domain by reading in a saved field from file filename."""
         out = Field(domain, None, name=name)
         field_array = np.load(out.field_dir + filename, allow_pickle=True)
         out.field = jnp.array(field_array.tolist())
         return out
 
     def save_to_file(self, filename):
+        """Save field to file filename."""
         field_array = np.array(self.field.tolist())
         field_array.dump(self.field_dir + filename)
+
+    def get_name(self):
+        """Return the name of the field."""
+        return self.name
+
+    def set_name(self, name):
+        """Set the name of the field."""
+        self.name = name
+
+    def get_time_step(self):
+        """Return the current time step of the field."""
+        return self.time_step
+
+    def set_time_step(self, time_step):
+        """Set the current time step of the field."""
+        self.time_step = time_step
 
     def __repr__(self):
         # self.plot()
@@ -658,7 +682,8 @@ class Field:
         if type(isolines) == NoneType:
             isolines = [0, 1.5, 2.5, 3.5]
             isolines += [- i for i in isolines[1:]]
-            isolines.sort()
+
+        isolines.sort()
 
         fig = figure.Figure()
         ax = fig.subplots(1,1)
@@ -897,8 +922,9 @@ class VectorField:
 
     def shift(self, value):
         out = []
-        for f in self:
-            out.append(f.shift(value))
+        assert len(value) == len(self), "Dimension mismatch."
+        for i in range(len(self)):
+            out.append(self[i].shift(value[i]))
         return VectorField(out)
 
     def max(self):
@@ -923,6 +949,11 @@ class VectorField:
         time_steps = [f.time_step for f in self]
         return max(time_steps)
 
+    def set_time_step(self, time_step):
+        self.time_step = time_step
+        for j in range(len(self)):
+            self[j].time_step = time_step
+
     def get_name(self):
         if type(self.name) != NoneType:
             return self.name
@@ -934,6 +965,10 @@ class VectorField:
                 name = set(name).intersection(self[i].name)
             return name
 
+    def set_name(self, name):
+        self.name = name
+        for j in range(len(self)):
+            self[j].name = name + "_" + "xyz"[j]
 
     def update_boundary_conditions(self):
         for field in self:
@@ -1101,45 +1136,29 @@ class VectorField:
         directions = [i for i in self.all_dimensions() if i != normal_direction]
         x = self.domain.grid[directions[0]]
         y = jnp.flip(self.domain.grid[directions[1]])
-        N = self.domain.number_of_cells(directions[1]) * 2
-        xi = jnp.linspace(x[0], x[1], N)
-        yi = jnp.linspace(y[0], y[1], N)
+        N = 40
+        xi = np.linspace(x[0], x[-1], N)
+        yi = np.linspace(y[0], y[-1], N)
         N_c = self.domain.number_of_cells(normal_direction) // 2
         U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
         V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
-        domain_2d = Domain(
-                (
-                    self[0].domain.shape[directions[0]],
-                    self[0].domain.shape[directions[1]],
-                ),
-            periodic_directions=(
-                self[0].domain.periodic_directions[directions[0]],
-                self[0].domain.periodic_directions[directions[1]],
-            ),
-            scale_factors=(
-                self[0].domain.scale_factors[directions[0]],
-                self[0].domain.scale_factors[directions[1]],
-            )
-        )
-        domain_2d_iso = Domain(
-            (N, N),
-            periodic_directions=(
-                self[0].domain.periodic_directions[directions[0]],
-                self[0].domain.periodic_directions[directions[1]],
-            ),
-            scale_factors=(
-                self[0].domain.scale_factors[directions[0]],
-                self[0].domain.scale_factors[directions[1]],
-            )
-        )
-        u_2d = Field(domain_2d, U)
-        u_2d_iso = Field.FromField(domain_2d_iso, u_2d)
-        v_2d = Field(domain_2d, V)
-        v_2d_iso = Field.FromField(domain_2d_iso, v_2d)
-        ax.streamplot(x, y, u_2d_iso.field, v_2d_iso.field)
+        interp_u = RegularGridInterpolator((x, y), U, method='cubic')
+        interp_v = RegularGridInterpolator((x, y), V, method='cubic')
+        Ui = np.array([[ interp_u([[x_, y_]])[0] for x_ in xi ] for y_ in yi])
+        Vi = np.array([[ interp_v([[x_, y_]])[0] for x_ in xi ] for y_ in yi])
+
+        ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False)
         fig.savefig(
             self[0].plotting_dir
-            + "plot_cl_"
+            + "plot_streamlines_"
+            + self.get_name()
+            + "_t_"
+            + "{:06}".format(self.time_step)
+            + self[0].plotting_format
+        )
+        fig.savefig(
+            self[0].plotting_dir
+            + "plot_streamlines_"
             + self.get_name()
             + "_latest"
             + self[0].plotting_format

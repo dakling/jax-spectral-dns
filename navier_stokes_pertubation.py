@@ -82,6 +82,7 @@ def update_nonlinear_terms_high_performance_pertubation(domain, vel_hat_new, vel
     conv_ns_new_b = - hel_new_b
 
     linearize = False
+    # linearize = True
     if linearize:
         # exact expression
         hel_new = hel_new_a + hel_new_b
