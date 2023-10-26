@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from types import NoneType
 import numpy as np
 import jax.numpy as jnp
 from numpy.linalg import svd
@@ -33,6 +32,8 @@ try:
 except:
     pass
 from field import Field, VectorField
+
+NoneType = type(None)
 
 
 class LinearStabilityCalculation:
