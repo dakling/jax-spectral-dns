@@ -116,7 +116,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         velocity_y_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_y_base")
         velocity_z_base = Field.FromFunc(self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2], name="velocity_z_base")
         velocity_base_hat = VectorField([velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()])
-        velocity_base_hat.name = "velocity_base_hat"
+        velocity_base_hat.set_name("velocity_base_hat")
 
         super().__init__(velocity_field, velocity_base_hat, **params)
         try:
@@ -132,6 +132,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
 
     def set_linearize(self, lin):
         self.linearize = lin
+        velocity_base_hat = self.get_latest_field("velocity_base_hat")
         self.nonlinear_update_fn = lambda dom, vel: update_nonlinear_terms_high_performance_pertubation(dom, vel, jnp.array([ velocity_base_hat[0].field, velocity_base_hat[1].field, velocity_base_hat[2].field ]), linearize=self.linearize)
 
 
