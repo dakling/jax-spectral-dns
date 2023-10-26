@@ -33,46 +33,30 @@ except:
 from navier_stokes_pertubation import solve_navier_stokes_pertubation
 
 try:
-    reload(sys.modules["test"])
+    reload(sys.modules["test_project"])
 except:
-    print("Unable to load")
-from test import run_all_tests, run_all_tests_profiling
+    print("Unable to load test")
+from test_project import TestProject, init
 
-def init():
-    newpaths = ['./fields/', "./plots/"]
-    for newpath in newpaths:
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-    # clean plotting dir
-    [f.unlink() for f in Path(newpaths[1]).glob("*.pdf") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
+try:
+    reload(sys.modules["examples"])
+except:
+    print("Unable to load examples")
+from examples import run_jimenez_1990, run_transient_growth
+
 
 def main():
     init()
 
-    # optimize_fd()
-    # optimize_spectral()
-    # optimize_channel()
-    # optimize_channel_2d()
-    run_all_tests()
-    # run_all_tests_profiling()
+    # run_jimenez_1990()
+    run_transient_growth()
 
-    # mn()
-    # solve_heat_eq_2D()
-    # solve_heat_eq_3D()
+    # run tests
+    # tp = TestProject()
+    # tp.test_1D_cheb()
+    # tp.test_definite_integral()
+    # tp.test_fourier_simple_3D()
 
-    # solve_navier_stokes_3D_channel()
-
-    # N = int(64 * 180 * 64)
-    # N = int(64 * 90 * 64)
-    # print(N)
-    # A = np.ones((N, N), dtype=np.float)
-    # x = np.ones((N,))
-    # start_time = time.time()
-    # b = A@x
-    # end_time = time.time()
-    # print(end_time - start_time)
 
 
 main()

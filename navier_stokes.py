@@ -51,9 +51,11 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
     # conv_ns_new = -jnp.array(hel_new) + 1 / 2 * jnp.array(vel_new_sq_nabla)
 
-    hel_new = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(vel_new_sq_nabla)
+    hel_new = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
+        vel_new_sq_nabla
+    )
 
-    conv_ns_new = - hel_new
+    conv_ns_new = -hel_new
 
     h_v_new = (
         -domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
@@ -75,11 +77,11 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
-    max_cfl = 0.7 / 3
+    max_cfl = 0.1
     # max_cfl = 0.7/10
     # max_cfl = 5e-2
     # max_dt = 1e10
-    max_dt = 1e-2 / 3
+    max_dt = 3e-3
     # u_max_over_u_tau = 1e2
     u_max_over_u_tau = 1e0
 
@@ -99,7 +101,7 @@ class NavierStokesVelVort(Equation):
             h_v_hat_field,
             h_g_hat_field,
             vort_hat_field,
-            conv_ns_hat_field
+            conv_ns_hat_field,
         ) = self.update_nonlinear_terms(velocity_field)
         self.poisson_mat = None
         self.lhs_mat_inv = []
@@ -146,12 +148,7 @@ class NavierStokesVelVort(Equation):
         return cls.FromVelocityField(vel, Re, end_time=end_time)
 
     def init_velocity(self, velocity_hat):
-        self.set_field(
-            "velocity_hat",
-            0,
-            velocity_hat
-        )
-
+        self.set_field("velocity_hat", 0, velocity_hat)
 
     def get_vorticity_and_helicity(self):
         velocity_field_hat = self.get_latest_field("velocity_hat")
@@ -259,7 +256,6 @@ class NavierStokesVelVort(Equation):
         ].assemble_poisson_matrix()
 
     def perform_runge_kutta_step(self):
-
         self.dt = self.get_time_step()
         Re = self.Re_tau
         vel_hat = self.get_latest_field("velocity_hat")
@@ -328,9 +324,21 @@ class NavierStokesVelVort(Equation):
 
                 # # a-part -> can be solved analytically
                 dt = self.dt
-                k = jnp.min(jnp.array([jnp.sqrt(((1/(beta[step])) * Re / dt - (- kx_**2 - kz_**2))), 7e2]))
+                k = jnp.min(
+                    jnp.array(
+                        [
+                            jnp.sqrt(
+                                (
+                                    (1 / (beta[step])) * Re / dt
+                                    - (-(kx_**2) - kz_**2)
+                                )
+                            ),
+                            7e2,
+                        ]
+                    )
+                )
                 A = 1 / (jnp.exp(k) - jnp.exp(-k))
-                B = - jnp.exp(-2 * k) / (jnp.exp(k) - jnp.exp(-k))
+                B = -jnp.exp(-2 * k) / (jnp.exp(k) - jnp.exp(-k))
                 fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
 
                 ys = self.domain_no_hat.grid[1]
@@ -409,36 +417,32 @@ class NavierStokesVelVort(Equation):
                     v_hat = jnp.block(
                         [vel_hat[0][kx__, :, kz__], vel_hat[2][kx__, :, kz__]]
                     )
-                    N_00_new = (
-                        jnp.block(
-                            [
-                                -conv_ns_hat[0][kx__, :, kz__],
-                                -conv_ns_hat[2][kx__, :, kz__],
-                            ]
-                        )
-                     + jnp.block(
+                    N_00_new = jnp.block(
+                        [
+                            -conv_ns_hat[0][kx__, :, kz__],
+                            -conv_ns_hat[2][kx__, :, kz__],
+                        ]
+                    ) + jnp.block(
                         [
                             -self.dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
-                    ))
+                    )
 
                     if type(conv_ns_hat_old == NoneType):
                         N_00_old = N_00_new
                     else:
-                        N_00_old = (
-                            jnp.block(
-                                [
-                                    -conv_ns_hat_old[0][kx__, :, kz__],
-                                    -conv_ns_hat_old[2][kx__, :, kz__],
-                                ]
-                            )
-                            + jnp.block(
-                                [
-                                    -self.dpdx[kx__, :, kz__],
-                                    -self.dpdz[kx__, :, kz__],
-                                ]
-                            ))
+                        N_00_old = jnp.block(
+                            [
+                                -conv_ns_hat_old[0][kx__, :, kz__],
+                                -conv_ns_hat_old[2][kx__, :, kz__],
+                            ]
+                        ) + jnp.block(
+                            [
+                                -self.dpdx[kx__, :, kz__],
+                                -self.dpdz[kx__, :, kz__],
+                            ]
+                        )
                     v_hat_new = lhs_mat_00_inv @ (
                         rhs_mat_00 @ v_hat
                         + (self.dt * gamma[step]) * N_00_new
@@ -480,12 +484,9 @@ class NavierStokesVelVort(Equation):
 
         vel_new_hat = vel_hat
 
-        h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (
-            None, None, None
-        )
+        h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (None, None, None)
 
         for step in range(number_of_rk_steps):
-
             # update nonlinear terms
             (
                 h_v_hat,
@@ -527,7 +528,6 @@ class NavierStokesVelVort(Equation):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
 
-
     def perform_cn_ab_step(self):
         self.dt = self.get_time_step()
         dt = self.dt
@@ -537,9 +537,7 @@ class NavierStokesVelVort(Equation):
         n = D2_hom_diri.shape[0]
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
-        L_NS_y = (
-            1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        )
+        L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
         I = jnp.eye(n)
 
         vel_hat = self.get_latest_field("velocity_hat")
@@ -592,9 +590,11 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # a-part -> can be solved analytically
-                k = jnp.min(jnp.array([ jnp.sqrt((2 * Re / dt - (- kx_**2 - kz_**2))), 7e2]))
+                k = jnp.min(
+                    jnp.array([jnp.sqrt((2 * Re / dt - (-(kx_**2) - kz_**2))), 7e2])
+                )
                 A = 1 / (jnp.exp(k) - jnp.exp(-k))
-                B = - jnp.exp(-2 * k) / (jnp.exp(k) - jnp.exp(-k))
+                B = -jnp.exp(-2 * k) / (jnp.exp(k) - jnp.exp(-k))
                 fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
 
                 ys = self.domain_no_hat.grid[1]
@@ -685,28 +685,34 @@ class NavierStokesVelVort(Equation):
                     L_NS = L_NS_y + I_ * (-(kx_**2) - kz_**2) / Re
                     rhs_mat_ns = I_ + dt / 2 * L_NS
                     lhs_mat_ns = I_ - dt / 2 * L_NS
-                    N_00_new = 1 * (jnp.block(
-                        [
-                            -conv_ns_hat[0][kx__, :, kz__],
-                            -conv_ns_hat[2][kx__, :, kz__],
-                        ]
-                    ) + jnp.block(
-                        [
-                            -self.dpdx[kx__, :, kz__],
-                            -self.dpdz[kx__, :, kz__],
-                        ]
-                    ))
-                    N_00_old = 1 * (jnp.block(
-                        [
-                            -conv_ns_hat_old[0][kx__, :, kz__],
-                            -conv_ns_hat_old[2][kx__, :, kz__],
-                        ]
-                    ) + jnp.block(
-                        [
-                            -self.dpdx[kx__, :, kz__],
-                            -self.dpdz[kx__, :, kz__],
-                        ]
-                    ))
+                    N_00_new = 1 * (
+                        jnp.block(
+                            [
+                                -conv_ns_hat[0][kx__, :, kz__],
+                                -conv_ns_hat[2][kx__, :, kz__],
+                            ]
+                        )
+                        + jnp.block(
+                            [
+                                -self.dpdx[kx__, :, kz__],
+                                -self.dpdz[kx__, :, kz__],
+                            ]
+                        )
+                    )
+                    N_00_old = 1 * (
+                        jnp.block(
+                            [
+                                -conv_ns_hat_old[0][kx__, :, kz__],
+                                -conv_ns_hat_old[2][kx__, :, kz__],
+                            ]
+                        )
+                        + jnp.block(
+                            [
+                                -self.dpdx[kx__, :, kz__],
+                                -self.dpdz[kx__, :, kz__],
+                            ]
+                        )
+                    )
                     v_hat_new = jnp.linalg.solve(
                         lhs_mat_ns,
                         rhs_mat_ns @ v_hat + dt / 2 * (3 * N_00_new - N_00_old),
@@ -725,6 +731,7 @@ class NavierStokesVelVort(Equation):
                         -1j * kz_ * v_1_new_y - 1j * kx_ * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
+
                 v_0_new_field, v_2_new_field = jax.lax.cond(
                     kx == 0,
                     lambda kx___, kz___: jax.lax.cond(
@@ -797,7 +804,10 @@ def solve_navier_stokes_laminar(
     domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
-    vel_x_fn_ana = lambda X: -1 * NavierStokesVelVort.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    vel_x_fn_ana = (
+        lambda X: -1 * NavierStokesVelVort.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
+        + 0.0 * X[0] * X[2]
+    )
     vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     vel_x_fn = lambda X: jnp.pi / 3 * NavierStokesVelVort.u_max_over_u_tau * (
@@ -839,9 +849,10 @@ def solve_navier_stokes_laminar(
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
 
     plot_interval = 10
+
     def before_time_step(nse):
         i = nse.time_step
-        if (i-1) % plot_interval == 0:
+        if (i - 1) % plot_interval == 0:
             vel = nse.get_field("velocity_hat", i).no_hat()
             vel_old = nse.get_field("velocity_hat", i - 1).no_hat()
             vel[0].plot_center(1, vel_0[0], vel_x_ana)

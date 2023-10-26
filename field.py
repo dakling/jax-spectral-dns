@@ -8,6 +8,8 @@ import jax.numpy as jnp
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib import colors
+import matplotlib.cm as cm
+from scipy.interpolate import RegularGridInterpolator
 
 import numpy as np
 
@@ -75,6 +77,9 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
 
 
 class Field:
+    """Class that holds the information needed to describe a dependent variable
+    and to perform operations on it."""
+
     plotting_dir = "./plots/"
     # plotting_format = ".pdf"
     plotting_format = ".png"
@@ -90,6 +95,7 @@ class Field:
 
     @classmethod
     def FromFunc(cls, domain, func=None, name="field"):
+        """Construct from function func depending on the independent variables described by domain."""
         if not func:
             func = lambda x: 0.0 * math.prod(x)
         field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
@@ -97,6 +103,7 @@ class Field:
 
     @classmethod
     def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
+        """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
         zero_field = Field.FromFunc(domain)
@@ -111,19 +118,66 @@ class Field:
 
     @classmethod
     def FromField(cls, domain, field):
-        fn = lambda X: field.eval(X)
-        return Field.FromFunc(domain, fn, field.name + "_projected")
+        """Construct a new field depending on the independent variables described by
+        domain by interpolating a given field."""
+        # TODO testing + performance improvements needed
+        assert not isinstance(
+            field, FourierField
+        ), "Attempted to interpolate a Field from a FourierField."
+        out = []
+        if domain.number_of_dimensions == 1:
+            for x in domain.grid[0]:
+                out.append(field.eval(x))
+        elif domain.number_of_dimensions == 2:
+            for x in domain.grid[0]:
+                for y in domain.grid[1]:
+                    out.append(field.eval([x, y]))
+            out = jnp.array(out)
+            out.reshape(domain.number_of_cells(0), domain.number_of_cells(1))
+        elif domain.number_of_dimensions == 3:
+            for x in domain.grid[0]:
+                for y in domain.grid[1]:
+                    for z in domain.grid[2]:
+                        out.append(field.eval([x, y, z]))
+            out = jnp.array(out)
+            out.reshape(
+                domain.number_of_cells(0),
+                domain.number_of_cells(1),
+                domain.number_of_cells(2),
+            )
+        else:
+            raise NotImplementedError("Number of dimensions not supported.")
+        return Field(domain, out, field.name + "_projected")
 
     @classmethod
     def FromFile(cls, domain, filename, name="field"):
+        """Construct new field depending on the independent variables described
+        by domain by reading in a saved field from file filename."""
         out = Field(domain, None, name=name)
         field_array = np.load(out.field_dir + filename, allow_pickle=True)
         out.field = jnp.array(field_array.tolist())
         return out
 
     def save_to_file(self, filename):
+        """Save field to file filename."""
         field_array = np.array(self.field.tolist())
         field_array.dump(self.field_dir + filename)
+
+    def get_name(self):
+        """Return the name of the field."""
+        return self.name
+
+    def set_name(self, name):
+        """Set the name of the field."""
+        self.name = name
+
+    def get_time_step(self):
+        """Return the current time step of the field."""
+        return self.time_step
+
+    def set_time_step(self, time_step):
+        """Set the current time step of the field."""
+        self.time_step = time_step
 
     def __repr__(self):
         # self.plot()
@@ -144,7 +198,9 @@ class Field:
         return ret
 
     def __add__(self, other):
-        assert not isinstance(other, FourierField), "Attempted to add a Field and a Fourier Field."
+        assert not isinstance(
+            other, FourierField
+        ), "Attempted to add a Field and a Fourier Field."
         if self.performance_mode:
             new_name = ""
         else:
@@ -157,12 +213,16 @@ class Field:
         return ret
 
     def __sub__(self, other):
-        assert not isinstance(other, FourierField), "Attempted to subtract a Field and a Fourier Field."
+        assert not isinstance(
+            other, FourierField
+        ), "Attempted to subtract a Field and a Fourier Field."
         return self + other * (-1.0)
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            assert not isinstance(other, FourierField), "Attempted to multiply a Field and a Fourier Field."
+            assert not isinstance(
+                other, FourierField
+            ), "Attempted to multiply a Field and a Fourier Field."
             if self.performance_mode:
                 new_name = ""
             else:
@@ -217,6 +277,10 @@ class Field:
             ret.time_step = self.time_step
             return ret
 
+    def shift(self, value):
+        out_field = self.field + value
+        return Field(self.domain, out_field, name=self.name)
+
     def __abs__(self):
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.field) / self.number_of_dofs()
@@ -236,14 +300,9 @@ class Field:
         energy = 0.5 * self * self
         return energy.volume_integral()
 
-    def eval(self, *X):
-        """Evaluate field at arbitrary point X through linear interpolation. (This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
+    def eval(self, X):
+        """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
         grd = self.domain.grid
-        print(grd)
-        print(len(grd))
-        print(X)
-        print(len(X))
-        print(len(X[0]))
         interpolant = []
         weights = []
         for dim in self.all_dimensions():
@@ -631,6 +690,54 @@ class Field:
             + self.plotting_format
         )
 
+    def plot_isolines(self, normal_direction, isolines=None):
+        if type(isolines) == NoneType:
+            isolines = [0, 1.5, 2.5, 3.5]
+            isolines += [-i for i in isolines[1:]]
+
+        isolines.sort()
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        directions = [i for i in self.all_dimensions() if i != normal_direction]
+        x = self.domain.grid[directions[0]]
+        y = self.domain.grid[directions[1]]
+        X, Y = jnp.meshgrid(x, y)
+        N_c = self.domain.number_of_cells(normal_direction) // 2
+        f = self.field.take(indices=N_c, axis=normal_direction).T
+        cmap = colors.ListedColormap([("gray", 0.3), "white"])
+        bounds = [-1e10, 0, 1e10]
+        norm = colors.BoundaryNorm(bounds, cmap.N)
+        ax.imshow(
+            f,
+            interpolation="gaussian",
+            origin="lower",
+            cmap=cmap,
+            norm=norm,
+            extent=(x[0], x[-1], y[0], y[-1]),
+        )
+        CS = ax.contour(X, Y, f, isolines)
+        ax.clabel(CS, inline=True, fontsize=10)
+        fig.savefig(
+            self.plotting_dir
+            + "plot_iso_"
+            + "xyz"[normal_direction]
+            + "_"
+            + self.name
+            + "_t_"
+            + "{:06}".format(self.time_step)
+            + self.plotting_format
+        )
+        fig.savefig(
+            self.plotting_dir
+            + "plot_iso_"
+            + "xyz"[normal_direction]
+            + "_"
+            + self.name
+            + "_latest"
+            + self.plotting_format
+        )
+
     def all_dimensions(self):
         return self.domain.all_dimensions()
 
@@ -771,9 +878,10 @@ class Field:
 
 
 class VectorField:
-    def __init__(self, elements, name="vector_field"):
+    def __init__(self, elements, name=None):
         self.elements = elements
         self.name = name
+        self.domain = elements[0].domain
 
     def __getattr__(self, attr):
         def on_all(*args, **kwargs):
@@ -830,6 +938,13 @@ class VectorField:
             out.append(self[i] / other)
         return VectorField(out)
 
+    def shift(self, value):
+        out = []
+        assert len(value) == len(self), "Dimension mismatch."
+        for i in range(len(self)):
+            out.append(self[i].shift(value[i]))
+        return VectorField(out)
+
     def max(self):
         return max([max(f) for f in self])
 
@@ -852,7 +967,27 @@ class VectorField:
         time_steps = [f.time_step for f in self]
         return max(time_steps)
 
-    # TODO might be unnecessary
+    def set_time_step(self, time_step):
+        self.time_step = time_step
+        for j in range(len(self)):
+            self[j].time_step = time_step
+
+    def get_name(self):
+        if type(self.name) != NoneType:
+            return self.name
+        if len(self) == 1:
+            return self[0].name
+        else:
+            name = self[0].name
+            for i in range(len(self)):
+                name = set(name).intersection(self[i].name)
+            return name
+
+    def set_name(self, name):
+        self.name = name
+        for j in range(len(self)):
+            self[j].name = name + "_" + "xyz"[j]
+
     def update_boundary_conditions(self):
         for field in self:
             field.update_boundary_conditions()
@@ -1013,6 +1148,40 @@ class VectorField:
                 ]
             return (VectorField(out_field), other_field)
 
+    def plot_streamlines(self, normal_direction, isolines=None):
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        directions = [i for i in self.all_dimensions() if i != normal_direction]
+        x = self.domain.grid[directions[0]]
+        y = jnp.flip(self.domain.grid[directions[1]])
+        N = 40
+        xi = np.linspace(x[0], x[-1], N)
+        yi = np.linspace(y[0], y[-1], N)
+        N_c = self.domain.number_of_cells(normal_direction) // 2
+        U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
+        V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
+        interp_u = RegularGridInterpolator((x, y), U, method="cubic")
+        interp_v = RegularGridInterpolator((x, y), V, method="cubic")
+        Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
+        Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
+
+        ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
+        fig.savefig(
+            self[0].plotting_dir
+            + "plot_streamlines_"
+            + self.get_name()
+            + "_t_"
+            + "{:06}".format(self.time_step)
+            + self[0].plotting_format
+        )
+        fig.savefig(
+            self[0].plotting_dir
+            + "plot_streamlines_"
+            + self.get_name()
+            + "_latest"
+            + self[0].plotting_format
+        )
+
 
 class FourierField(Field):
     def __init__(self, domain, field, name="field_hat"):
@@ -1021,7 +1190,9 @@ class FourierField(Field):
         self.domain = domain.hat()
 
     def __add__(self, other):
-        assert isinstance(other, FourierField), "Attempted to add a Fourier Field and a Field."
+        assert isinstance(
+            other, FourierField
+        ), "Attempted to add a Fourier Field and a Field."
         if self.performance_mode:
             new_name = ""
         else:
@@ -1035,7 +1206,9 @@ class FourierField(Field):
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            assert isinstance(other, FourierField), "Attempted to multiply a Fourier Field and a Field."
+            assert isinstance(
+                other, FourierField
+            ), "Attempted to multiply a Fourier Field and a Field."
 
         if isinstance(other, FourierField):
             if self.performance_mode:
@@ -1045,7 +1218,9 @@ class FourierField(Field):
                     new_name = self.name + " * " + other.name
                 except Exception:
                     new_name = "field"
-            ret = FourierField(self.domain_no_hat, self.field * other.field, name=new_name)
+            ret = FourierField(
+                self.domain_no_hat, self.field * other.field, name=new_name
+            )
             ret.time_step = self.time_step
             return ret
         else:
@@ -1135,7 +1310,6 @@ class FourierField(Field):
     #     out.name = "lap_" + self.name
     #     out.time_step = self.time_step
     #     return out
-
 
     def definite_integral(self, direction):
         raise NotImplementedError()
@@ -1418,3 +1592,7 @@ class FourierFieldSlice(FourierField):
                 *self.ks_raw,
                 ks_int=self.ks_int
             )
+
+    def shift(self, value):
+        out_field = self.field + value
+        return FourierField(self.domain_no_hat, out_field, name=self.name)
