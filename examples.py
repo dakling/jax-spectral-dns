@@ -471,18 +471,21 @@ def run_pseudo_2d_pertubation(Re=6000, alpha=1.02056, end_time=10.0, eps=1e-15, 
     v.save_to_file(make_field_file_name("v"))
     w.save_to_file(make_field_file_name("w"))
 
-    vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
-    nse.init_velocity(
-        VectorField(
-            [
-                vel_x_hat + eps * u.hat(),
-                eps * v.hat(),
-                eps * w.hat(),
-            ]
-        ),
+    U = VectorField(
+        [
+            u.hat(),
+            v.hat(),
+            w.hat(),
+        ]
     )
 
-    energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps)
+    eps_ = eps * jnp.sqrt(U.energy())
+
+    nse.init_velocity(
+        U * eps_
+    )
+
+    energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
     print("eigenvalue: ", ev)
     plot_interval = 10
 
@@ -666,4 +669,147 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 def run_transient_growth():
-    run_pseudo_2d_pertubation(Re=3000, alpha=1, end_time=50)
+    Re = 3000
+    alpha = 1
+
+    eps = 1e-2
+
+    number_of_modes = 60
+
+    Nx = 200
+    Ny = 96
+    Nz = 4
+    end_time = 50
+
+
+    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+
+    nse = solve_navier_stokes_pertubation(
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
+    )
+
+    nse.set_linearize(False)
+
+    make_field_file_name = (
+        lambda field_name: field_name
+        + "_"
+        + str(Re)
+        + "_"
+        + str(nse.domain_no_hat.number_of_cells(0))
+        + "_"
+        + str(nse.domain_no_hat.number_of_cells(1))
+        + "_"
+        + str(nse.domain_no_hat.number_of_cells(2))
+        + "_modes_"
+        + str(number_of_modes)
+    )
+    try:
+        # raise FileNotFoundError()
+        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
+        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
+        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
+        print("found existing fields, skipping eigenvalue computation")
+    except FileNotFoundError:
+        print("could not find fields")
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
+        for mode in jnp.arange(1, number_of_modes):
+            u_inc, v_inc, w_inc = lsc.velocity_field(nse.domain_no_hat, mode)
+            u += u_inc
+            v += v_inc
+            w += w_inc
+    u.save_to_file(make_field_file_name("u"))
+    v.save_to_file(make_field_file_name("v"))
+    w.save_to_file(make_field_file_name("w"))
+
+    U = VectorField(
+        [
+            u.hat(),
+            v.hat(),
+            w.hat(),
+        ]
+    )
+
+    eps_ = eps * jnp.sqrt(U.energy())
+
+    nse.init_velocity(
+        U * eps_
+    )
+
+    energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
+    print("eigenvalue: ", ev)
+    plot_interval = 10
+
+    vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
+    vel_pert_0.name = "veloctity_y_0"
+    ts = []
+    energy_t = []
+    energy_x_t = []
+    energy_y_t = []
+    energy_t_ana = []
+    energy_x_t_ana = []
+    energy_y_t_ana = []
+    def before_time_step(nse):
+        i = nse.time_step
+        if i % plot_interval == 0:
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
+            vel_pert = VectorField([vel[0], vel[1], vel[2]])
+            vel_pert_old = nse.get_field("velocity_hat", max(0, i-1)).no_hat()
+            vort = vel.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vort[j].name = "vorticity_" + "xyz"[j]
+                # vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+            vel_pert_energy = vel_pert.energy()
+            vel_pert_energy_old = vel_pert_old.energy()
+            print("\n\n")
+            if vel_pert_energy - vel_pert_energy_old >= 0:
+                print("velocity pertubation energy increase: ", vel_pert_energy - vel_pert_energy_old)
+            else:
+                print("velocity pertubation energy decrease: ", - (vel_pert_energy - vel_pert_energy_old))
+            print("velocity pertubation energy x change: ", vel_pert[0].energy() - vel_pert_old[0].energy())
+            print("velocity pertubation energy y change: ", vel_pert[1].energy() - vel_pert_old[1].energy())
+            print("velocity pertubation energy z change: ", vel_pert[2].energy() - vel_pert_old[2].energy())
+            print("")
+            ts.append(nse.time)
+            energy_t.append(vel_pert_energy)
+            energy_x_t.append(vel_pert[0].energy())
+            energy_y_t.append(vel_pert[1].energy())
+            energy_t_ana.append(energy_over_time_fn(nse.time))
+            energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
+            energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
+            fig = figure.Figure()
+            ax = fig.subplots(1,1)
+            ax.plot(ts, energy_t_ana, label="analytical growth")
+            ax.plot(ts, energy_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_t.pdf")
+            fig = figure.Figure()
+            ax = fig.subplots(1,1)
+            ax.plot(ts, energy_x_t_ana, label="analytical growth")
+            ax.plot(ts, energy_x_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_x_t.pdf")
+            fig = figure.Figure()
+            ax = fig.subplots(1,1)
+            ax.plot(ts, energy_y_t_ana, label="analytical growth")
+            ax.plot(ts, energy_y_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_y_t.pdf")
+
+    nse.before_time_step_fn = before_time_step
+    nse.after_time_step_fn = None
+
+    nse.solve()

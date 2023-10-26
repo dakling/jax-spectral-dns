@@ -50,9 +50,18 @@ except:
     print("Unable to load examples")
 from examples import run_pseudo_2d_pertubation
 
+try:
+    reload(sys.modules["main"])
+except:
+    print("Unable to load main")
+from main import init
+
 NoneType = type(None)
 
 class TestProject(unittest.TestCase):
+
+    def setUp(self):
+        init()
 
     def test_1D_cheb(self):
         Nx = 48
