@@ -19,7 +19,7 @@ class Domain:
     the problem (i.e. the basis) and implements some operations that can be
     performed on it."""
 
-    aliasing = 3 / 2 # prevent aliasing using the 3/2-rule
+    aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
     # aliasing = 1 # no antialiasing (requires finer resolution)
 
     def __init__(self, shape, periodic_directions=None, scale_factors=None):
@@ -107,6 +107,7 @@ class Domain:
     def hat(self):
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
+
         def fftshift(inp, i):
             if self.periodic_directions[i]:
                 N = len(inp)
@@ -189,6 +190,7 @@ class Domain:
         homogeneous Dirichlet boundary conditions enforced by setting the first
         and last rows and columns to one (diagonal elements) and zero
         (off-diagonal elements)"""
+
         def set_first_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
             return jnp.block(
@@ -356,7 +358,10 @@ class Domain:
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        Ns = [int(self.number_of_cells(i) * 1 / self.aliasing) for i in self.all_dimensions()]
+        Ns = [
+            int(self.number_of_cells(i) * 1 / self.aliasing)
+            for i in self.all_dimensions()
+        ]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
         for i in self.all_periodic_dimensions():
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
@@ -425,4 +430,5 @@ class Domain:
 
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
+
     pass

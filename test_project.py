@@ -56,7 +56,7 @@ NoneType = type(None)
 
 
 def init():
-    newpaths = ['./fields/', "./plots/"]
+    newpaths = ["./fields/", "./plots/"]
     for newpath in newpaths:
         if not os.path.exists(newpath):
             os.makedirs(newpath)
@@ -65,8 +65,8 @@ def init():
     [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
     [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
 
-class TestProject(unittest.TestCase):
 
+class TestProject(unittest.TestCase):
     def setUp(self):
         init()
 
@@ -82,7 +82,9 @@ class TestProject(unittest.TestCase):
         u_xx = u.diff(0, 2)
 
         u_x_ana = Field.FromFunc(
-            domain, func=lambda X: -jnp.sin(X[0] * jnp.pi / 2) * jnp.pi / 2, name="u_x_ana"
+            domain,
+            func=lambda X: -jnp.sin(X[0] * jnp.pi / 2) * jnp.pi / 2,
+            name="u_x_ana",
         )
         u_xx_ana = Field.FromFunc(
             domain,
@@ -102,7 +104,6 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
 
-
     def test_1D_periodic(self):
         Nx = 24
         scale_factor = 1.0
@@ -115,7 +116,10 @@ class TestProject(unittest.TestCase):
         u_xx = u.diff(0, 2)
 
         u_diff_fn = (
-            lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor) * 2 * jnp.pi / scale_factor
+            lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor)
+            * 2
+            * jnp.pi
+            / scale_factor
         )
         u_diff_fn_2 = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
@@ -130,7 +134,6 @@ class TestProject(unittest.TestCase):
         # print(abs(u_xx - u_xx_ana))
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
-
 
     def test_2D(self):
         Nx = 20
@@ -192,7 +195,6 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
         self.assertTrue(abs(u_y - u_y_ana) < tol)
         self.assertTrue(abs(u_yy - u_yy_ana) < tol)
-
 
     def test_3D(self):
         Nx = 24
@@ -292,7 +294,6 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_z - u_z_ana) < tol)
         self.assertTrue(abs(u_zz - u_zz_ana) < tol)
 
-
     def test_fourier_1D(self):
         Nx = 24
         scale_factor = 1.0
@@ -306,7 +307,10 @@ class TestProject(unittest.TestCase):
         u_hat = u.hat()
 
         u_diff_fn = (
-            lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor) * 2 * jnp.pi / scale_factor
+            lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor)
+            * 2
+            * jnp.pi
+            / scale_factor
             # lambda X: jnp.cos(X[0]) / scale_factor * jnp.exp(jnp.sin(X[0] / scale_factor))
         )
         u_diff_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_1d_diff_ana")
@@ -351,7 +355,6 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_int_2 - u_int_ana_2) < tol)
         self.assertTrue(abs(u_diff - u_diff_ana) < tol)
         self.assertTrue(abs(u_diff_2 - u_diff_ana_2) < tol)
-
 
     def test_fourier_2D(self):
         Nx = 24
@@ -473,7 +476,6 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_int_y - u_int_y_ana) < tol)
         self.assertTrue(abs(u_int_yy - u_int_yy_ana) < tol)
 
-
     def test_fourier_simple_3D(self):
         Nx = 24
         Ny = Nx + 4
@@ -494,8 +496,7 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[1] * jnp.pi / 2)
         )
         u_fn = (
-            lambda X: 1.0 *
-            (jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x))
+            lambda X: 1.0 * (jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x))
             + jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x))
             + jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z)
@@ -573,7 +574,6 @@ class TestProject(unittest.TestCase):
         # self.assertTrue(abs(u_int_hat_zz.no_hat() - u_int_zz) < tol)
         # TODO test integration
 
-
     def test_cheb_integration_1D(self):
         Nx = 24
         domain = Domain((Nx,), (False,))
@@ -591,7 +591,6 @@ class TestProject(unittest.TestCase):
         # print(abs(u_int - u_int_ana))
         self.assertTrue(abs(u_int - u_int_ana) < tol)
 
-
     def test_cheb_integration_2D(self):
         Nx = 24
         Ny = Nx + 4
@@ -600,9 +599,9 @@ class TestProject(unittest.TestCase):
         u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
         u = Field.FromFunc(domain, func=u_fn, name="u_2d")
 
-        u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(X[1] * jnp.pi / 2) + (
-            2 / jnp.pi
-        ) * jnp.cos(X[0])
+        u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(
+            X[1] * jnp.pi / 2
+        ) + (2 / jnp.pi) * jnp.cos(X[0])
         u_int_1_ana = Field.FromFunc(domain, func=u_fn_int_1, name="u_2d_int_1_ana")
         u_fn_int_2 = (
             lambda X: -jnp.cos(X[0]) * (2 / jnp.pi) ** 2 * jnp.cos(X[1] * jnp.pi / 2)
@@ -620,7 +619,6 @@ class TestProject(unittest.TestCase):
         # print(abs(u_int_2 - u_int_2_ana))
         self.assertTrue(abs(u_int_1 - u_int_1_ana) < tol)
         self.assertTrue(abs(u_int_2 - u_int_2_ana) < tol)
-
 
     def test_cheb_integration_3D(self):
         Nx = 24
@@ -654,8 +652,12 @@ class TestProject(unittest.TestCase):
         sc_x = 1.0
         domain_1D_fourier = Domain((Nx,), (True,), scale_factors=(sc_x,))
         u_fn_1d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x))
-        u_1d_fourier = Field.FromFunc(domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier")
-        self.assertTrue(abs(u_1d_fourier.definite_integral(0) - 1.2660658777520084) < tol)
+        u_1d_fourier = Field.FromFunc(
+            domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier"
+        )
+        self.assertTrue(
+            abs(u_1d_fourier.definite_integral(0) - 1.2660658777520084) < tol
+        )
         # Chebyshev
         domain_1D_cheb = Domain((Nx,), (False,))
         u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
@@ -667,57 +669,179 @@ class TestProject(unittest.TestCase):
         # Fourier
         Ny = 64
         sc_y = 2.0
-        domain_2D_fourier = Domain((Nx,Ny), (True,True), scale_factors=(sc_x,sc_y))
-        u_fn_2d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2)
-        u_2d_fourier = Field.FromFunc(domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier")
+        domain_2D_fourier = Domain((Nx, Ny), (True, True), scale_factors=(sc_x, sc_y))
+        u_fn_2d_fourier = lambda X: jnp.exp(
+            jnp.sin(X[0] * 2 * jnp.pi / sc_x)
+        ) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2)
+        u_2d_fourier = Field.FromFunc(
+            domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier"
+        )
         # print(abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
-        self.assertTrue((abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol)
-        self.assertTrue((abs(u_2d_fourier.volume_integral() - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol)
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_fourier.definite_integral(1).definite_integral(0)
+                    - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+                )
+            )
+            < tol
+        )
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_fourier.volume_integral()
+                    - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+                )
+            )
+            < tol
+        )
         # Chebyshev
-        domain_2D_cheb = Domain((Nx,Ny), (False,False))
-        u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2)
+        domain_2D_cheb = Domain((Nx, Ny), (False, False))
+        u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(
+            jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2
+        )
         u_2d_cheb = Field.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
         # print(abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
         # print((u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
-        self.assertTrue((abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol)
-        self.assertTrue((abs(u_2d_cheb.volume_integral() - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol)
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_cheb.definite_integral(1).definite_integral(0)
+                    - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
+                )
+            )
+            < tol
+        )
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_cheb.volume_integral()
+                    - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
+                )
+            )
+            < tol
+        )
         # Mixed
-        domain_2D_mixed = Domain((Nx,Ny), (False,True), scale_factors=(1.0, sc_y))
+        domain_2D_mixed = Domain((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
         u_2d_mixed = Field.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
         # print(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
-        self.assertTrue((abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol)
-        self.assertTrue((abs(u_2d_mixed.volume_integral() - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962)) < tol)
-        domain_2D_mixed_2 = Domain((Nx,Ny), (True,False), scale_factors=(sc_x, 1.0))
-        u_2d_mixed_2 = Field.FromFunc(domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2")
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_mixed.definite_integral(1).definite_integral(0)
+                    - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
+                )
+            )
+            < tol
+        )
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_mixed.volume_integral()
+                    - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
+                )
+            )
+            < tol
+        )
+        domain_2D_mixed_2 = Domain((Nx, Ny), (True, False), scale_factors=(sc_x, 1.0))
+        u_2d_mixed_2 = Field.FromFunc(
+            domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2"
+        )
         # print(abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
-        self.assertTrue((abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol)
-        self.assertTrue((abs(u_2d_mixed_2.volume_integral() - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812)) < tol)
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_mixed_2.definite_integral(1).definite_integral(0)
+                    - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+                )
+            )
+            < tol
+        )
+        self.assertTrue(
+            (
+                abs(
+                    u_2d_mixed_2.volume_integral()
+                    - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+                )
+            )
+            < tol
+        )
         # 3D
         # Fourier
         # Nx = 96
         # Ny = 96
         Nz = 96
         sc_z = 3.0
-        domain_3D_fourier = Domain((Nx,Ny,Nz), (True,True,True), scale_factors=(sc_x,sc_y,sc_z))
-        u_fn_3d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y)**2) * jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z)**2)
-        u_3d_fourier = Field.FromFunc(domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier")
+        domain_3D_fourier = Domain(
+            (Nx, Ny, Nz), (True, True, True), scale_factors=(sc_x, sc_y, sc_z)
+        )
+        u_fn_3d_fourier = lambda X: jnp.exp(
+            jnp.sin(X[0] * 2 * jnp.pi / sc_x)
+        ) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2) * jnp.exp(
+            jnp.cos(X[2] * 2 * jnp.pi / sc_z) ** 2
+        )
+        u_3d_fourier = Field.FromFunc(
+            domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier"
+        )
         # print(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)
-        self.assertTrue((abs(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)) < tol)
-        self.assertTrue((abs(u_3d_fourier.volume_integral()- -10.84981433261992)) < tol)
+        self.assertTrue(
+            (
+                abs(
+                    u_3d_fourier.definite_integral(2)
+                    .definite_integral(1)
+                    .definite_integral(0)
+                    - -10.84981433261992
+                )
+            )
+            < tol
+        )
+        self.assertTrue(
+            (abs(u_3d_fourier.volume_integral() - -10.84981433261992)) < tol
+        )
         # Chebyshev
-        domain_3D_cheb = Domain((Nx,Ny,Nz), (False,False,False))
-        u_fn_3d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi)**2) + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi)**2)
+        domain_3D_cheb = Domain((Nx, Ny, Nz), (False, False, False))
+        u_fn_3d_cheb = (
+            lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi))
+            - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
+            + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi) ** 2)
+        )
         u_3d_cheb = Field.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
         # print(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)
-        self.assertTrue((abs(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)) < tol)
-        self.assertTrue((abs(u_3d_cheb.volume_integral()- 10.128527022082872)) < tol)
+        self.assertTrue(
+            (
+                abs(
+                    u_3d_cheb.definite_integral(2)
+                    .definite_integral(1)
+                    .definite_integral(0)
+                    - 10.128527022082872
+                )
+            )
+            < tol
+        )
+        self.assertTrue((abs(u_3d_cheb.volume_integral() - 10.128527022082872)) < tol)
         # Mixed
-        domain_3D_mixed = Domain((Nx,Ny,Nz), (True,False,True), scale_factors=(sc_x, 1.0, sc_z))
-        u_fn_3d_mixed = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi)**2) + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z)**2)
+        domain_3D_mixed = Domain(
+            (Nx, Ny, Nz), (True, False, True), scale_factors=(sc_x, 1.0, sc_z)
+        )
+        u_fn_3d_mixed = (
+            lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x))
+            - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
+            + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z) ** 2)
+        )
         u_3d_mixed = Field.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
         # print(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)
-        self.assertTrue((abs(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)) < tol)
-        self.assertTrue((abs(u_3d_mixed.volume_integral()- 7.596395266449558)) < tol)
+        self.assertTrue(
+            (
+                abs(
+                    u_3d_mixed.definite_integral(2)
+                    .definite_integral(1)
+                    .definite_integral(0)
+                    - 7.596395266449558
+                )
+            )
+            < tol
+        )
+        self.assertTrue((abs(u_3d_mixed.volume_integral() - 7.596395266449558)) < tol)
 
     def test_poisson_slices(self):
         Nx = 24
@@ -781,7 +905,9 @@ class TestProject(unittest.TestCase):
             return out.field
 
         # start_time = time.time()
-        out_hat = rhs_hat.reconstruct_from_wavenumbers(solve_poisson_for_single_wavenumber)
+        out_hat = rhs_hat.reconstruct_from_wavenumbers(
+            solve_poisson_for_single_wavenumber
+        )
         # print(str(time.time() - start_time) + " seconds used for reconstruction.")
         out = out_hat.no_hat()
 
@@ -790,7 +916,6 @@ class TestProject(unittest.TestCase):
         tol = 1e-8
         # print(abs(u_ana - out))
         self.assertTrue(abs(u_ana - out) < tol)
-
 
     def test_poisson_no_slices(self):
         Nx = 20
@@ -837,7 +962,6 @@ class TestProject(unittest.TestCase):
         # print(abs(u_ana - out))
         self.assertTrue(abs(u_ana - out) < tol)
 
-
     def test_navier_stokes_laminar(self, Ny=96, pertubation_factor=0.01):
         Re = 1.5e0
 
@@ -855,9 +979,11 @@ class TestProject(unittest.TestCase):
         nse.after_time_step_fn = None
         nse.solve()
 
-        vel_x_fn_ana = lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+        vel_x_fn_ana = (
+            lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
+            + 0.0 * X[0] * X[2]
+        )
         vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
-
 
         print("Doing post-processing")
         for i in jnp.arange(nse.time_step)[-4:]:
@@ -872,8 +998,7 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
-
-    #TODO
+    # TODO
     # def test_navier_stokes_laminar_convergence(self):
     #     Nys = [24, 48, 96]
     #     end_time = 10
@@ -901,9 +1026,6 @@ class TestProject(unittest.TestCase):
     #     result = optimization.curve_fit(fittingFunc, Nys, errorsLog)
     #     print(result)
 
-
-
-
     def test_linear_stability(self):
         n = 64
         # n = 4
@@ -915,8 +1037,6 @@ class TestProject(unittest.TestCase):
         # print(evs[0])
         # print(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
-
-
 
     def test_pertubation_laminar(self, Ny=48, pertubation_factor=0.01):
         Re = 1.5e0
@@ -948,7 +1068,6 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
-
     def test_2d_growth(self):
         growth_5500 = run_pseudo_2d_pertubation(5500, 0.1)
         # growth_6000 = run_pseudo_2d_pertubation(6000, 0.3) # TODO tweak this until it works reliably
@@ -956,9 +1075,16 @@ class TestProject(unittest.TestCase):
         # print("growth_5500: ", growth_5500)
         # print("growth_6000: ", growth_6000)
         # print("growth_6500: ", growth_6500)
-        self.assertTrue(all([growth < 0 for growth in growth_5500]), "Expected pertubations to decay for Re=5500.")
+        self.assertTrue(
+            all([growth < 0 for growth in growth_5500]),
+            "Expected pertubations to decay for Re=5500.",
+        )
         # self.assertTrue(all([growth > 0 for growth in growth_6000]), "Expected pertubations to increase for Re=6000.")
-        self.assertTrue(all([growth > 0 for growth in growth_6500]), "Expected pertubations to increase for Re=6500.")
+        self.assertTrue(
+            all([growth > 0 for growth in growth_6500]),
+            "Expected pertubations to increase for Re=6500.",
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
