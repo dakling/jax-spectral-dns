@@ -20,8 +20,12 @@ default:
     image: ghcr.io/nvidia/jax:nightly-2023-10-26-linux-amd64
     before_script:
         - pip install matplotlib
+    only:
+    - merge_requests
 
 test:   # This job runs in the test stage.
   script:
     - echo "Running unit tests..."
     - python test_project.py
+    only:
+    - merge_requests
