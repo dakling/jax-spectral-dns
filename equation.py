@@ -46,6 +46,7 @@ class Equation:
             f_name = field.name
             self.fields[f_name] = [field]
             self.fields[f_name][0].name = f_name + "_0"
+        self.initialize()
 
     @classmethod
     def initialize(cls):
@@ -134,7 +135,6 @@ class Equation:
             field[-1].time_step = self.time_step
 
     def solve(self):
-        self.initialize()
         self.prepare()
         while not self.done():
             i = self.time_step

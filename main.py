@@ -9,7 +9,7 @@ from pathlib import Path
 # import warnings
 # warnings.filterwarnings("ignore")
 
-# jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 from importlib import reload
 import sys
@@ -23,8 +23,8 @@ from examples import run_jimenez_1990, run_transient_growth
 
 def main():
     # print(jax.device_count())
-    run_jimenez_1990()
-    # run_transient_growth()
+    # run_jimenez_1990()
+    run_transient_growth()
 
     # run tests
     # tp = TestProject()

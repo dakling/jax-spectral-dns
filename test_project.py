@@ -12,7 +12,7 @@ import jax.numpy as jnp
 from importlib import reload
 import sys
 
-# jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)
 
 try:
     reload(sys.modules["domain"])
