@@ -635,7 +635,7 @@ def run_jimenez_1990(start_time=0):
 
     Nx = 84
     Ny = 130
-    Nz = 2
+    Nz = 4
     end_time = 1000
 
     nse = solve_navier_stokes_pertubation(
@@ -826,7 +826,7 @@ def run_transient_growth():
 
     nse.init_velocity(U * eps_)
 
-    plot_interval = 10
+    plot_interval = 30
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
     vel_pert_0 = vel_pert[1]
@@ -859,16 +859,10 @@ def run_transient_growth():
             vel_pert_energy = vel_pert.energy()
             vel_pert_energy_old = vel_pert_old.energy()
             print("\n\n")
-            if vel_pert_energy - vel_pert_energy_old >= 0:
-                print(
-                    "velocity pertubation energy increase: ",
-                    vel_pert_energy - vel_pert_energy_old,
-                )
-            else:
-                print(
-                    "velocity pertubation energy decrease: ",
-                    -(vel_pert_energy - vel_pert_energy_old),
-                )
+            print(
+                "velocity pertubation energy change: ",
+                vel_pert_energy - vel_pert_energy_old,
+            )
             print(
                 "velocity pertubation energy x change: ",
                 vel_pert[0].energy() - vel_pert_old[0].energy(),
@@ -891,6 +885,7 @@ def run_transient_growth():
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
             ax.autoscale(False, axis='x')
+            ax.autoscale(False, axis='y') # TODO check
             ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")
             fig.legend()
             fig.savefig("plots/energy_t.pdf")

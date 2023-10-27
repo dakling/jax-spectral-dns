@@ -3,8 +3,6 @@
 import unittest
 import jax
 import jax.numpy as jnp
-from pathlib import Path
-import os
 
 # from cProfile import Profile
 # from pstats import SortKey, Stats
@@ -14,7 +12,7 @@ import os
 from importlib import reload
 import sys
 
-jax.config.update("jax_enable_x64", True)
+# jax.config.update("jax_enable_x64", True)
 
 try:
     reload(sys.modules["domain"])
@@ -27,6 +25,12 @@ try:
 except:
     print("Unable to load Field")
 from field import Field, FourierFieldSlice, VectorField
+
+try:
+    reload(sys.modules["equation"])
+except:
+    print("Unable to load equation")
+from equation import Equation
 
 try:
     reload(sys.modules["navier_stokes"])
@@ -55,20 +59,9 @@ from examples import run_pseudo_2d_pertubation
 NoneType = type(None)
 
 
-def init():
-    newpaths = ["./fields/", "./plots/"]
-    for newpath in newpaths:
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-    # clean plotting dir
-    [f.unlink() for f in Path(newpaths[1]).glob("*.pdf") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
-
-
 class TestProject(unittest.TestCase):
     def setUp(self):
-        init()
+        Equation.initialize()
 
     def test_1D_cheb(self):
         Nx = 48
