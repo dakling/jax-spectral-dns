@@ -762,12 +762,12 @@ def run_transient_growth():
 
     number_of_modes = 30
 
-    # Nx = 200
-    # Ny = 96
-    # Nz = 4
-    Nx = 20
-    Ny = 52
+    Nx = 200
+    Ny = 96
     Nz = 4
+    # Nx = 20
+    # Ny = 52
+    # Nz = 4
     end_time = 50
 
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
@@ -860,7 +860,6 @@ def run_transient_growth():
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
             ax.plot(ts, energy_max, ".", label="max growth (theory)")
             ax.autoscale(False, axis='x')
-            ax.autoscale(False, axis='y') # TODO check
             ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
