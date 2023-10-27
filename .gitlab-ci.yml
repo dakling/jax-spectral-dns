@@ -27,5 +27,5 @@ test:   # This job runs in the test stage.
   script:
     - echo "Running unit tests..."
     - python test_project.py
-    only:
+  only:
     - merge_requests
