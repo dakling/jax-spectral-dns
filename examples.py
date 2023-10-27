@@ -38,7 +38,6 @@ except:
     print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
-
 def run_optimization():
     Re = 1e0
     Ny = 24
@@ -759,11 +758,15 @@ def run_transient_growth():
     alpha = 1
 
     eps = 1e-1
+    T = 15
 
     number_of_modes = 30
 
-    Nx = 200
-    Ny = 96
+    # Nx = 200
+    # Ny = 96
+    # Nz = 4
+    Nx = 20
+    Ny = 52
     Nz = 4
     end_time = 50
 
@@ -781,38 +784,7 @@ def run_transient_growth():
 
     nse.set_linearize(False)
 
-    make_field_file_name = (
-        lambda field_name: field_name
-        + "_"
-        + str(Re)
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(0))
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(1))
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(2))
-        + "_modes_"
-        + str(number_of_modes)
-    )
-    try:
-        # raise FileNotFoundError()
-        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
-        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
-        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
-        print("found existing fields, skipping eigenvalue computation")
-    except FileNotFoundError:
-        print("could not find fields")
-        u, v, w = lsc.velocity_field(nse.domain_no_hat)
-        for mode in jnp.arange(1, number_of_modes):
-            # TODO figure out weighing factors
-            print("mode ", mode, " of ", number_of_modes)
-            u_inc, v_inc, w_inc = lsc.velocity_field(nse.domain_no_hat, mode)
-            u += u_inc
-            v += v_inc
-            w += w_inc
-    u.save_to_file(make_field_file_name("u"))
-    v.save_to_file(make_field_file_name("v"))
-    w.save_to_file(make_field_file_name("w"))
+    u, v, w = lsc.calculate_transient_growth_initial_condition(nse.domain_no_hat, T, number_of_modes)
 
     U = VectorField(
         [
@@ -835,7 +807,8 @@ def run_transient_growth():
     energy_t = []
     energy_x_t = []
     energy_y_t = []
-    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',').T
+    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',').T # TODO get rid of this at some point
+    energy_max = []
     energy_0 = vel_pert.energy()
 
     def before_time_step(nse):
@@ -880,10 +853,12 @@ def run_transient_growth():
             energy_t.append(vel_pert_energy / energy_0)
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
+            energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
+            ax.plot(ts, energy_max, ".", label="max growth (theory)")
             ax.autoscale(False, axis='x')
             ax.autoscale(False, axis='y') # TODO check
             ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")

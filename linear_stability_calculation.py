@@ -57,6 +57,9 @@ class LinearStabilityCalculation:
 
         self.velocity_field_ = None
 
+        self.S = None
+        self.V = None
+
     def assemble_matrix_fast(self):
         alpha = self.alpha
         Re = self.Re
@@ -154,6 +157,9 @@ class LinearStabilityCalculation:
         self.eigenvalues.dump(
             "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n)
         )
+        np.array(self.eigenvectors).dump(
+            "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n)
+        )
         return self.eigenvalues, self.eigenvectors
 
     def velocity_field(self, domain, mode=0):
@@ -236,6 +242,130 @@ class LinearStabilityCalculation:
             return eps**2 * energy
 
         return (out, self.eigenvalues[mode])
+
+    def calculate_transient_growth_svd(self, domain, T, number_of_modes, save=False):
+        if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
+            try:
+                self.eigenvalues = np.load(
+                    "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
+                    allow_pickle=True,
+                )
+                self.eigenvectors = np.load(
+                    "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n),
+                    allow_pickle=True,
+                )
+            except FileNotFoundError:
+                self.calculate_eigenvalues()
+        evs = self.eigenvalues[:number_of_modes]
+        evecs = self.eigenvectors[:number_of_modes]
+        n = self.n
+
+        def get_integral_coefficient(p, q):
+            f = lambda y: phi(p, 0, y) * phi(q, 0, y)
+            out, _ = quad(f, -1, 1)
+            return out
+
+        integ = np.zeros([n, n])
+        for p in range(n):
+            for q in range(p, n):
+                integ[p, q] = get_integral_coefficient(p, q)
+                integ[q, p] = integ[p, q]  # not needed right?
+        C = np.zeros([number_of_modes, number_of_modes], dtype=complex)
+        for j in range(number_of_modes):
+            for k in range(j, number_of_modes):
+                for p in range(n):
+                    for q in range(n):
+                        for block in range(3):
+                            C[j, k] += (
+                                np.conjugate(evecs[j][p + block * n])
+                                * evecs[k][q + block * n]
+                                * integ[p, q]
+                            )
+                C[k, j] = np.conjugate(C[j, k])
+            C[j, j] = C[
+                j, j
+            ].real  # just elminates O(10^-16) complex parts which bothers `chol'
+        F = cholesky(C)
+        Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
+        USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
+        S = USVh[1]
+        V = USVh[2].T
+        if save:
+            self.S = S
+            self.V = V
+        return (S, V)
+
+    def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
+        S, _ = self.calculate_transient_growth_svd(
+            domain, T, number_of_modes, save=False
+        )
+        return S[0] ** 2
+
+    def calculate_transient_growth_initial_condition(self, domain, T, number_of_modes):
+        if type(self.V) == NoneType:
+            _, self.V = self.calculate_transient_growth_svd(
+                domain, T, number_of_modes, save=True
+            )
+        V = self.V
+
+        make_field_file_name = (
+            lambda field_name, mode: field_name
+            + "_"
+            + str(self.Re)
+            + "_"
+            + str(domain.number_of_cells(0))
+            + "_"
+            + str(domain.number_of_cells(1))
+            + "_"
+            + str(domain.number_of_cells(2))
+            + "_mode_"
+            + str(mode)
+            + "_of_"
+            + str(number_of_modes)
+        )
+        u_0, v_0, w_0 = self.velocity_field(domain, 0)
+        u = V[0, 0] * u_0
+        v = V[0, 0] * v_0
+        w = V[0, 0] * w_0
+        # for mode in range(0, number_of_modes):
+        # ys1 = []
+        # ys2 = []
+        # ys3 = []
+        #     ys1.append(np.linalg.norm(V[mode,0] * evecs[mode]))
+        #     ys2.append(np.linalg.norm(V[0,mode] * evecs[mode]))
+        #     ys3.append(np.linalg.norm(evecs[mode]))
+
+        # fig, ax = plt.subplots(1,1)
+        # xs = list(range(30))
+        # ax.plot(xs, ys1, "o")
+        # ax.plot(xs, ys2, "o")
+        # ax.plot(xs, ys3, "o")
+        # # ax.plot(xs, ys3)
+        # # ax.plot(xs, ys4)
+        # # ax.plot(xs, ys5)
+        # # ax.plot(xs, ys6)
+        # fig.savefig("plots/plot.pdf")
+        # raise Exception("break")
+
+        for mode in range(1, number_of_modes):
+            print("mode ", mode, " of ", number_of_modes)
+            kappa_i = V[mode, 0]
+
+            try:
+                # raise FileNotFoundError()
+                u_inc = Field.FromFile(domain, make_field_file_name("u_inc", mode))
+                v_inc = Field.FromFile(domain, make_field_file_name("v_inc", mode))
+                w_inc = Field.FromFile(domain, make_field_file_name("w_inc", mode))
+                print("found existing fields, skipping eigenvalue computation")
+            except FileNotFoundError:
+                u_inc, v_inc, w_inc = self.velocity_field(domain, mode)
+                u_inc.save_to_file(make_field_file_name("u_inc", mode))
+                v_inc.save_to_file(make_field_file_name("v_inc", mode))
+                w_inc.save_to_file(make_field_file_name("w_inc", mode))
+            u += kappa_i * u_inc
+            v += kappa_i * v_inc
+            w += kappa_i * w_inc
+        return (u, v, w)
 
     def print_welcome(self):
         print("starting linear stability calculation")  # TODO more info
