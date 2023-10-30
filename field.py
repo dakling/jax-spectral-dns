@@ -963,6 +963,14 @@ class VectorField:
             en += f.energy()
         return en
 
+    def energy_norm(self, k):
+        energy = k ** 2 * self[1] * self[1]
+        energy += self[1].diff(1) * self[1].diff(1)
+        vort = self.curl()
+        energy += vort[1] * vort[1]
+        return energy.volume_integral()
+
+
     def get_time_step(self):
         time_steps = [f.time_step for f in self]
         return max(time_steps)
