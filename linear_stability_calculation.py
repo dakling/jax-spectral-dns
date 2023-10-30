@@ -307,8 +307,10 @@ class LinearStabilityCalculation:
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
+        U = USVh[0]
         S = USVh[1]
-        V = jnp.transpose(USVh[2])
+        V = USVh[2].T
+        print("check that this is zero: ", jnp.linalg.norm(F @ Sigma @ np.linalg.inv(F) - U @ jnp.diag(S) @ V.T))
         if save:
             self.S = S
             self.V = V
@@ -348,7 +350,7 @@ class LinearStabilityCalculation:
         ax.plot(xs, ys1, "o")
         ax.set_yscale("log", base=10)
         fig.savefig("plots/plot.pdf")
-        raise Exception("break")
+        # raise Exception("break")
 
         for mode in range(1, number_of_modes):
             print("mode ", mode, " of ", number_of_modes)

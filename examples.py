@@ -746,7 +746,7 @@ def run_transient_growth():
     alpha = 1
 
     eps = 1e-0
-    T = 1
+    T = 15
 
     number_of_modes = 50
 
@@ -804,8 +804,9 @@ def run_transient_growth():
     rh_93_data = genfromtxt(
         "rh93_transient_growth.csv", delimiter=","
     ).T  # TODO get rid of this at some point
-    energy_max = []
+    # energy_max = []
     energy_0 = vel_pert.energy()
+    print("inital pertubation energy: ", energy_0)
 
     def before_time_step(nse):
         i = nse.time_step
