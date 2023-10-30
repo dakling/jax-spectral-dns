@@ -248,7 +248,7 @@ class LinearStabilityCalculation:
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
-                self.velocity_field(domain, mode)
+                self.velocity_field(domain, mode, save=save)
         try:
             self.eigenvalues = np.load(
                 "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
