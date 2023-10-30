@@ -38,6 +38,7 @@ except:
     print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
+
 def run_optimization():
     Re = 1e0
     Ny = 24
@@ -649,36 +650,7 @@ def run_jimenez_1990(start_time=0):
 
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re, alpha, Ny)
-
-        make_field_file_name = (
-            lambda field_name: field_name
-            + "_"
-            + str(Re)
-            + "_"
-            + str(nse.domain_no_hat.number_of_cells(0))
-            + "_"
-            + str(nse.domain_no_hat.number_of_cells(1))
-            + "_"
-            + str(nse.domain_no_hat.number_of_cells(2))
-        )
-        try:
-            # raise FileNotFoundError()
-            u = Field.FromFile(
-                nse.domain_no_hat, make_field_file_name("u"), name="u_pert"
-            )
-            v = Field.FromFile(
-                nse.domain_no_hat, make_field_file_name("v"), name="v_pert"
-            )
-            w = Field.FromFile(
-                nse.domain_no_hat, make_field_file_name("w"), name="w_pert"
-            )
-            print("found existing fields, skipping eigenvalue computation")
-        except FileNotFoundError:
-            print("could not find fields")
-            u, v, w = lsc.velocity_field(nse.domain_no_hat)
-        u.save_to_file(make_field_file_name("u"))
-        v.save_to_file(make_field_file_name("v"))
-        w.save_to_file(make_field_file_name("w"))
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
 
         vel_pert = VectorField([u, v, w])
         vort_pert = vel_pert.curl()
@@ -737,17 +709,23 @@ def run_jimenez_1990(start_time=0):
             # remove old fields
             [
                 f.unlink()
-                for f in Path("./fields/").glob("velocity_pertubation_0_t_" + str(i - 10))
+                for f in Path("./fields/").glob(
+                    "velocity_pertubation_0_t_" + str(i - 10)
+                )
                 if f.is_file()
             ]
             [
                 f.unlink()
-                for f in Path("./fields/").glob("velocity_pertubation_1_t_" + str(i - 10))
+                for f in Path("./fields/").glob(
+                    "velocity_pertubation_1_t_" + str(i - 10)
+                )
                 if f.is_file()
             ]
             [
                 f.unlink()
-                for f in Path("./fields/").glob("velocity_pertubation_2_t_" + str(i - 10))
+                for f in Path("./fields/").glob(
+                    "velocity_pertubation_2_t_" + str(i - 10)
+                )
                 if f.is_file()
             ]
             for j in range(3):
@@ -794,8 +772,13 @@ def run_transient_growth():
 
     nse.set_linearize(False)
 
-    # TODO implement more sophisticated saving/loading
-    u, v, w = lsc.calculate_transient_growth_initial_condition(nse.domain_no_hat, T, number_of_modes)
+    u, v, w = lsc.calculate_transient_growth_initial_condition(
+        nse.domain_no_hat,
+        T,
+        number_of_modes,
+        recompute_full=False,
+        recompute_partial=False,
+    )
 
     U = VectorField(
         [
@@ -818,7 +801,9 @@ def run_transient_growth():
     energy_t = []
     energy_x_t = []
     energy_y_t = []
-    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',').T # TODO get rid of this at some point
+    rh_93_data = genfromtxt(
+        "rh93_transient_growth.csv", delimiter=","
+    ).T  # TODO get rid of this at some point
     energy_max = []
     energy_0 = vel_pert.energy()
 
@@ -870,8 +855,13 @@ def run_transient_growth():
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
             # ax.plot(ts, energy_max, ".", label="max growth (theory)")
-            ax.autoscale(False, axis='x')
-            ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")
+            ax.autoscale(False, axis="x")
+            ax.plot(
+                rh_93_data[0],
+                rh_93_data[1],
+                "--",
+                label="growth (Reddy/Henningson 1993)",
+            )
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
 
