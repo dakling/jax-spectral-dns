@@ -635,7 +635,7 @@ def run_jimenez_1990(start_time=0):
 
     Nx = 200
     Ny = 200
-    Nz = 4
+    Nz = 2
     end_time = 1000
 
     nse = solve_navier_stokes_pertubation(
