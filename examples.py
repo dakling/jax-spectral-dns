@@ -632,8 +632,8 @@ def run_jimenez_1990(start_time=0):
     Re = 5000
     alpha = 1
 
-    Nx = 84
-    Ny = 130
+    Nx = 200
+    Ny = 200
     Nz = 4
     end_time = 1000
 
@@ -719,7 +719,7 @@ def run_jimenez_1990(start_time=0):
         )
         nse.time_step = start_time
 
-    plot_interval = 30
+    plot_interval = 50
 
     def before_time_step(nse):
         i = nse.time_step
@@ -737,7 +737,17 @@ def run_jimenez_1990(start_time=0):
             # remove old fields
             [
                 f.unlink()
-                for f in Path("./fields").glob("velocity_pertubation*_t_" + str(i - 10))
+                for f in Path("./fields/").glob("velocity_pertubation_0_t_" + str(i - 10))
+                if f.is_file()
+            ]
+            [
+                f.unlink()
+                for f in Path("./fields/").glob("velocity_pertubation_1_t_" + str(i - 10))
+                if f.is_file()
+            ]
+            [
+                f.unlink()
+                for f in Path("./fields/").glob("velocity_pertubation_2_t_" + str(i - 10))
                 if f.is_file()
             ]
             for j in range(3):

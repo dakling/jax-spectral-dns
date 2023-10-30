@@ -60,6 +60,20 @@ class LinearStabilityCalculation:
         self.S = None
         self.V = None
 
+        self.make_field_file_name = (
+            lambda field_name, mode: field_name
+            + "_"
+            + str(self.Re)
+            + "_"
+            + str(domain.number_of_cells(0))
+            + "_"
+            + str(domain.number_of_cells(1))
+            + "_"
+            + str(domain.number_of_cells(2))
+            + "_mode_"
+            + str(mode)
+        )
+
     def assemble_matrix_fast(self):
         alpha = self.alpha
         Re = self.Re
@@ -162,7 +176,7 @@ class LinearStabilityCalculation:
         )
         return self.eigenvalues, self.eigenvectors
 
-    def velocity_field(self, domain, mode=0):
+    def velocity_field(self, domain, mode=0, recompute=False):
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
         self.n = len(domain.grid[1])
         if type(self.eigenvalues) == NoneType:
@@ -185,11 +199,23 @@ class LinearStabilityCalculation:
             out = np.moveaxis(out, 0, -1)
             return out
 
-        print("calculating velocity pertubations in 3D")
-        u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
-        v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
-        w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
-        print("done calculating velocity pertubations in 3D")
+        try:
+            if recompute==False:
+                u_field = Field.FromFile(domain, self.make_field_file_name("u", mode), name="velocity_pert_x")
+                v_field = Field.FromFile(domain, self.make_field_file_name("v", mode), name="velocity_pert_y")
+                w_field = Field.FromFile(domain, self.make_field_file_name("w", mode), name="velocity_pert_z")
+            else:
+                raise FileNotFoundError() # a bit of a HACK?
+        except FileNotFoundError:
+            print("calculating velocity pertubations in 3D")
+            u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
+            v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
+            w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
+            print("done calculating velocity pertubations in 3D")
+
+        u_field.save_to_file(self.make_field_file_name("u", mode))
+        v_field.save_to_file(self.make_field_file_name("v", mode))
+        w_field.save_to_file(self.make_field_file_name("w", mode))
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return (u_field, v_field, w_field)
@@ -200,20 +226,9 @@ class LinearStabilityCalculation:
                 Nx = domain.number_of_cells(0)
                 Ny = domain.number_of_cells(1)
                 Nz = domain.number_of_cells(2)
-                make_field_file_name = (
-                    lambda field_name: field_name
-                    + "_"
-                    + str(self.Re)
-                    + "_"
-                    + str(Nx)
-                    + "_"
-                    + str(Ny)
-                    + "_"
-                    + str(Nz)
-                )
-                u = Field.FromFile(domain, make_field_file_name("u"), name="u_pert")
-                v = Field.FromFile(domain, make_field_file_name("v"), name="v_pert")
-                w = Field.FromFile(domain, make_field_file_name("w"), name="w_pert")
+                u = Field.FromFile(domain, self.make_field_file_name("u", mode), name="velocity_pert_x")
+                v = Field.FromFile(domain, self.make_field_file_name("v", mode), name="velocity_pert_y")
+                w = Field.FromFile(domain, self.make_field_file_name("w", mode), name="velocity_pert_z")
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
@@ -243,17 +258,20 @@ class LinearStabilityCalculation:
 
         return (out, self.eigenvalues[mode])
 
-    def calculate_transient_growth_svd(self, domain, T, number_of_modes, save=False):
+    def calculate_transient_growth_svd(self, domain, T, number_of_modes, save=False, recompute=False):
         if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
             try:
-                self.eigenvalues = np.load(
-                    "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
-                    allow_pickle=True,
-                )
-                self.eigenvectors = np.load(
-                    "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n),
-                    allow_pickle=True,
-                )
+                if recompute:
+                    raise FileNotFoundError()
+                else:
+                    self.eigenvalues = np.load(
+                        "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
+                        allow_pickle=True,
+                    )
+                    self.eigenvectors = np.load(
+                        "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n),
+                        allow_pickle=True,
+                    )
             except FileNotFoundError:
                 self.calculate_eigenvalues()
         evs = self.eigenvalues[:number_of_modes]
@@ -301,29 +319,20 @@ class LinearStabilityCalculation:
         )
         return S[0] ** 2
 
-    def calculate_transient_growth_initial_condition(self, domain, T, number_of_modes):
-        if type(self.V) == NoneType:
+    def calculate_transient_growth_initial_condition(self, domain, T, number_of_modes, recompute_partial=False, recompute_full=False):
+        """Calcluate the initial condition that achieves maximum growth at time
+        T. Uses cached values for velocity fields and eigenvalues/-vectors,
+        however, recompute_partial=True forces recomputation of the velocity
+        fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
+        recomputation of eigenvalues/eigenvectors as well as velocity fields."""
+        recompute_partial = recompute_partial or recompute_full
+        if recompute_full or type(self.V) == NoneType:
             _, self.V = self.calculate_transient_growth_svd(
-                domain, T, number_of_modes, save=True
+                domain, T, number_of_modes, save=True, recompute=recompute_full
             )
         V = self.V
 
-        make_field_file_name = (
-            lambda field_name, mode: field_name
-            + "_"
-            + str(self.Re)
-            + "_"
-            + str(domain.number_of_cells(0))
-            + "_"
-            + str(domain.number_of_cells(1))
-            + "_"
-            + str(domain.number_of_cells(2))
-            + "_mode_"
-            + str(mode)
-            + "_of_"
-            + str(number_of_modes)
-        )
-        u_0, v_0, w_0 = self.velocity_field(domain, 0)
+        u_0, v_0, w_0 = self.velocity_field(domain, 0, recompute=recompute_partial)
         u = V[0, 0] * u_0
         v = V[0, 0] * v_0
         w = V[0, 0] * w_0
@@ -350,17 +359,7 @@ class LinearStabilityCalculation:
             print("mode ", mode, " of ", number_of_modes)
             kappa_i = V[mode, 0]
 
-            try:
-                # raise FileNotFoundError()
-                u_inc = Field.FromFile(domain, make_field_file_name("u_inc", mode))
-                v_inc = Field.FromFile(domain, make_field_file_name("v_inc", mode))
-                w_inc = Field.FromFile(domain, make_field_file_name("w_inc", mode))
-                print("found existing fields, skipping eigenvalue computation")
-            except FileNotFoundError:
-                u_inc, v_inc, w_inc = self.velocity_field(domain, mode)
-                u_inc.save_to_file(make_field_file_name("u_inc", mode))
-                v_inc.save_to_file(make_field_file_name("v_inc", mode))
-                w_inc.save_to_file(make_field_file_name("w_inc", mode))
+            u_inc, v_inc, w_inc = self.velocity_field(domain, mode, recompute=recompute_partial)
             u += kappa_i * u_inc
             v += kappa_i * v_inc
             w += kappa_i * w_inc
