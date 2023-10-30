@@ -789,7 +789,7 @@ def run_transient_growth():
     )
 
     eps_ = eps / jnp.sqrt(U.energy())
-    print("U energy norm: ", jnp.sqrt(U.energy())
+    print("U energy norm: ", jnp.sqrt(U.energy()))
 
     nse.init_velocity(U * eps_)
 
