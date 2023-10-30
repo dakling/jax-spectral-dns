@@ -19,7 +19,8 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    print("Unable to load")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load")
 from domain import Domain
 
 NoneType = type(None)

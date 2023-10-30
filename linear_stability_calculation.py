@@ -18,19 +18,22 @@ from navier_stokes import NavierStokesVelVort
 try:
     reload(sys.modules["cheb"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from cheb import cheb, phi
 
 try:
     reload(sys.modules["domain"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from field import Field, VectorField
 
 NoneType = type(None)
@@ -382,9 +385,10 @@ class LinearStabilityCalculation:
                 kappa_i = V[mode, 0]
 
                 u_inc, v_inc, w_inc = self.velocity_field(domain,
-                                                        mode,
-                                                        recompute_partial=recompute_partial,
-                                                        recompute_full=recompute_full)
+                                                          mode,
+                                                          recompute_partial=recompute_partial,
+                                                          recompute_full=recompute_full,
+                                                          save=save_modes)
                 u += kappa_i * u_inc
                 v += kappa_i * v_inc
                 w += kappa_i * w_inc

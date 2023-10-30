@@ -17,7 +17,8 @@ import sys
 try:
     reload(sys.modules["examples"])
 except:
-    print("Unable to load examples")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load examples")
 from examples import run_jimenez_1990, run_transient_growth
 
 

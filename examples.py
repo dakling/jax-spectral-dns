@@ -11,31 +11,36 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    print("Unable to load Domain")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Domain")
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    print("Unable to load Field")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Field")
 from field import Field, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    print("Unable to load Navier Stokes")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
     reload(sys.modules["navier_stokes_pertubation"])
 except:
-    print("Unable to load navier-stokes-pertubation")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load navier-stokes-pertubation")
 from navier_stokes_pertubation import solve_navier_stokes_pertubation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
 except:
-    print("Unable to load linear stability")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
 
@@ -790,9 +795,9 @@ def run_transient_growth():
         ]
     )
 
-    eps_ = eps / jnp.sqrt(U.energy())
-    print("U energy norm: ", jnp.sqrt(U.energy()))
-    print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
+    eps_ = eps / jnp.sqrt(U.no_hat().energy())
+    print("U energy norm: ", jnp.sqrt(U.no_hat().energy()))
+    print("U energy norm (RH): ", jnp.sqrt(U.no_hat().energy_norm(1)))
 
     nse.init_velocity(U * eps_)
 

@@ -8,19 +8,22 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from field import Field
 
 try:
     reload(sys.modules["equation"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from equation import Equation
 
 
