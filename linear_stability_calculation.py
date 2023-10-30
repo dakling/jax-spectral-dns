@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from numpy.linalg import svd
 from scipy.linalg import eig, cholesky
 from scipy.sparse.linalg import eigs
-from scipy.integrate import quad, simpson
+from scipy.integrate import quad, fixed_quad, simpson, quadrature
 import scipy
 import matplotlib.pyplot as plt
 import timeit
@@ -282,9 +282,11 @@ class LinearStabilityCalculation:
         def get_integral_coefficient(p, q):
             f = lambda y: phi(p, 0, y) * phi(q, 0, y)
             # out, _ = quad(f, -1, 1)
-            ys = domain.grid[1]
-            f_ = np.fromiter((f(y) for y in ys), ys.dtype)
-            out = simpson(f_)
+            # out, _ = fixed_quad(f, -1, 1, n=2)
+            out, _ = quadrature(f, -1, 1, maxiter=100)
+            # ys = domain.grid[1]
+            # f_ = np.fromiter((f(y) for y in ys), ys.dtype)
+            # out = simpson(f_)
             return out
 
         integ = np.zeros([n, n])
@@ -304,9 +306,7 @@ class LinearStabilityCalculation:
                                 * integ[p, q]
                             )
                 C[k, j] = np.conjugate(C[j, k])
-            C[j, j] = C[
-                j, j
-            ].real  # just elminates O(10^-16) complex parts which bothers `chol'
+            C[j, j] = C[j, j].real  # just elminates O(10^-16) complex parts which bothers `chol'
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
@@ -359,7 +359,10 @@ class LinearStabilityCalculation:
             print("mode ", mode, " of ", number_of_modes)
             kappa_i = V[mode, 0]
 
-            u_inc, v_inc, w_inc = self.velocity_field(domain, mode, recompute=recompute_partial)
+            u_inc, v_inc, w_inc = self.velocity_field(domain,
+                                                      mode,
+                                                      recompute_partial=recompute_partial,
+                                                      recompute_full=recompute_full)
             u += kappa_i * u_inc
             v += kappa_i * v_inc
             w += kappa_i * w_inc
