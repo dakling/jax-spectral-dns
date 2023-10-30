@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from numpy.linalg import svd
 from scipy.linalg import eig, cholesky
 from scipy.sparse.linalg import eigs
-from scipy.integrate import quad
+from scipy.integrate import quad, simpson
 import scipy
 import matplotlib.pyplot as plt
 import timeit
@@ -281,7 +281,10 @@ class LinearStabilityCalculation:
 
         def get_integral_coefficient(p, q):
             f = lambda y: phi(p, 0, y) * phi(q, 0, y)
-            out, _ = quad(f, -1, 1)
+            # out, _ = quad(f, -1, 1)
+            ys = domain.grid[1]
+            f_ = np.fromiter((f(y) for y in ys), ys.dtype)
+            out = simpson(f_)
             return out
 
         integ = np.zeros([n, n])

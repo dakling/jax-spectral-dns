@@ -746,13 +746,13 @@ def run_transient_growth():
     alpha = 1
 
     eps = 1e-0
-    T = 15
+    T = 5
 
     number_of_modes = 50
 
-    Nx = 64
+    Nx = 200
     Ny = 92
-    Nz = 64
+    Nz = 200
     # Nx = 20
     # Ny = 52
     # Nz = 4
@@ -789,6 +789,7 @@ def run_transient_growth():
     )
 
     eps_ = eps / jnp.sqrt(U.energy())
+    print("U energy norm: ", jnp.sqrt(U.energy())
 
     nse.init_velocity(U * eps_)
 
