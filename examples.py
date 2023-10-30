@@ -757,18 +757,18 @@ def run_transient_growth():
     Re = 3000
     alpha = 1
 
-    eps = 1e-1
-    T = 15
+    eps = 1e-0
+    T = 1
 
-    number_of_modes = 30
+    number_of_modes = 50
 
-    Nx = 200
-    Ny = 96
-    Nz = 4
+    Nx = 64
+    Ny = 92
+    Nz = 64
     # Nx = 20
     # Ny = 52
     # Nz = 4
-    end_time = 50
+    end_time = 2
 
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
@@ -779,11 +779,12 @@ def run_transient_growth():
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
     nse.set_linearize(False)
 
+    # TODO implement more sophisticated saving/loading
     u, v, w = lsc.calculate_transient_growth_initial_condition(nse.domain_no_hat, T, number_of_modes)
 
     U = VectorField(
@@ -794,11 +795,11 @@ def run_transient_growth():
         ]
     )
 
-    eps_ = eps * jnp.sqrt(U.energy())
+    eps_ = eps / jnp.sqrt(U.energy())
 
     nse.init_velocity(U * eps_)
 
-    plot_interval = 30
+    plot_interval = 50
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
     vel_pert_0 = vel_pert[1]
@@ -824,7 +825,7 @@ def run_transient_growth():
                 vort[j].time_step = i
                 vel[j].name = "velocity_" + "xyz"[j]
                 vort[j].name = "vorticity_" + "xyz"[j]
-                # vel[j].plot_3d()
+                vel[j].plot_3d()
                 vel[j].plot_3d(2)
                 vort[j].plot_3d(2)
                 vel[j].plot_center(0)
@@ -853,12 +854,12 @@ def run_transient_growth():
             energy_t.append(vel_pert_energy / energy_0)
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
-            energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
+            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
-            ax.plot(ts, energy_max, ".", label="max growth (theory)")
+            # ax.plot(ts, energy_max, ".", label="max growth (theory)")
             ax.autoscale(False, axis='x')
             ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")
             fig.legend()

@@ -35,5 +35,5 @@ def main():
 if __name__ == '__main__':
     try:
         globals()[sys.argv[1]]()
-    except IndexError:
+    except (IndexError, KeyError):
         main()

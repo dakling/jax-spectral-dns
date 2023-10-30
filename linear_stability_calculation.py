@@ -163,7 +163,7 @@ class LinearStabilityCalculation:
         return self.eigenvalues, self.eigenvectors
 
     def velocity_field(self, domain, mode=0):
-        assert domain.number_of_dimensions == 3, "this only makes sense in 3D."
+        assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
         self.n = len(domain.grid[1])
         if type(self.eigenvalues) == NoneType:
             print("calculating eigenvalues")
@@ -289,7 +289,7 @@ class LinearStabilityCalculation:
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
         S = USVh[1]
-        V = USVh[2].T
+        V = jnp.transpose(USVh[2])
         if save:
             self.S = S
             self.V = V
@@ -327,19 +327,18 @@ class LinearStabilityCalculation:
         u = V[0, 0] * u_0
         v = V[0, 0] * v_0
         w = V[0, 0] * w_0
-        # for mode in range(0, number_of_modes):
-        # ys1 = []
-        # ys2 = []
-        # ys3 = []
-        #     ys1.append(np.linalg.norm(V[mode,0] * evecs[mode]))
-        #     ys2.append(np.linalg.norm(V[0,mode] * evecs[mode]))
-        #     ys3.append(np.linalg.norm(evecs[mode]))
 
+        ys1 = []
+        for mode in range(0, number_of_modes):
+            ys1.append(np.linalg.norm(V[mode,0]))
+
+        # print("max growth: ", self.S[0]**2)
         # fig, ax = plt.subplots(1,1)
-        # xs = list(range(30))
+        # xs = list(range(number_of_modes))
         # ax.plot(xs, ys1, "o")
-        # ax.plot(xs, ys2, "o")
-        # ax.plot(xs, ys3, "o")
+        # ax.set_yscale("log", base=10)
+        # # ax.plot(xs, ys2, "o")
+        # # ax.plot(xs, ys3, "o")
         # # ax.plot(xs, ys3)
         # # ax.plot(xs, ys4)
         # # ax.plot(xs, ys5)
