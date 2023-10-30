@@ -20,8 +20,7 @@ default:
     image: ghcr.io/nvidia/jax:nightly-2023-10-26-linux-amd64
     before_script:
         - pip install matplotlib
-    rules:
-        - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    
 
 test:   # This job runs in the test stage.
     script:
