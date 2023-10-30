@@ -61,15 +61,15 @@ class LinearStabilityCalculation:
         self.V = None
 
         self.make_field_file_name = (
-            lambda field_name, mode: field_name
+            lambda domain_, field_name, mode: field_name
             + "_"
             + str(self.Re)
             + "_"
-            + str(domain.number_of_cells(0))
+            + str(domain_.number_of_cells(0))
             + "_"
-            + str(domain.number_of_cells(1))
+            + str(domain_.number_of_cells(1))
             + "_"
-            + str(domain.number_of_cells(2))
+            + str(domain_.number_of_cells(2))
             + "_mode_"
             + str(mode)
         )
@@ -176,10 +176,11 @@ class LinearStabilityCalculation:
         )
         return self.eigenvalues, self.eigenvectors
 
-    def velocity_field(self, domain, mode=0, recompute=False):
+    def velocity_field(self, domain, mode=0, recompute_partial=False, recompute_full=False):
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
-        self.n = len(domain.grid[1])
-        if type(self.eigenvalues) == NoneType:
+        recompute_partial = recompute_partial or recompute_full
+        self.n = domain.number_of_cells(1)
+        if recompute_full or type(self.eigenvalues) == NoneType:
             print("calculating eigenvalues")
             self.calculate_eigenvalues()
 
@@ -200,10 +201,10 @@ class LinearStabilityCalculation:
             return out
 
         try:
-            if recompute==False:
-                u_field = Field.FromFile(domain, self.make_field_file_name("u", mode), name="velocity_pert_x")
-                v_field = Field.FromFile(domain, self.make_field_file_name("v", mode), name="velocity_pert_y")
-                w_field = Field.FromFile(domain, self.make_field_file_name("w", mode), name="velocity_pert_z")
+            if recompute_partial==False:
+                u_field = Field.FromFile(domain, self.make_field_file_name(domain, "u", mode), name="velocity_pert_x")
+                v_field = Field.FromFile(domain, self.make_field_file_name(domain, "v", mode), name="velocity_pert_y")
+                w_field = Field.FromFile(domain, self.make_field_file_name(domain, "w", mode), name="velocity_pert_z")
             else:
                 raise FileNotFoundError() # a bit of a HACK?
         except FileNotFoundError:
@@ -213,9 +214,9 @@ class LinearStabilityCalculation:
             w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
             print("done calculating velocity pertubations in 3D")
 
-        u_field.save_to_file(self.make_field_file_name("u", mode))
-        v_field.save_to_file(self.make_field_file_name("v", mode))
-        w_field.save_to_file(self.make_field_file_name("w", mode))
+        u_field.save_to_file(self.make_field_file_name(domain, "u", mode))
+        v_field.save_to_file(self.make_field_file_name(domain, "v", mode))
+        w_field.save_to_file(self.make_field_file_name(domain, "w", mode))
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return (u_field, v_field, w_field)
@@ -226,9 +227,9 @@ class LinearStabilityCalculation:
                 Nx = domain.number_of_cells(0)
                 Ny = domain.number_of_cells(1)
                 Nz = domain.number_of_cells(2)
-                u = Field.FromFile(domain, self.make_field_file_name("u", mode), name="velocity_pert_x")
-                v = Field.FromFile(domain, self.make_field_file_name("v", mode), name="velocity_pert_y")
-                w = Field.FromFile(domain, self.make_field_file_name("w", mode), name="velocity_pert_z")
+                u = Field.FromFile(domain, self.make_field_file_name(domain, "u", mode), name="velocity_pert_x")
+                v = Field.FromFile(domain, self.make_field_file_name(domain, "v", mode), name="velocity_pert_y")
+                w = Field.FromFile(domain, self.make_field_file_name(domain, "w", mode), name="velocity_pert_z")
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
@@ -332,28 +333,22 @@ class LinearStabilityCalculation:
             )
         V = self.V
 
-        u_0, v_0, w_0 = self.velocity_field(domain, 0, recompute=recompute_partial)
+        u_0, v_0, w_0 = self.velocity_field(domain, 0, recompute_partial=recompute_partial, recompute_full=recompute_full)
         u = V[0, 0] * u_0
         v = V[0, 0] * v_0
         w = V[0, 0] * w_0
 
         ys1 = []
         for mode in range(0, number_of_modes):
-            ys1.append(np.linalg.norm(V[mode,0]))
+            ys1.append(abs(V[mode,0]))
 
-        # print("max growth: ", self.S[0]**2)
-        # fig, ax = plt.subplots(1,1)
-        # xs = list(range(number_of_modes))
-        # ax.plot(xs, ys1, "o")
-        # ax.set_yscale("log", base=10)
-        # # ax.plot(xs, ys2, "o")
-        # # ax.plot(xs, ys3, "o")
-        # # ax.plot(xs, ys3)
-        # # ax.plot(xs, ys4)
-        # # ax.plot(xs, ys5)
-        # # ax.plot(xs, ys6)
-        # fig.savefig("plots/plot.pdf")
-        # raise Exception("break")
+        print("max growth: ", self.S[0]**2)
+        fig, ax = plt.subplots(1,1)
+        xs = list(range(number_of_modes))
+        ax.plot(xs, ys1, "o")
+        ax.set_yscale("log", base=10)
+        fig.savefig("plots/plot.pdf")
+        raise Exception("break")
 
         for mode in range(1, number_of_modes):
             print("mode ", mode, " of ", number_of_modes)
