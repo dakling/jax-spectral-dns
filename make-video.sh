@@ -14,7 +14,7 @@ combine_three(){
     # for f in a-*.gif; do convert $f ${f/a/b} ${f/a/c} +append $f; done  # append frames side-by-side
     # convert -loop 0 -delay 20 a-*.gif "img/$1.gif"               # rejoin frames
     # rm a*.gif b*.gif c*.gif                                     #clean up
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+    ffmpeg -y -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
 }
 
 

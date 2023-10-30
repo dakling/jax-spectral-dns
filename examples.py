@@ -778,6 +778,8 @@ def run_transient_growth():
         number_of_modes,
         recompute_full=False,
         recompute_partial=False,
+        save_modes=False,
+        save_final=True,
     )
 
     U = VectorField(
@@ -790,7 +792,7 @@ def run_transient_growth():
 
     eps_ = eps / jnp.sqrt(U.energy())
     print("U energy norm: ", jnp.sqrt(U.energy()))
-    print("U energy norm (RH): ", jnp.sqrt(U.energy_norm()))
+    print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
 
     nse.init_velocity(U * eps_)
 
@@ -807,6 +809,8 @@ def run_transient_growth():
         "rh93_transient_growth.csv", delimiter=","
     ).T  # TODO get rid of this at some point
     # energy_max = []
+    energy_0 = vel_pert.energy_norm(1)
+    print("inital pertubation energy norm: ", energy_0)
     energy_0 = vel_pert.energy()
     print("inital pertubation energy: ", energy_0)
 
