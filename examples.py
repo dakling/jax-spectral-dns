@@ -344,16 +344,10 @@ def run_pseudo_2d():
             )
             print("velocity pertubation energy z: ", vel_pert[1].energy())
             vel_pert_energy_old = vel_pert_old.energy()
-            if vel_pert_energy - vel_pert_energy_old >= 0:
-                print(
-                    "velocity pertubation energy increase: ",
-                    vel_pert_energy - vel_pert_energy_old,
-                )
-            else:
-                print(
-                    "velocity pertubation energy decrease: ",
-                    -(vel_pert_energy - vel_pert_energy_old),
-                )
+            print(
+                "velocity pertubation energy change: ",
+                vel_pert_energy - vel_pert_energy_old,
+            )
             print(
                 "velocity pertubation energy x change: ",
                 vel_pert[0].energy() - vel_pert_old[0].energy(),
@@ -479,11 +473,12 @@ def run_dummy_velocity_field():
 
 
 def run_pseudo_2d_pertubation(
-    Re=6000, alpha=1.02056, end_time=10.0, eps=1e-5, linearize=False
+    Re=6000, alpha=1.02056, end_time=10.0, eps=1e-2, linearize=True
 ):
-    Nx = 200
+    Re = float(Re)
+    Nx = 300
     Ny = 96
-    Nz = 4
+    Nz = 2
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
     nse = solve_navier_stokes_pertubation(
@@ -530,7 +525,7 @@ def run_pseudo_2d_pertubation(
         ]
     )
 
-    eps_ = eps * jnp.sqrt(U.energy())
+    eps_ = eps * jnp.sqrt(U.no_hat().energy())
 
     nse.init_velocity(U * eps_)
 
@@ -569,16 +564,10 @@ def run_pseudo_2d_pertubation(
             vel_pert_energy_old = vel_pert_old.energy()
             print("velocity pertubation energy: ", vel_pert_energy)
             print("\n\n")
-            if vel_pert_energy - vel_pert_energy_old >= 0:
-                print(
-                    "velocity pertubation energy increase: ",
-                    vel_pert_energy - vel_pert_energy_old,
-                )
-            else:
-                print(
-                    "velocity pertubation energy decrease: ",
-                    -(vel_pert_energy - vel_pert_energy_old),
-                )
+            print(
+                "velocity pertubation energy change: ",
+                vel_pert_energy - vel_pert_energy_old,
+            )
             print(
                 "velocity pertubation energy x change: ",
                 vel_pert[0].energy() - vel_pert_old[0].energy(),
@@ -746,21 +735,21 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 
-def run_transient_growth():
-    Re = 3000
+def run_transient_growth(Re=3000.0, T=5.0):
+    Re = float(Re)
+    T = float(T)
     alpha = 1
 
     eps = 1e-0
-    T = 5
 
     number_of_modes = 50
 
-    Nx = 200
+    # Nx = 300
+    # Ny = 92
+    # Nz = 300
+    Nx = 20
     Ny = 92
-    Nz = 200
-    # Nx = 20
-    # Ny = 52
-    # Nz = 4
+    Nz = 20
     end_time = 2
 
     lsc = LinearStabilityCalculation(Re, alpha, Ny)

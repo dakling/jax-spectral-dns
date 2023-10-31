@@ -328,7 +328,6 @@ class LinearStabilityCalculation:
         U = USVh[0]
         S = USVh[1]
         V = USVh[2].T
-        print("check that this is zero: ", jnp.linalg.norm(F @ Sigma @ np.linalg.inv(F) - U @ jnp.diag(S) @ V.T))
         if save:
             self.S = S
             self.V = V
@@ -419,7 +418,7 @@ class LinearStabilityCalculation:
         self.calculate_eigenvalues()
         t3 = timeit.default_timer()
         print("(took " + str(t3 - t2) + " seconds)")
-        t5 = timeit.default_timer()
-        print("(took " + str(t5 - t4) + " seconds)")
+        t4 = timeit.default_timer()
+        print("(took " + str(t4 - t3) + " seconds)")
         self.post_process()
         print("Done")
