@@ -19,7 +19,8 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    print("Unable to load")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load")
 from domain import Domain
 
 NoneType = type(None)
@@ -963,6 +964,14 @@ class VectorField:
             en += f.energy()
         return en
 
+    def energy_norm(self, k):
+        energy = k ** 2 * self[1] * self[1]
+        energy += self[1].diff(1) * self[1].diff(1)
+        vort = self.curl()
+        energy += vort[1] * vort[1]
+        return energy.volume_integral()
+
+
     def get_time_step(self):
         time_steps = [f.time_step for f in self]
         return max(time_steps)
@@ -1165,7 +1174,10 @@ class VectorField:
         Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
         Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
-        ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
+        try:
+            ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
+        except TypeError: # compatibilty with older matplotlib versions
+            ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
         fig.savefig(
             self[0].plotting_dir
             + "plot_streamlines_"

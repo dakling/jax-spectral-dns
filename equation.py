@@ -7,6 +7,19 @@ import time
 import jax
 import jax.numpy as jnp
 
+from pathlib import Path
+import os
+
+from importlib import reload
+import sys
+
+try:
+    reload(sys.modules["field"])
+except:
+    print("Unable to load Field")
+from field import Field
+
+
 NoneType = type(None)
 
 
@@ -33,6 +46,20 @@ class Equation:
             f_name = field.name
             self.fields[f_name] = [field]
             self.fields[f_name][0].name = f_name + "_0"
+        self.initialize()
+
+    @classmethod
+    def initialize(cls):
+        jax.config.update("jax_enable_x64", True)
+        newpaths = [Field.field_dir, Field.plotting_dir]
+        for newpath in newpaths:
+            if not os.path.exists(newpath):
+                os.makedirs(newpath)
+        # clean plotting dir
+        [f.unlink() for f in Path(Field.plotting_dir).glob("*.pdf") if f.is_file()]
+        [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
+        [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
+
 
     def get_field(self, name, index=None):
         try:

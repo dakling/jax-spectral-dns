@@ -11,31 +11,36 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    print("Unable to load Domain")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Domain")
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    print("Unable to load Field")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Field")
 from field import Field, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    print("Unable to load Navier Stokes")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
     reload(sys.modules["navier_stokes_pertubation"])
 except:
-    print("Unable to load navier-stokes-pertubation")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load navier-stokes-pertubation")
 from navier_stokes_pertubation import solve_navier_stokes_pertubation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
 except:
-    print("Unable to load linear stability")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
 
@@ -633,8 +638,8 @@ def run_jimenez_1990(start_time=0):
     Re = 5000
     alpha = 1
 
-    Nx = 84
-    Ny = 130
+    Nx = 200
+    Ny = 200
     Nz = 2
     end_time = 1000
 
@@ -650,36 +655,7 @@ def run_jimenez_1990(start_time=0):
 
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re, alpha, Ny)
-
-        make_field_file_name = (
-            lambda field_name: field_name
-            + "_"
-            + str(Re)
-            + "_"
-            + str(nse.domain_no_hat.number_of_cells(0))
-            + "_"
-            + str(nse.domain_no_hat.number_of_cells(1))
-            + "_"
-            + str(nse.domain_no_hat.number_of_cells(2))
-        )
-        try:
-            # raise FileNotFoundError()
-            u = Field.FromFile(
-                nse.domain_no_hat, make_field_file_name("u"), name="u_pert"
-            )
-            v = Field.FromFile(
-                nse.domain_no_hat, make_field_file_name("v"), name="v_pert"
-            )
-            w = Field.FromFile(
-                nse.domain_no_hat, make_field_file_name("w"), name="w_pert"
-            )
-            print("found existing fields, skipping eigenvalue computation")
-        except FileNotFoundError:
-            print("could not find fields")
-            u, v, w = lsc.velocity_field(nse.domain_no_hat)
-        u.save_to_file(make_field_file_name("u"))
-        v.save_to_file(make_field_file_name("v"))
-        w.save_to_file(make_field_file_name("w"))
+        u, v, w = lsc.velocity_field(nse.domain_no_hat)
 
         vel_pert = VectorField([u, v, w])
         vort_pert = vel_pert.curl()
@@ -720,7 +696,7 @@ def run_jimenez_1990(start_time=0):
         )
         nse.time_step = start_time
 
-    plot_interval = 30
+    plot_interval = 50
 
     def before_time_step(nse):
         i = nse.time_step
@@ -738,7 +714,23 @@ def run_jimenez_1990(start_time=0):
             # remove old fields
             [
                 f.unlink()
-                for f in Path("./fields").glob("velocity_pertubation*_t_" + str(i - 10))
+                for f in Path("./fields/").glob(
+                    "velocity_pertubation_0_t_" + str(i - 10)
+                )
+                if f.is_file()
+            ]
+            [
+                f.unlink()
+                for f in Path("./fields/").glob(
+                    "velocity_pertubation_1_t_" + str(i - 10)
+                )
+                if f.is_file()
+            ]
+            [
+                f.unlink()
+                for f in Path("./fields/").glob(
+                    "velocity_pertubation_2_t_" + str(i - 10)
+                )
                 if f.is_file()
             ]
             for j in range(3):
@@ -758,14 +750,18 @@ def run_transient_growth():
     Re = 3000
     alpha = 1
 
-    eps = 1e-1
+    eps = 1e-0
+    T = 5
 
-    number_of_modes = 30
+    number_of_modes = 50
 
     Nx = 200
-    Ny = 96
-    Nz = 4
-    end_time = 50
+    Ny = 92
+    Nz = 200
+    # Nx = 20
+    # Ny = 52
+    # Nz = 4
+    end_time = 2
 
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
 
@@ -776,43 +772,20 @@ def run_transient_growth():
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
     nse.set_linearize(False)
 
-    make_field_file_name = (
-        lambda field_name: field_name
-        + "_"
-        + str(Re)
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(0))
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(1))
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(2))
-        + "_modes_"
-        + str(number_of_modes)
+    u, v, w = lsc.calculate_transient_growth_initial_condition(
+        nse.domain_no_hat,
+        T,
+        number_of_modes,
+        recompute_full=False,
+        recompute_partial=False,
+        save_modes=False,
+        save_final=True,
     )
-    try:
-        # raise FileNotFoundError()
-        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
-        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
-        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
-        print("found existing fields, skipping eigenvalue computation")
-    except FileNotFoundError:
-        print("could not find fields")
-        u, v, w = lsc.velocity_field(nse.domain_no_hat)
-        for mode in jnp.arange(1, number_of_modes):
-            # TODO figure out weighing factors
-            print("mode ", mode, " of ", number_of_modes)
-            u_inc, v_inc, w_inc = lsc.velocity_field(nse.domain_no_hat, mode)
-            u += u_inc
-            v += v_inc
-            w += w_inc
-    u.save_to_file(make_field_file_name("u"))
-    v.save_to_file(make_field_file_name("v"))
-    w.save_to_file(make_field_file_name("w"))
 
     U = VectorField(
         [
@@ -822,11 +795,13 @@ def run_transient_growth():
         ]
     )
 
-    eps_ = eps * jnp.sqrt(U.energy())
+    eps_ = eps / jnp.sqrt(U.no_hat().energy())
+    print("U energy norm: ", jnp.sqrt(U.no_hat().energy()))
+    print("U energy norm (RH): ", jnp.sqrt(U.no_hat().energy_norm(1)))
 
     nse.init_velocity(U * eps_)
 
-    plot_interval = 10
+    plot_interval = 50
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
     vel_pert_0 = vel_pert[1]
@@ -835,8 +810,14 @@ def run_transient_growth():
     energy_t = []
     energy_x_t = []
     energy_y_t = []
-    rh_93_data = genfromtxt('rh93_transient_growth.csv',delimiter=',').T
+    rh_93_data = genfromtxt(
+        "rh93_transient_growth.csv", delimiter=","
+    ).T  # TODO get rid of this at some point
+    # energy_max = []
+    energy_0 = vel_pert.energy_norm(1)
+    print("inital pertubation energy norm: ", energy_0)
     energy_0 = vel_pert.energy()
+    print("inital pertubation energy: ", energy_0)
 
     def before_time_step(nse):
         i = nse.time_step
@@ -851,7 +832,7 @@ def run_transient_growth():
                 vort[j].time_step = i
                 vel[j].name = "velocity_" + "xyz"[j]
                 vort[j].name = "vorticity_" + "xyz"[j]
-                # vel[j].plot_3d()
+                vel[j].plot_3d()
                 vel[j].plot_3d(2)
                 vort[j].plot_3d(2)
                 vel[j].plot_center(0)
@@ -859,16 +840,10 @@ def run_transient_growth():
             vel_pert_energy = vel_pert.energy()
             vel_pert_energy_old = vel_pert_old.energy()
             print("\n\n")
-            if vel_pert_energy - vel_pert_energy_old >= 0:
-                print(
-                    "velocity pertubation energy increase: ",
-                    vel_pert_energy - vel_pert_energy_old,
-                )
-            else:
-                print(
-                    "velocity pertubation energy decrease: ",
-                    -(vel_pert_energy - vel_pert_energy_old),
-                )
+            print(
+                "velocity pertubation energy change: ",
+                vel_pert_energy - vel_pert_energy_old,
+            )
             print(
                 "velocity pertubation energy x change: ",
                 vel_pert[0].energy() - vel_pert_old[0].energy(),
@@ -886,12 +861,19 @@ def run_transient_growth():
             energy_t.append(vel_pert_energy / energy_0)
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
+            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
-            ax.autoscale(False, axis='x')
-            ax.plot(rh_93_data[0], rh_93_data[1], "--", label="growth (Reddy/Henningson 1993)")
+            # ax.plot(ts, energy_max, ".", label="max growth (theory)")
+            ax.autoscale(False, axis="x")
+            ax.plot(
+                rh_93_data[0],
+                rh_93_data[1],
+                "--",
+                label="growth (Reddy/Henningson 1993)",
+            )
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
 

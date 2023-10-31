@@ -3,8 +3,6 @@
 import unittest
 import jax
 import jax.numpy as jnp
-from pathlib import Path
-import os
 
 # from cProfile import Profile
 # from pstats import SortKey, Stats
@@ -19,56 +17,58 @@ jax.config.update("jax_enable_x64", True)
 try:
     reload(sys.modules["domain"])
 except:
-    print("Unable to load Domain")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Domain")
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    print("Unable to load Field")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Field")
 from field import Field, FourierFieldSlice, VectorField
+
+try:
+    reload(sys.modules["equation"])
+except:
+    if hasattr(sys, 'ps1'):
+        print("Unable to load equation")
+from equation import Equation
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    print("Unable to load Navier Stokes")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
     reload(sys.modules["navier_stokes_pertubation"])
 except:
-    print("Unable to load navier-stokes-pertubation")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load navier-stokes-pertubation")
 from navier_stokes_pertubation import solve_navier_stokes_pertubation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
 except:
-    print("Unable to load linear stability")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
 try:
     reload(sys.modules["examples"])
 except:
-    print("Unable to load examples")
+    if hasattr(sys, 'ps1'):
+        print("Unable to load examples")
 from examples import run_pseudo_2d_pertubation
 
 NoneType = type(None)
 
 
-def init():
-    newpaths = ["./fields/", "./plots/"]
-    for newpath in newpaths:
-        if not os.path.exists(newpath):
-            os.makedirs(newpath)
-    # clean plotting dir
-    [f.unlink() for f in Path(newpaths[1]).glob("*.pdf") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.png") if f.is_file()]
-    [f.unlink() for f in Path(newpaths[1]).glob("*.mp4") if f.is_file()]
-
-
 class TestProject(unittest.TestCase):
     def setUp(self):
-        init()
+        Equation.initialize()
 
     def test_1D_cheb(self):
         Nx = 48

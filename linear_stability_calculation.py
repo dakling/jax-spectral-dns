@@ -5,7 +5,7 @@ import jax.numpy as jnp
 from numpy.linalg import svd
 from scipy.linalg import eig, cholesky
 from scipy.sparse.linalg import eigs
-from scipy.integrate import quad
+from scipy.integrate import quad, fixed_quad, simpson, quadrature
 import scipy
 import matplotlib.pyplot as plt
 import timeit
@@ -18,19 +18,22 @@ from navier_stokes import NavierStokesVelVort
 try:
     reload(sys.modules["cheb"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from cheb import cheb, phi
 
 try:
     reload(sys.modules["domain"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    pass
+    if hasattr(sys, 'ps1'):
+        pass
 from field import Field, VectorField
 
 NoneType = type(None)
@@ -56,6 +59,34 @@ class LinearStabilityCalculation:
         self.ys = domain.grid[0]
 
         self.velocity_field_ = None
+
+        self.S = None
+        self.V = None
+
+        self.make_field_file_name_mode = (
+            lambda domain_, field_name, mode: field_name
+            + "_"
+            + str(self.Re)
+            + "_"
+            + str(domain_.number_of_cells(0))
+            + "_"
+            + str(domain_.number_of_cells(1))
+            + "_"
+            + str(domain_.number_of_cells(2))
+            + "_mode_"
+            + str(mode)
+        )
+        self.make_field_file_name = (
+            lambda domain_, field_name: field_name
+            + "_"
+            + str(self.Re)
+            + "_"
+            + str(domain_.number_of_cells(0))
+            + "_"
+            + str(domain_.number_of_cells(1))
+            + "_"
+            + str(domain_.number_of_cells(2))
+        )
 
     def assemble_matrix_fast(self):
         alpha = self.alpha
@@ -154,12 +185,16 @@ class LinearStabilityCalculation:
         self.eigenvalues.dump(
             "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n)
         )
+        np.array(self.eigenvectors).dump(
+            "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n)
+        )
         return self.eigenvalues, self.eigenvectors
 
-    def velocity_field(self, domain, mode=0):
-        assert domain.number_of_dimensions == 3, "this only makes sense in 3D."
-        self.n = len(domain.grid[1])
-        if type(self.eigenvalues) == NoneType:
+    def velocity_field(self, domain, mode=0, recompute_partial=False, recompute_full=False, save=True):
+        assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
+        recompute_partial = recompute_partial or recompute_full
+        self.n = domain.number_of_cells(1)
+        if recompute_full or type(self.eigenvalues) == NoneType:
             print("calculating eigenvalues")
             self.calculate_eigenvalues()
 
@@ -179,11 +214,24 @@ class LinearStabilityCalculation:
             out = np.moveaxis(out, 0, -1)
             return out
 
-        print("calculating velocity pertubations in 3D")
-        u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
-        v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
-        w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
-        print("done calculating velocity pertubations in 3D")
+        try:
+            if recompute_partial==False:
+                u_field = Field.FromFile(domain, self.make_field_file_name_mode(domain, "u", mode), name="velocity_pert_x")
+                v_field = Field.FromFile(domain, self.make_field_file_name_mode(domain, "v", mode), name="velocity_pert_y")
+                w_field = Field.FromFile(domain, self.make_field_file_name_mode(domain, "w", mode), name="velocity_pert_z")
+            else:
+                raise FileNotFoundError() # a bit of a HACK?
+        except FileNotFoundError:
+            print("calculating velocity pertubations in 3D")
+            u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
+            v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
+            w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
+            print("done calculating velocity pertubations in 3D")
+
+        if save:
+            u_field.save_to_file(self.make_field_file_name_mode(domain, "u", mode))
+            v_field.save_to_file(self.make_field_file_name_mode(domain, "v", mode))
+            w_field.save_to_file(self.make_field_file_name_mode(domain, "w", mode))
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return (u_field, v_field, w_field)
@@ -194,24 +242,13 @@ class LinearStabilityCalculation:
                 Nx = domain.number_of_cells(0)
                 Ny = domain.number_of_cells(1)
                 Nz = domain.number_of_cells(2)
-                make_field_file_name = (
-                    lambda field_name: field_name
-                    + "_"
-                    + str(self.Re)
-                    + "_"
-                    + str(Nx)
-                    + "_"
-                    + str(Ny)
-                    + "_"
-                    + str(Nz)
-                )
-                u = Field.FromFile(domain, make_field_file_name("u"), name="u_pert")
-                v = Field.FromFile(domain, make_field_file_name("v"), name="v_pert")
-                w = Field.FromFile(domain, make_field_file_name("w"), name="w_pert")
+                u = Field.FromFile(domain, self.make_field_file_name_mode(domain, "u", mode), name="velocity_pert_x")
+                v = Field.FromFile(domain, self.make_field_file_name_mode(domain, "v", mode), name="velocity_pert_y")
+                w = Field.FromFile(domain, self.make_field_file_name_mode(domain, "w", mode), name="velocity_pert_z")
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
-                self.velocity_field(domain, mode)
+                self.velocity_field(domain, mode, save=False)
         try:
             self.eigenvalues = np.load(
                 "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
@@ -236,6 +273,130 @@ class LinearStabilityCalculation:
             return eps**2 * energy
 
         return (out, self.eigenvalues[mode])
+
+    def calculate_transient_growth_svd(self, domain, T, number_of_modes, save=False, recompute=False):
+        if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
+            try:
+                if recompute:
+                    raise FileNotFoundError()
+                else:
+                    self.eigenvalues = np.load(
+                        "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
+                        allow_pickle=True,
+                    )
+                    self.eigenvectors = np.load(
+                        "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n),
+                        allow_pickle=True,
+                    )
+            except FileNotFoundError:
+                self.calculate_eigenvalues()
+        evs = self.eigenvalues[:number_of_modes]
+        evecs = self.eigenvectors[:number_of_modes]
+        n = self.n
+
+        def get_integral_coefficient(p, q):
+            f = lambda y: phi(p, 0, y) * phi(q, 0, y)
+            # out, _ = quad(f, -1, 1)
+            # out, _ = fixed_quad(f, -1, 1, n=2)
+            out, _ = quadrature(f, -1, 1, maxiter=100)
+            # ys = domain.grid[1]
+            # f_ = np.fromiter((f(y) for y in ys), ys.dtype)
+            # out = simpson(f_)
+            return out
+
+        integ = np.zeros([n, n])
+        for p in range(n):
+            for q in range(p, n):
+                integ[p, q] = get_integral_coefficient(p, q)
+                integ[q, p] = integ[p, q]  # not needed right?
+        C = np.zeros([number_of_modes, number_of_modes], dtype=complex)
+        for j in range(number_of_modes):
+            for k in range(j, number_of_modes):
+                for p in range(n):
+                    for q in range(n):
+                        for block in range(3):
+                            C[j, k] += (
+                                np.conjugate(evecs[j][p + block * n])
+                                * evecs[k][q + block * n]
+                                * integ[p, q]
+                            )
+                C[k, j] = np.conjugate(C[j, k])
+            C[j, j] = C[j, j].real  # just elminates O(10^-16) complex parts which bothers `chol'
+        F = cholesky(C)
+        Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
+        USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
+        U = USVh[0]
+        S = USVh[1]
+        V = USVh[2].T
+        print("check that this is zero: ", jnp.linalg.norm(F @ Sigma @ np.linalg.inv(F) - U @ jnp.diag(S) @ V.T))
+        if save:
+            self.S = S
+            self.V = V
+        return (S, V)
+
+    def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
+        S, _ = self.calculate_transient_growth_svd(
+            domain, T, number_of_modes, save=False
+        )
+        return S[0] ** 2
+
+    def calculate_transient_growth_initial_condition(self, domain, T, number_of_modes, recompute_partial=False, recompute_full=False, save_modes=True, save_final=False):
+        """Calcluate the initial condition that achieves maximum growth at time
+        T. Uses cached values for velocity fields and eigenvalues/-vectors,
+        however, recompute_partial=True forces recomputation of the velocity
+        fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
+        recomputation of eigenvalues/eigenvectors as well as velocity fields."""
+        recompute_partial = recompute_partial or recompute_full
+
+        try:
+            if recompute_partial==False:
+                u = Field.FromFile(domain, self.make_field_file_name(domain, "u"), name="velocity_pert_x")
+                v = Field.FromFile(domain, self.make_field_file_name(domain, "v"), name="velocity_pert_y")
+                w = Field.FromFile(domain, self.make_field_file_name(domain, "w"), name="velocity_pert_z")
+            else:
+                raise FileNotFoundError() # a bit of a HACK?
+        except FileNotFoundError:
+
+            if recompute_full or type(self.V) == NoneType:
+                _, self.V = self.calculate_transient_growth_svd(
+                    domain, T, number_of_modes, save=True, recompute=recompute_full
+                )
+            V = self.V
+
+            u_0, v_0, w_0 = self.velocity_field(domain, 0, recompute_partial=recompute_partial, recompute_full=recompute_full, save=save_modes)
+            u = V[0, 0] * u_0
+            v = V[0, 0] * v_0
+            w = V[0, 0] * w_0
+
+            ys1 = []
+            for mode in range(0, number_of_modes):
+                ys1.append(abs(V[mode,0]))
+
+            fig, ax = plt.subplots(1,1)
+            xs = list(range(number_of_modes))
+            ax.plot(xs, ys1, "o")
+            ax.set_yscale("log", base=10)
+            fig.savefig("plots/plot.pdf")
+            # raise Exception("break")
+
+            for mode in range(1, number_of_modes):
+                print("mode ", mode, " of ", number_of_modes)
+                kappa_i = V[mode, 0]
+
+                u_inc, v_inc, w_inc = self.velocity_field(domain,
+                                                          mode,
+                                                          recompute_partial=recompute_partial,
+                                                          recompute_full=recompute_full,
+                                                          save=save_modes)
+                u += kappa_i * u_inc
+                v += kappa_i * v_inc
+                w += kappa_i * w_inc
+
+            if save_final:
+                u.save_to_file(self.make_field_file_name(domain, "u"))
+                v.save_to_file(self.make_field_file_name(domain, "v"))
+                w.save_to_file(self.make_field_file_name(domain, "w"))
+        return (u, v, w)
 
     def print_welcome(self):
         print("starting linear stability calculation")  # TODO more info
