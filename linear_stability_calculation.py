@@ -248,7 +248,7 @@ class LinearStabilityCalculation:
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
-                self.velocity_field(domain, mode, save=save)
+                self.velocity_field(domain, mode, save=False)
         try:
             self.eigenvalues = np.load(
                 "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
@@ -372,7 +372,6 @@ class LinearStabilityCalculation:
             for mode in range(0, number_of_modes):
                 ys1.append(abs(V[mode,0]))
 
-            print("max growth: ", self.S[0]**2)
             fig, ax = plt.subplots(1,1)
             xs = list(range(number_of_modes))
             ax.plot(xs, ys1, "o")

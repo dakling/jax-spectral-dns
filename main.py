@@ -19,7 +19,7 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         print("Unable to load examples")
-from examples import run_jimenez_1990, run_transient_growth
+from examples import run_jimenez_1990, run_transient_growth, run_pseudo_2d_pertubation
 
 
 def main():
@@ -35,6 +35,10 @@ def main():
 
 if __name__ == '__main__':
     try:
-        globals()[sys.argv[1]]()
-    except (IndexError, KeyError):
+        if len(sys.argv) == 2:
+            globals()[sys.argv[1]]()
+        else:
+            args = sys.argv[2:]
+            globals()[sys.argv[1]](*args)
+    except (IndexError):
         main()
