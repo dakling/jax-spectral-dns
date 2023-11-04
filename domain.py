@@ -204,6 +204,28 @@ class Domain:
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat)
         )
 
+    def enforce_inhomogeneous_dirichlet(self, mat, rhs, bc_left, bc_right):
+        # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
+        # inhomogeneous dirichlet boundary conditions at both ends by setting the
+        # off-diagonal elements of its first and last rows to zero and
+        # the diagonal elements to unity, and the first and last element of the
+        # rhs to the desired values bc_left and bc_right."""
+        def set_first_mat_row_to_unit(matr):
+            N = matr.shape[0]
+            return jnp.block(
+                [[1, jnp.zeros((1, N - 1))], [matr[1:, :]]]
+            )
+
+        def set_last_mat_row_to_unit(matr):
+            N = matr.shape[0]
+            return jnp.block(
+                [[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]]
+            )
+        out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
+        out_rhs = jnp.block([bc_right, rhs[1:-1], bc_left])
+
+        return (out_mat, out_rhs)
+
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
         """Assemble the Chebyshev differentiation matrix of second order with
         homogeneous Dirichlet boundary conditions enforced by setting the first

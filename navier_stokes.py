@@ -532,9 +532,8 @@ class NavierStokesVelVort(Equation):
         dt = self.dt
 
         Re = self.Re_tau
-        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         D2 = jnp.linalg.matrix_power(self.domain_no_hat.diff_mats[1], 2)
-        D2_hom_diri = D2
         n = D2.shape[0]
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
@@ -600,17 +599,34 @@ class NavierStokesVelVort(Equation):
                     v_1_hat_new_p, 1
                 )
 
-                # a-part -> can be solved analytically
-                k = jnp.min(
-                    jnp.array([jnp.sqrt((2 * Re / dt - (-(kx_**2) - kz_**2))), 7e2])
-                )
-                C = 1e0
-                A = C / (jnp.exp(k) - jnp.exp(-k))
-                B = -jnp.exp(-2 * k) * C / (jnp.exp(k) - jnp.exp(-k))
-                fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
+                # a-part (numerical solution)
+                L_a_y = 1 / Re * D2
 
-                ys = self.domain_no_hat.grid[1]
-                v_1_lap_hat_new_a = jax.lax.map(fn_ana, ys)
+                L_a = L_a_y + I * (-(kx_**2 + kz_**2)) / Re
+
+                lhs_mat_a = I - dt / 2 * L_a
+                rhs_a = jnp.zeros(n)
+                lhs_mat_a, rhs_a = domain.enforce_inhomogeneous_dirichlet(lhs_mat_a, rhs_a, 0.0, 1.0)
+                # lhs_mat_p = lhs_mat_p[1:-1, 1:-1]
+                # rhs = rhs[1:-1]
+                # phi_p_hat_new = jnp.linalg.solve(
+                #     lhs_mat_p, rhs
+                # )
+                phi_a_hat_new = jnp.linalg.inv(lhs_mat_a) @ rhs_a
+                # phi_p_hat_new = jnp.linalg.lstsq(lhs_mat_p, rhs)[0]
+                v_1_lap_hat_new_a = phi_a_hat_new
+
+                # a-part -> can be solved analytically
+                # k = jnp.min(
+                #     jnp.array([jnp.sqrt((2 * Re / dt - (-(kx_**2) - kz_**2))), 7e2])
+                # )
+                # C = 1e0
+                # A = C / (jnp.exp(k) - jnp.exp(-k))
+                # B = -jnp.exp(-2 * k) * C / (jnp.exp(k) - jnp.exp(-k))
+                # fn_ana = lambda y: (A * jnp.exp(k * y) + B * jnp.exp(-k * y))
+
+                # ys = self.domain_no_hat.grid[1]
+                # v_1_lap_hat_new_a = jax.lax.map(fn_ana, ys)
 
                 # compute velocity in y direction
                 v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
@@ -664,8 +680,12 @@ class NavierStokesVelVort(Equation):
                 #     ax.plot(ys[0:10], v_1_lap_hat_new[0:10], ".")
                 #     # ax.plot(ys[0:10], phi_p_hat_new[0:10], "--")
                 #     ax.plot(ys[0:10], v_1_lap_hat_new_ana[kx, :10, kz], "x")
-                #     # ax.plot(ys[0:10], v_1_lap_hat_new_p[0:10], ".")
+                #     ax.plot(ys[0:10], v_1_lap_hat_new_p[0:10], ".")
                 #     fig.savefig("plots/plot2.pdf")
+                #     fig, ax = plt.subplots(1,1)
+                #     # ax.plot(ys[0:10], v_1_lap_hat_new[0:10], ".")
+                #     ax.plot(ys[0:10], v_1_lap_hat_new_a[0:10], ".")
+                #     fig.savefig("plots/plot3.pdf")
                 #     print("boundary data: ")
                 #     print(v_1_lap_hat_new_ana[kx, 0, kz], " ", v_1_lap_hat_new[0])
                 #     print(v_1_lap_hat_new_ana[kx, -1, kz], " ", v_1_lap_hat_new[-1])
@@ -679,7 +699,7 @@ class NavierStokesVelVort(Equation):
                 #     raise Exception("break")
 
                 # vorticity
-                L_vort_y = 1 / Re * D2_hom_diri
+                L_vort_y = 1 / Re * D2
                 L_vort = L_vort_y + I * (-(kx_**2 + kz_**2)) / Re
 
                 rhs_mat_vort = I + dt / 2 * L_vort
@@ -740,7 +760,6 @@ class NavierStokesVelVort(Equation):
                             ]
                         )
                     )
-                    lhs_mat_ns = domain.enforce_homogeneous_dirichlet(lhs_mat_ns)
                     rhs_ns = rhs_mat_ns @ v_hat + dt / 2 * (3 * N_00_new - N_00_old)
                     rhs_ns = jnp.block([0.0, rhs_ns[1:n-1], 0.0 ,0.0, rhs_ns[n+1:-1], 0.0])
                     v_hat_new = jnp.linalg.solve(

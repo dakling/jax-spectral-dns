@@ -483,8 +483,7 @@ def run_pseudo_2d_pertubation(
     else:
         U = v0
 
-    # eps_ = eps * jnp.sqrt(U.energy())
-    eps_ = 1.0e0
+    eps_ = eps * jnp.sqrt(U.energy())
     U_hat = U.hat()
 
 
