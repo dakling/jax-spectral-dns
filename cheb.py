@@ -2,7 +2,6 @@
 
 import numpy as np
 from numpy.polynomial.chebyshev import *
-from scipy.integrate import quad
 
 
 def cheb(order, deriv, y=None):

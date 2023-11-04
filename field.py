@@ -84,6 +84,7 @@ class Field:
     plotting_dir = "./plots/"
     # plotting_format = ".pdf"
     plotting_format = ".png"
+    supress_plotting_ = False # setting this to True can suppress plotting
     field_dir = "./fields/"
     performance_mode = True
 
@@ -179,6 +180,9 @@ class Field:
     def set_time_step(self, time_step):
         """Set the current time step of the field."""
         self.time_step = time_step
+
+    def supress_plotting(self):
+        Field.supress_plotting_ = True
 
     def __repr__(self):
         # self.plot()
@@ -299,6 +303,8 @@ class Field:
 
     def energy(self):
         energy = 0.5 * self * self
+        energy.name = self.name + "_energy"
+        energy.plot_3d(2)
         return energy.volume_integral()
 
     def eval(self, X):
@@ -341,176 +347,136 @@ class Field:
         return int(math.prod(self.domain.shape))
 
     def plot_center(self, dimension, *other_fields):
-        if self.domain.number_of_dimensions == 1:
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(self.domain.grid[0], self.field, label=self.name)
-            for other_field in other_fields:
-                ax.plot(
-                    self.domain.grid[dimension],
-                    other_field.field,
-                    "--",
-                    label=other_field.name,
+        if not self.supress_plotting_:
+            if self.domain.number_of_dimensions == 1:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(self.domain.grid[0], self.field, label=self.name)
+                for other_field in other_fields:
+                    ax.plot(
+                        self.domain.grid[dimension],
+                        other_field.field,
+                        "--",
+                        label=other_field.name,
+                    )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
                 )
-            fig.legend()
-            fig.savefig(
-                self.plotting_dir
-                + "plot_cl_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
-            # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
-            fig.savefig(
-                self.plotting_dir
-                + "plot_cl_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-            # plt.close(fig)
-        elif self.domain.number_of_dimensions == 2:
-            # fig, ax = plt.subplots(1, 1)
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            other_dim = [i for i in self.all_dimensions() if i != dimension][0]
-            N_c = self.domain.number_of_cells(other_dim) // 2
-            ax.plot(
-                self.domain.grid[dimension],
-                self.field.take(indices=N_c, axis=other_dim),
-                label=self.name,
-            )
-            for other_field in other_fields:
-                ax.plot(
-                    self.domain.grid[dimension],
-                    other_field.field.take(indices=N_c, axis=other_dim),
-                    "--",
-                    label=other_field.name,
+                # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
                 )
-            fig.legend()
-            fig.savefig(
-                self.plotting_dir
-                + "plot_cl_"
-                + self.name
-                + "_"
-                + ["x", "y"][dimension]
-                + "_latest"
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_cl_"
-                + self.name
-                + "_"
-                + ["x", "y"][dimension]
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-            # plt.close(fig)
-        elif self.domain.number_of_dimensions == 3:
-            # fig, ax = plt.subplots(1, 1)
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            other_dim = [i for i in self.all_dimensions() if i != dimension]
-            N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
-            ax.plot(
-                self.domain.grid[dimension],
-                self.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                    indices=N_c[0], axis=other_dim[0]
-                ),
-                label=self.name,
-            )
-            for other_field in other_fields:
-                ax.plot(
-                    self.domain.grid[dimension],
-                    other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                        indices=N_c[0], axis=other_dim[0]
-                    ),
-                    "--",
-                    label=other_field.name,
-                )
-            fig.legend()
-            fig.savefig(
-                self.plotting_dir
-                + "plot_cl_"
-                + self.name
-                + "_"
-                + ["x", "y", "z"][dimension]
-                + "_latest"
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_cl_"
-                + self.name
-                + "_"
-                + ["x", "y", "z"][dimension]
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-        else:
-            raise Exception("Not implemented yet")
-
-    def plot(self, *other_fields):
-        if self.domain.number_of_dimensions == 1:
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(
-                self.domain.grid[0],
-                self.field,
-                label=self.name,
-            )
-            for other_field in other_fields:
-                ax.plot(
-                    self.domain.grid[0],
-                    other_field.field,
-                    "--",
-                    label=other_field.name,
-                )
-            fig.legend()
-            fig.savefig(
-                self.plotting_dir
-                + "plot_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-
-        elif self.domain.number_of_dimensions == 2:
-            fig = figure.Figure(figsize=(15, 5))
-            ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
-            ax3d = fig.add_subplot(1, 3, 3, projection="3d")
-            for dimension in self.all_dimensions():
+                # plt.close(fig)
+            elif self.domain.number_of_dimensions == 2:
+                # fig, ax = plt.subplots(1, 1)
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
                 other_dim = [i for i in self.all_dimensions() if i != dimension][0]
                 N_c = self.domain.number_of_cells(other_dim) // 2
-                ax[dimension].plot(
+                ax.plot(
                     self.domain.grid[dimension],
                     self.field.take(indices=N_c, axis=other_dim),
                     label=self.name,
                 )
-                ax3d.plot_surface(
-                    self.domain.mgrid[0], (self.domain.mgrid[1]), self.field
-                )
                 for other_field in other_fields:
-                    ax[dimension].plot(
+                    ax.plot(
                         self.domain.grid[dimension],
                         other_field.field.take(indices=N_c, axis=other_dim),
                         "--",
                         label=other_field.name,
                     )
-                    ax3d.plot_surface(
-                        self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y"][dimension]
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y"][dimension]
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+                # plt.close(fig)
+            elif self.domain.number_of_dimensions == 3:
+                # fig, ax = plt.subplots(1, 1)
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                other_dim = [i for i in self.all_dimensions() if i != dimension]
+                N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
+                ax.plot(
+                    self.domain.grid[dimension],
+                    self.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                        indices=N_c[0], axis=other_dim[0]
+                    ),
+                    label=self.name,
+                )
+                for other_field in other_fields:
+                    ax.plot(
+                        self.domain.grid[dimension],
+                        other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                            indices=N_c[0], axis=other_dim[0]
+                        ),
+                        "--",
+                        label=other_field.name,
+                    )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y", "z"][dimension]
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y", "z"][dimension]
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+            else:
+                raise Exception("Not implemented yet")
+
+    def plot(self, *other_fields):
+        if not self.supress_plotting_:
+            if self.domain.number_of_dimensions == 1:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(
+                    self.domain.grid[0],
+                    self.field,
+                    label=self.name,
+                )
+                for other_field in other_fields:
+                    ax.plot(
+                        self.domain.grid[0],
+                        other_field.field,
+                        "--",
+                        label=other_field.name,
                     )
                 fig.legend()
                 fig.savefig(
@@ -528,106 +494,198 @@ class Field:
                     + "{:06}".format(self.time_step)
                     + self.plotting_format
                 )
-        elif self.domain.number_of_dimensions == 3:
-            fig = figure.Figure()
-            # ax = fig.subplots(1, 3, figsize=(15, 5))
-            ax = fig.subplots(1, 3)
-            for dimension in self.all_dimensions():
-                other_dim = [i for i in self.all_dimensions() if i != dimension]
-                N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
-                ax[dimension].plot(
-                    self.domain.grid[dimension],
-                    self.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                        indices=N_c[0], axis=other_dim[0]
-                    ),
-                    label=self.name,
-                )
-                for other_field in other_fields:
+
+            elif self.domain.number_of_dimensions == 2:
+                fig = figure.Figure(figsize=(15, 5))
+                ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
+                ax3d = fig.add_subplot(1, 3, 3, projection="3d")
+                for dimension in self.all_dimensions():
+                    other_dim = [i for i in self.all_dimensions() if i != dimension][0]
+                    N_c = self.domain.number_of_cells(other_dim) // 2
                     ax[dimension].plot(
                         self.domain.grid[dimension],
-                        other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                        self.field.take(indices=N_c, axis=other_dim),
+                        label=self.name,
+                    )
+                    ax3d.plot_surface(
+                        self.domain.mgrid[0], (self.domain.mgrid[1]), self.field
+                    )
+                    for other_field in other_fields:
+                        ax[dimension].plot(
+                            self.domain.grid[dimension],
+                            other_field.field.take(indices=N_c, axis=other_dim),
+                            "--",
+                            label=other_field.name,
+                        )
+                        ax3d.plot_surface(
+                            self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field
+                        )
+                    fig.legend()
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+            elif self.domain.number_of_dimensions == 3:
+                fig = figure.Figure()
+                # ax = fig.subplots(1, 3, figsize=(15, 5))
+                ax = fig.subplots(1, 3)
+                for dimension in self.all_dimensions():
+                    other_dim = [i for i in self.all_dimensions() if i != dimension]
+                    N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
+                    ax[dimension].plot(
+                        self.domain.grid[dimension],
+                        self.field.take(indices=N_c[1], axis=other_dim[1]).take(
                             indices=N_c[0], axis=other_dim[0]
                         ),
-                        "--",
-                        label=other_field.name,
+                        label=self.name,
                     )
-            fig.legend()
-            fig.savefig(
-                self.plotting_dir
-                + "plot_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-        else:
-            raise Exception("Not implemented yet")
+                    for other_field in other_fields:
+                        ax[dimension].plot(
+                            self.domain.grid[dimension],
+                            other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
+                                indices=N_c[0], axis=other_dim[0]
+                            ),
+                            "--",
+                            label=other_field.name,
+                        )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+            else:
+                raise Exception("Not implemented yet")
 
     def plot_3d(self, direction=None):
-        if type(direction) != NoneType:
-            self.plot_3d_single(direction)
-        else:
+        if not self.supress_plotting_:
+            if type(direction) != NoneType:
+                self.plot_3d_single(direction)
+            else:
+                assert (
+                    self.domain.number_of_dimensions == 3
+                ), "Only 3D supported for this plotting method."
+                fig = figure.Figure(layout="constrained")
+                base_len = 100
+                grd = (base_len, base_len)
+                lx = self.domain.scale_factors[0]
+                ly = self.domain.scale_factors[1] * 2
+                lz = self.domain.scale_factors[2]
+                rows_x = int(ly / (ly + lx) * base_len)
+                cols_x = int(lz / (lz + ly) * base_len)
+                rows_y = int(lx / (ly + lx) * base_len)
+                cols_y = int(lz / (lz + ly) * base_len)
+                rows_z = int(lx / (ly + lx) * base_len)
+                cols_z = int(ly / (lz + ly) * base_len)
+                ax = [
+                    fig.add_subplot(fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[
+                            rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
+                        ]
+                    ),
+                ]
+                ims = []
+                for dim in self.all_dimensions():
+                    N_c = self.domain.number_of_cells(dim) // 2
+                    other_dim = [i for i in self.all_dimensions() if i != dim]
+                    ims.append(
+                        ax[dim].imshow(
+                            self.field.take(indices=N_c, axis=dim),
+                            interpolation=None,
+                            extent=[
+                                self.domain.grid[other_dim[1]][0],
+                                self.domain.grid[other_dim[1]][-1],
+                                self.domain.grid[other_dim[0]][0],
+                                self.domain.grid[other_dim[0]][-1],
+                            ],
+                        )
+                    )
+                    ax[dim].set_xlabel("xyz"[other_dim[1]])
+                    ax[dim].set_ylabel("xyz"[other_dim[0]])
+                # Find the min and max of all colors for use in setting the color scale.
+                vmin = min(image.get_array().min() for image in ims)
+                vmax = max(image.get_array().max() for image in ims)
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+                for im in ims:
+                    im.set_norm(norm)
+                fig.colorbar(ims[0], ax=ax, label=self.name)
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+
+    def plot_3d_single(self, dim):
+        if not self.supress_plotting_:
             assert (
                 self.domain.number_of_dimensions == 3
             ), "Only 3D supported for this plotting method."
-            fig = figure.Figure(layout="constrained")
-            base_len = 100
-            grd = (base_len, base_len)
-            lx = self.domain.scale_factors[0]
-            ly = self.domain.scale_factors[1] * 2
-            lz = self.domain.scale_factors[2]
-            rows_x = int(ly / (ly + lx) * base_len)
-            cols_x = int(lz / (lz + ly) * base_len)
-            rows_y = int(lx / (ly + lx) * base_len)
-            cols_y = int(lz / (lz + ly) * base_len)
-            rows_z = int(lx / (ly + lx) * base_len)
-            cols_z = int(ly / (lz + ly) * base_len)
-            ax = [
-                fig.add_subplot(fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]),
-                fig.add_subplot(
-                    fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
-                ),
-                fig.add_subplot(
-                    fig.add_gridspec(*grd)[
-                        rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
-                    ]
-                ),
-            ]
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
             ims = []
-            for dim in self.all_dimensions():
-                N_c = self.domain.number_of_cells(dim) // 2
-                other_dim = [i for i in self.all_dimensions() if i != dim]
-                ims.append(
-                    ax[dim].imshow(
-                        self.field.take(indices=N_c, axis=dim),
-                        interpolation=None,
-                        extent=[
-                            self.domain.grid[other_dim[1]][0],
-                            self.domain.grid[other_dim[1]][-1],
-                            self.domain.grid[other_dim[0]][0],
-                            self.domain.grid[other_dim[0]][-1],
-                        ],
-                    )
+            N_c = self.domain.number_of_cells(dim) // 2
+            other_dim = [i for i in self.all_dimensions() if i != dim]
+            ims.append(
+                ax.imshow(
+                    self.field.take(indices=N_c, axis=dim).T,
+                    interpolation=None,
+                    extent=[
+                        self.domain.grid[other_dim[0]][0],
+                        self.domain.grid[other_dim[0]][-1],
+                        self.domain.grid[other_dim[1]][0],
+                        self.domain.grid[other_dim[1]][-1],
+                    ],
                 )
-                ax[dim].set_xlabel("xyz"[other_dim[1]])
-                ax[dim].set_ylabel("xyz"[other_dim[0]])
+            )
+            ax.set_xlabel("xyz"[other_dim[0]])
+            ax.set_ylabel("xyz"[other_dim[1]])
             # Find the min and max of all colors for use in setting the color scale.
             vmin = min(image.get_array().min() for image in ims)
             vmax = max(image.get_array().max() for image in ims)
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
-            fig.colorbar(ims[0], ax=ax, label=self.name)
+            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
             fig.savefig(
                 self.plotting_dir
                 + "plot_3d_"
+                + "xyz"[dim]
+                + "_"
                 + self.name
                 + "_latest"
                 + self.plotting_format
@@ -635,109 +693,62 @@ class Field:
             fig.savefig(
                 self.plotting_dir
                 + "plot_3d_"
+                + "xyz"[dim]
+                + "_"
                 + self.name
                 + "_t_"
                 + "{:06}".format(self.time_step)
                 + self.plotting_format
             )
 
-    def plot_3d_single(self, dim):
-        assert (
-            self.domain.number_of_dimensions == 3
-        ), "Only 3D supported for this plotting method."
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        ims = []
-        N_c = self.domain.number_of_cells(dim) // 2
-        other_dim = [i for i in self.all_dimensions() if i != dim]
-        ims.append(
-            ax.imshow(
-                self.field.take(indices=N_c, axis=dim).T,
-                interpolation=None,
-                extent=[
-                    self.domain.grid[other_dim[0]][0],
-                    self.domain.grid[other_dim[0]][-1],
-                    self.domain.grid[other_dim[1]][0],
-                    self.domain.grid[other_dim[1]][-1],
-                ],
-            )
-        )
-        ax.set_xlabel("xyz"[other_dim[0]])
-        ax.set_ylabel("xyz"[other_dim[1]])
-        # Find the min and max of all colors for use in setting the color scale.
-        vmin = min(image.get_array().min() for image in ims)
-        vmax = max(image.get_array().max() for image in ims)
-        norm = colors.Normalize(vmin=vmin, vmax=vmax)
-        for im in ims:
-            im.set_norm(norm)
-        fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
-        fig.savefig(
-            self.plotting_dir
-            + "plot_3d_"
-            + "xyz"[dim]
-            + "_"
-            + self.name
-            + "_latest"
-            + self.plotting_format
-        )
-        fig.savefig(
-            self.plotting_dir
-            + "plot_3d_"
-            + "xyz"[dim]
-            + "_"
-            + self.name
-            + "_t_"
-            + "{:06}".format(self.time_step)
-            + self.plotting_format
-        )
-
     def plot_isolines(self, normal_direction, isolines=None):
-        if type(isolines) == NoneType:
-            isolines = [0, 1.5, 2.5, 3.5]
-            isolines += [-i for i in isolines[1:]]
+        if not self.supress_plotting_:
+            if type(isolines) == NoneType:
+                isolines = [0, 1.5, 2.5, 3.5]
+                isolines += [-i for i in isolines[1:]]
 
-        isolines.sort()
+            isolines.sort()
 
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        directions = [i for i in self.all_dimensions() if i != normal_direction]
-        x = self.domain.grid[directions[0]]
-        y = self.domain.grid[directions[1]]
-        X, Y = jnp.meshgrid(x, y)
-        N_c = self.domain.number_of_cells(normal_direction) // 2
-        f = self.field.take(indices=N_c, axis=normal_direction).T
-        cmap = colors.ListedColormap([("gray", 0.3), "white"])
-        bounds = [-1e10, 0, 1e10]
-        norm = colors.BoundaryNorm(bounds, cmap.N)
-        ax.imshow(
-            f,
-            interpolation="gaussian",
-            origin="lower",
-            cmap=cmap,
-            norm=norm,
-            extent=(x[0], x[-1], y[0], y[-1]),
-        )
-        CS = ax.contour(X, Y, f, isolines)
-        ax.clabel(CS, inline=True, fontsize=10)
-        fig.savefig(
-            self.plotting_dir
-            + "plot_iso_"
-            + "xyz"[normal_direction]
-            + "_"
-            + self.name
-            + "_t_"
-            + "{:06}".format(self.time_step)
-            + self.plotting_format
-        )
-        fig.savefig(
-            self.plotting_dir
-            + "plot_iso_"
-            + "xyz"[normal_direction]
-            + "_"
-            + self.name
-            + "_latest"
-            + self.plotting_format
-        )
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            directions = [i for i in self.all_dimensions() if i != normal_direction]
+            x = self.domain.grid[directions[0]]
+            y = self.domain.grid[directions[1]]
+            X, Y = jnp.meshgrid(x, y)
+            N_c = self.domain.number_of_cells(normal_direction) // 2
+            f = self.field.take(indices=N_c, axis=normal_direction).T
+            cmap = colors.ListedColormap([("gray", 0.3), "white"])
+            bounds = [-1e10, 0, 1e10]
+            norm = colors.BoundaryNorm(bounds, cmap.N)
+            ax.imshow(
+                f,
+                interpolation="gaussian",
+                origin="lower",
+                cmap=cmap,
+                norm=norm,
+                extent=(x[0], x[-1], y[0], y[-1]),
+            )
+            CS = ax.contour(X, Y, f, isolines)
+            ax.clabel(CS, inline=True, fontsize=10)
+            fig.savefig(
+                self.plotting_dir
+                + "plot_iso_"
+                + "xyz"[normal_direction]
+                + "_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_iso_"
+                + "xyz"[normal_direction]
+                + "_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
 
     def all_dimensions(self):
         return self.domain.all_dimensions()
@@ -971,6 +982,12 @@ class VectorField:
         energy += vort[1] * vort[1]
         return energy.volume_integral()
 
+    def save_to_file(self, filename):
+        """Save field to file filename."""
+        self.set_name(self.name)
+        for f in self:
+            field_array = np.array(f.field.tolist())
+            field_array.dump(f.field_dir + filename)
 
     def get_time_step(self):
         time_steps = [f.time_step for f in self]
@@ -1158,41 +1175,42 @@ class VectorField:
             return (VectorField(out_field), other_field)
 
     def plot_streamlines(self, normal_direction, isolines=None):
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        directions = [i for i in self.all_dimensions() if i != normal_direction]
-        x = self.domain.grid[directions[0]]
-        y = jnp.flip(self.domain.grid[directions[1]])
-        N = 40
-        xi = np.linspace(x[0], x[-1], N)
-        yi = np.linspace(y[0], y[-1], N)
-        N_c = self.domain.number_of_cells(normal_direction) // 2
-        U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
-        V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
-        interp_u = RegularGridInterpolator((x, y), U, method="cubic")
-        interp_v = RegularGridInterpolator((x, y), V, method="cubic")
-        Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
-        Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
+        if not self.supress_plotting_:
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            directions = [i for i in self.all_dimensions() if i != normal_direction]
+            x = self.domain.grid[directions[0]]
+            y = jnp.flip(self.domain.grid[directions[1]])
+            N = 40
+            xi = np.linspace(x[0], x[-1], N)
+            yi = np.linspace(y[0], y[-1], N)
+            N_c = self.domain.number_of_cells(normal_direction) // 2
+            U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
+            V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
+            interp_u = RegularGridInterpolator((x, y), U, method="cubic")
+            interp_v = RegularGridInterpolator((x, y), V, method="cubic")
+            Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
+            Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
-        try:
-            ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
-        except TypeError: # compatibilty with older matplotlib versions
-            ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
-        fig.savefig(
-            self[0].plotting_dir
-            + "plot_streamlines_"
-            + self.get_name()
-            + "_t_"
-            + "{:06}".format(self.time_step)
-            + self[0].plotting_format
-        )
-        fig.savefig(
-            self[0].plotting_dir
-            + "plot_streamlines_"
-            + self.get_name()
-            + "_latest"
-            + self[0].plotting_format
-        )
+            try:
+                ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
+            except TypeError: # compatibilty with older matplotlib versions
+                ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
+            fig.savefig(
+                self[0].plotting_dir
+                + "plot_streamlines_"
+                + self.get_name()
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self[0].plotting_format
+            )
+            fig.savefig(
+                self[0].plotting_dir
+                + "plot_streamlines_"
+                + self.get_name()
+                + "_latest"
+                + self[0].plotting_format
+            )
 
 
 class FourierField(Field):

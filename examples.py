@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+import jax
 import jax.numpy as jnp
+import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
 from numpy import genfromtxt
@@ -11,38 +13,39 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         print("Unable to load Domain")
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         print("Unable to load Field")
 from field import Field, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["navier_stokes"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
     reload(sys.modules["navier_stokes_pertubation"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         print("Unable to load navier-stokes-pertubation")
 from navier_stokes_pertubation import solve_navier_stokes_pertubation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
+NoneType = type(None)
 
 def run_optimization():
     Re = 1e0
@@ -217,42 +220,11 @@ def run_pseudo_2d():
         scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    make_field_file_name = (
-        lambda field_name: field_name
-        + "_"
-        + str(Re)
-        + "_"
-        + str(Nx)
-        + "_"
-        + str(Ny)
-        + "_"
-        + str(Nz)
-    )
-    try:
-        # raise FileNotFoundError()
-        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
-        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
-        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
-        print("found existing fields, skipping eigenvalue computation")
-        lsc.velocity_field_ = (u, v, w)
-    except FileNotFoundError:
-        print("could not find fields")
-        u, v, w = lsc.velocity_field(nse.domain_no_hat)
-    u.save_to_file(make_field_file_name("u"))
-    v.save_to_file(make_field_file_name("v"))
-    w.save_to_file(make_field_file_name("w"))
-    vel_x_hat, _, _ = nse.get_initial_field("velocity_hat")
+    u = lsc.velocity_field(nse.domain_no_hat)
+    vel_x_hat = nse.get_initial_field("velocity_hat")
 
     eps = 5e-3
-    nse.init_velocity(
-        VectorField(
-            [
-                vel_x_hat + eps * u.hat(),
-                eps * v.hat(),
-                eps * w.hat(),
-            ]
-        ),
-    )
+    nse.init_velocity(vel_x_hat + (u * eps).hat())
 
     energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.domain_no_hat)
     energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
@@ -473,13 +445,23 @@ def run_dummy_velocity_field():
 
 
 def run_pseudo_2d_pertubation(
-    Re=6000, alpha=1.02056, end_time=10.0, eps=1e-2, linearize=True
+    Re=6000.0,
+    alpha=1.02056,
+    end_time=10.0,
+    Nx=12,
+    Ny=96,
+    Nz=2,
+    eps=1e-0,
+    linearize=True,
+    plot=True,
+    save=True,
+    v0=None,
 ):
     Re = float(Re)
-    Nx = 300
-    Ny = 96
-    Nz = 2
-    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    lsc = LinearStabilityCalculation(Re, alpha, 50)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -488,49 +470,28 @@ def run_pseudo_2d_pertubation(
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(2 * (2 * jnp.pi / alpha), 1.0, 1.0),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
     )
 
     nse.set_linearize(linearize)
+    if not plot:
+        print("disabling plotting")
+        Field.supress_plotting_ = True
 
-    make_field_file_name = (
-        lambda field_name: field_name
-        + "_"
-        + str(Re)
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(0))
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(1))
-        + "_"
-        + str(nse.domain_no_hat.number_of_cells(2))
-    )
-    try:
-        # raise FileNotFoundError()
-        u = Field.FromFile(nse.domain_no_hat, make_field_file_name("u"), name="u_pert")
-        v = Field.FromFile(nse.domain_no_hat, make_field_file_name("v"), name="v_pert")
-        w = Field.FromFile(nse.domain_no_hat, make_field_file_name("w"), name="w_pert")
-        print("found existing fields, skipping eigenvalue computation")
-    except FileNotFoundError:
-        print("could not find fields")
-        u, v, w = lsc.velocity_field(nse.domain_no_hat)
-    u.save_to_file(make_field_file_name("u"))
-    v.save_to_file(make_field_file_name("v"))
-    w.save_to_file(make_field_file_name("w"))
+    if type(v0) == NoneType:
+        U = lsc.velocity_field(nse.domain_no_hat)
+    else:
+        U = v0
 
-    U = VectorField(
-        [
-            u.hat(),
-            v.hat(),
-            w.hat(),
-        ]
-    )
+    # eps_ = eps * jnp.sqrt(U.energy())
+    eps_ = 1.0e0
+    U_hat = U.hat()
 
-    eps_ = eps * jnp.sqrt(U.no_hat().energy())
 
-    nse.init_velocity(U * eps_)
+    nse.init_velocity(U_hat * eps_)
 
-    energy_over_time_fn, ev = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
-    plot_interval = 10
+    energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
+    plot_interval = 5
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
@@ -541,6 +502,15 @@ def run_pseudo_2d_pertubation(
     energy_t_ana = []
     energy_x_t_ana = []
     energy_y_t_ana = []
+
+    def save_array(arr, filename):
+        if save:
+            f = Path(filename)
+            try:
+                f.unlink()
+            except FileNotFoundError:
+                pass
+            np.array(arr).dump(filename)
 
     def before_time_step(nse):
         i = nse.time_step
@@ -588,24 +558,32 @@ def run_pseudo_2d_pertubation(
             energy_t_ana.append(energy_over_time_fn(nse.time))
             energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
             energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_t_ana, label="analytical growth")
-            ax.plot(ts, energy_t, ".", label="numerical growth")
-            fig.legend()
-            fig.savefig("plots/energy_t.pdf")
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_x_t_ana, label="analytical growth")
-            ax.plot(ts, energy_x_t, ".", label="numerical growth")
-            fig.legend()
-            fig.savefig("plots/energy_x_t.pdf")
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_y_t_ana, label="analytical growth")
-            ax.plot(ts, energy_y_t, ".", label="numerical growth")
-            fig.legend()
-            fig.savefig("plots/energy_y_t.pdf")
+            save_array(ts, "fields/ts")
+            save_array(energy_t, "fields/energy_Re_" + str(Re))
+            save_array(energy_x_t, "fields/energy_x_Re_" + str(Re))
+            save_array(energy_y_t, "fields/energy_y_Re_" + str(Re))
+            save_array(energy_t_ana, "fields/energy_ana_Re_" + str(Re))
+            save_array(energy_x_t_ana, "fields/energy_x_ana_Re_" + str(Re))
+            save_array(energy_y_t_ana, "fields/energy_y_ana_Re_" + str(Re))
+            if plot:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(ts, energy_t_ana, label="analytical growth")
+                ax.plot(ts, energy_t, ".", label="numerical growth")
+                fig.legend()
+                fig.savefig("plots/energy_t.pdf")
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(ts, energy_x_t_ana, label="analytical growth")
+                ax.plot(ts, energy_x_t, ".", label="numerical growth")
+                fig.legend()
+                fig.savefig("plots/energy_x_t.pdf")
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(ts, energy_y_t_ana, label="analytical growth")
+                ax.plot(ts, energy_y_t, ".", label="numerical growth")
+                fig.legend()
+                fig.savefig("plots/energy_y_t.pdf")
 
     nse.before_time_step_fn = before_time_step
     nse.after_time_step_fn = None
@@ -617,9 +595,13 @@ def run_pseudo_2d_pertubation(
     vel_pert_energy = vel_pert.energy()
     vel_pert_energy_old = vel_pert_old.energy()
     return (
-        vel_pert_energy - vel_pert_energy_old,
-        vel_pert[0].energy() - vel_pert_old[0].energy(),
-        vel_pert[1].energy() - vel_pert_old[1].energy(),
+        energy_t,
+        energy_x_t,
+        energy_y_t,
+        energy_t_ana,
+        energy_x_t_ana,
+        energy_y_t_ana,
+        ts,
     )
 
 
@@ -642,22 +624,15 @@ def run_jimenez_1990(start_time=0):
         scale_factors=(2 * jnp.pi / alpha, 1.0, 1.0),
     )
 
+    nse.set_linearize(False)
+
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re, alpha, Ny)
-        u, v, w = lsc.velocity_field(nse.domain_no_hat)
-
-        vel_pert = VectorField([u, v, w])
+        vel_pert = lsc.velocity_field(nse.domain_no_hat)
         vort_pert = vel_pert.curl()
-        eps = 1e-2 * jnp.sqrt(vort_pert.energy())
-        nse.init_velocity(
-            VectorField(
-                [
-                    eps * u.hat(),
-                    eps * v.hat(),
-                    eps * w.hat(),
-                ]
-            ),
-        )
+        eps = 1e-0 / jnp.sqrt(vort_pert.energy())
+        # eps = 1e-0 / jnp.sqrt(vel_pert.energy())
+        nse.init_velocity((vel_pert * eps).hat())
     else:
         u = Field.FromFile(
             nse.domain_no_hat,
@@ -766,7 +741,7 @@ def run_transient_growth(Re=3000.0, T=5.0):
 
     nse.set_linearize(False)
 
-    u, v, w = lsc.calculate_transient_growth_initial_condition(
+    U = lsc.calculate_transient_growth_initial_condition(
         nse.domain_no_hat,
         T,
         number_of_modes,
@@ -776,19 +751,17 @@ def run_transient_growth(Re=3000.0, T=5.0):
         save_final=True,
     )
 
-    U = VectorField(
-        [
-            u.hat(),
-            v.hat(),
-            w.hat(),
-        ]
+    U_hat = U.hat()
+    eps_ = eps / jnp.sqrt(U.energy())
+    print("U energy norm: ", jnp.sqrt(U.energy()))
+    print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
+
+    nse.init_velocity(U_hat * eps_)
+
+    e_max = lsc.calculate_transient_growth_max_energy(
+        nse.domain_no_hat, T, number_of_modes
     )
-
-    eps_ = eps / jnp.sqrt(U.no_hat().energy())
-    print("U energy norm: ", jnp.sqrt(U.no_hat().energy()))
-    print("U energy norm (RH): ", jnp.sqrt(U.no_hat().energy_norm(1)))
-
-    nse.init_velocity(U * eps_)
+    print("expecting max growth of ", e_max)
 
     plot_interval = 50
 
@@ -856,13 +829,14 @@ def run_transient_growth(Re=3000.0, T=5.0):
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
             # ax.plot(ts, energy_max, ".", label="max growth (theory)")
-            ax.autoscale(False, axis="x")
             ax.plot(
                 rh_93_data[0],
                 rh_93_data[1],
                 "--",
                 label="growth (Reddy/Henningson 1993)",
             )
+            ax.set_xlim([0, nse.time * 1.2])
+            ax.set_ylim([0, e_max * 1.2])
             fig.legend()
             fig.savefig("plots/energy_t.pdf")
 
@@ -882,3 +856,53 @@ def run_transient_growth(Re=3000.0, T=5.0):
     nse.after_time_step_fn = None
 
     nse.solve()
+
+
+def run_optimization_pseudo_2d_pertubation():
+    Re = 3000
+    T = 0.1
+    alpha = 1.02056
+    Nx = 100
+    Ny = 96
+    Nz = 100
+    scale_factors = ((1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),)
+
+    def run(v0):
+        (
+            energy_t,
+            energy_x_t,
+            energy_y_t,
+            energy_t_ana,
+            energy_x_t_ana,
+            energy_y_t_ana,
+            ts,
+        ) = run_pseudo_2d_pertubation(
+            Re=Re,
+            alpha=alpha,
+            end_time=T,
+            Nx=Nx,
+            Ny=Ny,
+            Nz=Nz,
+            linearize=True,
+            plot=False,
+            save=False,
+            v0=v0,
+        )
+        return (energy_t[-1] - energy_t[0]) / energy_t[0]
+
+    dom = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+    v0_0 = lsc.velocity_field(dom, 0)
+
+    v0s = [v0_0.field]
+    eps = 1e3
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run)(v0s[-1])
+        corr_field = Field(nse.domain_no_hat, corr, name="correction")
+        corr_field.update_boundary_conditions()
+        print("gain: " + str(gain))
+        print("corr (abs): " + str(abs(corr_field)))
+        v0s.append(v0s[-1] + eps * corr_field.field)
+        v0_new = Field(nse.domain_no_hat, v0s[-1])
+        v0_new.name = "vel_0_" + str(i)
+        v0_new.plot(v0_0)

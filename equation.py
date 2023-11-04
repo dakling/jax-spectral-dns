@@ -25,8 +25,10 @@ NoneType = type(None)
 
 class Equation:
     name = "equation"
+    supress_plotting_ = False # setting this to True can suppress plotting
 
     def __init__(self, domain, *fields, **params):
+        Field.supress_plotting_ = self.supress_plotting_
         self.domain = domain
         self.fields = {}
         self.time_step = 0
@@ -87,6 +89,10 @@ class Equation:
             self.fields[name].append(field)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
+
+    def supress_plotting(self):
+        Field.supress_plotting_ = True
+        self.supress_plotting_ = True
 
     def all_dimensions(self):
         return jnp.arange(self.domain.number_of_dimensions)

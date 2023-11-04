@@ -13,26 +13,24 @@ import timeit
 from importlib import reload
 import sys
 
-from navier_stokes import NavierStokesVelVort
-
 try:
     reload(sys.modules["cheb"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         pass
 from cheb import cheb, phi
 
 try:
     reload(sys.modules["domain"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         pass
 from domain import Domain
 
 try:
     reload(sys.modules["field"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         pass
 from field import Field, VectorField
 
@@ -190,51 +188,75 @@ class LinearStabilityCalculation:
         )
         return self.eigenvalues, self.eigenvectors
 
-    def velocity_field(self, domain, mode=0, recompute_partial=False, recompute_full=False, save=True):
+    def velocity_field(
+        self,
+        domain,
+        time=0.0,
+        mode=0,
+        recompute_partial=False,
+        recompute_full=False,
+        save=True,
+    ):
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
         recompute_partial = recompute_partial or recompute_full
-        self.n = domain.number_of_cells(1)
-        if recompute_full or type(self.eigenvalues) == NoneType:
-            print("calculating eigenvalues")
-            self.calculate_eigenvalues()
-
-        evec = self.eigenvectors[mode]
-
-        u_vec, v_vec, w_vec, _ = np.split(evec, 4)
-
-        def to_3d_field(eigenvector):
-            phi_mat = np.zeros((self.n, self.n), dtype=np.complex128)
-            for i in range(self.n):
-                for k in range(self.n):
-                    phi_mat[i, k] = phi(k, 0, self.ys[i])
-            out = np.outer(
-                np.exp(1j * self.alpha * domain.grid[0]), phi_mat @ eigenvector
-            ).real
-            out = np.tile(out, (len(domain.grid[2]), 1, 1))
-            out = np.moveaxis(out, 0, -1)
-            return out
-
         try:
-            if recompute_partial==False:
-                u_field = Field.FromFile(domain, self.make_field_file_name_mode(domain, "u", mode), name="velocity_pert_x")
-                v_field = Field.FromFile(domain, self.make_field_file_name_mode(domain, "v", mode), name="velocity_pert_y")
-                w_field = Field.FromFile(domain, self.make_field_file_name_mode(domain, "w", mode), name="velocity_pert_z")
+            if recompute_partial == False and time <= 1e-15:
+                u_field = Field.FromFile(
+                    domain,
+                    self.make_field_file_name_mode(domain, "u", mode),
+                    name="velocity_pert_x",
+                )
+                v_field = Field.FromFile(
+                    domain,
+                    self.make_field_file_name_mode(domain, "v", mode),
+                    name="velocity_pert_y",
+                )
+                w_field = Field.FromFile(
+                    domain,
+                    self.make_field_file_name_mode(domain, "w", mode),
+                    name="velocity_pert_z",
+                )
             else:
-                raise FileNotFoundError() # a bit of a HACK?
+                raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
+            if recompute_full or type(self.eigenvalues) == NoneType:
+                print("calculating eigenvalues")
+                self.calculate_eigenvalues()
+
+            evec = self.eigenvectors[mode]
+
+            u_vec, v_vec, w_vec, _ = np.split(evec, 4)
+
+            N_domain = domain.number_of_cells(1)
+            ys = domain.grid[1]
+            def to_3d_field(eigenvector):
+                phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
+                for i in range(N_domain):
+                    for k in range(self.n):
+                        phi_mat[i, k] = phi(k, 0, ys[i])
+                out = np.outer(
+                    np.exp(
+                        1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+                    ),
+                    phi_mat @ eigenvector,
+                ).real
+                out = np.tile(out, (len(domain.grid[2]), 1, 1))
+                out = np.moveaxis(out, 0, -1)
+                return out
+
             print("calculating velocity pertubations in 3D")
             u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
             v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
             w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
             print("done calculating velocity pertubations in 3D")
 
-        if save:
-            u_field.save_to_file(self.make_field_file_name_mode(domain, "u", mode))
-            v_field.save_to_file(self.make_field_file_name_mode(domain, "v", mode))
-            w_field.save_to_file(self.make_field_file_name_mode(domain, "w", mode))
+            if save:
+                u_field.save_to_file(self.make_field_file_name_mode(domain, "u", mode))
+                v_field.save_to_file(self.make_field_file_name_mode(domain, "v", mode))
+                w_field.save_to_file(self.make_field_file_name_mode(domain, "w", mode))
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
-        return (u_field, v_field, w_field)
+        return self.velocity_field_
 
     def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_) == NoneType:
@@ -242,9 +264,21 @@ class LinearStabilityCalculation:
                 Nx = domain.number_of_cells(0)
                 Ny = domain.number_of_cells(1)
                 Nz = domain.number_of_cells(2)
-                u = Field.FromFile(domain, self.make_field_file_name_mode(domain, "u", mode), name="velocity_pert_x")
-                v = Field.FromFile(domain, self.make_field_file_name_mode(domain, "v", mode), name="velocity_pert_y")
-                w = Field.FromFile(domain, self.make_field_file_name_mode(domain, "w", mode), name="velocity_pert_z")
+                u = Field.FromFile(
+                    domain,
+                    self.make_field_file_name_mode(domain, "u", mode),
+                    name="velocity_pert_x",
+                )
+                v = Field.FromFile(
+                    domain,
+                    self.make_field_file_name_mode(domain, "v", mode),
+                    name="velocity_pert_y",
+                )
+                w = Field.FromFile(
+                    domain,
+                    self.make_field_file_name_mode(domain, "w", mode),
+                    name="velocity_pert_z",
+                )
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
@@ -274,7 +308,9 @@ class LinearStabilityCalculation:
 
         return (out, self.eigenvalues[mode])
 
-    def calculate_transient_growth_svd(self, domain, T, number_of_modes, save=False, recompute=False):
+    def calculate_transient_growth_svd(
+        self, domain, T, number_of_modes, save=False, recompute=False
+    ):
         if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
             try:
                 if recompute:
@@ -321,7 +357,9 @@ class LinearStabilityCalculation:
                                 * integ[p, q]
                             )
                 C[k, j] = np.conjugate(C[j, k])
-            C[j, j] = C[j, j].real  # just elminates O(10^-16) complex parts which bothers `chol'
+            C[j, j] = C[
+                j, j
+            ].real  # just elminates O(10^-16) complex parts which bothers `chol'
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
@@ -339,7 +377,16 @@ class LinearStabilityCalculation:
         )
         return S[0] ** 2
 
-    def calculate_transient_growth_initial_condition(self, domain, T, number_of_modes, recompute_partial=False, recompute_full=False, save_modes=True, save_final=False):
+    def calculate_transient_growth_initial_condition(
+        self,
+        domain,
+        T,
+        number_of_modes,
+        recompute_partial=False,
+        recompute_full=False,
+        save_modes=True,
+        save_final=False,
+    ):
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for velocity fields and eigenvalues/-vectors,
         however, recompute_partial=True forces recomputation of the velocity
@@ -348,30 +395,46 @@ class LinearStabilityCalculation:
         recompute_partial = recompute_partial or recompute_full
 
         try:
-            if recompute_partial==False:
-                u = Field.FromFile(domain, self.make_field_file_name(domain, "u"), name="velocity_pert_x")
-                v = Field.FromFile(domain, self.make_field_file_name(domain, "v"), name="velocity_pert_y")
-                w = Field.FromFile(domain, self.make_field_file_name(domain, "w"), name="velocity_pert_z")
+            if recompute_partial == False:
+                u_ = Field.FromFile(
+                    domain,
+                    self.make_field_file_name(domain, "u"),
+                    name="velocity_pert_x",
+                )
+                v_ = Field.FromFile(
+                    domain,
+                    self.make_field_file_name(domain, "v"),
+                    name="velocity_pert_y",
+                )
+                w_ = Field.FromFile(
+                    domain,
+                    self.make_field_file_name(domain, "w"),
+                    name="velocity_pert_z",
+                )
+                u = VectorField([u_, v_, w_])
             else:
-                raise FileNotFoundError() # a bit of a HACK?
+                raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
-
             if recompute_full or type(self.V) == NoneType:
                 _, self.V = self.calculate_transient_growth_svd(
                     domain, T, number_of_modes, save=True, recompute=recompute_full
                 )
             V = self.V
 
-            u_0, v_0, w_0 = self.velocity_field(domain, 0, recompute_partial=recompute_partial, recompute_full=recompute_full, save=save_modes)
+            u_0 = self.velocity_field(
+                domain,
+                0,
+                recompute_partial=recompute_partial,
+                recompute_full=recompute_full,
+                save=save_modes,
+            )
             u = V[0, 0] * u_0
-            v = V[0, 0] * v_0
-            w = V[0, 0] * w_0
 
             ys1 = []
             for mode in range(0, number_of_modes):
-                ys1.append(abs(V[mode,0]))
+                ys1.append(abs(V[mode, 0]))
 
-            fig, ax = plt.subplots(1,1)
+            fig, ax = plt.subplots(1, 1)
             xs = list(range(number_of_modes))
             ax.plot(xs, ys1, "o")
             ax.set_yscale("log", base=10)
@@ -382,20 +445,19 @@ class LinearStabilityCalculation:
                 print("mode ", mode, " of ", number_of_modes)
                 kappa_i = V[mode, 0]
 
-                u_inc, v_inc, w_inc = self.velocity_field(domain,
-                                                          mode,
-                                                          recompute_partial=recompute_partial,
-                                                          recompute_full=recompute_full,
-                                                          save=save_modes)
+                u_inc = self.velocity_field(
+                    domain,
+                    mode,
+                    recompute_partial=recompute_partial,
+                    recompute_full=recompute_full,
+                    save=save_modes,
+                )
                 u += kappa_i * u_inc
-                v += kappa_i * v_inc
-                w += kappa_i * w_inc
 
             if save_final:
                 u.save_to_file(self.make_field_file_name(domain, "u"))
-                v.save_to_file(self.make_field_file_name(domain, "v"))
-                w.save_to_file(self.make_field_file_name(domain, "w"))
-        return (u, v, w)
+
+        return u
 
     def print_welcome(self):
         print("starting linear stability calculation")  # TODO more info

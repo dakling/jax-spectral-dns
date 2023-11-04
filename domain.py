@@ -185,12 +185,11 @@ class Domain:
         field slice in direction."""
         return jnp.linalg.matrix_power(self.diff_mats[direction], order) @ field
 
-    def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
-        """Assemble the Chebyshev differentiation matrix of second order with
-        homogeneous Dirichlet boundary conditions enforced by setting the first
-        and last rows and columns to one (diagonal elements) and zero
-        (off-diagonal elements)"""
-
+    def enforce_homogeneous_dirichlet(self, mat):
+        """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
+        homogeneous dirichlet boundary conditions at both ends by setting the
+        off-diagonal elements of its first and last rows and columns to zero and
+        the diagonal elements to unity."""
         def set_first_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
             return jnp.block(
@@ -202,13 +201,16 @@ class Domain:
             return jnp.block(
                 [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
             )
-
-        mat = set_last_mat_row_and_col_to_unit(
-            set_first_mat_row_and_col_to_unit(
-                jnp.linalg.matrix_power(self.diff_mats[direction], 2)
-            )
+        return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat)
         )
-        return mat
+
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
+        """Assemble the Chebyshev differentiation matrix of second order with
+        homogeneous Dirichlet boundary conditions enforced by setting the first
+        and last rows and columns to one (diagonal elements) and zero
+        (off-diagonal elements)"""
+
+        return self.enforce_homogeneous_dirichlet(jnp.linalg.matrix_power(self.diff_mats[direction], 2))
 
     def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
         """Calculate the integral or order for field in direction subject to the

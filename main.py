@@ -15,21 +15,29 @@ from importlib import reload
 import sys
 
 try:
+    reload(sys.modules["test_project"])
+except:
+    if hasattr(sys, 'ps1'):
+        print("Unable to load test_project")
+from test_project import TestProject
+
+try:
     reload(sys.modules["examples"])
 except:
     if hasattr(sys, 'ps1'):
         print("Unable to load examples")
-from examples import run_jimenez_1990, run_transient_growth, run_pseudo_2d_pertubation
+from examples import *
 
 
 def main():
     # print(jax.device_count())
     # run_jimenez_1990()
-    run_transient_growth()
+    # run_transient_growth()
+    run_pseudo_2d_pertubation(Re=5.5e3, Ny=240)
 
     # run tests
     # tp = TestProject()
-    # tp.test_1D_cheb()
+    # tp.test_linear_stability()
     # tp.test_definite_integral()
     # tp.test_fourier_simple_3D()
 

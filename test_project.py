@@ -1027,13 +1027,14 @@ class TestProject(unittest.TestCase):
     #     print(result)
 
     def test_linear_stability(self):
-        n = 64
+        n = 50
         # n = 4
         Re = 5772.22
         alpha = 1.02056
 
         lsc = LinearStabilityCalculation(Re, alpha, n)
         evs, _ = lsc.calculate_eigenvalues()
+        # evs, evecs = lsc.calculate_eigenvalues()
         # print(evs[0])
         # print(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
@@ -1068,11 +1069,14 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
-        growth_5500 = run_pseudo_2d_pertubation(Re=5500, end_time=0.1, eps=1e-1, linearize=True)
-        # growth_6000 = run_pseudo_2d_pertubation(6000, 0.3) # TODO tweak this until it works reliably
-        growth_6500 = run_pseudo_2d_pertubation(Re=6500, end_time=0.2, eps=1e-1, linearize=True)
+        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=0.1, eps=1e-1, linearize=True)
+        growth_6500_data = run_pseudo_2d_pertubation(Re=6500, end_time=0.2, eps=1e-1, linearize=True)
+        growth_5500 = []
+        growth_6500 = []
+        for i in range(3):
+            growth_5500.append(growth_5500_data[i][-2] - growth_5500_data[i][-1])
+            growth_6500.append(growth_6500_data[i][-2] - growth_6500_data[i][-1])
         # print("growth_5500: ", growth_5500)
-        # print("growth_6000: ", growth_6000)
         # print("growth_6500: ", growth_6500)
         self.assertTrue(
             all([growth < 0 for growth in growth_5500]),
