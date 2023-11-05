@@ -1074,8 +1074,8 @@ class TestProject(unittest.TestCase):
         growth_5500 = []
         growth_6000 = []
         for i in range(3):
-            growth_5500.append(growth_5500_data[i][-2] - growth_5500_data[i][-1])
-            growth_6000.append(growth_6000_data[i][-2] - growth_6000_data[i][-1])
+            growth_5500.append(growth_5500_data[i][-1] - growth_5500_data[i][-2])
+            growth_6000.append(growth_6000_data[i][-1] - growth_6000_data[i][-2])
         # print("growth_5500: ", growth_5500)
         # print("growth_6000: ", growth_6000)
         self.assertTrue(

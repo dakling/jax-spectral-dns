@@ -116,9 +116,9 @@ def update_nonlinear_terms_high_performance_pertubation(
 
 class NavierStokesVelVortPertubation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
-    max_cfl = 0.1
+    max_cfl = 0.7
     # max_dt = 1e10
-    max_dt = 2e-3
+    max_dt = 1e-2
 
     def __init__(self, velocity_field, **params):
         self.domain_no_hat = velocity_field[0].domain_no_hat
@@ -176,6 +176,21 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
                 linearize=self.linearize,
             )
         )
+
+    def get_time_step(self):
+        dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
+        dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
+        dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
+        DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+        vel = self.get_latest_field("velocity_hat").no_hat()
+        vel_base = self.get_latest_field("velocity_base_hat").no_hat()
+        U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
+        V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
+        W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
+        u_cfl = (abs(DX) / abs(U)).min().real
+        v_cfl = (abs(DY) / abs(V)).min().real
+        w_cfl = (abs(DZ) / abs(W)).min().real
+        return min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
 
 
 def solve_navier_stokes_pertubation(

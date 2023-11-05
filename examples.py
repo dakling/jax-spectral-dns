@@ -449,7 +449,7 @@ def run_pseudo_2d_pertubation(
     alpha=1.02056,
     end_time=10.0,
     Nx=12,
-    Ny=96,
+    Ny=50,
     Nz=2,
     eps=1e-0,
     linearize=True,
