@@ -425,7 +425,7 @@ class LinearStabilityCalculation:
                 recompute_full=recompute_full,
                 save=save_modes,
             )
-            u = u_0 * V[0, 0].real
+            u = u_0 * V[0, 0]
 
             ys1 = []
             for mode in range(0, number_of_modes):
@@ -448,7 +448,7 @@ class LinearStabilityCalculation:
                     recompute_full=recompute_full,
                     save=save_modes,
                 )
-                u += u_inc * V[mode, 0].real
+                u += u_inc * V[mode, 0]
 
             if save_final:
                 u.save_to_file(self.make_field_file_name(domain, "u"))

@@ -56,10 +56,6 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     for i in domain.all_dimensions():
         vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
 
-    # hel_new = domain.cross_product(vel_new, vort_new)
-
-    # conv_ns_new = -jnp.array(hel_new) + 1 / 2 * jnp.array(vel_new_sq_nabla)
-
     hel_new = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
         vel_new_sq_nabla
     )
@@ -372,19 +368,6 @@ class NavierStokesVelVort(Equation):
                     v_1_hat_new, 1
                 )
 
-                # if kx == 4 and kz == 0:
-                #     fig, ax = plt.subplots(1,1)
-                #     # ax.plot(ys, v_1_hat_new)
-                #     # ax.plot(ys, v_1_lap_hat_new_p)
-                #     ax.plot(ys, v_1_lap_hat[kx, :, kz])
-                #     ax.plot(ys, v_1_lap_hat_new_p + a * v_1_lap_hat_new_a + b * jnp.flip(v_1_lap_hat_new_a))
-                #     # ax.plot(ys, v_1_lap_hat_new_a)
-                #     # ax.plot(ys, vel_hat[1][kx, :, kz])
-                #     # ax.plot(ys, vel_hat[1].diff(1,1)[kx, :, kz])
-                #     # ax.plot(ys, vel_hat[1].diff(1,2)[kx, :, kz])
-                #     fig.savefig("plots/plot.pdf")
-                #     raise Exception("break")
-
                 # vorticity
                 L = 1 / Re * D2
                 lhs_mat_vort, rhs_mat_vort = self.assemble_rk_matrices(L, kx_, kz_, step)
@@ -579,19 +562,12 @@ class NavierStokesVelVort(Equation):
                 rhs_mat_p = I + dt / 2 * L_p
                 lhs_mat_p = I - dt / 2 * L_p
                 lhs_mat_p = domain.enforce_homogeneous_dirichlet(lhs_mat_p)
-                # lhs_mat_p = lhs_mat_p[1:-1, 1:-1]
                 rhs = rhs_mat_p @ phi_p_hat + dt / 2 * (3 * N_p_new - N_p_old)
                 rhs = domain.update_boundary_conditions_fourier_field_slice(
                     rhs, 1
                 )
-                # rhs = rhs[1:-1]
-                # phi_p_hat_new = jnp.linalg.solve(
-                #     lhs_mat_p, rhs
-                # )
                 phi_p_hat_new = jnp.linalg.inv(lhs_mat_p) @ rhs
-                # phi_p_hat_new = jnp.linalg.lstsq(lhs_mat_p, rhs)[0]
                 v_1_lap_hat_new_p = phi_p_hat_new
-                # v_1_lap_hat_new_p = jnp.block([0.0, phi_p_hat_new, 0.0])
 
                 # compute velocity in y direction
                 v_1_lap_hat_new_p = (
@@ -614,13 +590,7 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_a = I - dt / 2 * L_a
                 rhs_a = jnp.zeros(n)
                 lhs_mat_a, rhs_a = domain.enforce_inhomogeneous_dirichlet(lhs_mat_a, rhs_a, 0.0, 1.0)
-                # lhs_mat_p = lhs_mat_p[1:-1, 1:-1]
-                # rhs = rhs[1:-1]
-                # phi_p_hat_new = jnp.linalg.solve(
-                #     lhs_mat_p, rhs
-                # )
                 phi_a_hat_new = jnp.linalg.inv(lhs_mat_a) @ rhs_a
-                # phi_p_hat_new = jnp.linalg.lstsq(lhs_mat_p, rhs)[0]
                 v_1_lap_hat_new_a = phi_a_hat_new
 
                 # compute velocity in y direction
@@ -648,50 +618,6 @@ class NavierStokesVelVort(Equation):
                 v_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new, 1
                 )
-
-                # if kx == 1 and kz == 0:
-                #     lsc = LinearStabilityCalculation(Re, 1.02056, 50)
-                #     # U_0 = lsc.velocity_field(self.domain_no_hat, time=self.time, recompute_partial=True)
-                #     U = lsc.velocity_field(self.domain_no_hat, time=self.time+self.dt, recompute_partial=True, save=False)
-                #     # U_lap = U.laplacian()
-                #     # U_0_lap = U_0.laplacian()
-                #     U_hat = U.hat()
-                #     v_1_hat_diff_y = U_hat[1].diff(1)
-                #     # U_0_hat = U_0.hat()
-                #     v_1_lap_hat_new_ana = U_hat[1].laplacian()
-                #     # v_1_lap_hat_new_ana_0 = U_0_hat[1].laplacian()
-                #     # v_1_lap_hat_new_ana = U_lap[1].hat()
-                #     # v_1_lap_hat_new_ana_0 = U_0_lap[1].hat()
-                #     fig, ax = plt.subplots(1,1)
-                #     ys = self.domain_no_hat.grid[1]
-                #     v_1_lap_hat_new = v_1_lap_hat_new_p + a * v_1_lap_hat_new_a + b * jnp.flip(v_1_lap_hat_new_a)
-                #     # ax.plot(ys, v_1_lap_hat_new_p, "-.")
-                #     ax.plot(ys, v_1_lap_hat_new_ana[kx, :, kz], "--")
-                #     ax.plot(ys, v_1_lap_hat[kx, :, kz], "x")
-                #     ax.plot(ys, v_1_lap_hat_new, ".")
-                #     # ax.plot(ys, v_1_lap_hat_new_ana_0[kx, :, kz], ".")
-                #     fig.savefig("plots/plot.pdf")
-                #     fig, ax = plt.subplots(1,1)
-                #     ax.plot(ys[0:10], v_1_lap_hat_new[0:10], ".")
-                #     # ax.plot(ys[0:10], phi_p_hat_new[0:10], "--")
-                #     ax.plot(ys[0:10], v_1_lap_hat_new_ana[kx, :10, kz], "x")
-                #     ax.plot(ys[0:10], v_1_lap_hat_new_p[0:10], ".")
-                #     fig.savefig("plots/plot2.pdf")
-                #     fig, ax = plt.subplots(1,1)
-                #     # ax.plot(ys[0:10], v_1_lap_hat_new[0:10], ".")
-                #     ax.plot(ys[0:10], v_1_lap_hat_new_a[0:10], ".")
-                #     fig.savefig("plots/plot3.pdf")
-                #     print("boundary data: ")
-                #     print(v_1_lap_hat_new_ana[kx, 0, kz], " ", v_1_lap_hat_new[0])
-                #     print(v_1_lap_hat_new_ana[kx, -1, kz], " ", v_1_lap_hat_new[-1])
-                #     print(v_1_lap_hat_new_p[0], " ", v_1_lap_hat_new_p[-1])
-                #     print(v_1_lap_hat_new_a[0], " ", v_1_lap_hat_new_a[-1])
-                #     print("these should be zero: ")
-                #     print(v_1_hat_diff_y[kx, 0, kz], " ", v_1_hat_diff_y[kx, -1, kz])
-                #     print(v_1_hat_new[0], " ", v_1_hat_new[-1])
-                #     print(domain.diff_fourier_field_slice(v_1_hat_new, 1)[0], " ", domain.diff_fourier_field_slice(v_1_hat_new, 1)[-1])
-
-                #     raise Exception("break")
 
                 # vorticity
                 L_vort_y = 1 / Re * D2
