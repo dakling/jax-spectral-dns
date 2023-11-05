@@ -451,6 +451,7 @@ class LinearStabilityCalculation:
                 u += u_inc * V[mode, 0]
 
             if save_final:
+                u.name = "velocity_pertubation"
                 u.save_to_file(self.make_field_file_name(domain, "u"))
 
         return u

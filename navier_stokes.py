@@ -272,6 +272,7 @@ class NavierStokesVelVort(Equation):
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         # n = D2_hom_diri.shape[0]
         n = D2.shape[0]
+        I = jnp.eye(n)
         Z = jnp.zeros((n, n))
 
         L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
@@ -301,11 +302,11 @@ class NavierStokesVelVort(Equation):
 
                 phi_hat_lap = v_1_lap_hat[kx, :, kz]
 
-                N_new = -h_v_hat[kx, :, kz]
+                N_new = h_v_hat[kx, :, kz]
                 if type(h_v_hat_old == NoneType):
                     N_old = N_new
                 else:
-                    N_old = -h_v_hat_old[kx, :, kz]
+                    N_old = h_v_hat_old[kx, :, kz]
                 rhs_p = rhs_mat_p @ phi_hat_lap + (self.dt * gamma[step]) * N_new + (self.dt * xi[step]) * N_old
                 lhs_mat_p = domain.enforce_homogeneous_dirichlet(lhs_mat_p)
                 rhs_p = domain.update_boundary_conditions_fourier_field_slice(
@@ -377,11 +378,11 @@ class NavierStokesVelVort(Equation):
                 vort_1_hat = vort_hat[1]
                 phi_vort_hat = vort_1_hat[kx, :, kz]
 
-                N_new = -h_g_hat[kx, :, kz]
+                N_new = h_g_hat[kx, :, kz]
                 if type(h_g_hat_old == NoneType):
                     N_old = N_new
                 else:
-                    N_old = -h_g_hat_old[kx, :, kz]
+                    N_old = h_g_hat_old[kx, :, kz]
 
                 rhs_vort = rhs_mat_vort @ phi_vort_hat + (self.dt * gamma[step]) * N_new + (self.dt * xi[step]) * N_old
 
@@ -400,7 +401,7 @@ class NavierStokesVelVort(Equation):
                 def rk_00():
                     kx__ = 0
                     kz__ = 0
-                    lhs_mat_00_inv, rhs_mat_00 = self.assemble_rk_matrices(
+                    lhs_mat_00, rhs_mat_00 = self.assemble_rk_matrices(
                         L_NS, 0, 0, step
                     )
                     v_hat = jnp.block(
@@ -432,7 +433,7 @@ class NavierStokesVelVort(Equation):
                                 -self.dpdz[kx__, :, kz__],
                             ]
                         )
-                    v_hat_new = lhs_mat_00_inv @ (
+                    v_hat_new = jnp.linalg.inv(lhs_mat_00) @ (
                         rhs_mat_00 @ v_hat
                         + (self.dt * gamma[step]) * N_00_new
                         + (self.dt * xi[step]) * N_00_old
@@ -482,7 +483,7 @@ class NavierStokesVelVort(Equation):
                 h_g_hat,
                 vort_hat,
                 conv_ns_hat,
-            ) = update_nonlinear_terms_high_performance(
+            ) = self.nonlinear_update_fn(
                 self.domain_no_hat,
                 jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
             )
@@ -653,7 +654,7 @@ class NavierStokesVelVort(Equation):
                     L_NS = L_NS_y + I_ * (-(kx_**2) - kz_**2) / Re
                     rhs_mat_ns = I_ + dt / 2 * L_NS
                     lhs_mat_ns = I_ - dt / 2 * L_NS
-                    N_00_new = 1 * (
+                    N_00_new = (
                         jnp.block(
                             [
                                 -conv_ns_hat[0][kx__, :, kz__],
@@ -667,7 +668,7 @@ class NavierStokesVelVort(Equation):
                             ]
                         )
                     )
-                    N_00_old = 1 * (
+                    N_00_old = (
                         jnp.block(
                             [
                                 -conv_ns_hat_old[0][kx__, :, kz__],
@@ -754,7 +755,7 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     def perform_time_step(self):
-        # return self.perform_runge_kutta_step()
+        # return self.perform_runge_kutta_step() # TODO not working yet
         return self.perform_cn_ab_step()
 
 
