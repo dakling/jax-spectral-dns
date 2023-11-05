@@ -303,8 +303,6 @@ class Field:
 
     def energy(self):
         energy = 0.5 * self * self
-        energy.name = self.name + "_energy"
-        energy.plot_3d(2)
         return energy.volume_integral()
 
     def eval(self, X):
@@ -1175,7 +1173,7 @@ class VectorField:
             return (VectorField(out_field), other_field)
 
     def plot_streamlines(self, normal_direction, isolines=None):
-        if not self.supress_plotting_:
+        if not self[0].supress_plotting_:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             directions = [i for i in self.all_dimensions() if i != normal_direction]
@@ -1192,10 +1190,10 @@ class VectorField:
             Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
             Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
-            try:
-                ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
-            except TypeError: # compatibilty with older matplotlib versions
-                ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
+            # try:
+            ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
+            # except TypeError: # compatibilty with older matplotlib versions
+            # ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
             fig.savefig(
                 self[0].plotting_dir
                 + "plot_streamlines_"

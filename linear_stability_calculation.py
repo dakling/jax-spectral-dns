@@ -242,7 +242,7 @@ class LinearStabilityCalculation:
                 ).real
                 out = np.tile(out, (len(domain.grid[2]), 1, 1))
                 out = np.moveaxis(out, 0, -1)
-                return out
+                return jnp.array(out.tolist())
 
             print("calculating velocity pertubations in 3D")
             u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
@@ -261,9 +261,6 @@ class LinearStabilityCalculation:
     def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_) == NoneType:
             try:
-                Nx = domain.number_of_cells(0)
-                Ny = domain.number_of_cells(1)
-                Nz = domain.number_of_cells(2)
                 u = Field.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "u", mode),
@@ -363,7 +360,6 @@ class LinearStabilityCalculation:
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
-        U = USVh[0]
         S = USVh[1]
         V = USVh[2].T
         if save:
@@ -392,6 +388,7 @@ class LinearStabilityCalculation:
         however, recompute_partial=True forces recomputation of the velocity
         fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
         recomputation of eigenvalues/eigenvectors as well as velocity fields."""
+
         recompute_partial = recompute_partial or recompute_full
 
         try:
@@ -428,7 +425,7 @@ class LinearStabilityCalculation:
                 recompute_full=recompute_full,
                 save=save_modes,
             )
-            u = V[0, 0] * u_0
+            u = u_0 * V[0, 0].real
 
             ys1 = []
             for mode in range(0, number_of_modes):
@@ -443,7 +440,6 @@ class LinearStabilityCalculation:
 
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
-                kappa_i = V[mode, 0]
 
                 u_inc = self.velocity_field(
                     domain,
@@ -452,7 +448,7 @@ class LinearStabilityCalculation:
                     recompute_full=recompute_full,
                     save=save_modes,
                 )
-                u += kappa_i * u_inc
+                u += u_inc * V[mode, 0].real
 
             if save_final:
                 u.save_to_file(self.make_field_file_name(domain, "u"))

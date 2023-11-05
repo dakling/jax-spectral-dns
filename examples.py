@@ -620,7 +620,7 @@ def run_jimenez_1990(start_time=0):
         Nz=Nz,
         end_time=end_time,
         pertubation_factor=0.0,
-        scale_factors=(2 * jnp.pi / alpha, 1.0, 1.0),
+        scale_factors=(2 * jnp.pi / alpha, 1.0, 0.1),
     )
 
     nse.set_linearize(False)
@@ -629,7 +629,7 @@ def run_jimenez_1990(start_time=0):
         lsc = LinearStabilityCalculation(Re, alpha, Ny)
         vel_pert = lsc.velocity_field(nse.domain_no_hat)
         vort_pert = vel_pert.curl()
-        eps = 1e-0 / jnp.sqrt(vort_pert.energy())
+        eps = 1e-1 / jnp.sqrt(vort_pert.energy())
         # eps = 1e-0 / jnp.sqrt(vel_pert.energy())
         nse.init_velocity((vel_pert * eps).hat())
     else:
@@ -703,7 +703,7 @@ def run_jimenez_1990(start_time=0):
                 vort[j].plot_3d()
                 vort[j].plot_3d(2)
                 vort[j].plot_isolines(2)
-                vel_moving_frame[j].plot_3d(2)
+                # vel_moving_frame[j].plot_3d(2)
 
     nse.before_time_step_fn = before_time_step
     nse.solve()

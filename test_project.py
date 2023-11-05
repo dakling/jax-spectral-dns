@@ -1070,22 +1070,21 @@ class TestProject(unittest.TestCase):
 
     def test_2d_growth(self):
         growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=0.1, eps=1e-1, linearize=True)
-        growth_6500_data = run_pseudo_2d_pertubation(Re=6500, end_time=0.2, eps=1e-1, linearize=True)
+        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=0.1, eps=1e-1, linearize=True)
         growth_5500 = []
-        growth_6500 = []
+        growth_6000 = []
         for i in range(3):
             growth_5500.append(growth_5500_data[i][-2] - growth_5500_data[i][-1])
-            growth_6500.append(growth_6500_data[i][-2] - growth_6500_data[i][-1])
+            growth_6000.append(growth_6000_data[i][-2] - growth_6000_data[i][-1])
         # print("growth_5500: ", growth_5500)
-        # print("growth_6500: ", growth_6500)
+        # print("growth_6000: ", growth_6000)
         self.assertTrue(
             all([growth < 0 for growth in growth_5500]),
             "Expected pertubations to decay for Re=5500.",
         )
-        # self.assertTrue(all([growth > 0 for growth in growth_6000]), "Expected pertubations to increase for Re=6000.")
         self.assertTrue(
-            all([growth > 0 for growth in growth_6500]),
-            "Expected pertubations to increase for Re=6500.",
+            all([growth > 0 for growth in growth_6000]),
+            "Expected pertubations to increase for Re=6000.",
         )
 
 

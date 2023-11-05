@@ -30,10 +30,11 @@ from examples import *
 
 
 def main():
+    # pass
     # print(jax.device_count())
     # run_jimenez_1990()
-    # run_transient_growth()
-    run_pseudo_2d_pertubation(Re=5.5e3, Ny=240)
+    run_transient_growth()
+    # run_pseudo_2d_pertubation(Re=5.5e3, Ny=240)
 
     # run tests
     # tp = TestProject()
@@ -42,11 +43,10 @@ def main():
     # tp.test_fourier_simple_3D()
 
 if __name__ == '__main__':
-    try:
-        if len(sys.argv) == 2:
-            globals()[sys.argv[1]]()
-        else:
-            args = sys.argv[2:]
-            globals()[sys.argv[1]](*args)
-    except (IndexError):
+    if len(sys.argv) == 1:
         main()
+    elif len(sys.argv) == 2:
+        globals()[sys.argv[1]]()
+    else:
+        args = sys.argv[2:]
+        globals()[sys.argv[1]](*args)
