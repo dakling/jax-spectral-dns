@@ -40,6 +40,7 @@ from equation import Equation
 def update_nonlinear_terms_high_performance_pertubation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
+    print("hello pertubation")
     vel_new = jnp.array(
         [
             domain.no_hat(vel_hat_new.at[i].get())
@@ -116,14 +117,16 @@ def update_nonlinear_terms_high_performance_pertubation(
 
 class NavierStokesVelVortPertubation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
-    # max_cfl = 0.1
-    max_cfl = 0.7
+    max_cfl = 0.1
+    # max_cfl = 0.7
     # max_dt = 1e10
-    # max_dt = 2e-3
-    max_dt = 1e-2
+    max_dt = 1e-3
+    # max_dt = 1e-4
 
     def __init__(self, velocity_field, **params):
         self.domain_no_hat = velocity_field[0].domain_no_hat
+
+        super().__init__(velocity_field, **params)
 
         velocity_x_base = Field.FromFunc(
             self.domain_no_hat,
@@ -144,8 +147,8 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
             [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
         )
         velocity_base_hat.set_name("velocity_base_hat")
+        self.add_field("velocity_base_hat", velocity_base_hat)
 
-        super().__init__(velocity_field, velocity_base_hat, **params)
         try:
             self.linearize = params["linearize"]
         except KeyError:
@@ -193,6 +196,9 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         v_cfl = (abs(DY) / abs(V)).min().real
         w_cfl = (abs(DZ) / abs(W)).min().real
         return min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+
+    def prepare(self):
+        super().prepare()
 
 
 def solve_navier_stokes_pertubation(

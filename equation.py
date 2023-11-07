@@ -87,8 +87,17 @@ class Equation:
     def append_field(self, name, field):
         try:
             self.fields[name].append(field)
+            self.fields[name][-1].name = name + "_" + str(self.time_step)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
+
+    def add_field(self, name, field=None):
+        assert name not in self.fields, "Field " + name + " already exists!"
+        if type(field) == NoneType:
+            self.fields[name] = []
+        else:
+            self.fields[name] = [field]
+            self.fields[name][0].name = name + "_0"
 
     def supress_plotting(self):
         Field.supress_plotting_ = True

@@ -1088,5 +1088,66 @@ class TestProject(unittest.TestCase):
         )
 
 
+    def test_timesteppers(self):
+        Re = 6000
+        Nx = 30
+        Ny = 50
+        Nz = 2
+        end_time = 1e-10
+        linearize = True
+        alpha = 1.02056
+
+        lsc = LinearStabilityCalculation(Re, alpha, 50)
+        print("rk")
+        nse_rk = solve_navier_stokes_pertubation(
+            Re=Re,
+            Nx=Nx,
+            Ny=Ny,
+            Nz=Nz,
+            end_time=end_time,
+            pertubation_factor=0.0,
+            scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
+        )
+        nse_rk.set_linearize(linearize)
+
+        U = lsc.velocity_field(nse_rk.domain_no_hat)
+        eps_ = 1.0 * jnp.sqrt(U.energy())
+        U_hat = U.hat()
+        nse_rk.init_velocity(U_hat * eps_)
+        nse_rk.prepare()
+        vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
+
+        print("cnab")
+        nse_cnab = solve_navier_stokes_pertubation(
+            Re=Re,
+            Nx=Nx,
+            Ny=Ny,
+            Nz=Nz,
+            end_time=end_time,
+            pertubation_factor=0.0,
+            scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
+        )
+        nse_cnab.set_linearize(linearize)
+        nse_cnab.init_velocity(U_hat * eps_)
+        nse_cnab.prepare()
+        vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
+
+        vel_diff = vel_rk - vel_cnab
+        print(abs(vel_diff))
+        assert abs(vel_diff) <  1e-10
+
+        nse_rk.perform_runge_kutta_step()
+        nse_cnab.perform_cn_ab_step()
+
+        vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
+        vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
+
+        vel_diff = vel_rk - vel_cnab
+        # for i in range(3):
+        #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
+        #     vel_cnab[i].plot_3d(2)
+        #     vel_diff[i].plot_3d(2)
+        assert abs(vel_diff) < 1e-15
+
 if __name__ == "__main__":
     unittest.main()
