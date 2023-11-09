@@ -960,8 +960,7 @@ class TestProject(unittest.TestCase):
     def test_navier_stokes_laminar(self, Ny=96, pertubation_factor=0.01):
         Re = 1.5e0
 
-        end_time = 0.2
-        NavierStokesVelVort.max_dt = 1e10
+        end_time = 1.0
         nse = solve_navier_stokes_laminar(
             Re=Re,
             Nx=24,

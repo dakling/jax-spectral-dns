@@ -169,20 +169,21 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         )
 
     def get_time_step(self):
-        dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
-        dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
-        dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
-        DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
-        vel = self.get_latest_field("velocity_hat").no_hat()
-        vel_base = self.get_latest_field("velocity_base_hat").no_hat()
-        U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
-        V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
-        W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
-        u_cfl = (abs(DX) / abs(U)).min().real
-        v_cfl = (abs(DY) / abs(V)).min().real
-        w_cfl = (abs(DZ) / abs(W)).min().real
-        self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
-        assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
+        if self.time_step % self.dt_update_frequency == 0:
+            dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
+            dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
+            dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
+            DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+            vel = self.get_latest_field("velocity_hat").no_hat()
+            vel_base = self.get_latest_field("velocity_base_hat").no_hat()
+            U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
+            V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
+            W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
+            u_cfl = (abs(DX) / abs(U)).min().real
+            v_cfl = (abs(DY) / abs(V)).min().real
+            w_cfl = (abs(DZ) / abs(W)).min().real
+            self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+            assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
         return self.dt
 
 

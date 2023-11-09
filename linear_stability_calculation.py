@@ -431,13 +431,6 @@ class LinearStabilityCalculation:
             for mode in range(0, number_of_modes):
                 ys1.append(abs(V[mode, 0]))
 
-            fig, ax = plt.subplots(1, 1)
-            xs = list(range(number_of_modes))
-            ax.plot(xs, ys1, "o")
-            ax.set_yscale("log", base=10)
-            fig.savefig("plots/plot.pdf")
-            # raise Exception("break")
-
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
 
@@ -451,8 +444,9 @@ class LinearStabilityCalculation:
                 u += u_inc * V[mode, 0]
 
             if save_final:
-                u.name = "velocity_pertubation"
-                u.save_to_file(self.make_field_file_name(domain, "u"))
+                for i in range(len(u)):
+                    u[i].name = "velocity_pertubation_" + "xyz"[i]
+                    u[i].save_to_file(self.make_field_file_name(domain, "uvw"[i]))
 
         return u
 

@@ -30,7 +30,7 @@ def main():
 
     # run tests
     # tp = TestProject()
-    # tp.test_2d_growth()
+    # tp.test_navier_stokes_laminar()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:

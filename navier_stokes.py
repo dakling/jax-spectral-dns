@@ -208,7 +208,7 @@ class NavierStokesVelVort(Equation):
         return self.domain_no_hat.get_cheb_mat_2_homogeneous_dirichlet_only_rows(1)
 
     def get_time_step(self):
-        if self.time_step % self.dt_update_frequency:
+        if self.time_step % self.dt_update_frequency == 0:
             dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
             dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
             dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
