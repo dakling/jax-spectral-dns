@@ -29,8 +29,7 @@ def main():
     # run_pseudo_2d_pertubation(Re=5.5e3, Ny=240)
 
     # run tests
-    tp = TestProject()
-    tp.test_pertubation_laminar()
+    # tp = TestProject()
     # tp.test_2d_growth()
 
 if __name__ == '__main__':
