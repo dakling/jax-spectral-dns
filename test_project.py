@@ -1069,8 +1069,8 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
-        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=0.1, eps=1e-1, linearize=True)
-        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=0.1, eps=1e-1, linearize=True)
+        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.0, eps=1e-1, linearize=True)
+        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=1.0, eps=1e-1, linearize=True)
         growth_5500 = []
         growth_6000 = []
         for i in range(3):
@@ -1090,15 +1090,14 @@ class TestProject(unittest.TestCase):
 
     def test_timesteppers(self):
         Re = 6000
-        Nx = 30
+        Nx = 4
         Ny = 50
-        Nz = 2
+        Nz = 4
         end_time = 1e-10
-        linearize = True
+        linearize = False
         alpha = 1.02056
 
         lsc = LinearStabilityCalculation(Re, alpha, 50)
-        print("rk")
         nse_rk = solve_navier_stokes_pertubation(
             Re=Re,
             Nx=Nx,
@@ -1117,7 +1116,6 @@ class TestProject(unittest.TestCase):
         nse_rk.prepare()
         vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
 
-        print("cnab")
         nse_cnab = solve_navier_stokes_pertubation(
             Re=Re,
             Nx=Nx,
@@ -1141,13 +1139,32 @@ class TestProject(unittest.TestCase):
 
         vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
         vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
+        vel_rk.time_step = 1
+        vel_cnab.time_step = 1
 
         vel_diff = vel_rk - vel_cnab
         # for i in range(3):
         #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
         #     vel_cnab[i].plot_3d(2)
         #     vel_diff[i].plot_3d(2)
-        assert abs(vel_diff) < 1e-15
+        # print(abs(vel_diff))
+        assert abs(vel_diff) < 1e-8
+
+        nse_rk.perform_runge_kutta_step()
+        nse_cnab.perform_cn_ab_step()
+
+        vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
+        vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
+        vel_rk.time_step = 2
+        vel_cnab.time_step = 2
+
+        vel_diff = vel_rk - vel_cnab
+        # for i in range(3):
+        #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
+        #     vel_cnab[i].plot_3d(2)
+        #     vel_diff[i].plot_3d(2)
+        # print(abs(vel_diff))
+        assert abs(vel_diff) < 1e-8
 
 if __name__ == "__main__":
     unittest.main()

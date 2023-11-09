@@ -40,7 +40,6 @@ from equation import Equation
 def update_nonlinear_terms_high_performance_pertubation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
-    print("hello pertubation")
     vel_new = jnp.array(
         [
             domain.no_hat(vel_hat_new.at[i].get())
@@ -96,15 +95,6 @@ def update_nonlinear_terms_high_performance_pertubation(
     )
     h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
 
-    # conv_ns_new = []
-    # for i in domain.all_dimensions():
-    #     out = 0
-    #     for k in domain.all_dimensions():
-    #         # out += vel_new[k] * domain.diff(vel_new[i], k)
-    #         out += vel_base[k] * domain.diff(vel_new[i], k)
-    #         out += vel_new[k] * domain.diff(vel_base[i], k)
-    #     conv_ns_new.append(out)
-
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
     vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
@@ -117,11 +107,11 @@ def update_nonlinear_terms_high_performance_pertubation(
 
 class NavierStokesVelVortPertubation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
-    max_cfl = 0.1
-    # max_cfl = 0.7
-    # max_dt = 1e10
-    max_dt = 1e-3
-    # max_dt = 1e-4
+    # max_cfl = 0.2
+    max_cfl = 0.7
+    max_dt = 1e10
+    # max_dt = 1e-2
+    # max_dt = 3e-3
 
     def __init__(self, velocity_field, **params):
         self.domain_no_hat = velocity_field[0].domain_no_hat
@@ -195,10 +185,9 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         u_cfl = (abs(DX) / abs(U)).min().real
         v_cfl = (abs(DY) / abs(V)).min().real
         w_cfl = (abs(DZ) / abs(W)).min().real
-        return min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
-
-    def prepare(self):
-        super().prepare()
+        self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+        assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
+        return self.dt
 
 
 def solve_navier_stokes_pertubation(
@@ -215,7 +204,6 @@ def solve_navier_stokes_pertubation(
     Nz = Nz or Nx + 4
 
     domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-    # domain = Domain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn = lambda X: (
         0.1

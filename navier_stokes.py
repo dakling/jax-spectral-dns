@@ -40,9 +40,7 @@ except:
         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
-
 def update_nonlinear_terms_high_performance(domain, vel_hat_new):
-    print("hello")
     vel_new = jnp.array(
         [
             domain.no_hat(vel_hat_new.at[i].get())
@@ -84,13 +82,12 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
-    max_cfl = 0.1
-    # max_cfl = 0.7/10
-    # max_cfl = 5e-2
-    # max_dt = 1e10
-    max_dt = 3e-3
+
+    max_cfl = 0.7
+    max_dt = 1e10
     # u_max_over_u_tau = 1e2
     u_max_over_u_tau = 1e0
+
 
     def __init__(self, velocity_field, **params):
         domain = velocity_field[0].domain
@@ -125,7 +122,6 @@ class NavierStokesVelVort(Equation):
         vel_x = Field.FromRandom(domain, name="u0")
         vel_y = Field.FromRandom(domain, name="u1")
         vel_z = Field.FromRandom(domain, name="u2")
-        # vel_y.update_boundary_conditions()
         vel = VectorField([vel_x, vel_y, vel_z], "velocity")
         return cls.FromVelocityField(vel, Re, end_time=end_time)
 
@@ -146,13 +142,10 @@ class NavierStokesVelVort(Equation):
     def get_flow_rate(self):
         vel_hat = self.get_latest_field("velocity_hat")
         return vel_hat[0].no_hat().definite_integral(1)[0, 0]
-        # return vel_hat[0].no_hat().volume_integral()/(self.domain.scale_factors[0] * self.domain.scale_factors[2])
 
     def update_flow_rate(self):
         self.flow_rate = self.get_flow_rate()
-        # dPdx = -self.flow_rate * 3 / 2 / (self.Re_tau * self.u_max_over_u_tau)
         dPdx = -self.flow_rate * 3 / 2 / self.Re_tau
-        # dPdx = -self.flow_rate / self.Re
         self.dpdx = Field.FromFunc(
             self.domain_no_hat, lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()
@@ -229,10 +222,11 @@ class NavierStokesVelVort(Equation):
         u_cfl = (abs(DX) / abs(U)).min().real
         v_cfl = (abs(DY) / abs(V)).min().real
         w_cfl = (abs(DZ) / abs(W)).min().real
-        return min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+        self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+        assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
+        return self.dt
 
     def get_rk_parameters(self):
-        return ([0.5], [0.5], [3 / 2], [-1 / 2])  # TODO
         return (
             [29 / 96, -3 / 40, 1 / 6],
             [37 / 160, 5 / 24, 1 / 6],
@@ -245,8 +239,8 @@ class NavierStokesVelVort(Equation):
         n = Ly.shape[0]
         I = jnp.eye(n)
         L = Ly + I * (-(kx**2 + kz**2)) / self.Re_tau
-        lhs_mat = I - beta[i] * self.dt * L
         rhs_mat = I + alpha[i] * self.dt * L
+        lhs_mat = I - beta[i] * self.dt * L
         return (lhs_mat, rhs_mat)
 
     def prepare(self):
@@ -257,13 +251,6 @@ class NavierStokesVelVort(Equation):
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
             self.add_field(field_name)
         self.update_nonlinear_terms()
-        # velocity_field = self.get_initial_field("velocity_hat")
-        # (
-        #     h_v_hat_field,
-        #     h_g_hat_field,
-        #     vort_hat_field,
-        #     conv_ns_hat_field,
-        # ) = self.update_nonlinear_terms(velocity_field)
 
     def perform_runge_kutta_step(self):
         self.dt = self.get_time_step()
@@ -275,17 +262,16 @@ class NavierStokesVelVort(Equation):
 
         D2 = jnp.linalg.matrix_power(self.domain_no_hat.diff_mats[1], 2)
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-        # n = D2_hom_diri.shape[0]
         n = D2.shape[0]
         I = jnp.eye(n)
         Z = jnp.zeros((n, n))
 
-        L_NS = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         def perform_single_rk_step_for_single_wavenumber(
             step,
             v_1_lap_hat,
-            vort_hat,
+            vort_1_hat,
             conv_ns_hat,
             conv_ns_hat_old,
             h_v_hat,
@@ -302,13 +288,13 @@ class NavierStokesVelVort(Equation):
 
                 # wall-normal velocity
                 # p-part
-                L_p = 1 / Re * D2
-                lhs_mat_p, rhs_mat_p = self.assemble_rk_matrices(L_p, kx_, kz_, step)
+                L_p_y = 1 / Re * D2
+                lhs_mat_p, rhs_mat_p = self.assemble_rk_matrices(L_p_y, kx_, kz_, step)
 
                 phi_hat_lap = v_1_lap_hat[kx, :, kz]
 
                 N_p_new = h_v_hat[kx, :, kz]
-                if type(h_v_hat_old == NoneType):
+                if type(h_v_hat_old) == NoneType:
                     N_p_old = N_p_new
                 else:
                     N_p_old = h_v_hat_old[kx, :, kz]
@@ -340,9 +326,7 @@ class NavierStokesVelVort(Equation):
                 # a-part - numerical solution
                 L_a_y = 1 / Re * D2
 
-                L_a = L_a_y + I * (-(kx_**2 + kz_**2)) / Re
-
-                lhs_mat_a, _ = self.assemble_rk_matrices(L_a, kx_, kz_, step)
+                lhs_mat_a, _ = self.assemble_rk_matrices(L_a_y, kx_, kz_, step)
                 rhs_a = jnp.zeros(n)
                 lhs_mat_a, rhs_a = domain.enforce_inhomogeneous_dirichlet(
                     lhs_mat_a, rhs_a, 0.0, 1.0
@@ -378,12 +362,11 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # vorticity
-                L = 1 / Re * D2
+                L_vort_y = 1 / Re * D2
                 lhs_mat_vort, rhs_mat_vort = self.assemble_rk_matrices(
-                    L, kx_, kz_, step
+                    L_vort_y, kx_, kz_, step
                 )
 
-                vort_1_hat = vort_hat[1]
                 phi_vort_hat = vort_1_hat[kx, :, kz]
 
                 N_vort_new = h_g_hat[kx, :, kz]
@@ -412,7 +395,7 @@ class NavierStokesVelVort(Equation):
                     kx__ = 0
                     kz__ = 0
                     lhs_mat_00, rhs_mat_00 = self.assemble_rk_matrices(
-                        L_NS, kx__, kz__, step
+                        L_NS_y, kx__, kz__, step
                     )
                     v_hat = jnp.block(
                         [vel_hat[0][kx__, :, kz__], vel_hat[2][kx__, :, kz__]]
@@ -480,12 +463,10 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
-        number_of_rk_steps = 1  # TODO
-        # number_of_rk_steps = 3
-
-        vel_new_hat = vel_hat
+        number_of_rk_steps = 3
 
         h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (None, None, None)
+        vel_new_hat = vel_hat
 
         for step in range(number_of_rk_steps):
             # update nonlinear terms
@@ -506,7 +487,7 @@ class NavierStokesVelVort(Equation):
                 perform_single_rk_step_for_single_wavenumber(
                     step,
                     v_1_lap_hat,
-                    vort_hat,
+                    vort_hat[1],
                     conv_ns_hat,
                     conv_ns_hat_old,
                     h_v_hat,
@@ -526,10 +507,13 @@ class NavierStokesVelVort(Equation):
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
-            vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
+            vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
         self.append_field("velocity_hat", vel_new_hat)
 
     def perform_cn_ab_step(self):
+        print("Warning: Using deprecated Crank-Nicolson/Adams-Bashforth solver \
+            which only implementd for debugging purposes. Consider using Runge-Kutta \
+            (method perform_runge_kutta_step()) instead.")
         self.dt = self.get_time_step()
         dt = self.dt
 
@@ -540,13 +524,11 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
         L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        I = jnp.eye(n)
-
         vel_hat = self.get_latest_field("velocity_hat")
 
         def perform_single_cn_ab_step_for_single_wavenumber(
             v_1_lap_hat_p,
-            vort_1_hat,
+            vort_hat_1_0,
             conv_ns_hat,
             conv_ns_hat_old,
             h_v_hat,
@@ -724,47 +706,29 @@ class NavierStokesVelVort(Equation):
 
         v_1_lap_hat = vel_hat[1].laplacian()
 
-        # self.update_nonlinear_terms() #TODO does it matter where I put this?
+        h_v_hat = self.get_latest_field("h_v_hat").field
+        h_g_hat = self.get_latest_field("h_g_hat").field
+        vort_hat_1 = self.get_latest_field("vort_hat")[1].field
+        conv_ns_hat = [self.get_latest_field("conv_ns_hat")[i].field for i in self.domain_no_hat.all_dimensions()]
 
-        h_v_hat_0 = self.get_latest_field("h_v_hat").field
-        h_g_hat_0 = self.get_latest_field("h_g_hat").field
-        vort_hat_1_0 = self.get_latest_field("vort_hat")[1].field
-        conv_ns_hat_0 = [self.get_latest_field("conv_ns_hat")[i].field for i in self.domain_no_hat.all_dimensions()]
-
-        h_v_hat_0_old = self.get_field("h_v_hat", max(0, self.time_step - 1)).field
-        h_g_hat_0_old = self.get_field("h_g_hat", max(0, self.time_step - 1)).field
-        conv_ns_hat_0_old = [self.get_field(
+        h_v_hat_old = self.get_field("h_v_hat", max(0, self.time_step - 1)).field
+        h_g_hat_old = self.get_field("h_g_hat", max(0, self.time_step - 1)).field
+        conv_ns_hat_old = [self.get_field(
             "conv_ns_hat", max(0, self.time_step - 1)
         )[i].field for i in self.domain_no_hat.all_dimensions()]
-
-        hv = self.get_latest_field("h_v_hat").no_hat()
-        hg = self.get_latest_field("h_g_hat").no_hat()
-        vort = self.get_latest_field("vort_hat").no_hat()
-        conv = self.get_latest_field("conv_ns_hat").no_hat()
-        hv.name = "hv"
-        hg.name = "hg"
-        vort.name = "vort"
-        conv.name = "conv"
-        hv.time_step = self.time_step
-        hg.time_step = self.time_step
-        vort.time_step = self.time_step
-        conv.time_step = self.time_step
-        hv.plot_3d(2)
-        hg.plot_3d(2)
-        vort.plot_3d(2)
-        conv.plot_3d(2)
 
         # solve equations
         vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
             perform_single_cn_ab_step_for_single_wavenumber(
                 v_1_lap_hat,
-                vort_hat_1_0,
-                conv_ns_hat_0,
-                conv_ns_hat_0_old,
-                h_v_hat_0,
-                h_g_hat_0,
-                h_v_hat_0_old,
-                h_g_hat_0_old,
+                vort_hat_1,
+                conv_ns_hat,
+                conv_ns_hat_old,
+                h_v_hat,
+                h_g_hat,
+                h_v_hat_old,
+                h_g_hat_old
+,
             ),
         )
         vel_new_hat.update_boundary_conditions()
@@ -773,11 +737,11 @@ class NavierStokesVelVort(Equation):
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
         self.append_field("velocity_hat", vel_new_hat)
-        self.update_nonlinear_terms()  # TODO does it matter where I put this?
+        self.update_nonlinear_terms()
 
     def perform_time_step(self):
-        # return self.perform_runge_kutta_step() # TODO not working yet
-        return self.perform_cn_ab_step()
+        return self.perform_runge_kutta_step()
+        # return self.perform_cn_ab_step()
 
 
 def solve_navier_stokes_laminar(

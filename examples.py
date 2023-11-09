@@ -461,7 +461,7 @@ def run_pseudo_2d_pertubation(
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
-    lsc = LinearStabilityCalculation(Re, alpha, 50)
+    lsc = LinearStabilityCalculation(Re, alpha, 96)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -605,6 +605,7 @@ def run_pseudo_2d_pertubation(
 
 
 def run_jimenez_1990(start_time=0):
+    start_time = int(start_time)
     Re = 5000
     alpha = 1
 
@@ -651,9 +652,9 @@ def run_jimenez_1990(start_time=0):
         nse.init_velocity(
             VectorField(
                 [
-                    u,
-                    v,
-                    w,
+                    u.hat(),
+                    v.hat(),
+                    w.hat(),
                 ]
             ),
         )
@@ -718,15 +719,15 @@ def run_transient_growth(Re=3000.0, T=5.0):
 
     number_of_modes = 50
 
-    # Nx = 300
+    Nx = 200
+    Ny = 160
+    Nz = 200
+    # Nx = 40
     # Ny = 92
-    # Nz = 300
-    Nx = 20
-    Ny = 92
-    Nz = 20
+    # Nz = 20
     end_time = 2
 
-    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+    lsc = LinearStabilityCalculation(Re, alpha, 96)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
