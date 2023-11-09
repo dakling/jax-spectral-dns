@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 
 import jax
-import jax.scipy as jsp
-import jax.numpy as jnp
-import numpy as np
-import os
-from pathlib import Path
-# import warnings
-# warnings.filterwarnings("ignore")
 
 jax.config.update("jax_enable_x64", True)
 
@@ -37,7 +30,8 @@ def main():
 
     # run tests
     tp = TestProject()
-    tp.test_timesteppers()
+    tp.test_pertubation_laminar()
+    # tp.test_2d_growth()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:

@@ -3,14 +3,10 @@
 NoneType = type(None)
 import jax
 import jax.numpy as jnp
-import time
-import matplotlib.pyplot as plt
 from functools import partial
 
 from importlib import reload
 import sys
-
-from numpy import vectorize
 
 try:
     reload(sys.modules["domain"])
@@ -85,6 +81,7 @@ class NavierStokesVelVort(Equation):
 
     max_cfl = 0.7
     max_dt = 1e10
+    dt_update_frequency = 10 # update the timestep every time_step_udate_frequency time steps
     # u_max_over_u_tau = 1e2
     u_max_over_u_tau = 1e0
 
@@ -211,19 +208,20 @@ class NavierStokesVelVort(Equation):
         return self.domain_no_hat.get_cheb_mat_2_homogeneous_dirichlet_only_rows(1)
 
     def get_time_step(self):
-        dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
-        dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
-        dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
-        DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
-        vel = self.get_latest_field("velocity_hat").no_hat()
-        U = vel[0][1:, 1:, 1:]
-        V = vel[1][1:, 1:, 1:]
-        W = vel[2][1:, 1:, 1:]
-        u_cfl = (abs(DX) / abs(U)).min().real
-        v_cfl = (abs(DY) / abs(V)).min().real
-        w_cfl = (abs(DZ) / abs(W)).min().real
-        self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
-        assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
+        if self.time_step % self.dt_update_frequency:
+            dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
+            dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
+            dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
+            DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+            vel = self.get_latest_field("velocity_hat").no_hat()
+            U = vel[0][1:, 1:, 1:]
+            V = vel[1][1:, 1:, 1:]
+            W = vel[2][1:, 1:, 1:]
+            u_cfl = (abs(DX) / abs(U)).min().real
+            v_cfl = (abs(DY) / abs(V)).min().real
+            w_cfl = (abs(DZ) / abs(W)).min().real
+            self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+            assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
         return self.dt
 
     def get_rk_parameters(self):

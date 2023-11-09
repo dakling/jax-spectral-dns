@@ -4,11 +4,6 @@ import unittest
 import jax
 import jax.numpy as jnp
 
-# from cProfile import Profile
-# from pstats import SortKey, Stats
-
-# import numpy as np
-
 from importlib import reload
 import sys
 
@@ -1042,7 +1037,7 @@ class TestProject(unittest.TestCase):
     def test_pertubation_laminar(self, Ny=48, pertubation_factor=0.01):
         Re = 1.5e0
 
-        end_time = 0.1
+        end_time = 1.0
         nse = solve_navier_stokes_pertubation(
             Re=Re,
             Nx=16,
@@ -1069,8 +1064,8 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
-        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.0, eps=1e-1, linearize=True)
-        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=1.0, eps=1e-1, linearize=True)
+        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.5, eps=1e-1, linearize=True)
+        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=1.5, eps=1e-1, linearize=True)
         growth_5500 = []
         growth_6000 = []
         for i in range(3):

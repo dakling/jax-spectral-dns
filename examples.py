@@ -490,7 +490,7 @@ def run_pseudo_2d_pertubation(
     nse.init_velocity(U_hat * eps_)
 
     energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
-    plot_interval = 5
+    plot_interval = 1
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
@@ -719,13 +719,10 @@ def run_transient_growth(Re=3000.0, T=5.0):
 
     number_of_modes = 50
 
-    Nx = 200
-    Ny = 160
-    Nz = 200
-    # Nx = 40
-    # Ny = 92
-    # Nz = 20
-    end_time = 2
+    Nx = 100
+    Ny = 140
+    Nz = 50
+    end_time = T
 
     lsc = LinearStabilityCalculation(Re, alpha, 96)
 

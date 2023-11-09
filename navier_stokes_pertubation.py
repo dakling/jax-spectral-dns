@@ -3,14 +3,10 @@
 NoneType = type(None)
 import jax
 import jax.numpy as jnp
-import time
-import matplotlib.pyplot as plt
 from functools import partial
 
 from importlib import reload
 import sys
-
-from numpy import vectorize
 
 from navier_stokes import NavierStokesVelVort
 
