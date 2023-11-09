@@ -1108,6 +1108,7 @@ class TestProject(unittest.TestCase):
             scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
         )
         nse_rk.set_linearize(linearize)
+        nse_rk.max_dt = 1e-3
 
         U = lsc.velocity_field(nse_rk.domain_no_hat)
         eps_ = 1.0 * jnp.sqrt(U.energy())
@@ -1126,6 +1127,7 @@ class TestProject(unittest.TestCase):
             scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
         )
         nse_cnab.set_linearize(linearize)
+        nse_cnab.max_dt = 1e-3
         nse_cnab.init_velocity(U_hat * eps_)
         nse_cnab.prepare()
         vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
@@ -1147,8 +1149,8 @@ class TestProject(unittest.TestCase):
         #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
         #     vel_cnab[i].plot_3d(2)
         #     vel_diff[i].plot_3d(2)
-        # print(abs(vel_diff))
-        assert abs(vel_diff) < 1e-8
+        print(abs(vel_diff))
+        assert abs(vel_diff) < 1e-11
 
         nse_rk.perform_runge_kutta_step()
         nse_cnab.perform_cn_ab_step()
@@ -1163,8 +1165,8 @@ class TestProject(unittest.TestCase):
         #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
         #     vel_cnab[i].plot_3d(2)
         #     vel_diff[i].plot_3d(2)
-        # print(abs(vel_diff))
-        assert abs(vel_diff) < 1e-8
+        print(abs(vel_diff))
+        assert abs(vel_diff) < 1e-11
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,19 +31,12 @@ from examples import *
 
 def main():
     pass
-    # print(jax.device_count())
     # run_jimenez_1990()
     # run_transient_growth()
     # run_pseudo_2d_pertubation(Re=5.5e3, Ny=240)
-    # test_timesteppers()
 
     # run tests
     tp = TestProject()
-    # tp.test_linear_stability()
-    # tp.test_definite_integral()
-    # tp.test_fourier_simple_3D()
-    # tp.test_navier_stokes_laminar()
-    # tp.test_2d_growth()
     tp.test_timesteppers()
 
 if __name__ == '__main__':

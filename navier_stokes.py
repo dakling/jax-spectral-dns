@@ -512,8 +512,8 @@ class NavierStokesVelVort(Equation):
 
     def perform_cn_ab_step(self):
         print("Warning: Using deprecated Crank-Nicolson/Adams-Bashforth solver \
-            which only implementd for debugging purposes. Consider using Runge-Kutta \
-            (method perform_runge_kutta_step()) instead.")
+        which only implementd for debugging purposes. Consider using Runge-Kutta \
+        (method perform_runge_kutta_step()) instead.")
         self.dt = self.get_time_step()
         dt = self.dt
 
