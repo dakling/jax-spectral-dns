@@ -1190,10 +1190,10 @@ class VectorField:
             Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
             Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
-            # try:
-            ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
-            # except TypeError: # compatibilty with older matplotlib versions
-            # ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
+            try:
+                ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
+            except TypeError: # compatibilty with older matplotlib versions
+                ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
             fig.savefig(
                 self[0].plotting_dir
                 + "plot_streamlines_"
