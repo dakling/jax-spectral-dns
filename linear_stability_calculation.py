@@ -431,6 +431,11 @@ class LinearStabilityCalculation:
             for mode in range(0, number_of_modes):
                 ys1.append(abs(V[mode, 0]))
 
+            fig, ax = plt.subplots(1,1)
+            ax.set_yscale('log')
+            ax.plot(ys1)
+            fig.savefig("plots/coeffs.pdf")
+
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
 

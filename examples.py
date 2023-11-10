@@ -609,8 +609,8 @@ def run_jimenez_1990(start_time=0):
     Re = 5000
     alpha = 1
 
-    Nx = 200
-    Ny = 200
+    Nx = 100
+    Ny = 140
     Nz = 2
     end_time = 1000
 
@@ -630,8 +630,8 @@ def run_jimenez_1990(start_time=0):
         lsc = LinearStabilityCalculation(Re, alpha, Ny)
         vel_pert = lsc.velocity_field(nse.domain_no_hat)
         vort_pert = vel_pert.curl()
-        eps = 1e-1 / jnp.sqrt(vort_pert.energy())
-        # eps = 1e-0 / jnp.sqrt(vel_pert.energy())
+        # eps = 1e0 / jnp.sqrt(vort_pert.energy())
+        eps = 1e-2 / jnp.sqrt(vel_pert.energy())
         nse.init_velocity((vel_pert * eps).hat())
     else:
         u = Field.FromFile(

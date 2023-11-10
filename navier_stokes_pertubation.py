@@ -103,11 +103,9 @@ def update_nonlinear_terms_high_performance_pertubation(
 
 class NavierStokesVelVortPertubation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
-    # max_cfl = 0.2
     max_cfl = 0.7
     max_dt = 1e10
     # max_dt = 1e-2
-    # max_dt = 3e-3
 
     def __init__(self, velocity_field, **params):
         self.domain_no_hat = velocity_field[0].domain_no_hat
