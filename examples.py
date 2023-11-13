@@ -25,6 +25,13 @@ except:
 from field import Field, FourierFieldSlice, VectorField
 
 try:
+    reload(sys.modules["equation"])
+except:
+    if hasattr(sys, "ps1"):
+        print("Unable to load Equation")
+from equation import Equation
+
+try:
     reload(sys.modules["navier_stokes"])
 except:
     if hasattr(sys, "ps1"):
@@ -461,6 +468,7 @@ def run_pseudo_2d_pertubation(
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
+
     lsc = LinearStabilityCalculation(Re, alpha, 96)
 
     nse = solve_navier_stokes_pertubation(
@@ -474,14 +482,11 @@ def run_pseudo_2d_pertubation(
     )
 
     nse.set_linearize(linearize)
-    if not plot:
-        print("disabling plotting")
-        Field.supress_plotting_ = True
 
     if type(v0) == NoneType:
         U = lsc.velocity_field(nse.domain_no_hat)
     else:
-        U = v0
+        U = VectorField([Field(nse.domain_no_hat, v0[i]).hat() for i in range(3)]).normalize()
 
     eps_ = eps * jnp.sqrt(U.energy())
     U_hat = U.hat()
@@ -489,7 +494,7 @@ def run_pseudo_2d_pertubation(
 
     nse.init_velocity(U_hat * eps_)
 
-    energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
+    # energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
     plot_interval = 1
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -524,39 +529,41 @@ def run_pseudo_2d_pertubation(
                 vort[j].time_step = i
                 vel[j].name = "velocity_" + "xyz"[j]
                 vort[j].name = "vorticity_" + "xyz"[j]
-                # vel[j].plot_3d()
-                vel[j].plot_3d(2)
-                vort[j].plot_3d(2)
-                vel[j].plot_center(0)
-                vel[j].plot_center(1)
+                if plot:
+                    # vel[j].plot_3d()
+                    vel[j].plot_3d(2)
+                    vort[j].plot_3d(2)
+                    vel[j].plot_center(0)
+                    vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             vel_pert_energy_old = vel_pert_old.energy()
-            print("velocity pertubation energy: ", vel_pert_energy)
-            print("\n\n")
-            print(
-                "velocity pertubation energy change: ",
-                vel_pert_energy - vel_pert_energy_old,
-            )
-            print(
-                "velocity pertubation energy x change: ",
-                vel_pert[0].energy() - vel_pert_old[0].energy(),
-            )
-            print(
-                "velocity pertubation energy y change: ",
-                vel_pert[1].energy() - vel_pert_old[1].energy(),
-            )
-            print(
-                "velocity pertubation energy z change: ",
-                vel_pert[2].energy() - vel_pert_old[2].energy(),
-            )
-            print("")
+            if plot:
+                print("velocity pertubation energy: ", vel_pert_energy)
+                print("\n\n")
+                print(
+                    "velocity pertubation energy change: ",
+                    vel_pert_energy - vel_pert_energy_old,
+                )
+                print(
+                    "velocity pertubation energy x change: ",
+                    vel_pert[0].energy() - vel_pert_old[0].energy(),
+                )
+                print(
+                    "velocity pertubation energy y change: ",
+                    vel_pert[1].energy() - vel_pert_old[1].energy(),
+                )
+                print(
+                    "velocity pertubation energy z change: ",
+                    vel_pert[2].energy() - vel_pert_old[2].energy(),
+                )
+                print("")
             ts.append(nse.time)
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())
             energy_y_t.append(vel_pert[1].energy())
-            energy_t_ana.append(energy_over_time_fn(nse.time))
-            energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
-            energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
+            # energy_t_ana.append(energy_over_time_fn(nse.time))
+            # energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
+            # energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
             save_array(ts, "fields/ts")
             save_array(energy_t, "fields/energy_Re_" + str(Re))
             save_array(energy_x_t, "fields/energy_x_Re_" + str(Re))
@@ -710,14 +717,14 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 
-def run_transient_growth(Re=3000.0, T=5.0):
+def run_transient_growth(Re=3000.0, T=15.0):
     Re = float(Re)
     T = float(T)
     alpha = 1
 
     eps = 1e-0
 
-    number_of_modes = 50
+    number_of_modes = 80
 
     Nx = 100
     Ny = 140
@@ -862,7 +869,11 @@ def run_optimization_pseudo_2d_pertubation():
     Nx = 100
     Ny = 96
     Nz = 100
-    scale_factors = ((1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),)
+    # Nx = 10
+    # Ny = 96
+    # Nz = 10
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
+    # Field.supress_plotting()
 
     def run(v0):
         (
@@ -887,19 +898,28 @@ def run_optimization_pseudo_2d_pertubation():
         )
         return (energy_t[-1] - energy_t[0]) / energy_t[0]
 
+    Equation.initialize()
+
+
     dom = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
     v0_0 = lsc.velocity_field(dom, 0)
 
-    v0s = [v0_0.field]
-    eps = 1e3
+    v0s = [jnp.array([v0_0[i].field for i in range(3)])]
+    step_size = 1e-2
+    sq_grad_sums = 0.0 * v0_0[0].field
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = Field(nse.domain_no_hat, corr, name="correction")
-        corr_field.update_boundary_conditions()
+        corr_arr = jnp.array(corr)
+        # corr_field = Field(v0_0.domain, corr, name="correction")
+        # corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
-        print("corr (abs): " + str(abs(corr_field)))
-        v0s.append(v0s[-1] + eps * corr_field.field)
-        v0_new = Field(nse.domain_no_hat, v0s[-1])
+        # print("corr (abs): " + str(abs(corr_field)))
+        sq_grad_sums += corr_arr**2.0
+        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
+        eps = step_size / (1e-10 + jnp.sqrt(sq_grad_sums))
+
+        v0s.append(v0s[-1] + eps * corr_arr)
+        v0_new = Field(v0_0.domain, v0s[-1])
         v0_new.name = "vel_0_" + str(i)
-        v0_new.plot(v0_0)
+        v0_new.plot_3d(2)

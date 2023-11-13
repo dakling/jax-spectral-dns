@@ -10,6 +10,7 @@ import matplotlib.figure as figure
 from matplotlib import colors
 import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator
+import functools
 
 import numpy as np
 
@@ -85,6 +86,7 @@ class Field:
     # plotting_format = ".pdf"
     plotting_format = ".png"
     supress_plotting_ = False # setting this to True can suppress plotting
+    # supress_plotting_ = True # setting this to True can suppress plotting
     field_dir = "./fields/"
     performance_mode = True
 
@@ -181,8 +183,9 @@ class Field:
         """Set the current time step of the field."""
         self.time_step = time_step
 
-    def supress_plotting(self):
-        Field.supress_plotting_ = True
+    # @classmethod
+    # def supress_plotting(cls):
+    #     cls.supress_plotting_ = True
 
     def __repr__(self):
         # self.plot()
@@ -304,6 +307,10 @@ class Field:
     def energy(self):
         energy = 0.5 * self * self
         return energy.volume_integral()
+
+    def normalize(self):
+        self.field = self.field / self.energy()
+        return self
 
     def eval(self, X):
         """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
@@ -815,6 +822,11 @@ class Field:
         return Field(self.domain, out_bc, name=self.name + "_int")
 
     def definite_integral(self, direction):
+        def reduce_add_along_axis(arr, axis):
+            # return np.add.reduce(arr, axis=axis)
+            arr = jnp.moveaxis(arr, axis, 0)
+            out_arr = functools.reduce(lambda a, b: a+b, arr)
+            return out_arr
         if not self.is_periodic(direction):
             int = self.integrate(direction, 1, bc_right=0.0)
             if self.number_of_dimensions() == 1:
@@ -856,7 +868,7 @@ class Field:
                 field = (
                     self.domain.scale_factors[direction]
                     / N
-                    * np.add.reduce(self.field, axis=direction)
+                    * reduce_add_along_axis(self.field, direction)
                 )
                 return Field(reduced_domain, field)
 
@@ -972,6 +984,11 @@ class VectorField:
         for f in self:
             en += f.energy()
         return en
+
+    def normalize(self):
+        for f in self:
+            f.field = f.field / self.energy()
+        return self
 
     def energy_norm(self, k):
         energy = k ** 2 * self[1] * self[1]

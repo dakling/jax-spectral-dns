@@ -34,6 +34,13 @@ except:
         pass
 from field import Field, VectorField
 
+try:
+    reload(sys.modules["equation"])
+except:
+    if hasattr(sys, "ps1"):
+        pass
+from equation import Equation
+
 NoneType = type(None)
 
 
@@ -85,6 +92,7 @@ class LinearStabilityCalculation:
             + "_"
             + str(domain_.number_of_cells(2))
         )
+        # Equation.initialize()
 
     def assemble_matrix_fast(self):
         alpha = self.alpha
@@ -433,8 +441,11 @@ class LinearStabilityCalculation:
 
             fig, ax = plt.subplots(1,1)
             ax.set_yscale('log')
-            ax.plot(ys1)
+            ax.plot(ys1, "o")
             fig.savefig("plots/coeffs.pdf")
+            print(V[:, 0])
+            print(V[0, :])
+            raise Exception("break")
 
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
