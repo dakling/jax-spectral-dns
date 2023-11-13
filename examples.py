@@ -866,12 +866,12 @@ def run_optimization_pseudo_2d_pertubation():
     Re = 3000
     T = 0.1
     alpha = 1.02056
-    Nx = 100
-    Ny = 96
-    Nz = 100
-    # Nx = 10
+    # Nx = 100
     # Ny = 96
-    # Nz = 10
+    # Nz = 100
+    Nx = 50
+    Ny = 96
+    Nz = 50
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     # Field.supress_plotting()
 
