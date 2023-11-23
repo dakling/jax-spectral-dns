@@ -240,6 +240,9 @@ class Field:
                     new_name = "field"
             ret = Field(self.domain, self.field * other.field, name=new_name)
             ret.time_step = self.time_step
+            print("hello2")
+            print(type(ret))
+            print(type(ret.field))
             return ret
         else:
             if self.performance_mode:
@@ -305,7 +308,8 @@ class Field:
         return int
 
     def energy(self):
-        energy = 0.5 * self * self
+        # energy = 0.5 * self * self
+        energy = 0.5 * Field(self.domain, self.field*self.field, name="energy") # TODO why does the above not work?
         return energy.volume_integral()
 
     def normalize(self):
@@ -986,8 +990,9 @@ class VectorField:
         return en
 
     def normalize(self):
+        en = self.energy()
         for f in self:
-            f.field = f.field / self.energy()
+            f.field = f.field / en
         return self
 
     def energy_norm(self, k):

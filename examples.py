@@ -484,17 +484,17 @@ def run_pseudo_2d_pertubation(
     nse.set_linearize(linearize)
 
     if type(v0) == NoneType:
-        U = lsc.velocity_field(nse.domain_no_hat)
+        U = lsc.velocity_field(nse.domain_no_hat).normalize()
     else:
-        U = VectorField([Field(nse.domain_no_hat, v0[i]).hat() for i in range(3)]).normalize()
+        # U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)]).normalize()
+        U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)])
+        print(U[0].energy())
 
-    eps_ = eps * jnp.sqrt(U.energy())
     U_hat = U.hat()
+    nse.init_velocity(U_hat * eps)
 
 
-    nse.init_velocity(U_hat * eps_)
-
-    # energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps_)
+    energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps)
     plot_interval = 1
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -561,9 +561,9 @@ def run_pseudo_2d_pertubation(
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())
             energy_y_t.append(vel_pert[1].energy())
-            # energy_t_ana.append(energy_over_time_fn(nse.time))
-            # energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
-            # energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
+            energy_t_ana.append(energy_over_time_fn(nse.time))
+            energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
+            energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
             save_array(ts, "fields/ts")
             save_array(energy_t, "fields/energy_Re_" + str(Re))
             save_array(energy_x_t, "fields/energy_x_Re_" + str(Re))
@@ -864,14 +864,14 @@ def run_transient_growth(Re=3000.0, T=15.0):
 
 def run_optimization_pseudo_2d_pertubation():
     Re = 3000
-    T = 0.1
+    T = 1.0
     alpha = 1.02056
     # Nx = 100
     # Ny = 96
     # Nz = 100
-    Nx = 50
-    Ny = 96
-    Nz = 50
+    Nx = 30
+    Ny = 50
+    Nz = 10
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     # Field.supress_plotting()
 
@@ -891,12 +891,17 @@ def run_optimization_pseudo_2d_pertubation():
             Nx=Nx,
             Ny=Ny,
             Nz=Nz,
-            linearize=True,
+            linearize=False,
             plot=False,
             save=False,
             v0=v0,
         )
-        return (energy_t[-1] - energy_t[0]) / energy_t[0]
+        return energy_t[-1] / energy_t[0]
+        # print("energy[0]")
+        # print(energy_t[0])
+        # print("energy[-1]")
+        # print(energy_t[-1])
+        # return energy_t[-1]
 
     Equation.initialize()
 
@@ -905,21 +910,28 @@ def run_optimization_pseudo_2d_pertubation():
     lsc = LinearStabilityCalculation(Re, alpha, Ny)
     v0_0 = lsc.velocity_field(dom, 0)
 
-    v0s = [jnp.array([v0_0[i].field for i in range(3)])]
-    step_size = 1e-2
+
+    v0s = [[v0_0[i].field for i in range(3)]]
+    step_size = 1e-0
     sq_grad_sums = 0.0 * v0_0[0].field
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
         corr_arr = jnp.array(corr)
-        # corr_field = Field(v0_0.domain, corr, name="correction")
+        corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
+        corr_field.plot_3d(2)
         # corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         # print("corr (abs): " + str(abs(corr_field)))
         sq_grad_sums += corr_arr**2.0
         # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
-        eps = step_size / (1e-10 + jnp.sqrt(sq_grad_sums))
+        # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
+        eps = step_size
 
-        v0s.append(v0s[-1] + eps * corr_arr)
-        v0_new = Field(v0_0.domain, v0s[-1])
-        v0_new.name = "vel_0_" + str(i)
+        print("eps")
+        print(eps)
+        print("sq_grad_sums")
+        print(sq_grad_sums)
+        v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+        v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
+        v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)

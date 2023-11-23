@@ -30,9 +30,9 @@ def main():
     # run_optimization_pseudo_2d_pertubation()
 
     # run tests
-    # tp = TestProject()
+    tp = TestProject()
     # tp.test_navier_stokes_laminar()
-    # tp.test_definite_integral()
+    tp.test_2d_growth()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
