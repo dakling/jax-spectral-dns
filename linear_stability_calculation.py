@@ -67,6 +67,7 @@ class LinearStabilityCalculation:
 
         self.S = None
         self.V = None
+        self.U = None
 
         self.make_field_file_name_mode = (
             lambda domain_, field_name, mode: field_name
@@ -367,10 +368,8 @@ class LinearStabilityCalculation:
             ].real  # just elminates O(10^-16) complex parts which bothers `chol'
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
-        USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
-        U = USVh[0]
-        S = USVh[1]
-        V = USVh[2].T
+        U, S, Vh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
+        V = Vh.T
         if save:
             self.S = S
             self.U = U
@@ -402,7 +401,7 @@ class LinearStabilityCalculation:
         recompute_partial = recompute_partial or recompute_full
 
         try:
-            if recompute_partial == False:
+            if recompute_partial is False:
                 u_ = Field.FromFile(
                     domain,
                     self.make_field_file_name(domain, "u"),

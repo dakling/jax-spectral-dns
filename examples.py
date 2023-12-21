@@ -484,7 +484,8 @@ def run_pseudo_2d_pertubation(
     nse.set_linearize(linearize)
 
     if type(v0) == NoneType:
-        U = lsc.velocity_field(nse.domain_no_hat).normalize()
+        # U = lsc.velocity_field(nse.domain_no_hat).normalize()
+        U = lsc.velocity_field(nse.domain_no_hat)
     else:
         # U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)]).normalize()
         U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)])
