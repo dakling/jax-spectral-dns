@@ -368,12 +368,14 @@ class LinearStabilityCalculation:
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         USVh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
+        U = USVh[0]
         S = USVh[1]
         V = USVh[2].T
         if save:
             self.S = S
+            self.U = U
             self.V = V
-        return (S, V)
+        return (S, U)
 
     def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
         S, _ = self.calculate_transient_growth_svd(
@@ -421,9 +423,10 @@ class LinearStabilityCalculation:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
             if recompute_full or type(self.V) == NoneType:
-                _, self.V = self.calculate_transient_growth_svd(
+                _, self.U = self.calculate_transient_growth_svd(
                     domain, T, number_of_modes, save=True, recompute=recompute_full
                 )
+            U = self.U
             V = self.V
 
             u_0 = self.velocity_field(
@@ -433,15 +436,17 @@ class LinearStabilityCalculation:
                 recompute_full=recompute_full,
                 save=save_modes,
             )
-            u = u_0 * V[0, 0]
+            # u = u_0 * V[0, 0]
+            u = u_0 * U[0, 0]
 
             ys1 = []
             for mode in range(0, number_of_modes):
                 # ys1.append(abs(V[mode, 0]))
-                ys1.append((V[mode, 0]))
+                # ys1.append((V[mode, 0]))
+                ys1.append(abs(U[mode, 0]))
 
             fig, ax = plt.subplots(1,1)
-            # ax.set_yscale('log')
+            ax.set_yscale('log')
             ax.plot(ys1, "o")
             fig.savefig("plots/coeffs.pdf")
             print("energy growth: ", self.S[0]**2)
@@ -456,7 +461,8 @@ class LinearStabilityCalculation:
                     recompute_full=recompute_full,
                     save=save_modes,
                 )
-                u += u_inc * V[mode, 0]
+                # u += u_inc * V[mode, 0]
+                u += u_inc * U[mode, 0]
 
             if save_final:
                 for i in range(len(u)):

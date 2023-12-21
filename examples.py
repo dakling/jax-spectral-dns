@@ -731,7 +731,7 @@ def run_transient_growth(Re=3000.0, T=15.0):
     Nz = 50
     end_time = T
 
-    lsc = LinearStabilityCalculation(Re, alpha, 50)
+    lsc = LinearStabilityCalculation(Re, alpha, 100)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -867,7 +867,7 @@ def run_optimization_pseudo_2d_pertubation():
     T = 1.0
     alpha = 1.02056
     Nx = 100
-    Ny = 96
+    Ny = 100
     Nz = 40
     # Nx = 20
     # Ny = 40
