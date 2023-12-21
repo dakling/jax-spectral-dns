@@ -437,14 +437,14 @@ class LinearStabilityCalculation:
 
             ys1 = []
             for mode in range(0, number_of_modes):
-                ys1.append(abs(V[mode, 0]))
+                # ys1.append(abs(V[mode, 0]))
+                ys1.append((V[mode, 0]))
 
             fig, ax = plt.subplots(1,1)
-            ax.set_yscale('log')
+            # ax.set_yscale('log')
             ax.plot(ys1, "o")
             fig.savefig("plots/coeffs.pdf")
-            print(V[:, 0])
-            print(V[0, :])
+            print("energy growth: ", self.S[0]**2)
             raise Exception("break")
 
             for mode in range(1, number_of_modes):

@@ -731,7 +731,7 @@ def run_transient_growth(Re=3000.0, T=15.0):
     Nz = 50
     end_time = T
 
-    lsc = LinearStabilityCalculation(Re, alpha, 96)
+    lsc = LinearStabilityCalculation(Re, alpha, 50)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -866,12 +866,12 @@ def run_optimization_pseudo_2d_pertubation():
     Re = 3000
     T = 1.0
     alpha = 1.02056
-    # Nx = 100
-    # Ny = 96
-    # Nz = 100
-    Nx = 30
-    Ny = 50
-    Nz = 10
+    Nx = 100
+    Ny = 96
+    Nz = 40
+    # Nx = 20
+    # Ny = 40
+    # Nz = 10
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     # Field.supress_plotting()
 
@@ -927,10 +927,10 @@ def run_optimization_pseudo_2d_pertubation():
         # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
         eps = step_size
 
-        print("eps")
-        print(eps)
-        print("sq_grad_sums")
-        print(sq_grad_sums)
+        # print("eps")
+        # print(eps)
+        # print("sq_grad_sums")
+        # print(sq_grad_sums)
         v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
         v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
         v0_new.set_name("vel_0_" + str(i))
