@@ -445,7 +445,7 @@ class LinearStabilityCalculation:
             ax.plot(ys1, "o")
             fig.savefig("plots/coeffs.pdf")
             print("energy growth: ", self.S[0]**2)
-            raise Exception("break")
+            # raise Exception("break")
 
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
