@@ -489,12 +489,12 @@ class LinearStabilityCalculation:
                 ys2.append(abs(U[mode, 0]))
 
             if True: #self.symm:
-                v_mat_ns = self.read_mat("/home/klingenberg/Downloads/v.mat", "v_s")[:, 0]
-                u_mat_ns = self.read_mat("/home/klingenberg/Downloads/u.mat", "u_s")[:, 0]
-                v_mat = self.read_mat("/home/klingenberg/Downloads/v_ns.mat", "v_s")[:, 0]
-                u_mat = self.read_mat("/home/klingenberg/Downloads/u_ns.mat", "u_s")[:, 0]
-                v_mat_full = self.read_mat("/home/klingenberg/Downloads/v_full.mat", "v_s")[:, 0]
-                u_mat_full = self.read_mat("/home/klingenberg/Downloads/u_full.mat", "u_s")[:, 0]
+                v_mat_ns = self.read_mat("v.mat", "v_s")[:, 0]
+                u_mat_ns = self.read_mat("u.mat", "u_s")[:, 0]
+                v_mat = self.read_mat("v_ns.mat", "v_s")[:, 0]
+                u_mat = self.read_mat("u_ns.mat", "u_s")[:, 0]
+                v_mat_full = self.read_mat("v_full.mat", "v_s")[:, 0]
+                u_mat_full = self.read_mat("u_full.mat", "u_s")[:, 0]
             else:
                 pass
                 # v_mat = self.read_mat("/home/klingenberg/Downloads/v_ns.mat", "v_s")[:, 0]
