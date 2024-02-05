@@ -858,14 +858,12 @@ def run_transient_growth(Re=3000.0, T=15.0):
             fig_x = figure.Figure()
             ax_x = fig_x.subplots(1, 1)
             ax_x.plot(ts, energy_x_t, ".", label="growth")
-            ax_x.plot(ts, energy_x_t_norm, ".", label="growth (norm)")
             fig_x.legend()
             fig_x.savefig("plots/energy_x_t.pdf")
 
             fig_y = figure.Figure()
             ax_y = fig_y.subplots(1, 1)
             ax_y.plot(ts, energy_y_t, ".", label="growth")
-            ax_x.plot(ts, energy_y_t_norm, ".", label="growth (norm)")
             fig_y.legend()
             fig_y.savefig("plots/energy_y_t.pdf")
 
