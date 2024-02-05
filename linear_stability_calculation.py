@@ -218,6 +218,7 @@ class LinearStabilityCalculation:
         domain,
         time=0.0,
         mode=0,
+        factor=1.0,
         recompute_partial=False,
         recompute_full=False,
         save=True,
@@ -260,12 +261,12 @@ class LinearStabilityCalculation:
                     for k in range(self.n):
                         phi_mat[i, k] = phi(k, 0, ys[i]) # TODO
                     #     phi_mat[i, k] = [phi_a, phi_s, phi_a][k](k, 0, ys[i]) # TODO
-                out = np.outer(
+                out = (factor * np.outer(
                     np.exp(
                         1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
                     ),
                     phi_mat @ eigenvector,
-                ).real
+                )).real
                 out = np.tile(out, (len(domain.grid[2]), 1, 1))
                 out = np.moveaxis(out, 0, -1)
                 return jnp.array(out.tolist())
@@ -475,9 +476,11 @@ class LinearStabilityCalculation:
                 recompute_partial=recompute_partial,
                 recompute_full=recompute_full,
                 save=save_modes,
+                factor=U[mode,0]
             )
             # u = u_0 * V[0, 0]
-            u = u_0 * U[0, 0]
+            # u = u_0 * U[0, 0].real
+            u = u_0
 
             n = []
             ys1 = []
@@ -488,42 +491,35 @@ class LinearStabilityCalculation:
                 # ys1.append((V[mode, 0]))
                 ys2.append(abs(U[mode, 0]))
 
-            if True: #self.symm:
-                v_mat_ns = self.read_mat("v.mat", "v_s")[:, 0]
-                u_mat_ns = self.read_mat("u.mat", "u_s")[:, 0]
-                v_mat = self.read_mat("v_ns.mat", "v_s")[:, 0]
-                u_mat = self.read_mat("u_ns.mat", "u_s")[:, 0]
-                v_mat_full = self.read_mat("v_full.mat", "v_s")[:, 0]
-                u_mat_full = self.read_mat("u_full.mat", "u_s")[:, 0]
-            else:
-                pass
-                # v_mat = self.read_mat("/home/klingenberg/Downloads/v_ns.mat", "v_s")[:, 0]
-                # u_mat = self.read_mat("/home/klingenberg/Downloads/u_ns.mat", "u_s")[:, 0]
-            print("shape u_mat: ", u_mat.shape)
-            print("shape v_mat: ", v_mat.shape)
+            v_mat_ns = self.read_mat("v.mat", "v_s")[:, 0]
+            u_mat_ns = self.read_mat("u.mat", "u_s")[:, 0]
+            v_mat = self.read_mat("v_ns.mat", "v_s")[:, 0]
+            u_mat = self.read_mat("u_ns.mat", "u_s")[:, 0]
+            v_mat_full = self.read_mat("v_full.mat", "v_s")[:, 0]
+            u_mat_full = self.read_mat("u_full.mat", "u_s")[:, 0]
             fig, ax = plt.subplots(2,2)
             ax[0][0].set_yscale('log')
             ax[0][0].plot(n, ys1, "o")
             ax[0][0].plot(n, v_mat, "x")
             ax[0][0].plot(n, v_mat_full, ".")
-            ax[0][0].plot(n, v_mat_ns, ".")
+            ax[0][0].plot(n, v_mat_ns, "x")
             ax[0][1].set_yscale('log')
             ax[0][1].plot(n, ys2, "o")
             ax[0][1].plot(n, u_mat, "x")
             ax[0][1].plot(n, u_mat_full, ".")
-            ax[0][1].plot(n, u_mat_ns, ".")
-            ax[1][0].set_ylim([1e-8, 1])
+            ax[0][1].plot(n, u_mat_ns, "x")
+            ax[1][0].set_ylim([1e-8, 10])
             ax[1][0].set_yscale('log')
             ax[1][0].plot(n, ys1, "o")
             ax[1][0].plot(n, v_mat, "x")
             ax[1][0].plot(n, v_mat_full, ".")
-            ax[1][0].plot(n, v_mat_ns, ".")
+            ax[1][0].plot(n, v_mat_ns, "x")
             ax[1][1].set_yscale('log')
-            ax[1][1].set_ylim([1e-13, 1])
+            ax[1][1].set_ylim([1e-13, 100])
             ax[1][1].plot(n, ys2, "o")
             ax[1][1].plot(n, u_mat, "x")
             ax[1][1].plot(n, u_mat_full, ".")
-            ax[1][1].plot(n, u_mat_ns, ".")
+            ax[1][1].plot(n, u_mat_ns, "x")
             fig.savefig("plots/coeffs.pdf")
             print("energy growth: ", self.S[0]**2)
             if self.symm:
@@ -538,9 +534,11 @@ class LinearStabilityCalculation:
                     recompute_partial=recompute_partial,
                     recompute_full=recompute_full,
                     save=save_modes,
+                    factor=U[mode,0]
                 )
                 # u += u_inc * V[mode, 0]
-                u += u_inc * U[mode, 0]
+                # u += u_inc * U[mode, 0].real
+                u += u_inc
 
             if save_final:
                 for i in range(len(u)):

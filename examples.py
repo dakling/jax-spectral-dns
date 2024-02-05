@@ -727,9 +727,9 @@ def run_transient_growth(Re=3000.0, T=15.0):
 
     number_of_modes = 80
 
-    Nx = 40
+    Nx = 50
     Ny = 100
-    Nz = 4
+    Nz = 20
     end_time = 1.1 * T
 
     lsc = LinearStabilityCalculation(Re, alpha, 100)
@@ -757,8 +757,8 @@ def run_transient_growth(Re=3000.0, T=15.0):
     )
 
     U.plot_streamlines(2)
-    raise Exception("break")
-
+    U[0].plot_3d(2)
+    U[1].plot_3d(2)
 
     U_hat = U.hat()
     eps_ = eps / jnp.sqrt(U.energy())

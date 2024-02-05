@@ -1025,9 +1025,9 @@ class VectorField:
             return self[0].name
         else:
             name = self[0].name
-            for i in range(len(self)):
-                name = set(name).intersection(self[i].name)
-            return name
+            # for i in range(len(self)):
+            #     name = set(name).intersection(self[i].name)
+            return name[:-2]
 
     def set_name(self, name):
         self.name = name
@@ -1194,7 +1194,7 @@ class VectorField:
                 ]
             return (VectorField(out_field), other_field)
 
-    def plot_streamlines(self, normal_direction, isolines=None):
+    def plot_streamlines(self, normal_direction):
         if not self[0].supress_plotting_:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
@@ -1221,7 +1221,7 @@ class VectorField:
                 + "plot_streamlines_"
                 + self.get_name()
                 + "_t_"
-                + "{:06}".format(self.time_step)
+                + "{:06}".format(self[0].time_step)
                 + self[0].plotting_format
             )
             fig.savefig(
