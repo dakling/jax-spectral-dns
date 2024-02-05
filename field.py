@@ -240,9 +240,6 @@ class Field:
                     new_name = "field"
             ret = Field(self.domain, self.field * other.field, name=new_name)
             ret.time_step = self.time_step
-            print("hello2")
-            print(type(ret))
-            print(type(ret.field))
             return ret
         else:
             if self.performance_mode:

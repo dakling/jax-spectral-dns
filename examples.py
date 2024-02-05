@@ -837,8 +837,6 @@ def run_transient_growth(Re=3000.0, T=15.0):
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
             energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
-            energy_x_t_norm.append(vel_pert[0].energy_norm(1) / energy_0_norm)
-            energy_y_t_norm.append(vel_pert[1].energy_norm(1) / energy_0_norm)
             # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
 
             fig = figure.Figure()
