@@ -476,7 +476,7 @@ class LinearStabilityCalculation:
                 recompute_partial=recompute_partial,
                 recompute_full=recompute_full,
                 save=save_modes,
-                factor=U[mode,0]
+                factor=U[0,0]
             )
             # u = u_0 * V[0, 0]
             # u = u_0 * U[0, 0].real
