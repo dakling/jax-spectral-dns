@@ -727,10 +727,10 @@ def run_transient_growth(Re=3000.0, T=15.0):
 
     number_of_modes = 80
 
-    Nx = 100
-    Ny = 140
-    Nz = 50
-    end_time = T
+    Nx = 40
+    Ny = 100
+    Nz = 4
+    end_time = 1.1 * T
 
     lsc = LinearStabilityCalculation(Re, alpha, 100)
 
@@ -744,7 +744,7 @@ def run_transient_growth(Re=3000.0, T=15.0):
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
-    nse.set_linearize(False)
+    nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
         nse.domain_no_hat,
@@ -755,6 +755,10 @@ def run_transient_growth(Re=3000.0, T=15.0):
         save_modes=False,
         save_final=True,
     )
+
+    U.plot_streamlines(2)
+    raise Exception("break")
+
 
     U_hat = U.hat()
     eps_ = eps / jnp.sqrt(U.energy())
@@ -777,12 +781,15 @@ def run_transient_growth(Re=3000.0, T=15.0):
     energy_t = []
     energy_x_t = []
     energy_y_t = []
+    energy_t_norm = []
+    energy_x_t_norm = []
+    energy_y_t_norm = []
     rh_93_data = genfromtxt(
         "rh93_transient_growth.csv", delimiter=","
     ).T  # TODO get rid of this at some point
     # energy_max = []
-    energy_0 = vel_pert.energy_norm(1)
-    print("inital pertubation energy norm: ", energy_0)
+    energy_0_norm = vel_pert.energy_norm(1)
+    print("inital pertubation energy norm: ", energy_0_norm)
     energy_0 = vel_pert.energy()
     print("inital pertubation energy: ", energy_0)
 
@@ -806,6 +813,7 @@ def run_transient_growth(Re=3000.0, T=15.0):
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             vel_pert_energy_old = vel_pert_old.energy()
+            vel_pert_energy_norm = vel_pert.energy_norm(1)
             print("\n\n")
             print(
                 "velocity pertubation energy change: ",
@@ -828,11 +836,15 @@ def run_transient_growth(Re=3000.0, T=15.0):
             energy_t.append(vel_pert_energy / energy_0)
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
+            energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
+            energy_x_t_norm.append(vel_pert[0].energy_norm(1) / energy_0_norm)
+            energy_y_t_norm.append(vel_pert[1].energy_norm(1) / energy_0_norm)
             # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
+            ax.plot(ts, energy_t_norm, ".", label="growth of energy norm (DNS)")
             # ax.plot(ts, energy_max, ".", label="max growth (theory)")
             ax.plot(
                 rh_93_data[0],
@@ -848,12 +860,14 @@ def run_transient_growth(Re=3000.0, T=15.0):
             fig_x = figure.Figure()
             ax_x = fig_x.subplots(1, 1)
             ax_x.plot(ts, energy_x_t, ".", label="growth")
+            ax_x.plot(ts, energy_x_t_norm, ".", label="growth (norm)")
             fig_x.legend()
             fig_x.savefig("plots/energy_x_t.pdf")
 
             fig_y = figure.Figure()
             ax_y = fig_y.subplots(1, 1)
             ax_y.plot(ts, energy_y_t, ".", label="growth")
+            ax_x.plot(ts, energy_y_t_norm, ".", label="growth (norm)")
             fig_y.legend()
             fig_y.savefig("plots/energy_y_t.pdf")
 

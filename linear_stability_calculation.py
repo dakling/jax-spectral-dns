@@ -18,7 +18,7 @@ try:
 except:
     if hasattr(sys, "ps1"):
         pass
-from cheb import cheb, phi
+from cheb import cheb, phi, phi_s, phi_a, phi_pressure
 
 try:
     reload(sys.modules["domain"])
@@ -68,6 +68,8 @@ class LinearStabilityCalculation:
         self.S = None
         self.V = None
         self.U = None
+
+        self.symm = False # TODO possibly make this nicer
 
         self.make_field_file_name_mode = (
             lambda domain_, field_name, mode: field_name
@@ -128,18 +130,32 @@ class LinearStabilityCalculation:
                     jj, kk = local_to_global_index(j, k, eq, var)
                     mat[jj, kk] = value
 
-                u = phi(k, 0, y)
-                d2u = phi(k, 2, y)
+                if self.symm:
+                    u = phi_a(k, 0, y)
+                    d2u = phi_a(k, 2, y)
 
-                v = u
-                dv = phi(k, 1, y)
-                d2v = d2u
+                    v = u
+                    dv = phi_s(k, 1, y)
+                    d2v = d2u
 
-                w = u
-                d2w = d2u
+                    w = u
+                    d2w = d2u
 
-                p = cheb(k, 0, y)
-                dp = cheb(k, 1, y)
+                    p = phi_pressure(k, 0, y)
+                    dp = phi_pressure(k, 1, y)
+                else:
+                    u = phi(k, 0, y)
+                    d2u = phi(k, 2, y)
+
+                    v = u
+                    dv = phi(k, 1, y)
+                    d2v = d2u
+
+                    w = u
+                    d2w = d2u
+
+                    p = cheb(k, 0, y)
+                    dp = cheb(k, 1, y)
 
                 # eq 1 (momentum x)
                 setMat(B, 0, 0, u)
@@ -242,7 +258,8 @@ class LinearStabilityCalculation:
                 phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
                 for i in range(N_domain):
                     for k in range(self.n):
-                        phi_mat[i, k] = phi(k, 0, ys[i])
+                        phi_mat[i, k] = phi(k, 0, ys[i]) # TODO
+                    #     phi_mat[i, k] = [phi_a, phi_s, phi_a][k](k, 0, ys[i]) # TODO
                 out = np.outer(
                     np.exp(
                         1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
@@ -338,34 +355,58 @@ class LinearStabilityCalculation:
 
         def get_integral_coefficient(p, q):
             f = lambda y: phi(p, 0, y) * phi(q, 0, y)
-            # out, _ = quad(f, -1, 1)
-            # out, _ = fixed_quad(f, -1, 1, n=2)
-            out, _ = quadrature(f, -1, 1, maxiter=100)
-            # ys = domain.grid[1]
-            # f_ = np.fromiter((f(y) for y in ys), ys.dtype)
-            # out = simpson(f_)
-            return out
+            f_s = lambda y: phi_s(p, 0, y) * phi_s(q, 0, y)
+            f_a = lambda y: phi_a(p, 0, y) * phi_a(q, 0, y)
+            if self.symm:
+                # out_s, _ = fixed_quad(f_s, -1, 1, n=2)
+                # out_a, _ = fixed_quad(f_a, -1, 1, n=2)
+                # out_s, _ = quad(f_s, -1, 1, limit=100)
+                # out_a, _ = quad(f_a, -1, 1, limit=100)
+                xs = self.ys
+                fs_s = list(map(f_s, xs))
+                fa_s = list(map(f_a, xs))
+                out_s = simpson(fs_s, x=xs)
+                out_a = simpson(fa_s, x=xs)
+                return (out_s, out_a)
+            else:
+                out, _ = quad(f, -1, 1, limit=100)
+                # xs = self.ys
+                # fs = list(map(f, xs))
+                # out = simpson(fs, x=xs)
+                return out
 
         integ = np.zeros([n, n])
+        integ_s = np.zeros([n, n])
+        integ_a = np.zeros([n, n])
         for p in range(n):
             for q in range(p, n):
-                integ[p, q] = get_integral_coefficient(p, q)
-                integ[q, p] = integ[p, q]  # not needed right?
+                if self.symm:
+                    integ_s[p, q], integ_a[p, q] = get_integral_coefficient(p, q)
+                    integ_s[q, p] = integ_s[p, q]  # not needed right?
+                    integ_a[q, p] = integ_a[p, q]  # not needed right?
+                else:
+                    integ[p, q] = get_integral_coefficient(p, q)
+                    integ[q, p] = integ[p, q]  # not needed right?
         C = np.zeros([number_of_modes, number_of_modes], dtype=complex)
         for j in range(number_of_modes):
             for k in range(j, number_of_modes):
                 for p in range(n):
                     for q in range(n):
                         for block in range(3):
-                            C[j, k] += (
-                                np.conjugate(evecs[j][p + block * n])
-                                * evecs[k][q + block * n]
-                                * integ[p, q]
-                            )
+                            if self.symm:
+                                C[j, k] += (
+                                    np.conjugate(evecs[j][p + block * n])
+                                    * evecs[k][q + block * n]
+                                    * [integ_a[p, q], integ_s[p, q], integ_a[p, q]][block]
+                                )
+                            else:
+                                C[j, k] += (
+                                    np.conjugate(evecs[j][p + block * n])
+                                    * evecs[k][q + block * n]
+                                    * integ[p, q]
+                                )
                 C[k, j] = np.conjugate(C[j, k])
-            C[j, j] = C[
-                j, j
-            ].real  # just elminates O(10^-16) complex parts which bothers `chol'
+            C[j, j] = C[j, j].real  # just elminates O(10^-16) complex parts which bothers `chol'
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         U, S, Vh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
@@ -438,17 +479,55 @@ class LinearStabilityCalculation:
             # u = u_0 * V[0, 0]
             u = u_0 * U[0, 0]
 
+            n = []
             ys1 = []
+            ys2 = []
             for mode in range(0, number_of_modes):
-                # ys1.append(abs(V[mode, 0]))
+                n.append(mode)
+                ys1.append(abs(V[mode, 0]))
                 # ys1.append((V[mode, 0]))
-                ys1.append(abs(U[mode, 0]))
+                ys2.append(abs(U[mode, 0]))
 
-            fig, ax = plt.subplots(1,1)
-            ax.set_yscale('log')
-            ax.plot(ys1, "o")
+            if True: #self.symm:
+                v_mat_ns = self.read_mat("/home/klingenberg/Downloads/v.mat", "v_s")[:, 0]
+                u_mat_ns = self.read_mat("/home/klingenberg/Downloads/u.mat", "u_s")[:, 0]
+                v_mat = self.read_mat("/home/klingenberg/Downloads/v_ns.mat", "v_s")[:, 0]
+                u_mat = self.read_mat("/home/klingenberg/Downloads/u_ns.mat", "u_s")[:, 0]
+                v_mat_full = self.read_mat("/home/klingenberg/Downloads/v_full.mat", "v_s")[:, 0]
+                u_mat_full = self.read_mat("/home/klingenberg/Downloads/u_full.mat", "u_s")[:, 0]
+            else:
+                pass
+                # v_mat = self.read_mat("/home/klingenberg/Downloads/v_ns.mat", "v_s")[:, 0]
+                # u_mat = self.read_mat("/home/klingenberg/Downloads/u_ns.mat", "u_s")[:, 0]
+            print("shape u_mat: ", u_mat.shape)
+            print("shape v_mat: ", v_mat.shape)
+            fig, ax = plt.subplots(2,2)
+            ax[0][0].set_yscale('log')
+            ax[0][0].plot(n, ys1, "o")
+            ax[0][0].plot(n, v_mat, "x")
+            ax[0][0].plot(n, v_mat_full, ".")
+            ax[0][0].plot(n, v_mat_ns, ".")
+            ax[0][1].set_yscale('log')
+            ax[0][1].plot(n, ys2, "o")
+            ax[0][1].plot(n, u_mat, "x")
+            ax[0][1].plot(n, u_mat_full, ".")
+            ax[0][1].plot(n, u_mat_ns, ".")
+            ax[1][0].set_ylim([1e-8, 1])
+            ax[1][0].set_yscale('log')
+            ax[1][0].plot(n, ys1, "o")
+            ax[1][0].plot(n, v_mat, "x")
+            ax[1][0].plot(n, v_mat_full, ".")
+            ax[1][0].plot(n, v_mat_ns, ".")
+            ax[1][1].set_yscale('log')
+            ax[1][1].set_ylim([1e-13, 1])
+            ax[1][1].plot(n, ys2, "o")
+            ax[1][1].plot(n, u_mat, "x")
+            ax[1][1].plot(n, u_mat_full, ".")
+            ax[1][1].plot(n, u_mat_ns, ".")
             fig.savefig("plots/coeffs.pdf")
             print("energy growth: ", self.S[0]**2)
+            if self.symm:
+                raise Exception("break")
 
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
