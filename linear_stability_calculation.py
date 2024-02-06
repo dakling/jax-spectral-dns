@@ -45,9 +45,10 @@ NoneType = type(None)
 
 
 class LinearStabilityCalculation:
-    def __init__(self, Re=180.0, alpha=3.25, n=50):
+    def __init__(self, Re=180.0, alpha=3.25, beta=0.0, n=50):
         self.Re = Re
         self.alpha = alpha
+        self.beta = beta
         # self.n = int(n * Domain.aliasing)  # chebychev resolution
         self.n = n  # chebychev resolution
 
@@ -118,7 +119,7 @@ class LinearStabilityCalculation:
 
         u_fun = lambda y: (1 - y**2)
         du_fun = lambda y: -2 * y
-        beta = 0
+        beta = self.beta
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]

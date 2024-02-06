@@ -214,7 +214,7 @@ def run_pseudo_2d():
 
     Nx = 496
     Nz = 4
-    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
 
     end_time = 100
     nse = solve_navier_stokes_laminar(
@@ -469,7 +469,7 @@ def run_pseudo_2d_pertubation(
     Ny = int(Ny)
     Nz = int(Nz)
 
-    lsc = LinearStabilityCalculation(Re, alpha, 96)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -635,7 +635,7 @@ def run_jimenez_1990(start_time=0):
     nse.set_linearize(False)
 
     if start_time == 0:
-        lsc = LinearStabilityCalculation(Re, alpha, Ny)
+        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
         vel_pert = lsc.velocity_field(nse.domain_no_hat)
         vort_pert = vel_pert.curl()
         # eps = 1e0 / jnp.sqrt(vort_pert.energy())
@@ -718,10 +718,13 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 
-def run_transient_growth(Re=3000.0, T=15.0):
+def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
+
+    # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
     T = float(T)
-    alpha = 1
+    alpha = float(alpha)
+    beta = float(beta)
 
     eps = 1e-0
 
@@ -730,9 +733,9 @@ def run_transient_growth(Re=3000.0, T=15.0):
     Nx = 50
     Ny = 100
     Nz = 20
-    end_time = 1.1 * T
+    end_time = 1.01 * T
 
-    lsc = LinearStabilityCalculation(Re, alpha, 100)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=100)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -918,7 +921,7 @@ def run_optimization_pseudo_2d_pertubation():
 
 
     dom = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-    lsc = LinearStabilityCalculation(Re, alpha, Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
     v0_0 = lsc.velocity_field(dom, 0)
 
 
