@@ -535,11 +535,13 @@ class LinearStabilityCalculation:
                 pass
             print("energy growth: ", self.S[0]**2)
 
+            i = 1
             for mode in range(1, number_of_modes):
 
                 # TODO maybe create an eigenvalue plot
                 factor = U[mode,0]
                 if abs(factor) > 1e-7:
+                    i += 1
                     print("mode ", mode, " of ", number_of_modes)
                     u_inc = self.velocity_field(
                         domain,
@@ -555,10 +557,15 @@ class LinearStabilityCalculation:
                     # u_ = u
                     # u_.set_name("u_after_" + str(mode))
                     # u_.plot_3d(2)
+                    if abs(factor) > 1e-7:
+                        if u_inc.energy() / u_0.energy() > 1e2:
+                            print("high energy mode encountered: ", u_inc.energy() / u_0.energy())
 
                 else:
                     print("mode ", mode, " of ", number_of_modes, "(negligble, skipping)")
 
+
+            print("modes used:", i)
             if save_final:
                 for i in range(len(u)):
                     u[i].name = "velocity_pertubation_" + "xyz"[i]
