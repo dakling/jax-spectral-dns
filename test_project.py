@@ -1026,7 +1026,7 @@ class TestProject(unittest.TestCase):
         Re = 5772.22
         alpha = 1.02056
 
-        lsc = LinearStabilityCalculation(Re, alpha, n)
+        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=n)
         evs, _ = lsc.calculate_eigenvalues()
         # evs, evecs = lsc.calculate_eigenvalues()
         # print(evs[0])
@@ -1091,7 +1091,7 @@ class TestProject(unittest.TestCase):
         linearize = False
         alpha = 1.02056
 
-        lsc = LinearStabilityCalculation(Re, alpha, 50)
+        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=50)
         nse_rk = solve_navier_stokes_pertubation(
             Re=Re,
             Nx=Nx,

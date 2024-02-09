@@ -720,6 +720,8 @@ def run_jimenez_1990(start_time=0):
 
 def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
+    print("CPU?", jax.devices()[0].platform == "cpu")
+    print("GPU?", jax.devices()[0].platform == "gpu")
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
     T = float(T)
@@ -728,14 +730,14 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
     eps = 1e-0
 
-    number_of_modes = 80
+    number_of_modes = 35
 
-    Nx = 50
+    Nx = 60
     Ny = 100
     Nz = 20
     end_time = 1.01 * T
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=100)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -949,3 +951,69 @@ def run_optimization_pseudo_2d_pertubation():
         v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
         v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)
+
+def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+
+    eps = 1e-0
+
+
+    Nx = 64
+    Ny = 90
+    Nz = 64
+    # Nx = 12
+    # Ny = 60
+    # Nz = 12
+    end_time = 1.01 * T
+
+    # number_of_modes = 80
+
+    # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+
+    nse = solve_navier_stokes_pertubation(
+        Re=Re,
+        Nx=Nx,
+        Ny=Ny,
+        Nz=Nz,
+        end_time=end_time,
+        pertubation_factor=0.0,
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
+    )
+
+    nse.set_linearize(True)
+
+    # U = lsc.calculate_transient_growth_initial_condition(
+    #     nse.domain_no_hat,
+    #     T,
+    #     number_of_modes,
+    #     recompute_full=False,
+    #     recompute_partial=False,
+    #     save_modes=False,
+    #     save_final=True,
+    # )
+
+    u = Field.FromFunc(nse.domain_no_hat, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
+    v = Field.FromFunc(nse.domain_no_hat, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
+    w = Field.FromFunc(nse.domain_no_hat, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
+    U = VectorField([u, v, w], name="vel")
+
+    eps_ = eps / jnp.sqrt(U.energy())
+    U_hat = U.hat() * eps_
+    print("U energy norm: ", jnp.sqrt(U.energy()))
+    # print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
+
+    nse.init_velocity(U_hat)
+
+    U_ = U * eps_
+    for i in range(3):
+        U_[i].name = "uvw"[i]
+        U_hat[i].name = "uvw"[i]
+        U_[i].save_to_file("uvw"[i])
+        # U_hat[i].save_to_file("uvw"[i])
+    # U_.plot_streamlines(2)
+    U_[0].plot_3d(2)
+    U_[1].plot_3d(2)
+    U_[2].plot_3d(2)

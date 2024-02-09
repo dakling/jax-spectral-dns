@@ -148,6 +148,8 @@ class Equation:
             field[-1].time_step = self.time_step
 
     def solve(self):
+        # TODO use lax.scan as done in jax-cfd?
+        # TODO inner/outer steps?
         self.prepare()
         while not self.done():
             i = self.time_step

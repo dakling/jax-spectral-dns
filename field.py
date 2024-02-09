@@ -1105,7 +1105,7 @@ class VectorField:
         # vectorize = True
 
         jit = False
-        vectorize = False
+        vectorize = jax.devices()[0].platform == "gpu" # True on GPUs and False on CPUs
 
         if jit:
             time_1 = time.time()

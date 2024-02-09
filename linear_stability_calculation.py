@@ -70,7 +70,8 @@ class LinearStabilityCalculation:
         self.V = None
         self.U = None
 
-        self.symm = False # TODO possibly make this nicer
+        self.symm = False
+        # self.symm = True
 
         self.make_field_file_name_mode = (
             lambda domain_, field_name, mode: field_name
@@ -256,12 +257,14 @@ class LinearStabilityCalculation:
 
             N_domain = domain.number_of_cells(1)
             ys = domain.grid[1]
-            def to_3d_field(eigenvector):
+            def to_3d_field(eigenvector, component=0):
                 phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
                 for i in range(N_domain):
                     for k in range(self.n):
-                        phi_mat[i, k] = phi(k, 0, ys[i]) # TODO
-                    #     phi_mat[i, k] = [phi_a, phi_s, phi_a][k](k, 0, ys[i]) # TODO
+                        if self.symm:
+                            phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                        else:
+                            phi_mat[i, k] = phi(k, 0, ys[i])
                 out = (factor * np.outer(
                     np.exp(
                         1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
@@ -273,9 +276,9 @@ class LinearStabilityCalculation:
                 return jnp.array(out.tolist())
 
             print("calculating velocity pertubations in 3D")
-            u_field = Field(domain, to_3d_field(u_vec), name="velocity_pert_x")
-            v_field = Field(domain, to_3d_field(v_vec), name="velocity_pert_y")
-            w_field = Field(domain, to_3d_field(w_vec), name="velocity_pert_z")
+            u_field = Field(domain, to_3d_field(u_vec, component=0), name="velocity_pert_x")
+            v_field = Field(domain, to_3d_field(v_vec, component=1), name="velocity_pert_y")
+            w_field = Field(domain, to_3d_field(w_vec, component=2), name="velocity_pert_z")
             print("done calculating velocity pertubations in 3D")
 
             if save:
@@ -362,13 +365,13 @@ class LinearStabilityCalculation:
             if self.symm:
                 # out_s, _ = fixed_quad(f_s, -1, 1, n=2)
                 # out_a, _ = fixed_quad(f_a, -1, 1, n=2)
-                # out_s, _ = quad(f_s, -1, 1, limit=100)
-                # out_a, _ = quad(f_a, -1, 1, limit=100)
-                xs = self.ys
-                fs_s = list(map(f_s, xs))
-                fa_s = list(map(f_a, xs))
-                out_s = simpson(fs_s, x=xs)
-                out_a = simpson(fa_s, x=xs)
+                out_s, _ = quad(f_s, -1, 1, limit=100)
+                out_a, _ = quad(f_a, -1, 1, limit=100)
+                # xs = self.ys
+                # fs_s = list(map(f_s, xs))
+                # fa_s = list(map(f_a, xs))
+                # out_s = simpson(fs_s, x=xs)
+                # out_a = simpson(fa_s, x=xs)
                 return (out_s, out_a)
             else:
                 out, _ = quad(f, -1, 1, limit=100)
@@ -477,7 +480,8 @@ class LinearStabilityCalculation:
                 recompute_partial=recompute_partial,
                 recompute_full=recompute_full,
                 save=save_modes,
-                factor=U[0,0]
+                # factor=U[0,0]
+                factor=V[0,0]
             )
             # u = u_0 * V[0, 0]
             # u = u_0 * U[0, 0].real
@@ -492,39 +496,40 @@ class LinearStabilityCalculation:
                 # ys1.append((V[mode, 0]))
                 ys2.append(abs(U[mode, 0]))
 
-            v_mat_ns = self.read_mat("v.mat", "v_s")[:, 0]
-            u_mat_ns = self.read_mat("u.mat", "u_s")[:, 0]
-            v_mat = self.read_mat("v_ns.mat", "v_s")[:, 0]
-            u_mat = self.read_mat("u_ns.mat", "u_s")[:, 0]
-            v_mat_full = self.read_mat("v_full.mat", "v_s")[:, 0]
-            u_mat_full = self.read_mat("u_full.mat", "u_s")[:, 0]
-            fig, ax = plt.subplots(2,2)
-            ax[0][0].set_yscale('log')
-            ax[0][0].plot(n, ys1, "o")
-            ax[0][0].plot(n, v_mat, "x")
-            ax[0][0].plot(n, v_mat_full, ".")
-            ax[0][0].plot(n, v_mat_ns, "x")
-            ax[0][1].set_yscale('log')
-            ax[0][1].plot(n, ys2, "o")
-            ax[0][1].plot(n, u_mat, "x")
-            ax[0][1].plot(n, u_mat_full, ".")
-            ax[0][1].plot(n, u_mat_ns, "x")
-            ax[1][0].set_ylim([1e-8, 10])
-            ax[1][0].set_yscale('log')
-            ax[1][0].plot(n, ys1, "o")
-            ax[1][0].plot(n, v_mat, "x")
-            ax[1][0].plot(n, v_mat_full, ".")
-            ax[1][0].plot(n, v_mat_ns, "x")
-            ax[1][1].set_yscale('log')
-            ax[1][1].set_ylim([1e-13, 100])
-            ax[1][1].plot(n, ys2, "o")
-            ax[1][1].plot(n, u_mat, "x")
-            ax[1][1].plot(n, u_mat_full, ".")
-            ax[1][1].plot(n, u_mat_ns, "x")
-            fig.savefig("plots/coeffs.pdf")
+            try:
+                v_mat_ns = self.read_mat("v.mat", "v_s")[:number_of_modes, 0]
+                u_mat_ns = self.read_mat("u.mat", "u_s")[:number_of_modes, 0]
+                v_mat = self.read_mat("v_ns.mat", "v_s")[:number_of_modes, 0]
+                u_mat = self.read_mat("u_ns.mat", "u_s")[:number_of_modes, 0]
+                v_mat_full = self.read_mat("v_full.mat", "v_s")[:number_of_modes, 0]
+                u_mat_full = self.read_mat("u_full.mat", "u_s")[:number_of_modes, 0]
+                fig, ax = plt.subplots(2,2)
+                ax[0][0].set_yscale('log')
+                ax[0][0].plot(n, ys1, "o")
+                ax[0][0].plot(n, v_mat, "x")
+                ax[0][0].plot(n, v_mat_full, ".")
+                ax[0][0].plot(n, v_mat_ns, "x")
+                ax[0][1].set_yscale('log')
+                ax[0][1].plot(n, ys2, "o")
+                ax[0][1].plot(n, u_mat, "x")
+                ax[0][1].plot(n, u_mat_full, ".")
+                ax[0][1].plot(n, u_mat_ns, "x")
+                ax[1][0].set_ylim([1e-8, 10])
+                ax[1][0].set_yscale('log')
+                ax[1][0].plot(n, ys1, "o")
+                ax[1][0].plot(n, v_mat, "x")
+                ax[1][0].plot(n, v_mat_full, ".")
+                ax[1][0].plot(n, v_mat_ns, "x")
+                ax[1][1].set_yscale('log')
+                ax[1][1].set_ylim([1e-13, 100])
+                ax[1][1].plot(n, ys2, "o")
+                ax[1][1].plot(n, u_mat, "x")
+                ax[1][1].plot(n, u_mat_full, ".")
+                ax[1][1].plot(n, u_mat_ns, "x")
+                fig.savefig("plots/coeffs.pdf")
+            except Exception:
+                pass
             print("energy growth: ", self.S[0]**2)
-            if self.symm:
-                raise Exception("break")
 
             for mode in range(1, number_of_modes):
                 print("mode ", mode, " of ", number_of_modes)
@@ -535,7 +540,8 @@ class LinearStabilityCalculation:
                     recompute_partial=recompute_partial,
                     recompute_full=recompute_full,
                     save=save_modes,
-                    factor=U[mode,0]
+                    # factor=U[mode,0]
+                    factor=V[mode,0]
                 )
                 # u += u_inc * V[mode, 0]
                 # u += u_inc * U[mode, 0].real

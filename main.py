@@ -33,6 +33,7 @@ def main():
     tp = TestProject()
     # tp.test_navier_stokes_laminar()
     tp.test_2d_growth()
+    # tp.test_linear_stability()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
