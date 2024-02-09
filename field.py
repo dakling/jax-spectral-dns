@@ -20,7 +20,7 @@ import sys
 try:
     reload(sys.modules["domain"])
 except:
-    if hasattr(sys, 'ps1'):
+    if hasattr(sys, "ps1"):
         print("Unable to load")
 from domain import Domain
 
@@ -85,7 +85,7 @@ class Field:
     plotting_dir = "./plots/"
     # plotting_format = ".pdf"
     plotting_format = ".png"
-    supress_plotting_ = False # setting this to True can suppress plotting
+    supress_plotting_ = False  # setting this to True can suppress plotting
     # supress_plotting_ = True # setting this to True can suppress plotting
     field_dir = "./fields/"
     performance_mode = True
@@ -306,8 +306,15 @@ class Field:
 
     def energy(self):
         # energy = 0.5 * self * self
-        energy = 0.5 * Field(self.domain, self.field*self.field, name="energy") # TODO why does the above not work?
-        return energy.volume_integral()
+        energy = 0.5 * Field(
+            self.domain, self.field * self.field, name="energy"
+        )  # TODO why does the above not work?
+        domain_volume = 2.0 ** (
+            len(self.all_nonperiodic_dimensions()) - 1
+        ) * jnp.prod(
+            jnp.array(self.domain.scale_factors)
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return energy.volume_integral() / domain_volume
 
     def normalize(self):
         self.field = self.field / self.energy()
@@ -524,7 +531,9 @@ class Field:
                             label=other_field.name,
                         )
                         ax3d.plot_surface(
-                            self.domain.mgrid[0], (self.domain.mgrid[1]), other_field.field
+                            self.domain.mgrid[0],
+                            (self.domain.mgrid[1]),
+                            other_field.field,
                         )
                     fig.legend()
                     fig.savefig(
@@ -559,9 +568,9 @@ class Field:
                     for other_field in other_fields:
                         ax[dimension].plot(
                             self.domain.grid[dimension],
-                            other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                                indices=N_c[0], axis=other_dim[0]
-                            ),
+                            other_field.field.take(
+                                indices=N_c[1], axis=other_dim[1]
+                            ).take(indices=N_c[0], axis=other_dim[0]),
                             "--",
                             label=other_field.name,
                         )
@@ -605,7 +614,9 @@ class Field:
                 rows_z = int(lx / (ly + lx) * base_len)
                 cols_z = int(ly / (lz + ly) * base_len)
                 ax = [
-                    fig.add_subplot(fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]
+                    ),
                     fig.add_subplot(
                         fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
                     ),
@@ -826,8 +837,9 @@ class Field:
         def reduce_add_along_axis(arr, axis):
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
-            out_arr = functools.reduce(lambda a, b: a+b, arr)
+            out_arr = functools.reduce(lambda a, b: a + b, arr)
             return out_arr
+
         if not self.is_periodic(direction):
             int = self.integrate(direction, 1, bc_right=0.0)
             if self.number_of_dimensions() == 1:
@@ -993,14 +1005,24 @@ class VectorField:
         return self
 
     def energy_norm(self, k):
-        energy = k ** 2 * self[1] * self[1]
+        energy = k**2 * self[1] * self[1]
         energy += self[1].diff(1) * self[1].diff(1)
         vort = self.curl()
         energy += vort[1] * vort[1]
         return energy.volume_integral()
 
     def save_to_file(self, filename):
-        """Save field to file filename."""
+        """Save field to file filename.
+
+        Note: the resulting format is compatible with dedalus. Importing e.g. a
+        velocity field into dedalus is as straightforward as:
+        u_array = np.load("/path/to/u_file", allow_pickle=True)
+        v_array = np.load("/path/to/v_file", allow_pickle=True)
+        w_array = np.load("/path/to/w_file", allow_pickle=True)
+
+        ... # dedalus case setup goes here...
+        u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
+        u.data = np.stack([u_array, v_array, w_array])"""
         self.set_name(self.name)
         for f in self:
             field_array = np.array(f.field.tolist())
@@ -1105,7 +1127,7 @@ class VectorField:
         # vectorize = True
 
         jit = False
-        vectorize = jax.devices()[0].platform == "gpu" # True on GPUs and False on CPUs
+        vectorize = jax.devices()[0].platform == "gpu"  # True on GPUs and False on CPUs
 
         if jit:
             time_1 = time.time()
@@ -1211,7 +1233,7 @@ class VectorField:
 
             try:
                 ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
-            except TypeError: # compatibilty with older matplotlib versions
+            except TypeError:  # compatibilty with older matplotlib versions
                 ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
             fig.savefig(
                 self[0].plotting_dir
@@ -1228,6 +1250,41 @@ class VectorField:
                 + "_latest"
                 + self[0].plotting_format
             )
+    def plot_vectors(self, normal_direction):
+        if not self[0].supress_plotting_:
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            directions = [i for i in self.all_dimensions() if i != normal_direction]
+            x = self.domain.grid[directions[0]]
+            y = jnp.flip(self.domain.grid[directions[1]])
+            N = 40
+            xi = np.linspace(x[0], x[-1], N)
+            yi = np.linspace(y[0], y[-1], N)
+            N_c = self.domain.number_of_cells(normal_direction) // 2
+            U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
+            V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
+            interp_u = RegularGridInterpolator((x, y), U, method="cubic")
+            interp_v = RegularGridInterpolator((x, y), V, method="cubic")
+            Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
+            Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
+
+            ax.quiver(xi, yi, Ui, Vi)
+            fig.savefig(
+                self[0].plotting_dir
+                + "plot_vectors_"
+                + self.get_name()
+                + "_t_"
+                + "{:06}".format(self[0].time_step)
+                + self[0].plotting_format
+            )
+            fig.savefig(
+                self[0].plotting_dir
+                + "plot_vectors_"
+                + self.get_name()
+                + "_latest"
+                + self[0].plotting_format
+            )
+
 
 
 class FourierField(Field):

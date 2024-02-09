@@ -749,7 +749,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
-    nse.set_linearize(True)
+    nse.set_linearize(False)
 
     U = lsc.calculate_transient_growth_initial_condition(
         nse.domain_no_hat,
@@ -958,20 +958,19 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     alpha = float(alpha)
     beta = float(beta)
 
-    eps = 1e-0
-
+    eps = 1e-5
 
     Nx = 64
     Ny = 90
-    Nz = 64
-    # Nx = 12
-    # Ny = 60
-    # Nz = 12
+    Nz = 24
+    # Nx = 4
+    # Ny = 50
+    # Nz = 4
     end_time = 1.01 * T
 
-    # number_of_modes = 80
+    number_of_modes = 80
 
-    # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
     nse = solve_navier_stokes_pertubation(
         Re=Re,
@@ -983,22 +982,27 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
-    nse.set_linearize(True)
+    nse.set_linearize(False)
 
-    # U = lsc.calculate_transient_growth_initial_condition(
-    #     nse.domain_no_hat,
-    #     T,
-    #     number_of_modes,
-    #     recompute_full=False,
-    #     recompute_partial=False,
-    #     save_modes=False,
-    #     save_final=True,
-    # )
+    U = lsc.calculate_transient_growth_initial_condition(
+        nse.domain_no_hat,
+        T,
+        number_of_modes,
+        recompute_full=False,
+        # recompute_full=True,
+        # recompute_partial=False,
+        recompute_partial=True,
+        save_modes=False,
+        save_final=True,
+    )
 
-    u = Field.FromFunc(nse.domain_no_hat, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
-    v = Field.FromFunc(nse.domain_no_hat, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
-    w = Field.FromFunc(nse.domain_no_hat, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
-    U = VectorField([u, v, w], name="vel")
+    # u = Field.FromFunc(nse.domain_no_hat, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
+    # v = Field.FromFunc(nse.domain_no_hat, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
+    # w = Field.FromFunc(nse.domain_no_hat, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
+    # # u = Field.FromFunc(nse.domain_no_hat, (lambda X: (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_x")
+    # # v = Field.FromFunc(nse.domain_no_hat, (lambda X: 2 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_y")
+    # # w = Field.FromFunc(nse.domain_no_hat, (lambda X: 3 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_z")
+    # U = VectorField([u, v, w], name="vel")
 
     eps_ = eps / jnp.sqrt(U.energy())
     U_hat = U.hat() * eps_
@@ -1008,12 +1012,77 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.init_velocity(U_hat)
 
     U_ = U * eps_
+    print("U energy norm (normalized): ", jnp.sqrt(U_.energy()))
+    # U_ = U
     for i in range(3):
         U_[i].name = "uvw"[i]
-        U_hat[i].name = "uvw"[i]
+        # U_hat[i].name = "uvw"[i]
         U_[i].save_to_file("uvw"[i])
+        # print(i, U_[i])
         # U_hat[i].save_to_file("uvw"[i])
     # U_.plot_streamlines(2)
     U_[0].plot_3d(2)
     U_[1].plot_3d(2)
     U_[2].plot_3d(2)
+    U_.plot_streamlines(2)
+    U_.plot_vectors(2)
+
+    plot_interval = 5
+    def before_time_step(nse):
+        i = nse.time_step
+        if i % plot_interval == 0:
+            vel_hat = nse.get_field("velocity_hat", i)
+            vel = vel_hat.no_hat()
+            vel_pert = VectorField([vel[0], vel[1], vel[2]])
+            vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+            vort = vel.curl()
+            for j in range(3):
+                vel[j].time_step = i
+                vort[j].time_step = i
+                vel[j].name = "velocity_" + "xyz"[j]
+                vort[j].name = "vorticity_" + "xyz"[j]
+                vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+            vel_pert_energy = vel_pert.energy()
+            vel_pert_energy_old = vel_pert_old.energy()
+            vel_pert_energy_norm = vel_pert.energy_norm(1)
+            print("\n\n")
+            print(
+                "velocity pertubation energy: ",
+                vel_pert_energy,
+            )
+            print(
+                "velocity pertubation relative change: ",
+                vel_pert_energy / vel_pert_energy_old,
+            )
+            print(
+                "velocity pertubation energy change: ",
+                vel_pert_energy - vel_pert_energy_old,
+            )
+            print(
+                "velocity pertubation energy x change: ",
+                vel_pert[0].energy() - vel_pert_old[0].energy(),
+            )
+            print(
+                "velocity pertubation energy y change: ",
+                vel_pert[1].energy() - vel_pert_old[1].energy(),
+            )
+            print(
+                "velocity pertubation energy z change: ",
+                vel_pert[2].energy() - vel_pert_old[2].energy(),
+            )
+
+    nse.before_time_step_fn = before_time_step
+
+    nse.solve()
+
+    U_ = nse.get_latest_field("velocity_hat").no_hat()
+    for i in range(3):
+        U_[i].name = "uvw"[i]
+        # U_hat[i].name = "uvw"[i]
+        U_[i].save_to_file("uvw"[i] + "_final")
+        # print(i, U_[i])
+        # U_hat[i].save_to_file("uvw"[i])

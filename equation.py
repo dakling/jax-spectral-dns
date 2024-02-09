@@ -85,6 +85,7 @@ class Equation:
     def append_field(self, name, field):
         try:
             self.fields[name].append(field)
+            # self.fields[name] = self.fields[name].add(field) # does this make a difference? taken from jax-fluids
             self.fields[name][-1].name = name + "_" + str(self.time_step)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
@@ -94,6 +95,7 @@ class Equation:
         if type(field) == NoneType:
             self.fields[name] = []
         else:
+            # self.fields[name] = jnp.array([field]) # TODO avoid the use of lists
             self.fields[name] = [field]
             self.fields[name][0].name = name + "_0"
 

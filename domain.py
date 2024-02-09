@@ -14,6 +14,7 @@ import numpy as np
 NoneType = type(None)
 
 
+# TODO turn this into an abstract class, introduce Physical_Domain. Same with Field.
 class Domain:
     """Class that mainly contains information on the independent variables of
     the problem (i.e. the basis) and implements some operations that can be

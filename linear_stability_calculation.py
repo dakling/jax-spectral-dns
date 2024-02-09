@@ -101,6 +101,7 @@ class LinearStabilityCalculation:
 
     def assemble_matrix_fast(self):
         alpha = self.alpha
+        beta = self.beta
         Re = self.Re
 
         ys = self.ys
@@ -120,7 +121,6 @@ class LinearStabilityCalculation:
 
         u_fun = lambda y: (1 - y**2)
         du_fun = lambda y: -2 * y
-        beta = self.beta
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
@@ -218,7 +218,6 @@ class LinearStabilityCalculation:
     def velocity_field(
         self,
         domain,
-        time=0.0,
         mode=0,
         factor=1.0,
         recompute_partial=False,
@@ -228,7 +227,7 @@ class LinearStabilityCalculation:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
         recompute_partial = recompute_partial or recompute_full
         try:
-            if recompute_partial == False and time <= 1e-15:
+            if recompute_partial == False:
                 u_field = Field.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "u", mode),
@@ -258,6 +257,8 @@ class LinearStabilityCalculation:
             N_domain = domain.number_of_cells(1)
             ys = domain.grid[1]
             def to_3d_field(eigenvector, component=0):
+                if abs(self.beta) > 1e-25:
+                    raise Exception("Spanwise dependency not implemented yet.")
                 phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
                 for i in range(N_domain):
                     for k in range(self.n):
@@ -267,7 +268,8 @@ class LinearStabilityCalculation:
                             phi_mat[i, k] = phi(k, 0, ys[i])
                 out = (factor * np.outer(
                     np.exp(
-                        1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+                        # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+                        1j * (self.alpha * domain.grid[0])
                     ),
                     phi_mat @ eigenvector,
                 )).real
@@ -480,9 +482,11 @@ class LinearStabilityCalculation:
                 recompute_partial=recompute_partial,
                 recompute_full=recompute_full,
                 save=save_modes,
-                # factor=U[0,0]
-                factor=V[0,0]
+                factor=U[0,0]
+                # factor=V[0,0]
             )
+            u_0.set_name("u_" + str(0))
+            u_0.plot_3d(2)
             # u = u_0 * V[0, 0]
             # u = u_0 * U[0, 0].real
             u = u_0
@@ -532,20 +536,28 @@ class LinearStabilityCalculation:
             print("energy growth: ", self.S[0]**2)
 
             for mode in range(1, number_of_modes):
-                print("mode ", mode, " of ", number_of_modes)
 
-                u_inc = self.velocity_field(
-                    domain,
-                    mode,
-                    recompute_partial=recompute_partial,
-                    recompute_full=recompute_full,
-                    save=save_modes,
-                    # factor=U[mode,0]
-                    factor=V[mode,0]
-                )
-                # u += u_inc * V[mode, 0]
-                # u += u_inc * U[mode, 0].real
-                u += u_inc
+                # TODO maybe create an eigenvalue plot
+                factor = U[mode,0]
+                if abs(factor) > 1e-7:
+                    print("mode ", mode, " of ", number_of_modes)
+                    u_inc = self.velocity_field(
+                        domain,
+                        mode,
+                        recompute_partial=recompute_partial,
+                        recompute_full=recompute_full,
+                        save=save_modes,
+                        factor=factor
+                    )
+                    u_inc.set_name("u_" + str(mode))
+                    u_inc.plot_3d(2)
+                    u += u_inc
+                    # u_ = u
+                    # u_.set_name("u_after_" + str(mode))
+                    # u_.plot_3d(2)
+
+                else:
+                    print("mode ", mode, " of ", number_of_modes, "(negligble, skipping)")
 
             if save_final:
                 for i in range(len(u)):
