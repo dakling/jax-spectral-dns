@@ -199,11 +199,19 @@ class LinearStabilityCalculation:
         eigvals, eigvecs = eig(self.A, self.B)
 
         # scale any spurious eigenvalues out of the picture
+        # TODO cleaner to remove them? looking at further analysis
+        clean_eigvals = []
+        clean_eigvecs = []
         for j in range(len(eigvals)):
-            if eigvals[j].real > 1:
-                eigvals[j] = -1e12
+            # if eigvals[j].real > 1:
+            #     eigvals[j] = -1e12
+            #     eigvecs[j] = np.zeros_like(eigvecs[j])
+            if eigvals[j].real <= 1:
+                clean_eigvals.append(eigvals[j])
+                clean_eigvecs.append(eigvecs[:, j])
+
         # sort eigenvals
-        eevs = [(eigvals[i], eigvecs[:, i]) for i in range(len(eigvals))]
+        eevs = [(clean_eigvals[i], clean_eigvecs[i]) for i in range(len(clean_eigvals))]
         eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
         self.eigenvalues = np.array([eev[0] for eev in eevs])
         self.eigenvectors = [eev[1] for eev in eevs]
@@ -485,11 +493,22 @@ class LinearStabilityCalculation:
                 factor=U[0,0]
                 # factor=V[0,0]
             )
+            # print("factor(0):", V[0,0])
+            print("factor(0):", U[0,0])
+            print("energy(0):", abs(u_0.energy()/U[0,0]))
+            # print("energy norm(0):", u_0.energy_norm(1)/U[0,0]) # TODO
             u_0.set_name("u_" + str(0))
             u_0.plot_3d(2)
             # u = u_0 * V[0, 0]
             # u = u_0 * U[0, 0].real
             u = u_0
+
+            fig_eig, ax_eig = plt.subplots(1,1)
+            ax_eig.plot(-self.eigenvalues.imag, self.eigenvalues.real, "k.", alpha=0.4)
+            ax_eig.plot(-self.eigenvalues.imag[:number_of_modes], self.eigenvalues[:number_of_modes].real, "r.", alpha=0.4)
+            ax_eig.set_xlim([0.2, 1.0])
+            ax_eig.set_ylim([-1.0, 0.0])
+            ax_eig.plot([-self.eigenvalues[0].imag], [self.eigenvalues[0].real], "ko")
 
             n = []
             ys1 = []
@@ -540,9 +559,10 @@ class LinearStabilityCalculation:
 
                 # TODO maybe create an eigenvalue plot
                 factor = U[mode,0]
-                if abs(factor) > 1e-7:
+                # factor = V[mode,0]
+                if abs(factor) > 1e-8:
                     i += 1
-                    print("mode ", mode, " of ", number_of_modes)
+                    print("mode ", mode, " of ", number_of_modes, "factor: ", factor)
                     u_inc = self.velocity_field(
                         domain,
                         mode,
@@ -554,16 +574,22 @@ class LinearStabilityCalculation:
                     u_inc.set_name("u_" + str(mode))
                     u_inc.plot_3d(2)
                     u += u_inc
-                    # u_ = u
-                    # u_.set_name("u_after_" + str(mode))
-                    # u_.plot_3d(2)
-                    if abs(factor) > 1e-7:
-                        if u_inc.energy() / u_0.energy() > 1e2:
-                            print("high energy mode encountered: ", u_inc.energy() / u_0.energy())
+                    print("energy:", abs(u_inc.energy()/factor))
+                    # print("energy norm:", u_inc.energy_norm(1)/factor)
+                    u_ = u
+                    u_.set_name("u_after_" + str(mode))
+                    u_.plot_3d(2)
+                    # if abs(factor) > 1e-7:
+                    #     if u_inc.energy() / u_0.energy() > 1e2:
+                    #         print("high energy mode encountered: ", u_inc.energy() / u_0.energy())
 
+                    ax_eig.plot([-self.eigenvalues[mode].imag], [self.eigenvalues[mode].real], "ko")
                 else:
                     print("mode ", mode, " of ", number_of_modes, "(negligble, skipping)")
+                    ax_eig.plot([-self.eigenvalues[mode].imag], [self.eigenvalues[mode].real], "rx")
 
+
+                fig_eig.savefig("./plots/eigenvalues.pdf")
 
             print("modes used:", i)
             if save_final:

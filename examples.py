@@ -728,14 +728,16 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     alpha = float(alpha)
     beta = float(beta)
 
-    eps = 1e-0
+    eps = 1e-5
 
-    number_of_modes = 35
 
-    Nx = 60
-    Ny = 100
-    Nz = 20
+    Nx = 64
+    Ny = 90
+    Nz = 64
     end_time = 1.01 * T
+    # number_of_modes = 4*Ny
+    # number_of_modes = 160
+    number_of_modes = 60
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
@@ -749,21 +751,24 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
-    nse.set_linearize(False)
+    # nse.set_linearize(False)
+    nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
         nse.domain_no_hat,
         T,
         number_of_modes,
-        recompute_full=False,
-        recompute_partial=False,
+        # recompute_full=False,
+        recompute_full=True,
+        # recompute_partial=False,
+        recompute_partial=True,
         save_modes=False,
         save_final=True,
     )
 
-    U.plot_streamlines(2)
-    U[0].plot_3d(2)
-    U[1].plot_3d(2)
+    # U.plot_streamlines(2)
+    # U[0].plot_3d(2)
+    # U[1].plot_3d(2)
 
     U_hat = U.hat()
     eps_ = eps / jnp.sqrt(U.energy())
@@ -777,7 +782,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     )
     print("expecting max growth of ", e_max)
 
-    plot_interval = 50
+    plot_interval = 10
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
     vel_pert_0 = vel_pert[1]
@@ -805,6 +810,8 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             vel = vel_hat.no_hat()
             vel_pert = VectorField([vel[0], vel[1], vel[2]])
             vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+
+            vel_pert.plot_streamlines(2)
             vort = vel.curl()
             for j in range(3):
                 vel[j].time_step = i
@@ -871,6 +878,9 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             ax_y.plot(ts, energy_y_t, ".", label="growth")
             fig_y.legend()
             fig_y.savefig("plots/energy_y_t.pdf")
+
+            for i in range(3):
+                vel[i].save_to_file(str(nse.time_step))
 
     nse.before_time_step_fn = before_time_step
     nse.after_time_step_fn = None
@@ -982,7 +992,8 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
-    nse.set_linearize(False)
+    # nse.set_linearize(False)
+    nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
         nse.domain_no_hat,
