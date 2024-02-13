@@ -773,7 +773,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     U_hat = U.hat()
     eps_ = eps / jnp.sqrt(U.energy())
     print("U energy norm: ", jnp.sqrt(U.energy()))
-    print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
+    # print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
 
     nse.init_velocity(U_hat * eps_)
 
@@ -798,8 +798,8 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         "rh93_transient_growth.csv", delimiter=","
     ).T  # TODO get rid of this at some point
     # energy_max = []
-    energy_0_norm = vel_pert.energy_norm(1)
-    print("inital pertubation energy norm: ", energy_0_norm)
+    # energy_0_norm = vel_pert.energy_norm(1)
+    # print("inital pertubation energy norm: ", energy_0_norm)
     energy_0 = vel_pert.energy()
     print("inital pertubation energy: ", energy_0)
 
@@ -825,7 +825,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             vel_pert_energy_old = vel_pert_old.energy()
-            vel_pert_energy_norm = vel_pert.energy_norm(1)
+            # vel_pert_energy_norm = vel_pert.energy_norm(1)
             print("\n\n")
             print(
                 "velocity pertubation energy change: ",
@@ -848,7 +848,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             energy_t.append(vel_pert_energy / energy_0)
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
-            energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
+            # energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
             # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
 
             fig = figure.Figure()

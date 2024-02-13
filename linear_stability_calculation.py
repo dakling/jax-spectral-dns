@@ -299,6 +299,45 @@ class LinearStabilityCalculation:
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return self.velocity_field_
 
+    def velocity_field_y_slice(
+        self,
+        domain,
+        mode=0,
+        factor=1.0,
+        recompute_full=False
+    ):
+        assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
+        if recompute_full or type(self.eigenvalues) == NoneType:
+            print("calculating eigenvalues")
+            self.calculate_eigenvalues()
+
+        evec = self.eigenvectors[mode]
+
+        u_vec, v_vec, w_vec, _ = np.split(evec, 4)
+
+        N_domain = domain.number_of_cells(1)
+        ys = domain.grid[1]
+        def to_slice(eigenvector, component=0):
+            if abs(self.beta) > 1e-25:
+                raise Exception("Spanwise dependency not implemented yet.")
+            phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
+            for i in range(N_domain):
+                for k in range(self.n):
+                    if self.symm:
+                        phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                    else:
+                        phi_mat[i, k] = phi(k, 0, ys[i])
+            out = factor * phi_mat @ eigenvector
+            return jnp.array(out.tolist())
+
+        print("calculating velocity pertubations in 3D")
+        u_slice = to_slice(u_vec, component=0)
+        v_slice = to_slice(v_vec, component=1)
+        w_slice = to_slice(w_vec, component=2)
+        print("done calculating velocity pertubations in 3D")
+
+        return (u_slice, v_slice, w_slice)
+
     def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_) == NoneType:
             try:
@@ -384,10 +423,10 @@ class LinearStabilityCalculation:
                 # out_a = simpson(fa_s, x=xs)
                 return (out_s, out_a)
             else:
-                out, _ = quad(f, -1, 1, limit=100)
-                # xs = self.ys
-                # fs = list(map(f, xs))
-                # out = simpson(fs, x=xs)
+                # out, _ = quad(f, -1, 1, limit=100)
+                xs = self.ys
+                fs = np.fromiter(map(f, xs), dtype=np.float64)
+                out = simpson(fs, x=xs)
                 return out
 
         integ = np.zeros([n, n])
@@ -424,12 +463,18 @@ class LinearStabilityCalculation:
             C[j, j] = C[j, j].real  # just elminates O(10^-16) complex parts which bothers `chol'
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
-        U, S, Vh = svd(F @ Sigma @ np.linalg.inv(F), compute_uv=True)
-        V = Vh.T
+        mat = F @ Sigma @ np.linalg.inv(F)
+        U, S, Vh = svd(mat, compute_uv=True)
+        V = Vh.conj().T
         if save:
             self.S = S
             self.U = U
             self.V = V
+
+        factors = V[:,0]
+        out = U[:,0]
+        print("test:", jnp.linalg.norm(mat @ factors - S[0] * out) / jnp.linalg.norm(S[0] * out))
+        # TODO plot both initial (V) and final (U) velocity fields, compare energies
         return (S, U)
 
     def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
@@ -484,25 +529,41 @@ class LinearStabilityCalculation:
             U = self.U
             V = self.V
 
-            # TODO make this more efficient by considering y-slices
+            factors = V[:,0]
+            final_factors = U[:,0]
+            # u_0_slice, v_0_slice, w_0_slice = self.velocity_field_y_slice(
+            #     domain,
+            #     0,
+            #     recompute_full=recompute_full,
+            #     # factor=U[0,0]
+            #     factor=V[0,0]
+            # )
             u_0 = self.velocity_field(
                 domain,
                 0,
                 recompute_partial=recompute_partial,
                 recompute_full=recompute_full,
                 save=save_modes,
-                # factor=U[0,0]
-                factor=V[0,0]
+                factor=factors[0]
             )
-            print("factor(0):", V[0,0])
-            # print("factor(0):", U[0,0])
-            print("energy(0):", abs(u_0.energy()/V[0,0]**2))
-            # print("energy norm(0):", u_0.energy_norm(1)/U[0,0]) # TODO
+            u = u_0
+            u_final_0 = self.velocity_field(
+                domain,
+                0,
+                recompute_partial=recompute_partial,
+                recompute_full=recompute_full,
+                save=save_modes,
+                factor=final_factors[0]
+            )
+            u_final = u_final_0
+            print("factor(0):", factors[0])
+            print("energy(0):", abs(u_0.energy()/factors[0]**2))
+            # print("energy norm(0):", u_0.energy_norm(1)/V[0,0]**2) # TODO
             u_0.set_name("u_" + str(0))
             u_0.plot_3d(2)
-            # u = u_0 * V[0, 0]
-            # u = u_0 * U[0, 0].real
-            u = u_0
+            # u_slice = u_0_slice
+            # v_slice = v_0_slice
+            # w_slice = w_0_slice
 
             fig_eig, ax_eig = plt.subplots(1,1)
             ax_eig.plot(-self.eigenvalues.imag, self.eigenvalues.real, "k.", alpha=0.4)
@@ -515,44 +576,56 @@ class LinearStabilityCalculation:
 
 
             n = [0]
-            # energy = abs(u_0.energy()/U[0,0]**2)
-            energy = abs(u_0.energy()/V[0,0]**2)
-            ys1 = [V[0,0]*energy]
-            ys2 = [U[0,0]*energy]
+            energy = abs(u_0.energy()/factors[0]**2)
+            ys = [abs(factors[0]*energy)]
             i = 1
             for mode in range(1, number_of_modes):
 
-                # TODO maybe create an eigenvalue plot
-                # factor = U[mode,0]
-                factor = V[mode,0]
+                factor = factors[mode]
                 if abs(factor) > 1e-8:
                     i += 1
-                    print("mode ", mode, " of ", number_of_modes, "factor: ", factor)
+                    print("mode", mode, "of", number_of_modes, "factor:", factor)
+                    # u_slice_inc, v_slice_inc, w_slice_inc = self.velocity_field_y_slice(
+                    #     domain,
+                    #     mode,
+                    #     factor=factor,
+                    #     recompute_full=recompute_full
+                    # )
                     u_inc = self.velocity_field(
                         domain,
                         mode,
                         recompute_partial=recompute_partial,
                         recompute_full=recompute_full,
                         save=save_modes,
-                        factor=factor
+                        factor=factors[mode]
                     )
-                    u_inc.set_name("u_" + str(mode))
-                    u_inc.plot_3d(2)
+                    # u_inc.set_name("u_" + str(mode))
+                    # u_inc.plot_3d(2)
                     u += u_inc
-                    energy = abs(u_inc.energy()/factor**2)
-                    print("energy:", abs(u_inc.energy()/factor**2))
-                    # print("energy norm:", u_inc.energy_norm(1)/factor)
-                    u_ = u
-                    u_.set_name("u_after_" + str(mode))
-                    u_.plot_3d(2)
+                    # u_slice += u_slice_inc
+                    # v_slice += v_slice_inc
+                    # w_slice += w_slice_inc
+                    energy = abs(u_inc.energy())
+                    print("energy:", energy)
+
+                    u_final_inc = self.velocity_field(
+                        domain,
+                        mode,
+                        recompute_partial=recompute_partial,
+                        recompute_full=recompute_full,
+                        save=save_modes,
+                        factor=final_factors[mode]
+                    )
+                    u_final += u_final_inc
+                    # u_ = u
+                    # u_.set_name("u_after_" + str(mode))
+                    # u_.plot_3d(2)
                     # if abs(factor) > 1e-7:
                     #     if u_inc.energy() / u_0.energy() > 1e2:
                     #         print("high energy mode encountered: ", u_inc.energy() / u_0.energy())
 
                     n.append(mode)
-                    ys1.append(abs(V[mode, 0]*energy))
-                    # ys1.append((V[mode, 0]))
-                    ys2.append(abs(U[mode, 0]*energy))
+                    ys.append(abs(factors[mode]*energy))
 
 
                     ax_eig.plot([-self.eigenvalues[mode].imag], [self.eigenvalues[mode].real], "ko")
@@ -563,41 +636,52 @@ class LinearStabilityCalculation:
 
                 fig_eig.savefig("./plots/eigenvalues.pdf")
 
-            print("modes used:", i)
+                rh_93_coeffs = genfromtxt(
+                    "rh93_coeffs.csv", delimiter=","
+                ).T
+                try:
+                    # v_mat_ns = self.read_mat("v.mat", "v_s")[:number_of_modes, 0]
+                    # u_mat_ns = self.read_mat("u.mat", "u_s")[:number_of_modes, 0]
+                    # v_mat = self.read_mat("v_ns.mat", "v_s")[:number_of_modes, 0]
+                    # u_mat = self.read_mat("u_ns.mat", "u_s")[:number_of_modes, 0]
+                    # v_mat_full = self.read_mat("v_full.mat", "v_s")[:number_of_modes, 0]
+                    # u_mat_full = self.read_mat("u_full.mat", "u_s")[:number_of_modes, 0]
+                    fig, ax = plt.subplots(1,2)
+                    ax[0].set_yscale('log')
+                    ax[0].plot(n, ys/ys[0], "o")
+                    ax[0].plot(rh_93_coeffs[0], rh_93_coeffs[1]/rh_93_coeffs[1][0], "x")
+                    # ax[0][0].plot(n, v_mat, "x")
+                    # ax[0][0].plot(n, v_mat_full, ".")
+                    # ax[0][0].plot(n, v_mat_ns, "x")
+                    ax[1].set_ylim([1e-4, 1e4])
+                    ax[1].set_yscale('log')
+                    ax[1].plot(n, ys/ys[0], "o")
+                    ax[0].plot(rh_93_coeffs[0], rh_93_coeffs[1]/rh_93_coeffs[1][0], "x")
+                    fig.savefig("plots/coeffs.pdf")
+                except Exception:
+                    raise Exception()
 
-            try:
-                # v_mat_ns = self.read_mat("v.mat", "v_s")[:number_of_modes, 0]
-                # u_mat_ns = self.read_mat("u.mat", "u_s")[:number_of_modes, 0]
-                # v_mat = self.read_mat("v_ns.mat", "v_s")[:number_of_modes, 0]
-                # u_mat = self.read_mat("u_ns.mat", "u_s")[:number_of_modes, 0]
-                # v_mat_full = self.read_mat("v_full.mat", "v_s")[:number_of_modes, 0]
-                # u_mat_full = self.read_mat("u_full.mat", "u_s")[:number_of_modes, 0]
-                fig, ax = plt.subplots(2,2)
-                ax[0][0].set_yscale('log')
-                ax[0][0].plot(n, ys1/ys1[0], "o")
-                # ax[0][0].plot(n, v_mat, "x")
-                # ax[0][0].plot(n, v_mat_full, ".")
-                # ax[0][0].plot(n, v_mat_ns, "x")
-                ax[0][1].set_yscale('log')
-                ax[0][1].plot(n, ys2/ys2[0], "o")
-                # ax[0][1].plot(n, u_mat, "x")
-                # ax[0][1].plot(n, u_mat_full, ".")
-                # ax[0][1].plot(n, u_mat_ns, "x")
-                ax[1][0].set_ylim([1e-8, 10])
-                ax[1][0].set_yscale('log')
-                ax[1][0].plot(n, ys1/ys1[0], "o")
-                # ax[1][0].plot(n, v_mat, "x")
-                # ax[1][0].plot(n, v_mat_full, ".")
-                # ax[1][0].plot(n, v_mat_ns, "x")
-                ax[1][1].set_yscale('log')
-                ax[1][1].set_ylim([1e-13, 100])
-                ax[1][1].plot(n, ys2/ys2[0], "o")
-                # ax[1][1].plot(n, u_mat, "x")
-                # ax[1][1].plot(n, u_mat_full, ".")
-                # ax[1][1].plot(n, u_mat_ns, "x")
-                fig.savefig("plots/coeffs.pdf")
-            except Exception:
-                raise Exception()
+            print("modes used:", i)
+            print("energy of initial field:", u.energy())
+            print("energy of final field:", u_final.energy())
+            print("gain:", u_final.energy() / u.energy())
+
+
+            # def slice_to_3d_field(slice):
+            #     if abs(self.beta) > 1e-25:
+            #         raise Exception("Spanwise dependency not implemented yet.")
+            #     out = (np.outer(
+            #         np.exp(
+            #             # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+            #             1j * (self.alpha * domain.grid[0])
+            #         ),
+            #         slice,
+            #     )).real
+            #     out = np.tile(out, (len(domain.grid[2]), 1, 1))
+            #     out = np.moveaxis(out, 0, -1)
+            #     return jnp.array(out.tolist())
+
+            # u = VectorField([Field(domain, slice_to_3d_field(slice), name="velocity_" + "xyz"[i]) for i, slice in enumerate([u_slice, v_slice, w_slice])])
 
             if save_final:
                 for i in range(len(u)):
