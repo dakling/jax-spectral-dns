@@ -737,7 +737,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     end_time = 1.01 * T
     # number_of_modes = 4*Ny
     # number_of_modes = 160
-    number_of_modes = 60
+    number_of_modes = 100
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 

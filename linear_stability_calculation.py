@@ -484,18 +484,19 @@ class LinearStabilityCalculation:
             U = self.U
             V = self.V
 
+            # TODO make this more efficient by considering y-slices
             u_0 = self.velocity_field(
                 domain,
                 0,
                 recompute_partial=recompute_partial,
                 recompute_full=recompute_full,
                 save=save_modes,
-                factor=U[0,0]
-                # factor=V[0,0]
+                # factor=U[0,0]
+                factor=V[0,0]
             )
-            # print("factor(0):", V[0,0])
-            print("factor(0):", U[0,0])
-            print("energy(0):", abs(u_0.energy()/U[0,0]))
+            print("factor(0):", V[0,0])
+            # print("factor(0):", U[0,0])
+            print("energy(0):", abs(u_0.energy()/V[0,0]**2))
             # print("energy norm(0):", u_0.energy_norm(1)/U[0,0]) # TODO
             u_0.set_name("u_" + str(0))
             u_0.plot_3d(2)
@@ -510,56 +511,20 @@ class LinearStabilityCalculation:
             ax_eig.set_ylim([-1.0, 0.0])
             ax_eig.plot([-self.eigenvalues[0].imag], [self.eigenvalues[0].real], "ko")
 
-            n = []
-            ys1 = []
-            ys2 = []
-            for mode in range(0, number_of_modes):
-                n.append(mode)
-                ys1.append(abs(V[mode, 0]))
-                # ys1.append((V[mode, 0]))
-                ys2.append(abs(U[mode, 0]))
-
-            try:
-                v_mat_ns = self.read_mat("v.mat", "v_s")[:number_of_modes, 0]
-                u_mat_ns = self.read_mat("u.mat", "u_s")[:number_of_modes, 0]
-                v_mat = self.read_mat("v_ns.mat", "v_s")[:number_of_modes, 0]
-                u_mat = self.read_mat("u_ns.mat", "u_s")[:number_of_modes, 0]
-                v_mat_full = self.read_mat("v_full.mat", "v_s")[:number_of_modes, 0]
-                u_mat_full = self.read_mat("u_full.mat", "u_s")[:number_of_modes, 0]
-                fig, ax = plt.subplots(2,2)
-                ax[0][0].set_yscale('log')
-                ax[0][0].plot(n, ys1, "o")
-                ax[0][0].plot(n, v_mat, "x")
-                ax[0][0].plot(n, v_mat_full, ".")
-                ax[0][0].plot(n, v_mat_ns, "x")
-                ax[0][1].set_yscale('log')
-                ax[0][1].plot(n, ys2, "o")
-                ax[0][1].plot(n, u_mat, "x")
-                ax[0][1].plot(n, u_mat_full, ".")
-                ax[0][1].plot(n, u_mat_ns, "x")
-                ax[1][0].set_ylim([1e-8, 10])
-                ax[1][0].set_yscale('log')
-                ax[1][0].plot(n, ys1, "o")
-                ax[1][0].plot(n, v_mat, "x")
-                ax[1][0].plot(n, v_mat_full, ".")
-                ax[1][0].plot(n, v_mat_ns, "x")
-                ax[1][1].set_yscale('log')
-                ax[1][1].set_ylim([1e-13, 100])
-                ax[1][1].plot(n, ys2, "o")
-                ax[1][1].plot(n, u_mat, "x")
-                ax[1][1].plot(n, u_mat_full, ".")
-                ax[1][1].plot(n, u_mat_ns, "x")
-                fig.savefig("plots/coeffs.pdf")
-            except Exception:
-                pass
             print("energy growth: ", self.S[0]**2)
 
+
+            n = [0]
+            # energy = abs(u_0.energy()/U[0,0]**2)
+            energy = abs(u_0.energy()/V[0,0]**2)
+            ys1 = [V[0,0]*energy]
+            ys2 = [U[0,0]*energy]
             i = 1
             for mode in range(1, number_of_modes):
 
                 # TODO maybe create an eigenvalue plot
-                factor = U[mode,0]
-                # factor = V[mode,0]
+                # factor = U[mode,0]
+                factor = V[mode,0]
                 if abs(factor) > 1e-8:
                     i += 1
                     print("mode ", mode, " of ", number_of_modes, "factor: ", factor)
@@ -574,7 +539,8 @@ class LinearStabilityCalculation:
                     u_inc.set_name("u_" + str(mode))
                     u_inc.plot_3d(2)
                     u += u_inc
-                    print("energy:", abs(u_inc.energy()/factor))
+                    energy = abs(u_inc.energy()/factor**2)
+                    print("energy:", abs(u_inc.energy()/factor**2))
                     # print("energy norm:", u_inc.energy_norm(1)/factor)
                     u_ = u
                     u_.set_name("u_after_" + str(mode))
@@ -582,6 +548,12 @@ class LinearStabilityCalculation:
                     # if abs(factor) > 1e-7:
                     #     if u_inc.energy() / u_0.energy() > 1e2:
                     #         print("high energy mode encountered: ", u_inc.energy() / u_0.energy())
+
+                    n.append(mode)
+                    ys1.append(abs(V[mode, 0]*energy))
+                    # ys1.append((V[mode, 0]))
+                    ys2.append(abs(U[mode, 0]*energy))
+
 
                     ax_eig.plot([-self.eigenvalues[mode].imag], [self.eigenvalues[mode].real], "ko")
                 else:
@@ -592,6 +564,41 @@ class LinearStabilityCalculation:
                 fig_eig.savefig("./plots/eigenvalues.pdf")
 
             print("modes used:", i)
+
+            try:
+                # v_mat_ns = self.read_mat("v.mat", "v_s")[:number_of_modes, 0]
+                # u_mat_ns = self.read_mat("u.mat", "u_s")[:number_of_modes, 0]
+                # v_mat = self.read_mat("v_ns.mat", "v_s")[:number_of_modes, 0]
+                # u_mat = self.read_mat("u_ns.mat", "u_s")[:number_of_modes, 0]
+                # v_mat_full = self.read_mat("v_full.mat", "v_s")[:number_of_modes, 0]
+                # u_mat_full = self.read_mat("u_full.mat", "u_s")[:number_of_modes, 0]
+                fig, ax = plt.subplots(2,2)
+                ax[0][0].set_yscale('log')
+                ax[0][0].plot(n, ys1/ys1[0], "o")
+                # ax[0][0].plot(n, v_mat, "x")
+                # ax[0][0].plot(n, v_mat_full, ".")
+                # ax[0][0].plot(n, v_mat_ns, "x")
+                ax[0][1].set_yscale('log')
+                ax[0][1].plot(n, ys2/ys2[0], "o")
+                # ax[0][1].plot(n, u_mat, "x")
+                # ax[0][1].plot(n, u_mat_full, ".")
+                # ax[0][1].plot(n, u_mat_ns, "x")
+                ax[1][0].set_ylim([1e-8, 10])
+                ax[1][0].set_yscale('log')
+                ax[1][0].plot(n, ys1/ys1[0], "o")
+                # ax[1][0].plot(n, v_mat, "x")
+                # ax[1][0].plot(n, v_mat_full, ".")
+                # ax[1][0].plot(n, v_mat_ns, "x")
+                ax[1][1].set_yscale('log')
+                ax[1][1].set_ylim([1e-13, 100])
+                ax[1][1].plot(n, ys2/ys2[0], "o")
+                # ax[1][1].plot(n, u_mat, "x")
+                # ax[1][1].plot(n, u_mat_full, ".")
+                # ax[1][1].plot(n, u_mat_ns, "x")
+                fig.savefig("plots/coeffs.pdf")
+            except Exception:
+                raise Exception()
+
             if save_final:
                 for i in range(len(u)):
                     u[i].name = "velocity_pertubation_" + "xyz"[i]
