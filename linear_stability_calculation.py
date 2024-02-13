@@ -648,14 +648,14 @@ class LinearStabilityCalculation:
                     # u_mat_full = self.read_mat("u_full.mat", "u_s")[:number_of_modes, 0]
                     fig, ax = plt.subplots(1,2)
                     ax[0].set_yscale('log')
-                    ax[0].plot(n, ys/ys[0], "o")
+                    ax[0].plot(n, np.array(ys)/ys[0], "o")
                     ax[0].plot(rh_93_coeffs[0], rh_93_coeffs[1]/rh_93_coeffs[1][0], "x")
                     # ax[0][0].plot(n, v_mat, "x")
                     # ax[0][0].plot(n, v_mat_full, ".")
                     # ax[0][0].plot(n, v_mat_ns, "x")
                     ax[1].set_ylim([1e-4, 1e4])
                     ax[1].set_yscale('log')
-                    ax[1].plot(n, ys/ys[0], "o")
+                    ax[1].plot(n, np.array(ys)/ys[0], "o")
                     ax[0].plot(rh_93_coeffs[0], rh_93_coeffs[1]/rh_93_coeffs[1][0], "x")
                     fig.savefig("plots/coeffs.pdf")
                 except Exception:
