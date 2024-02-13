@@ -423,10 +423,10 @@ class LinearStabilityCalculation:
                 # out_a = simpson(fa_s, x=xs)
                 return (out_s, out_a)
             else:
-                # out, _ = quad(f, -1, 1, limit=100)
-                xs = self.ys
-                fs = np.fromiter(map(f, xs), dtype=np.float64)
-                out = simpson(fs, x=xs)
+                out, _ = quad(f, -1, 1, limit=100)
+                # xs = self.ys
+                # fs = np.fromiter(map(f, xs), dtype=np.float64)
+                # out = simpson(fs, x=xs)
                 return out
 
         integ = np.zeros([n, n])
@@ -636,7 +636,7 @@ class LinearStabilityCalculation:
 
                 fig_eig.savefig("./plots/eigenvalues.pdf")
 
-                rh_93_coeffs = genfromtxt(
+                rh_93_coeffs = np.genfromtxt(
                     "rh93_coeffs.csv", delimiter=","
                 ).T
                 try:
