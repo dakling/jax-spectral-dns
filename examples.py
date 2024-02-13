@@ -5,7 +5,6 @@ import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
-from numpy import genfromtxt
 
 from importlib import reload
 import sys
@@ -736,8 +735,8 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     Nz = 64
     end_time = 1.01 * T
     # number_of_modes = 4*Ny
-    # number_of_modes = 160
     number_of_modes = 100
+    # number_of_modes = 50
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
@@ -750,6 +749,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         pertubation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
+    nse.max_dt = 0.01
 
     # nse.set_linearize(False)
     nse.set_linearize(True)
@@ -794,7 +794,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     energy_t_norm = []
     energy_x_t_norm = []
     energy_y_t_norm = []
-    rh_93_data = genfromtxt(
+    rh_93_data = np.genfromtxt(
         "rh93_transient_growth.csv", delimiter=","
     ).T  # TODO get rid of this at some point
     # energy_max = []
@@ -854,7 +854,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             ax.plot(ts, energy_t, ".", label="growth (DNS)")
-            ax.plot(ts, energy_t_norm, ".", label="growth of energy norm (DNS)")
+            # ax.plot(ts, energy_t_norm, ".", label="growth of energy norm (DNS)")
             # ax.plot(ts, energy_max, ".", label="max growth (theory)")
             ax.plot(
                 rh_93_data[0],

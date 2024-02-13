@@ -579,6 +579,7 @@ class LinearStabilityCalculation:
             energy = abs(u_0.energy()/factors[0]**2)
             ys = [abs(factors[0]*energy)]
             i = 1
+            index = 1
             for mode in range(1, number_of_modes):
 
                 factor = factors[mode]
@@ -605,7 +606,7 @@ class LinearStabilityCalculation:
                     # u_slice += u_slice_inc
                     # v_slice += v_slice_inc
                     # w_slice += w_slice_inc
-                    energy = abs(u_inc.energy())
+                    energy = abs(u_inc.energy()/factors[mode]**2)
                     print("energy:", energy)
 
                     u_final_inc = self.velocity_field(
@@ -624,7 +625,9 @@ class LinearStabilityCalculation:
                     #     if u_inc.energy() / u_0.energy() > 1e2:
                     #         print("high energy mode encountered: ", u_inc.energy() / u_0.energy())
 
-                    n.append(mode)
+                    # n.append(mode)
+                    n.append(index)
+                    index += 1
                     ys.append(abs(factors[mode]*energy))
 
 
@@ -656,7 +659,7 @@ class LinearStabilityCalculation:
                     ax[1].set_ylim([1e-4, 1e4])
                     ax[1].set_yscale('log')
                     ax[1].plot(n, np.array(ys)/ys[0], "o")
-                    ax[0].plot(rh_93_coeffs[0], rh_93_coeffs[1]/rh_93_coeffs[1][0], "x")
+                    ax[1].plot(rh_93_coeffs[0], rh_93_coeffs[1]/rh_93_coeffs[1][0], "x")
                     fig.savefig("plots/coeffs.pdf")
                 except Exception:
                     raise Exception()
