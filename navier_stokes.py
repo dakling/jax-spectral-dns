@@ -745,9 +745,9 @@ class NavierStokesVelVort(Equation):
 
 
     def perform_time_step(self):
-        return self.perform_runge_kutta_step()
+        # return self.perform_runge_kutta_step()
         # return self.perform_cn_ab_step()
-        # return self.perform_hybrid_time_step()
+        return self.perform_hybrid_time_step()
 
 
 def solve_navier_stokes_laminar(

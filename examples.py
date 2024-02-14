@@ -42,7 +42,7 @@ try:
 except:
     if hasattr(sys, "ps1"):
         print("Unable to load navier-stokes-pertubation")
-from navier_stokes_pertubation import solve_navier_stokes_pertubation
+from navier_stokes_pertubation import NavierStokesVelVortPertubation, solve_navier_stokes_pertubation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
@@ -719,8 +719,8 @@ def run_jimenez_1990(start_time=0):
 
 def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
-    print("CPU?", jax.devices()[0].platform == "cpu")
-    print("GPU?", jax.devices()[0].platform == "gpu")
+    # print("CPU?", jax.devices()[0].platform == "cpu")
+    # print("GPU?", jax.devices()[0].platform == "gpu")
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
     T = float(T)
@@ -730,9 +730,9 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     eps = 1e-5
 
 
-    Nx = 64
+    Nx = 50
     Ny = 90
-    Nz = 64
+    Nz = 24
     end_time = 1.01 * T
     # number_of_modes = 4*Ny
     number_of_modes = 100
@@ -962,6 +962,83 @@ def run_optimization_pseudo_2d_pertubation():
         v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)
 
+def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+
+    Nx = 24
+    Ny = 90
+    Nz = 24
+    end_time = T
+    # number_of_modes = 100
+    number_of_modes = 50
+    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
+
+    # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    # HACK
+    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+
+
+    # v0_0 = lsc.calculate_transient_growth_initial_condition(
+    #     nse.domain_no_hat,
+    #     T,
+    #     number_of_modes,
+    #     # recompute_full=False,
+    #     recompute_full=True,
+    #     # recompute_partial=False,
+    #     recompute_partial=True,
+    #     save_modes=False,
+    #     save_final=True,
+    # )
+    v0_0 = VectorField([Field.FromFunc(domain, lambda X: -0.1 * (1 - X[0]**2) + 0*X[2]),
+                        Field.FromFunc(domain, lambda X: 0*X[2]),
+                        Field.FromFunc(domain, lambda X: 0*X[2]),
+                        ])
+
+    def run_case(v0):
+
+        U = VectorField([Field(domain, v0[i]) for i in range(3)])
+        eps = 1e-5
+        eps_ = eps / jnp.sqrt(U.energy())
+
+        nse = NavierStokesVelVortPertubation.FromVelocityField(U*eps_, Re)
+        nse.max_dt = 0.02
+
+        # nse.set_linearize(False)
+        nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.before_time_step_fn = None
+        nse.after_time_step_fn = None
+
+        return vel.energy() / vel_0.energy()
+
+    v0s = [[v0_0[i].field for i in range(3)]]
+    step_size = 1e-0
+    sq_grad_sums = 0.0 * v0_0[0].field
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+        corr_arr = jnp.array(corr)
+        corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
+        corr_field.plot_3d(2)
+        print("gain: " + str(gain))
+        print("corr (abs): " + str(abs(corr_field)))
+        sq_grad_sums += corr_arr**2.0
+        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
+        # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
+        eps = step_size
+
+        v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+        v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
+        v0_new.set_name("vel_0_" + str(i))
+        v0_new.plot_3d(2)
+
 def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     Re = float(Re)
     T = float(T)
@@ -1097,3 +1174,4 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         U_[i].save_to_file("uvw"[i] + "_final")
         # print(i, U_[i])
         # U_hat[i].save_to_file("uvw"[i])
+

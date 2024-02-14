@@ -126,7 +126,7 @@ class Equation:
         if type(self.max_iter) != NoneType:
             iteration_done = self.time_step > self.max_iter
         if type(self.end_time) != NoneType:
-            time_done = self.time > self.end_time + self.dt
+            time_done = self.time >= self.end_time + self.dt
         return iteration_done or time_done
 
     def perform_time_step(self):

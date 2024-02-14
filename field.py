@@ -1127,7 +1127,8 @@ class VectorField:
         # vectorize = True
 
         jit = False
-        vectorize = jax.devices()[0].platform == "gpu"  # True on GPUs and False on CPUs
+        # vectorize = jax.devices()[0].platform == "gpu"  # True on GPUs and False on CPUs
+        vectorize = True
 
         if jit:
             time_1 = time.time()
@@ -1211,7 +1212,7 @@ class VectorField:
                     )
                     for i in self.all_dimensions()
                 ]
-            return (VectorField(out_field), other_field)
+            return (VectorField(out_field), 0)
 
     def plot_streamlines(self, normal_direction):
         if not self[0].supress_plotting_:

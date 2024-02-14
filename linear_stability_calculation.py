@@ -530,7 +530,7 @@ class LinearStabilityCalculation:
             V = self.V
 
             factors = V[:,0]
-            final_factors = U[:,0]
+            final_factors = U[:,0] * self.S[0]
             # u_0_slice, v_0_slice, w_0_slice = self.velocity_field_y_slice(
             #     domain,
             #     0,
@@ -556,11 +556,10 @@ class LinearStabilityCalculation:
                 factor=final_factors[0]
             )
             u_final = u_final_0
-            print("factor(0):", factors[0])
-            print("energy(0):", abs(u_0.energy()/factors[0]**2))
-            # print("energy norm(0):", u_0.energy_norm(1)/V[0,0]**2) # TODO
-            u_0.set_name("u_" + str(0))
-            u_0.plot_3d(2)
+            # print("factor(0):", factors[0])
+            # print("energy(0):", abs(u_0.energy()/factors[0]**2))
+            # u_0.set_name("u_" + str(0))
+            # u_0.plot_3d(2)
             # u_slice = u_0_slice
             # v_slice = v_0_slice
             # w_slice = w_0_slice
@@ -615,7 +614,7 @@ class LinearStabilityCalculation:
                         recompute_partial=recompute_partial,
                         recompute_full=recompute_full,
                         save=save_modes,
-                        factor=final_factors[mode]
+                        factor=final_factors[mode] * self.S[0]
                     )
                     u_final += u_final_inc
                     # u_ = u
@@ -666,6 +665,7 @@ class LinearStabilityCalculation:
 
             print("modes used:", i)
             print("energy of initial field:", u.energy())
+            print("energy of double the initial field:", (u*2).energy())
             print("energy of final field:", u_final.energy())
             print("gain:", u_final.energy() / u.energy())
 
