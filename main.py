@@ -8,6 +8,13 @@ from importlib import reload
 import sys
 
 try:
+    reload(sys.modules["heat_eq"])
+except:
+    if hasattr(sys, 'ps1'):
+        print("Unable to load heat_eq")
+from heat_eq import optimize_heat_eq_3D, solve_heat_eq_3D
+
+try:
     reload(sys.modules["test_project"])
 except:
     if hasattr(sys, 'ps1'):
@@ -23,16 +30,17 @@ from examples import *
 
 
 def main():
-    pass
+    # solve_heat_eq_3D()
+    # optimize_heat_eq_3D()
     # run_jimenez_1990()
     # run_transient_growth()
-    # run_pseudo_2d_pertubation(Re=5.5e3, Ny=240)
-    # run_optimization_pseudo_2d_pertubation()
+    # run_pseudo_2d_pertubation()
+    run_optimization_pseudo_2d_pertubation()
 
     # run tests
-    tp = TestProject()
+    # tp = TestProject()
     # tp.test_navier_stokes_laminar()
-    tp.test_2d_growth()
+    # tp.test_2d_growth()
     # tp.test_linear_stability()
 
 if __name__ == '__main__':

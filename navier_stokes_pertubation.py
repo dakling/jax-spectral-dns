@@ -99,6 +99,7 @@ def update_nonlinear_terms_high_performance_pertubation(
     ]
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
+    # return (jnp.zeros_like(h_v_hat_new), jnp.zeros_like(h_g_hat_new), [jnp.zeros_like(vort_hat_new[i]) for i in range(3)], [jnp.zeros_like(conv_ns_hat_new[i]) for i in range(3)])
 
 
 class NavierStokesVelVortPertubation(NavierStokesVelVort):

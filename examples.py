@@ -451,12 +451,12 @@ def run_dummy_velocity_field():
 
 
 def run_pseudo_2d_pertubation(
-    Re=6000.0,
+    Re=3000.0,
     alpha=1.02056,
-    end_time=10.0,
-    Nx=12,
-    Ny=50,
-    Nz=2,
+    end_time=1.0,
+    Nx=64,
+    Ny=96,
+    Nz=24,
     eps=1e-0,
     linearize=True,
     plot=True,
@@ -519,10 +519,11 @@ def run_pseudo_2d_pertubation(
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
-            vel_hat = nse.get_field("velocity_hat", i)
+            # vel_hat = nse.get_field("velocity_hat", i)
+            print("length (from examples):", len(nse.fields["velocity_hat"]))
+            vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
-            vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+            # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
             vort = vel.curl()
             for j in range(3):
                 vel[j].time_step = i
@@ -535,32 +536,31 @@ def run_pseudo_2d_pertubation(
                     vort[j].plot_3d(2)
                     vel[j].plot_center(0)
                     vel[j].plot_center(1)
-            vel_pert_energy = vel_pert.energy()
-            vel_pert_energy_old = vel_pert_old.energy()
+            vel_pert_energy = vel.energy()
             if plot:
                 print("velocity pertubation energy: ", vel_pert_energy)
                 print("\n\n")
                 print(
-                    "velocity pertubation energy change: ",
-                    vel_pert_energy - vel_pert_energy_old,
+                    "velocity pertubation energy: ",
+                    vel_pert_energy,
                 )
                 print(
-                    "velocity pertubation energy x change: ",
-                    vel_pert[0].energy() - vel_pert_old[0].energy(),
+                    "velocity pertubation energy x: ",
+                    vel[0].energy(),
                 )
                 print(
-                    "velocity pertubation energy y change: ",
-                    vel_pert[1].energy() - vel_pert_old[1].energy(),
+                    "velocity pertubation energy y: ",
+                    vel[1].energy(),
                 )
                 print(
-                    "velocity pertubation energy z change: ",
-                    vel_pert[2].energy() - vel_pert_old[2].energy(),
+                    "velocity pertubation energy z: ",
+                    vel[2].energy(),
                 )
                 print("")
             ts.append(nse.time)
             energy_t.append(vel_pert_energy)
-            energy_x_t.append(vel_pert[0].energy())
-            energy_y_t.append(vel_pert[1].energy())
+            energy_x_t.append(vel[0].energy())
+            energy_y_t.append(vel[1].energy())
             energy_t_ana.append(energy_over_time_fn(nse.time))
             energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
             energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
@@ -889,12 +889,12 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
 
 def run_optimization_pseudo_2d_pertubation():
-    Re = 3000
+    Re = 3000.0
     T = 1.0
     alpha = 1.02056
-    Nx = 100
-    Ny = 100
-    Nz = 40
+    Nx = 24
+    Ny = 90
+    Nz = 24
     # Nx = 20
     # Ny = 40
     # Nz = 10
@@ -911,9 +911,9 @@ def run_optimization_pseudo_2d_pertubation():
             energy_y_t_ana,
             ts,
         ) = run_pseudo_2d_pertubation(
-            Re=Re,
-            alpha=alpha,
-            end_time=T,
+            # Re=Re,
+            # alpha=alpha,
+            # end_time=T,
             Nx=Nx,
             Ny=Ny,
             Nz=Nz,
@@ -923,11 +923,6 @@ def run_optimization_pseudo_2d_pertubation():
             v0=v0,
         )
         return energy_t[-1] / energy_t[0]
-        # print("energy[0]")
-        # print(energy_t[0])
-        # print("energy[-1]")
-        # print(energy_t[-1])
-        # return energy_t[-1]
 
     Equation.initialize()
 
@@ -943,8 +938,8 @@ def run_optimization_pseudo_2d_pertubation():
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
         corr_arr = jnp.array(corr)
-        corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
-        corr_field.plot_3d(2)
+        # corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
+        # corr_field.plot_3d(2)
         # corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         # print("corr (abs): " + str(abs(corr_field)))

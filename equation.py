@@ -82,10 +82,13 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def append_field(self, name, field):
+    def append_field(self, name, field, in_place=True):
         try:
-            self.fields[name].append(field)
-            # self.fields[name] = self.fields[name].add(field) # does this make a difference? taken from jax-fluids
+            if in_place and len(self.fields[name]) > 0:
+                self.fields[name][-1] = field
+            else:
+                self.fields[name].append(field)
+                # self.fields[name] = self.fields[name].add(field) # does this make a difference? taken from jax-fluids
             self.fields[name][-1].name = name + "_" + str(self.time_step)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")

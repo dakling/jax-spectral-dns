@@ -1120,7 +1120,17 @@ class VectorField:
             out += self[dim].diff(dim)
         return out
 
-    def reconstruct_from_wavenumbers(self, fn, number_of_other_fields=0):
+    def reconstruct_from_wavenumbers(self,
+                                     fn,
+                                     v_1_lap_hat,
+                                     vort_1_hat,
+                                     conv_ns_hat,
+                                     conv_ns_hat_old,
+                                     h_v_hat,
+                                     h_g_hat,
+                                     h_v_hat_old,
+                                     h_g_hat_old,
+                                     number_of_other_fields=0):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
 
         # jit = True
@@ -1128,7 +1138,7 @@ class VectorField:
 
         jit = False
         # vectorize = jax.devices()[0].platform == "gpu"  # True on GPUs and False on CPUs
-        vectorize = True
+        vectorize = False
 
         if jit:
             time_1 = time.time()
@@ -1164,7 +1174,16 @@ class VectorField:
                 Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
                 # t1 = time.time()
                 out_array = jnp.array(
-                    [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
+                    [[jit_fn((k1_, k2_),
+                             v_1_lap_hat[k1_,:, k2_],
+                             vort_1_hat[k1_,:, k2_],
+                             [conv_ns_hat[i][k1_,:, k2_] for i in range(3)],
+                             [conv_ns_hat_old[i][k1_,:, k2_] for i in range(3)],
+                             h_v_hat[k1_,:, k2_],
+                             h_g_hat[k1_,:, k2_],
+                             h_v_hat_old[k1_,:, k2_],
+                             h_g_hat_old[k1_,:, k2_],
+                             ) for k2_ in k2_ints] for k1_ in k1_ints]
                 )
                 out_field = [
                     FourierField(
@@ -1199,7 +1218,16 @@ class VectorField:
                 K = jnp.array(list(zip(K1.flatten(), K2.flatten())))
                 jit_fn_vec = jax.vmap(jit_fn)
                 Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
-                out_array = jnp.array(jit_fn_vec(K))
+                out_array = jnp.array(jit_fn_vec(K,
+                                                 v_1_lap_hat[K[0], K[1]],
+                                                 vort_1_hat[K[0], K[1]],
+                                                 [conv_ns_hat[i][K[0], K[1]] for i in range(3)],
+                                                 [conv_ns_hat_old[i][K[0], K[1]] for i in range(3)],
+                                                 h_v_hat[K[0], K[1]],
+                                                 h_g_hat[K[0], K[1]],
+                                                 h_v_hat_old[K[0], K[1]],
+                                                 h_g_hat_old[K[0], K[1]],
+                                                 ))
                 out_field = [
                     FourierField(
                         self[0].domain_no_hat,

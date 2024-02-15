@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import jax
 import jax.numpy as jnp
 
 from importlib import reload
@@ -41,7 +42,8 @@ class Heat_Eq(Equation):
         new_u = u + eq * dt
         new_u.update_boundary_conditions()
         new_u.name = "u_" + str(i)
-        self.fields["u"].append(new_u)
+        # self.fields["u"].append(new_u)
+        self.fields["u"][-1] = new_u
         return self.fields["u"]
 
     def perform_time_step(self, dt, i):
@@ -82,9 +84,9 @@ def solve_heat_eq_2D():
 
 
 def solve_heat_eq_3D():
-    Nx = 24
-    Ny = Nx
-    Nz = Nx
+    Nx = 100
+    Ny = 100
+    Nz = 100
 
     domain = Domain((Nx, Ny, Nz), (True, False, True))
 
@@ -92,7 +94,59 @@ def solve_heat_eq_3D():
     u = Field.FromFunc(domain, func=u_fn, name="u")
     heat_eq = Heat_Eq(domain, u)
 
-    Nt = 5000
-    dt = 5e-5
+    Nt = 3000
+    dt = 5e-9
+    # def before_time_step(heat_eq):
+    #     print("step", heat_eq.time_step)
+    # heat_eq.before_time_step_fn = before_time_step
     heat_eq.solve(dt, Nt)
     heat_eq.plot()
+    v_final = heat_eq.get_latest_field("u")
+    e0 = u.energy()
+    print(e0)
+    print(v_final.energy())
+
+def optimize_heat_eq_3D():
+    Nx = 100
+    Ny = Nx
+    Nz = Nx
+    def run(v0):
+        domain = Domain((Nx, Ny, Nz), (True, False, True))
+
+        u = Field(domain, v0, name="u")
+        e0 = u.energy()
+
+        heat_eq = Heat_Eq(domain, u)
+
+        Nt = 3000
+        dt = 5e-9
+        heat_eq.solve(dt, Nt)
+        v_final = heat_eq.get_latest_field("u")
+        return v_final.energy() / e0
+
+
+
+    domain = Domain((Nx, Ny, Nz), (True, False, True))
+
+    u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
+    u_0 = Field.FromFunc(domain, func=u_fn, name="u")
+
+    v0s = [u_0.field]
+    step_size = 1e-0
+    sq_grad_sums = 0.0 * u_0.field
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run)(v0s[-1])
+        corr_arr = jnp.array(corr)
+        # corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
+        # corr_field.plot_3d(2)
+        print("gain: " + str(gain))
+        # print("corr (abs): " + str(abs(corr_field)))
+        sq_grad_sums += corr_arr**2.0
+        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
+        # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
+        eps = step_size
+
+        v0s.append(v0s[-1] + eps * corr_arr)
+        v0_new = Field(domain, v0s[-1])
+        v0_new.set_name("u_0_" + str(i))
+        v0_new.plot_3d(2)
