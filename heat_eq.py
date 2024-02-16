@@ -46,8 +46,21 @@ class Heat_Eq(Equation):
         self.fields["u"][-1] = new_u
         return self.fields["u"]
 
+    def perform_implicit_euler_step(self, dt, i):
+        # only for 1D!
+        u = self.get_latest_field("u")
+        D2 = self.domain.get_cheb_mat_2_homogeneous_dirichlet(0)
+        I = jnp.eye(D2.shape[0])
+        new_u = Field(u.domain, jnp.linalg.inv(I - dt * D2) @ u.field, name=u.name)
+        new_u.update_boundary_conditions()
+        new_u.name = "u_" + str(i)
+        # self.fields["u"].append(new_u)
+        self.fields["u"][-1] = new_u
+        return self.fields["u"]
+
     def perform_time_step(self, dt, i):
         return self.perform_explicit_euler_step(dt, i)
+        # return self.perform_implicit_euler_step(dt, i)
 
     def solve(self, dt, number_of_steps):
         for i in jnp.arange(1, number_of_steps + 1):
@@ -65,6 +78,71 @@ class Heat_Eq(Equation):
             for i in self.all_dimensions():
                 u_0.plot_center(i, u_fin)
 
+
+def solve_heat_eq_1D():
+    Nx = 100000
+    # Nx = 100
+
+    domain = Domain((Nx,), (False))
+
+    u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u = Field.FromFunc(domain, func=u_fn, name="u")
+    heat_eq = Heat_Eq(domain, u)
+
+    Nt = 3000
+    dt = 5e-9
+    # def before_time_step(heat_eq):
+    #     print("step", heat_eq.time_step)
+    # heat_eq.before_time_step_fn = before_time_step
+    heat_eq.solve(dt, Nt)
+    heat_eq.plot()
+    v_final = heat_eq.get_latest_field("u")
+    e0 = u.energy()
+    print(e0)
+    print(v_final.energy())
+
+def optimize_heat_eq_1D():
+    Nx = 100
+    def run(v0):
+        domain = Domain((Nx,), (False))
+
+        u = Field(domain, v0, name="u")
+        e0 = u.energy()
+
+        heat_eq = Heat_Eq(domain, u)
+
+        Nt = 3000
+        dt = 5e-9
+        heat_eq.solve(dt, Nt)
+        v_final = heat_eq.get_latest_field("u")
+        return v_final.energy() / e0
+
+
+
+    domain = Domain((Nx,), (False))
+
+    u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u_0 = Field.FromFunc(domain, func=u_fn, name="u")
+
+    v0s = [u_0.field]
+    step_size = 1e-0
+    sq_grad_sums = 0.0 * u_0.field
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run)(v0s[-1])
+        corr_arr = jnp.array(corr)
+        # corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
+        # corr_field.plot_3d(2)
+        print("gain: " + str(gain))
+        # print("corr (abs): " + str(abs(corr_field)))
+        sq_grad_sums += corr_arr**2.0
+        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
+        # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
+        eps = step_size
+
+        v0s.append(v0s[-1] + eps * corr_arr)
+        v0_new = Field(domain, v0s[-1])
+        v0_new.set_name("u_0_" + str(i))
+        v0_new.plot_3d(2)
 
 def solve_heat_eq_2D():
     Nx = 24

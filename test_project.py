@@ -969,7 +969,15 @@ class TestProject(unittest.TestCase):
             end_time=end_time,
             pertubation_factor=pertubation_factor,
         )
-        nse.before_time_step_fn = None
+        def before_time_step(nse):
+            u = nse.get_latest_field("velocity_hat").no_hat()
+            u.set_time_step(nse.time_step)
+            print(u.name)
+            print(u[0].name)
+            u.plot_3d(2)
+
+        nse.before_time_step_fn = before_time_step
+        # nse.before_time_step_fn = None
         nse.after_time_step_fn = None
         nse.solve()
 
@@ -980,17 +988,16 @@ class TestProject(unittest.TestCase):
         vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
 
         print("Doing post-processing")
-        for i in jnp.arange(nse.time_step)[-4:]:
-            vel_hat = nse.get_field("velocity_hat", i)
-            vel = vel_hat.no_hat()
-            tol = 6e-5
-            # print(abs(vel[0] - vel_x_ana))
-            # print(abs(vel[1]))
-            # print(abs(vel[2]))
-            # check that the simulation is really converged
-            self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
-            self.assertTrue(abs(vel[1]) < tol)
-            self.assertTrue(abs(vel[2]) < tol)
+        vel_hat = nse.get_latest_field("velocity_hat")
+        vel = vel_hat.no_hat()
+        tol = 6e-5
+        print(abs(vel[0] - vel_x_ana))
+        print(abs(vel[1]))
+        print(abs(vel[2]))
+        # check that the simulation is really converged
+        self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
+        self.assertTrue(abs(vel[1]) < tol)
+        self.assertTrue(abs(vel[2]) < tol)
 
     # TODO
     # def test_navier_stokes_laminar_convergence(self):
@@ -1050,17 +1057,16 @@ class TestProject(unittest.TestCase):
         nse.solve()
 
         print("Doing post-processing")
-        for i in jnp.arange(nse.time_step)[-4:]:
-            vel_hat = nse.get_field("velocity_hat", i)
-            vel = vel_hat.no_hat()
-            tol = 5e-7
-            print(abs(vel[0]))
-            print(abs(vel[1]))
-            print(abs(vel[2]))
-            # check that the simulation is really converged
-            self.assertTrue(abs(vel[0]) < tol)
-            self.assertTrue(abs(vel[1]) < tol)
-            self.assertTrue(abs(vel[2]) < tol)
+        vel_hat = nse.get_latest_field("velocity_hat")
+        vel = vel_hat.no_hat()
+        tol = 5e-7
+        print(abs(vel[0]))
+        print(abs(vel[1]))
+        print(abs(vel[2]))
+        # check that the simulation is really converged
+        self.assertTrue(abs(vel[0]) < tol)
+        self.assertTrue(abs(vel[1]) < tol)
+        self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
         growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.5, eps=1e-1, linearize=True)

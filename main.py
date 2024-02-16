@@ -12,7 +12,7 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         print("Unable to load heat_eq")
-from heat_eq import optimize_heat_eq_3D, solve_heat_eq_3D
+from heat_eq import optimize_heat_eq_1D, solve_heat_eq_1D
 
 try:
     reload(sys.modules["test_project"])
@@ -30,12 +30,13 @@ from examples import *
 
 
 def main():
-    # solve_heat_eq_3D()
-    # optimize_heat_eq_3D()
+    pass
+    # solve_heat_eq_1D()
+    # optimize_heat_eq_1D()
     # run_jimenez_1990()
     # run_transient_growth()
     # run_pseudo_2d_pertubation()
-    run_optimization_pseudo_2d_pertubation()
+    # run_optimization_pseudo_2d_pertubation()
 
     # run tests
     # tp = TestProject()

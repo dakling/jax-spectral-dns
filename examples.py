@@ -183,7 +183,7 @@ def run_navier_stokes_turbulent():
     def after_time_step(nse):
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
-            vel = nse.get_field("velocity_hat", i).no_hat()
+            vel = nse.get_latest_field("velocity_hat").no_hat
             vort_hat, _ = nse.get_vorticity_and_helicity()
             vort = vort_hat.no_hat()
             vel[0].plot_3d()
@@ -256,7 +256,8 @@ def run_pseudo_2d():
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
-            vel_hat = nse.get_field("velocity_hat", i)
+            # vel_hat = nse.get_field("velocity_hat", i)
+            vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             vel_x_max = vel[0].max()
             print("vel_x_max: ", vel_x_max)
@@ -269,18 +270,18 @@ def run_pseudo_2d():
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
             # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
-            vel_hat_old = nse.get_field("velocity_hat", max(0, i - 1))
-            vel_old = vel_hat_old.no_hat()
-            vel_x_max_old = vel_old[0].max()
-            vel_x_fn_ana_old = (
-                lambda X: -vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-            )
-            vel_x_ana_old = Field.FromFunc(
-                nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old"
-            )
-            vel_pert_old = VectorField(
-                [vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]]
-            )
+            # vel_hat_old = nse.get_field("velocity_hat", max(0, i - 1))
+            # vel_old = vel_hat_old.no_hat()
+            # vel_x_max_old = vel_old[0].max()
+            # vel_x_fn_ana_old = (
+            #     lambda X: -vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+            # )
+            # vel_x_ana_old = Field.FromFunc(
+            #     nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old"
+            # )
+            # vel_pert_old = VectorField(
+            #     [vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]]
+            # )
             vel_pert_energy = 0
             v_1_lap_p = nse.get_latest_field("v_1_lap_hat_p").no_hat()
             v_1_lap_p_0 = nse.get_initial_field("v_1_lap_hat_p").no_hat()
@@ -321,23 +322,23 @@ def run_pseudo_2d():
                 energy_y_over_time_fn(nse.time),
             )
             print("velocity pertubation energy z: ", vel_pert[1].energy())
-            vel_pert_energy_old = vel_pert_old.energy()
-            print(
-                "velocity pertubation energy change: ",
-                vel_pert_energy - vel_pert_energy_old,
-            )
-            print(
-                "velocity pertubation energy x change: ",
-                vel_pert[0].energy() - vel_pert_old[0].energy(),
-            )
-            print(
-                "velocity pertubation energy y change: ",
-                vel_pert[1].energy() - vel_pert_old[1].energy(),
-            )
-            print(
-                "velocity pertubation energy z change: ",
-                vel_pert[2].energy() - vel_pert_old[2].energy(),
-            )
+            # vel_pert_energy_old = vel_pert_old.energy()
+            # print(
+            #     "velocity pertubation energy change: ",
+            #     vel_pert_energy - vel_pert_energy_old,
+            # )
+            # print(
+            #     "velocity pertubation energy x change: ",
+            #     vel_pert[0].energy() - vel_pert_old[0].energy(),
+            # )
+            # print(
+            #     "velocity pertubation energy y change: ",
+            #     vel_pert[1].energy() - vel_pert_old[1].energy(),
+            # )
+            # print(
+            #     "velocity pertubation energy z change: ",
+            #     vel_pert[2].energy() - vel_pert_old[2].energy(),
+            # )
             ts.append(nse.time)
             energy_t.append(vel_pert_energy)
             energy_x_t.append(vel_pert[0].energy())
@@ -420,7 +421,8 @@ def run_dummy_velocity_field():
     def after_time_step(nse):
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
-            vel = nse.get_field("velocity_hat", i).no_hat()
+            # vel = nse.get_field("velocity_hat", i).no_hat()
+            vel = nse.get_latest_field("velocity_hat").no_hat()
             vort_hat, _ = nse.get_vorticity_and_helicity()
             vort = vort_hat.no_hat()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
@@ -520,7 +522,6 @@ def run_pseudo_2d_pertubation(
         i = nse.time_step
         if i % plot_interval == 0:
             # vel_hat = nse.get_field("velocity_hat", i)
-            print("length (from examples):", len(nse.fields["velocity_hat"]))
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
@@ -597,9 +598,9 @@ def run_pseudo_2d_pertubation(
     nse.solve()
 
     vel_pert = nse.get_latest_field("velocity_hat").no_hat()
-    vel_pert_old = nse.get_field("velocity_hat", nse.time_step - 3).no_hat()
+    # vel_pert_old = nse.get_field("velocity_hat", nse.time_step - 3).no_hat()
     vel_pert_energy = vel_pert.energy()
-    vel_pert_energy_old = vel_pert_old.energy()
+    # vel_pert_energy_old = vel_pert_old.energy()
     return (
         energy_t,
         energy_x_t,
@@ -806,10 +807,11 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
-            vel_hat = nse.get_field("velocity_hat", i)
+            # vel_hat = nse.get_field("velocity_hat", i)
+            vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+            # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
 
             vel_pert.plot_streamlines(2)
             vort = vel.curl()
@@ -824,25 +826,25 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
                 vel[j].plot_center(0)
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
-            vel_pert_energy_old = vel_pert_old.energy()
+            # vel_pert_energy_old = vel_pert_old.energy()
             # vel_pert_energy_norm = vel_pert.energy_norm(1)
             print("\n\n")
             print(
                 "velocity pertubation energy change: ",
-                vel_pert_energy - vel_pert_energy_old,
+                vel_pert_energy - energy0,
             )
-            print(
-                "velocity pertubation energy x change: ",
-                vel_pert[0].energy() - vel_pert_old[0].energy(),
-            )
-            print(
-                "velocity pertubation energy y change: ",
-                vel_pert[1].energy() - vel_pert_old[1].energy(),
-            )
-            print(
-                "velocity pertubation energy z change: ",
-                vel_pert[2].energy() - vel_pert_old[2].energy(),
-            )
+            # print(
+            #     "velocity pertubation energy x change: ",
+            #     vel_pert[0].energy() - vel_pert_old[0].energy(),
+            # )
+            # print(
+            #     "velocity pertubation energy y change: ",
+            #     vel_pert[1].energy() - vel_pert_old[1].energy(),
+            # )
+            # print(
+            #     "velocity pertubation energy z change: ",
+            #     vel_pert[2].energy() - vel_pert_old[2].energy(),
+            # )
             print("")
             ts.append(nse.time)
             energy_t.append(vel_pert_energy / energy_0)
@@ -892,9 +894,9 @@ def run_optimization_pseudo_2d_pertubation():
     Re = 3000.0
     T = 1.0
     alpha = 1.02056
-    Nx = 24
+    Nx = 64
     Ny = 90
-    Nz = 24
+    Nz = 64
     # Nx = 20
     # Ny = 40
     # Nz = 10
@@ -1095,7 +1097,8 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.init_velocity(U_hat)
 
     U_ = U * eps_
-    print("U energy norm (normalized): ", jnp.sqrt(U_.energy()))
+    energy0 = U_.energy()
+    print("U energy norm (normalized): ", energy0)
     # U_ = U
     for i in range(3):
         U_[i].name = "uvw"[i]
@@ -1114,10 +1117,10 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     def before_time_step(nse):
         i = nse.time_step
         if i % plot_interval == 0:
-            vel_hat = nse.get_field("velocity_hat", i)
+            vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+            # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
             vort = vel.curl()
             for j in range(3):
                 vel[j].time_step = i
@@ -1130,7 +1133,7 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
                 vel[j].plot_center(0)
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
-            vel_pert_energy_old = vel_pert_old.energy()
+            # vel_pert_energy_old = vel_pert_old.energy()
             vel_pert_energy_norm = vel_pert.energy_norm(1)
             print("\n\n")
             print(
@@ -1139,24 +1142,24 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             )
             print(
                 "velocity pertubation relative change: ",
-                vel_pert_energy / vel_pert_energy_old,
+                vel_pert_energy / energy0,
             )
             print(
                 "velocity pertubation energy change: ",
-                vel_pert_energy - vel_pert_energy_old,
+                vel_pert_energy - energy0,
             )
-            print(
-                "velocity pertubation energy x change: ",
-                vel_pert[0].energy() - vel_pert_old[0].energy(),
-            )
-            print(
-                "velocity pertubation energy y change: ",
-                vel_pert[1].energy() - vel_pert_old[1].energy(),
-            )
-            print(
-                "velocity pertubation energy z change: ",
-                vel_pert[2].energy() - vel_pert_old[2].energy(),
-            )
+            # print(
+            #     "velocity pertubation energy x change: ",
+            #     vel_pert[0].energy() - vel_pert_old[0].energy(),
+            # )
+            # print(
+            #     "velocity pertubation energy y change: ",
+            #     vel_pert[1].energy() - vel_pert_old[1].energy(),
+            # )
+            # print(
+            #     "velocity pertubation energy z change: ",
+            #     vel_pert[2].energy() - vel_pert_old[2].energy(),
+            # )
 
     nse.before_time_step_fn = before_time_step
 
