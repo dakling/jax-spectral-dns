@@ -510,32 +510,56 @@ class NavierStokesVelVort(Equation):
             #     h_v_hat_old,
             #     h_g_hat_old,
             # )
-            vel_0_new_hat_field = jnp.zeros_like(vel_hat[0].field)
-            vel_1_new_hat_field = jnp.zeros_like(vel_hat[1].field)
-            vel_2_new_hat_field = jnp.zeros_like(vel_hat[2].field)
-            for kx in jnp.arange(len(self.domain.grid[0])):
-                for kz in jnp.arange(len(self.domain.grid[2])):
-                    (
-                        v_0_new_field,
-                        v_1_hat_new,
-                        v_2_new_field,
-                        v_1_lap_hat_new_a,
-                    ) = perform_single_rk_step_for_single_wavenumber(step)(
-                        [kx, kz],
-                        v_1_lap_hat[kx, :, kz],
-                        vort_hat[1][kx, :, kz],
-                        [conv_ns_hat[i][kx, :, kz] for i in range(3)],
-                        [conv_ns_hat_old[i][kx, :, kz] for i in range(3)],
-                        h_v_hat[kx, :, kz],
-                        h_g_hat[kx, :, kz],
-                        h_v_hat_old[kx, :, kz],
-                        h_g_hat_old[kx, :, kz],
-                    )
-                    vel_0_new_hat_field.at[kx, :, kz].set(v_0_new_field)
-                    vel_1_new_hat_field.at[kx, :, kz].set(v_1_hat_new)
-                    vel_2_new_hat_field.at[kx, :, kz].set(v_2_new_field)
-            vel_new_hat_field = [vel_0_new_hat_field, vel_1_new_hat_field, vel_2_new_hat_field]
-            vel_new_hat = VectorField([Field(self.domain_no_hat, vel_new_hat_field[i]) for i in range(3)])
+            @partial(jax.jit, static_argnums=(0))
+            def get_new_vel_field(shape,
+                                  v_1_lap_hat_,
+                                  vort_hat_1,
+                                  conv_ns_hat_,
+                                  conv_ns_hat_old_,
+                                  h_v_hat_,
+                                  h_g_hat_,
+                                  h_v_hat_old_,
+                                  h_g_hat_old_,
+                                  ):
+                vel_0_new_hat_field = jnp.zeros(shape)
+                vel_1_new_hat_field = jnp.zeros(shape)
+                vel_2_new_hat_field = jnp.zeros(shape)
+                for kx in jnp.arange(len(self.domain.grid[0])):
+                    for kz in jnp.arange(len(self.domain.grid[2])):
+                        (
+                            v_0_new_field,
+                            v_1_hat_new,
+                            v_2_new_field,
+                            _,
+                        ) = perform_single_rk_step_for_single_wavenumber(step)(
+                            [kx, kz],
+                            v_1_lap_hat_[kx, :, kz],
+                            vort_hat_1[kx, :, kz],
+                            [conv_ns_hat_[i][kx, :, kz] for i in range(3)],
+                            [conv_ns_hat_old_[i][kx, :, kz] for i in range(3)],
+                            h_v_hat_[kx, :, kz],
+                            h_g_hat_[kx, :, kz],
+                            h_v_hat_old_[kx, :, kz],
+                            h_g_hat_old_[kx, :, kz],
+                        )
+                        vel_0_new_hat_field.at[kx, :, kz].set(v_0_new_field)
+                        vel_1_new_hat_field.at[kx, :, kz].set(v_1_hat_new)
+                        vel_2_new_hat_field.at[kx, :, kz].set(v_2_new_field)
+                vel_new_hat_field = [vel_0_new_hat_field, vel_1_new_hat_field, vel_2_new_hat_field]
+                return vel_new_hat_field
+
+            vel_new_hat_field = get_new_vel_field(
+                vel_hat[0].field.shape,
+                v_1_lap_hat.field,
+                vort_hat[1],
+                conv_ns_hat,
+                conv_ns_hat_old,
+                h_v_hat,
+                h_g_hat,
+                h_v_hat_old,
+                h_g_hat_old,
+            )
+            vel_new_hat = VectorField([FourierField(self.domain_no_hat, vel_new_hat_field[i]) for i in range(3)])
 
             h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (
                 h_v_hat,
