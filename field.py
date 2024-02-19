@@ -2,7 +2,7 @@
 
 import time
 
-from abc import ABC
+from abc import ABC, abstractmethod
 import math
 import jax
 import jax.numpy as jnp
@@ -29,57 +29,6 @@ from domain import Domain, Domain
 NoneType = type(None)
 
 
-@partial(jax.jit, static_argnums=(0, 1))
-def reconstruct_from_wavenumbers_jit(domain, fn):
-    time_1 = time.time()
-    # vectorize = False
-    vectorize = True
-    k1s = jnp.array(domain.grid[domain.all_periodic_dimensions()[0]].astype(int))
-    k2s = jnp.array(domain.grid[domain.all_periodic_dimensions()[1]].astype(int))
-    k1_ints = jnp.arange(len(k1s))
-    k2_ints = jnp.arange(len(k2s))
-    jit_fn = jax.jit(fn)
-    # jit_fn = fn
-
-    # previously best varant using list comprehensions
-    if vectorize == False:
-        Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
-        # t1 = time.time()
-        out_array = jnp.array(
-            [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
-        )
-        out_field = jnp.array(
-            [
-                jnp.moveaxis(
-                    out_array[:, :, i, :],
-                    -1,
-                    domain.all_nonperiodic_dimensions()[0],
-                )
-                for i in domain.all_dimensions()
-            ]
-        )
-
-    # might be better on GPUs? TODO: fix bug
-    else:
-        time_2 = time.time()
-        K1, K2 = jnp.meshgrid(k1_ints, k2_ints)
-        # K = jnp.array(list(zip(K1.flatten(), K2.flatten())))
-        K = jax.lax.map(lambda ks: (ks[0], ks[1]), [K1.flatten(), K2.flatten()])
-        jit_fn_vec = jax.vmap(jit_fn)
-        # jit_fn_vec = jax.vmap(fn)
-        Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
-        out_array = jnp.array(jit_fn_vec(K))
-        out_field = jax.lax.map(
-            lambda i: jnp.moveaxis(
-                out_array[i, :, :].reshape(Nx, Nz, Ny),
-                -1,
-                domain.all_nonperiodic_dimensions()[0],
-            ),
-            jnp.arange(domain.number_of_dimensions),
-        )
-    return out_field
-
-
 class Field(ABC):
     """Class that holds the information needed to describe a dependent variable
     and to perform operations on it."""
@@ -97,7 +46,7 @@ class Field(ABC):
 
     def save_to_file(self, filename):
         """Save field to file filename."""
-        field_array = np.array(self.field.tolist())
+        field_array = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
 
     def get_name(self):
@@ -122,621 +71,89 @@ class Field(ABC):
 
     def __repr__(self):
         # self.plot()
-        return str(self.field)
+        return str(self.data)
 
     def __getitem__(self, index):
-        return self.field[index]
+        return self.data[index]
 
     def max(self):
-        return max(self.field.flatten())
+        return max(self.data.flatten())
 
     def min(self):
-        return min(self.field.flatten())
+        return min(self.data.flatten())
 
     def __neg__(self):
         ret = self * (-1.0)
         ret.time_step = self.time_step
         return ret
 
-    def shift(self, value):
-        out_field = self.field + value
-        return Field(self.domain, out_field, name=self.name)
-
     def __abs__(self):
         # TODO use integration or something more sophisticated
-        return jnp.linalg.norm(self.field) / self.number_of_dofs()
+        return jnp.linalg.norm(self.data) / self.number_of_dofs()
 
-    def l2error(self, fn):
-        # TODO supersampling
-        analytical_solution = Field.FromFunc(self.domain, fn)
-        return jnp.linalg.norm((self - analytical_solution).field, None)
-
-    def volume_integral(self):
-        int = Field(self.domain, self.field)
-        for i in reversed(self.all_dimensions()):
-            int = int.definite_integral(i)
-        return int
-
-    def energy(self):
-        # energy = 0.5 * self * self
-        energy = 0.5 * Field(
-            self.domain, self.field * self.field, name="energy"
-        )  # TODO why does the above not work?
-        domain_volume = 2.0 ** (
-            len(self.all_nonperiodic_dimensions()) - 1
-        ) * jnp.prod(
-            jnp.array(self.domain.scale_factors)
-        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
-        return energy.volume_integral() / domain_volume
 
     def normalize(self):
-        self.field = self.field / self.energy()
+        self.data = self.data / self.energy()
         return self
-
-    def eval(self, X):
-        """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
-        grd = self.domain.grid
-        interpolant = []
-        weights = []
-        for dim in self.all_dimensions():
-            for i in jnp.arange(self.domain.number_of_cells(dim)):
-                if (grd[dim][i] - X[dim]) * (grd[dim][i + 1] - X[dim]) <= 0:
-                    interpolant.append(i)
-                    weights.append(
-                        (grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1])
-                    )
-                    break
-        base_value = self.field
-        other_values = []
-        for dim in self.all_dimensions():
-            other_values.append(self.field)
-        for dim in reversed(self.all_dimensions()):
-            base_value = jnp.take(base_value, indices=interpolant[dim], axis=dim)
-            for i in self.all_dimensions():
-                if i == dim:
-                    other_values[i] = jnp.take(
-                        other_values[i], indices=interpolant[dim] + 1, axis=dim
-                    )
-                else:
-                    other_values[i] = jnp.take(
-                        other_values[i], indices=interpolant[dim], axis=dim
-                    )
-        out = base_value
-        for dim in self.all_dimensions():
-            out += (other_values[dim] - base_value) * (1 - weights[dim])
-        return out
 
     def number_of_dimensions(self):
         return len(self.all_dimensions())
 
     def number_of_dofs(self):
-        return int(math.prod(self.domain.shape))
-
-    def plot_center(self, dimension, *other_fields):
-        if not self.supress_plotting_:
-            if self.domain.number_of_dimensions == 1:
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                ax.plot(self.domain.grid[0], self.field, label=self.name)
-                for other_field in other_fields:
-                    ax.plot(
-                        self.domain.grid[dimension],
-                        other_field.field,
-                        "--",
-                        label=other_field.name,
-                    )
-                fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-                # plt.close(fig)
-            elif self.domain.number_of_dimensions == 2:
-                # fig, ax = plt.subplots(1, 1)
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                other_dim = [i for i in self.all_dimensions() if i != dimension][0]
-                N_c = self.domain.number_of_cells(other_dim) // 2
-                ax.plot(
-                    self.domain.grid[dimension],
-                    self.field.take(indices=N_c, axis=other_dim),
-                    label=self.name,
-                )
-                for other_field in other_fields:
-                    ax.plot(
-                        self.domain.grid[dimension],
-                        other_field.field.take(indices=N_c, axis=other_dim),
-                        "--",
-                        label=other_field.name,
-                    )
-                fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y"][dimension]
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y"][dimension]
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-                # plt.close(fig)
-            elif self.domain.number_of_dimensions == 3:
-                # fig, ax = plt.subplots(1, 1)
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                other_dim = [i for i in self.all_dimensions() if i != dimension]
-                N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
-                ax.plot(
-                    self.domain.grid[dimension],
-                    self.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                        indices=N_c[0], axis=other_dim[0]
-                    ),
-                    label=self.name,
-                )
-                for other_field in other_fields:
-                    ax.plot(
-                        self.domain.grid[dimension],
-                        other_field.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                            indices=N_c[0], axis=other_dim[0]
-                        ),
-                        "--",
-                        label=other_field.name,
-                    )
-                fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y", "z"][dimension]
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y", "z"][dimension]
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-            else:
-                raise Exception("Not implemented yet")
-
-    def plot(self, *other_fields):
-        if not self.supress_plotting_:
-            if self.domain.number_of_dimensions == 1:
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                ax.plot(
-                    self.domain.grid[0],
-                    self.field,
-                    label=self.name,
-                )
-                for other_field in other_fields:
-                    ax.plot(
-                        self.domain.grid[0],
-                        other_field.field,
-                        "--",
-                        label=other_field.name,
-                    )
-                fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-
-            elif self.domain.number_of_dimensions == 2:
-                fig = figure.Figure(figsize=(15, 5))
-                ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
-                ax3d = fig.add_subplot(1, 3, 3, projection="3d")
-                for dimension in self.all_dimensions():
-                    other_dim = [i for i in self.all_dimensions() if i != dimension][0]
-                    N_c = self.domain.number_of_cells(other_dim) // 2
-                    ax[dimension].plot(
-                        self.domain.grid[dimension],
-                        self.field.take(indices=N_c, axis=other_dim),
-                        label=self.name,
-                    )
-                    ax3d.plot_surface(
-                        self.domain.mgrid[0], (self.domain.mgrid[1]), self.field
-                    )
-                    for other_field in other_fields:
-                        ax[dimension].plot(
-                            self.domain.grid[dimension],
-                            other_field.field.take(indices=N_c, axis=other_dim),
-                            "--",
-                            label=other_field.name,
-                        )
-                        ax3d.plot_surface(
-                            self.domain.mgrid[0],
-                            (self.domain.mgrid[1]),
-                            other_field.field,
-                        )
-                    fig.legend()
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_"
-                        + self.name
-                        + "_latest"
-                        + self.plotting_format
-                    )
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_"
-                        + self.name
-                        + "_t_"
-                        + "{:06}".format(self.time_step)
-                        + self.plotting_format
-                    )
-            elif self.domain.number_of_dimensions == 3:
-                fig = figure.Figure()
-                # ax = fig.subplots(1, 3, figsize=(15, 5))
-                ax = fig.subplots(1, 3)
-                for dimension in self.all_dimensions():
-                    other_dim = [i for i in self.all_dimensions() if i != dimension]
-                    N_c = [self.domain.number_of_cells(dim) // 2 for dim in other_dim]
-                    ax[dimension].plot(
-                        self.domain.grid[dimension],
-                        self.field.take(indices=N_c[1], axis=other_dim[1]).take(
-                            indices=N_c[0], axis=other_dim[0]
-                        ),
-                        label=self.name,
-                    )
-                    for other_field in other_fields:
-                        ax[dimension].plot(
-                            self.domain.grid[dimension],
-                            other_field.field.take(
-                                indices=N_c[1], axis=other_dim[1]
-                            ).take(indices=N_c[0], axis=other_dim[0]),
-                            "--",
-                            label=other_field.name,
-                        )
-                fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-            else:
-                raise Exception("Not implemented yet")
-
-    def plot_3d(self, direction=None):
-        if not self.supress_plotting_:
-            if type(direction) != NoneType:
-                self.plot_3d_single(direction)
-            else:
-                assert (
-                    self.domain.number_of_dimensions == 3
-                ), "Only 3D supported for this plotting method."
-                fig = figure.Figure(layout="constrained")
-                base_len = 100
-                grd = (base_len, base_len)
-                lx = self.domain.scale_factors[0]
-                ly = self.domain.scale_factors[1] * 2
-                lz = self.domain.scale_factors[2]
-                rows_x = int(ly / (ly + lx) * base_len)
-                cols_x = int(lz / (lz + ly) * base_len)
-                rows_y = int(lx / (ly + lx) * base_len)
-                cols_y = int(lz / (lz + ly) * base_len)
-                rows_z = int(lx / (ly + lx) * base_len)
-                cols_z = int(ly / (lz + ly) * base_len)
-                ax = [
-                    fig.add_subplot(
-                        fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]
-                    ),
-                    fig.add_subplot(
-                        fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
-                    ),
-                    fig.add_subplot(
-                        fig.add_gridspec(*grd)[
-                            rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
-                        ]
-                    ),
-                ]
-                ims = []
-                for dim in self.all_dimensions():
-                    N_c = self.domain.number_of_cells(dim) // 2
-                    other_dim = [i for i in self.all_dimensions() if i != dim]
-                    ims.append(
-                        ax[dim].imshow(
-                            self.field.take(indices=N_c, axis=dim),
-                            interpolation=None,
-                            extent=[
-                                self.domain.grid[other_dim[1]][0],
-                                self.domain.grid[other_dim[1]][-1],
-                                self.domain.grid[other_dim[0]][0],
-                                self.domain.grid[other_dim[0]][-1],
-                            ],
-                        )
-                    )
-                    ax[dim].set_xlabel("xyz"[other_dim[1]])
-                    ax[dim].set_ylabel("xyz"[other_dim[0]])
-                # Find the min and max of all colors for use in setting the color scale.
-                vmin = min(image.get_array().min() for image in ims)
-                vmax = max(image.get_array().max() for image in ims)
-                norm = colors.Normalize(vmin=vmin, vmax=vmax)
-                for im in ims:
-                    im.set_norm(norm)
-                fig.colorbar(ims[0], ax=ax, label=self.name)
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_3d_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_3d_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-
-    def plot_3d_single(self, dim):
-        if not self.supress_plotting_:
-            assert (
-                self.domain.number_of_dimensions == 3
-            ), "Only 3D supported for this plotting method."
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ims = []
-            N_c = self.domain.number_of_cells(dim) // 2
-            other_dim = [i for i in self.all_dimensions() if i != dim]
-            ims.append(
-                ax.imshow(
-                    self.field.take(indices=N_c, axis=dim).T,
-                    interpolation=None,
-                    extent=[
-                        self.domain.grid[other_dim[0]][0],
-                        self.domain.grid[other_dim[0]][-1],
-                        self.domain.grid[other_dim[1]][0],
-                        self.domain.grid[other_dim[1]][-1],
-                    ],
-                )
-            )
-            ax.set_xlabel("xyz"[other_dim[0]])
-            ax.set_ylabel("xyz"[other_dim[1]])
-            # Find the min and max of all colors for use in setting the color scale.
-            vmin = min(image.get_array().min() for image in ims)
-            vmax = max(image.get_array().max() for image in ims)
-            norm = colors.Normalize(vmin=vmin, vmax=vmax)
-            for im in ims:
-                im.set_norm(norm)
-            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
-            fig.savefig(
-                self.plotting_dir
-                + "plot_3d_"
-                + "xyz"[dim]
-                + "_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_3d_"
-                + "xyz"[dim]
-                + "_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-
-    def plot_isolines(self, normal_direction, isolines=None):
-        if not self.supress_plotting_:
-            if type(isolines) == NoneType:
-                isolines = [0, 1.5, 2.5, 3.5]
-                isolines += [-i for i in isolines[1:]]
-
-            isolines.sort()
-
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            directions = [i for i in self.all_dimensions() if i != normal_direction]
-            x = self.domain.grid[directions[0]]
-            y = self.domain.grid[directions[1]]
-            X, Y = jnp.meshgrid(x, y)
-            N_c = self.domain.number_of_cells(normal_direction) // 2
-            f = self.field.take(indices=N_c, axis=normal_direction).T
-            cmap = colors.ListedColormap([("gray", 0.3), "white"])
-            bounds = [-1e10, 0, 1e10]
-            norm = colors.BoundaryNorm(bounds, cmap.N)
-            ax.imshow(
-                f,
-                interpolation="gaussian",
-                origin="lower",
-                cmap=cmap,
-                norm=norm,
-                extent=(x[0], x[-1], y[0], y[-1]),
-            )
-            CS = ax.contour(X, Y, f, isolines)
-            ax.clabel(CS, inline=True, fontsize=10)
-            fig.savefig(
-                self.plotting_dir
-                + "plot_iso_"
-                + "xyz"[normal_direction]
-                + "_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_iso_"
-                + "xyz"[normal_direction]
-                + "_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
+        return int(math.prod(self.physical_domain.shape))
 
     def all_dimensions(self):
-        return self.domain.all_dimensions()
+        return self.physical_domain.all_dimensions()
 
     def is_periodic(self, direction):
-        return self.domain.is_periodic(direction)
+        return self.physical_domain.is_periodic(direction)
 
     def all_periodic_dimensions(self):
-        return self.domain.all_periodic_dimensions()
+        return self.physical_domain.all_periodic_dimensions()
 
     def all_nonperiodic_dimensions(self):
-        return self.domain.all_nonperiodic_dimensions()
+        return self.physical_domain.all_nonperiodic_dimensions()
 
     def pad_mat_with_zeros(self):
         return jnp.block(
             [
-                [jnp.zeros((1, self.field.shape[1] + 2))],
+                [jnp.zeros((1, self.data.shape[1] + 2))],
                 [
-                    jnp.zeros((self.field.shape[0], 1)),
-                    self.field,
-                    jnp.zeros((self.field.shape[0], 1)),
+                    jnp.zeros((self.data.shape[0], 1)),
+                    self.data,
+                    jnp.zeros((self.data.shape[0], 1)),
                 ],
-                [jnp.zeros((1, self.field.shape[1] + 2))],
+                [jnp.zeros((1, self.data.shape[1] + 2))],
             ]
         )
 
     def update_boundary_conditions(self):
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
         for dim in self.all_nonperiodic_dimensions():
-            self.field = jnp.take(
-                self.field,
-                jnp.arange(self.domain.number_of_cells(dim))[1:-1],
+            self.data = jnp.take(
+                self.data,
+                jnp.arange(self.physical_domain.number_of_cells(dim))[1:-1],
                 axis=dim,
             )
-            self.field = jnp.pad(
-                self.field,
+            self.data = jnp.pad(
+                self.data,
                 [
-                    (0, 0) if self.domain.periodic_directions[d] else (1, 1)
+                    (0, 0) if self.physical_domain.periodic_directions[d] else (1, 1)
                     for d in self.all_dimensions()
                 ],
                 mode="constant",
                 constant_values=0.0,
             )
 
-    def hat(self):
-        out = FourierField.FromField(self)
-        out.time_step = self.time_step
-        return out
-
-    def diff(self, direction, order=1):
-        name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
-        return Field(
-            self.domain,
-            self.domain.diff(self.field, direction, order),
-            self.name + "_" + name_suffix,
-        )
-
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
-        return self.domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
+        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
 
     def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self, direction):
-        return self.domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(direction)
+        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(direction)
 
-    def integrate(self, direction, order=1, bc_left=None, bc_right=None):
-        out_bc = self.domain.integrate(self.field, direction, order, bc_left, bc_right)
-        return Field(self.domain, out_bc, name=self.name + "_int")
-
-    def definite_integral(self, direction):
-        def reduce_add_along_axis(arr, axis):
-            # return np.add.reduce(arr, axis=axis)
-            arr = jnp.moveaxis(arr, axis, 0)
-            out_arr = functools.reduce(lambda a, b: a + b, arr)
-            return out_arr
-
-        if not self.is_periodic(direction):
-            int = self.integrate(direction, 1, bc_right=0.0)
-            if self.number_of_dimensions() == 1:
-                return int[0] - int[-1]
-            else:
-                N = self.domain.number_of_cells(direction)
-                inds = [i for i in self.all_dimensions() if i != direction]
-                shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
-                periodic_directions = tuple(
-                    (jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist()
-                )
-                scale_factors = tuple(
-                    (jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist()
-                )
-                reduced_domain = Domain(
-                    shape, periodic_directions, scale_factors=scale_factors
-                )
-                field = jnp.take(int.field, indices=0, axis=direction) - jnp.take(
-                    int.field, indices=N - 1, axis=direction
-                )
-                return Field(reduced_domain, field)
-        else:
-            N = self.domain.number_of_cells(direction)
-            if self.number_of_dimensions() == 1:
-                return self.domain.scale_factors[direction] / N * jnp.sum(self.field[:])
-            else:
-                N = self.domain.number_of_cells(direction)
-                inds = [i for i in self.all_dimensions() if i != direction]
-                shape = tuple((jnp.array(self.domain.shape)[tuple(inds),]).tolist())
-                periodic_directions = tuple(
-                    (jnp.array(self.domain.periodic_directions)[tuple(inds),]).tolist()
-                )
-                scale_factors = tuple(
-                    (jnp.array(self.domain.scale_factors)[tuple(inds),]).tolist()
-                )
-                reduced_domain = Domain(
-                    shape, periodic_directions, scale_factors=scale_factors
-                )
-                field = (
-                    self.domain.scale_factors[direction]
-                    / N
-                    * reduce_add_along_axis(self.field, direction)
-                )
-                return Field(reduced_domain, field)
+    @abstractmethod
+    def diff(self, direction: int, order: int=1) -> Self:
+        ...
 
     def nabla(self):
         out = [self.diff(0)]
@@ -747,22 +164,13 @@ class Field(ABC):
             out[dim].time_step = self.time_step
         return VectorField(out)
 
-    def laplacian(self):
-        out = self.diff(0, 2)
+    def laplacian(self) -> Self:
+        out: Self = self.diff(0, 2)
         for dim in self.all_dimensions()[1:]:
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
         out.time_step = self.time_step
         return out
-
-    def perform_explicit_euler_step(self, eq, dt, i):
-        new_u = self + eq * dt
-        new_u.update_boundary_conditions()
-        new_u.name = "u_" + str(i)
-        return new_u
-
-    def perform_time_step(self, eq, dt, i):
-        return self.perform_explicit_euler_step(eq, dt, i)
 
 
 class VectorField:
@@ -1172,13 +580,17 @@ class VectorField:
             )
 
 
-class Field(Field):
+class PhysicalField(Field):
 
     def __init__(self, domain: Domain, data: jnp.ndarray, name: str ="field"):
         self.physical_domain = domain
         self.data = data
         self.name = name
         self.time_step: int = 0
+
+    def shift(self, value):
+        out_field = self.data + value
+        return PhysicalField(self.physical_domain, out_field, name=self.name)
 
     def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
         assert not isinstance(
@@ -1191,7 +603,7 @@ class Field(Field):
                 new_name = self.name + " - " + other.name[1:]
             else:
                 new_name = self.name + " + " + other.name
-        ret = Field(self.physical_domain, self.data + other.data, name=new_name)
+        ret = PhysicalField(self.physical_domain, self.data + other.data, name=new_name)
         ret.time_step = self.time_step
         return ret
 
@@ -1212,7 +624,7 @@ class Field(Field):
                     new_name = self.name + " * " + other.name
                 except Exception:
                     new_name = "field"
-            ret = Field(self.domain, self.data * other.data, name=new_name)
+            ret = PhysicalField(self.physical_domain, self.data * other.data, name=new_name)
             ret.time_step = self.time_step
             return ret
         else:
@@ -1230,7 +642,7 @@ class Field(Field):
                         new_name = "(" + str(other) + ") " + self.name
                 except Exception:
                     new_name = "field"
-            ret = Field(self.domain, self.data * other, name=new_name)
+            ret = PhysicalField(self.physical_domain, self.data * other, name=new_name)
             ret.time_step = self.time_step
             return ret
 
@@ -1255,7 +667,7 @@ class Field(Field):
                         new_name = self.name + "/ (" + str(other) + ") "
                 except Exception:
                     new_name = "field"
-            ret = Field(self.domain, self.data * other, name=new_name)
+            ret = PhysicalField(self.physical_domain, self.data * other, name=new_name)
             ret.time_step = self.time_step
             return ret
 
@@ -1272,7 +684,7 @@ class Field(Field):
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
-        zero_field = Field.FromFunc(domain)
+        zero_field = PhysicalField.FromFunc(domain)
         rands = []
         for i in jnp.arange(zero_field.number_of_dofs()):
             key, subkey = jax.random.split(key)
@@ -1313,16 +725,551 @@ class Field(Field):
             )
         else:
             raise NotImplementedError("Number of dimensions not supported.")
-        return Field(domain, out, field.name + "_projected")
+        return PhysicalField(domain, out, field.name + "_projected")
 
     @classmethod
     def FromFile(cls, domain, filename, name="field"):
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
-        out = Field(domain, None, name=name)
+        out = PhysicalField(domain, None, name=name)
         field_array = np.load(out.field_dir + filename, allow_pickle=True)
-        out.field = jnp.array(field_array.tolist())
+        out.data = jnp.array(field_array.tolist())
         return out
+
+    def l2error(self, fn):
+        # TODO supersampling
+        analytical_solution = PhysicalField.FromFunc(self.physical_domain, fn)
+        return jnp.linalg.norm((self - analytical_solution).data, None)
+
+    def volume_integral(self):
+        int = PhysicalField(self.physical_domain, self.data)
+        for i in reversed(self.all_dimensions()):
+            int = int.definite_integral(i)
+        return int
+
+    def energy(self):
+        # energy = 0.5 * self * self
+        energy = 0.5 * PhysicalField(
+            self.physical_domain, self.data * self.data, name="energy"
+        )  # TODO why does the above not work?
+        domain_volume = 2.0 ** (
+            len(self.all_nonperiodic_dimensions()) - 1
+        ) * jnp.prod(
+            jnp.array(self.physical_domain.scale_factors)
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return energy.volume_integral() / domain_volume
+
+    def eval(self, X):
+        """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
+        grd = self.physical_domain.grid
+        interpolant = []
+        weights = []
+        for dim in self.all_dimensions():
+            for i in jnp.arange(self.physical_domain.number_of_cells(dim)):
+                if (grd[dim][i] - X[dim]) * (grd[dim][i + 1] - X[dim]) <= 0:
+                    interpolant.append(i)
+                    weights.append(
+                        (grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1])
+                    )
+                    break
+        base_value = self.data
+        other_values = []
+        for dim in self.all_dimensions():
+            other_values.append(self.data)
+        for dim in reversed(self.all_dimensions()):
+            base_value = jnp.take(base_value, indices=interpolant[dim], axis=dim)
+            for i in self.all_dimensions():
+                if i == dim:
+                    other_values[i] = jnp.take(
+                        other_values[i], indices=interpolant[dim] + 1, axis=dim
+                    )
+                else:
+                    other_values[i] = jnp.take(
+                        other_values[i], indices=interpolant[dim], axis=dim
+                    )
+        out = base_value
+        for dim in self.all_dimensions():
+            out += (other_values[dim] - base_value) * (1 - weights[dim])
+        return out
+
+    def plot_center(self, dimension, *other_fields):
+        if not self.supress_plotting_:
+            if self.physical_domain.number_of_dimensions == 1:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(self.physical_domain.grid[0], self.data, label=self.name)
+                for other_field in other_fields:
+                    ax.plot(
+                        self.physical_domain.grid[dimension],
+                        other_field.field,
+                        "--",
+                        label=other_field.name,
+                    )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+                # plt.close(fig)
+            elif self.physical_domain.number_of_dimensions == 2:
+                # fig, ax = plt.subplots(1, 1)
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                other_dim = [i for i in self.all_dimensions() if i != dimension][0]
+                N_c = self.physical_domain.number_of_cells(other_dim) // 2
+                ax.plot(
+                    self.physical_domain.grid[dimension],
+                    self.data.take(indices=N_c, axis=other_dim),
+                    label=self.name,
+                )
+                for other_field in other_fields:
+                    ax.plot(
+                        self.physical_domain.grid[dimension],
+                        other_field.field.take(indices=N_c, axis=other_dim),
+                        "--",
+                        label=other_field.name,
+                    )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y"][dimension]
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y"][dimension]
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+                # plt.close(fig)
+            elif self.physical_domain.number_of_dimensions == 3:
+                # fig, ax = plt.subplots(1, 1)
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                other_dim = [i for i in self.all_dimensions() if i != dimension]
+                N_c = [self.physical_domain.number_of_cells(dim) // 2 for dim in other_dim]
+                ax.plot(
+                    self.physical_domain.grid[dimension],
+                    self.data.take(indices=N_c[1], axis=other_dim[1]).take(
+                        indices=N_c[0], axis=other_dim[0]
+                    ),
+                    label=self.name,
+                )
+                for other_field in other_fields:
+                    ax.plot(
+                        self.physical_domain.grid[dimension],
+                        other_field.data.take(indices=N_c[1], axis=other_dim[1]).take(
+                            indices=N_c[0], axis=other_dim[0]
+                        ),
+                        "--",
+                        label=other_field.name,
+                    )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y", "z"][dimension]
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_cl_"
+                    + self.name
+                    + "_"
+                    + ["x", "y", "z"][dimension]
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+            else:
+                raise Exception("Not implemented yet")
+
+    def plot(self, *other_fields):
+        if not self.supress_plotting_:
+            if self.physical_domain.number_of_dimensions == 1:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                ax.plot(
+                    self.physical_domain.grid[0],
+                    self.data,
+                    label=self.name,
+                )
+                for other_field in other_fields:
+                    ax.plot(
+                        self.physical_domain.grid[0],
+                        other_field.data,
+                        "--",
+                        label=other_field.name,
+                    )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+
+            elif self.physical_domain.number_of_dimensions == 2:
+                fig = figure.Figure(figsize=(15, 5))
+                ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
+                ax3d = fig.add_subplot(1, 3, 3, projection="3d")
+                for dimension in self.all_dimensions():
+                    other_dim = [i for i in self.all_dimensions() if i != dimension][0]
+                    N_c = self.physical_domain.number_of_cells(other_dim) // 2
+                    ax[dimension].plot(
+                        self.physical_domain.grid[dimension],
+                        self.data.take(indices=N_c, axis=other_dim),
+                        label=self.name,
+                    )
+                    ax3d.plot_surface(
+                        self.physical_domain.mgrid[0], (self.physical_domain.mgrid[1]), self.data
+                    )
+                    for other_field in other_fields:
+                        ax[dimension].plot(
+                            self.physical_domain.grid[dimension],
+                            other_field.field.take(indices=N_c, axis=other_dim),
+                            "--",
+                            label=other_field.name,
+                        )
+                        ax3d.plot_surface(
+                            self.physical_domain.mgrid[0],
+                            (self.physical_domain.mgrid[1]),
+                            other_field.field,
+                        )
+                    fig.legend()
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+            elif self.physical_domain.number_of_dimensions == 3:
+                fig = figure.Figure()
+                # ax = fig.subplots(1, 3, figsize=(15, 5))
+                ax = fig.subplots(1, 3)
+                for dimension in self.all_dimensions():
+                    other_dim = [i for i in self.all_dimensions() if i != dimension]
+                    N_c = [self.physical_domain.number_of_cells(dim) // 2 for dim in other_dim]
+                    ax[dimension].plot(
+                        self.physical_domain.grid[dimension],
+                        self.data.take(indices=N_c[1], axis=other_dim[1]).take(
+                            indices=N_c[0], axis=other_dim[0]
+                        ),
+                        label=self.name,
+                    )
+                    for other_field in other_fields:
+                        ax[dimension].plot(
+                            self.physical_domain.grid[dimension],
+                            other_field.field.take(
+                                indices=N_c[1], axis=other_dim[1]
+                            ).take(indices=N_c[0], axis=other_dim[0]),
+                            "--",
+                            label=other_field.name,
+                        )
+                fig.legend()
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+            else:
+                raise Exception("Not implemented yet")
+
+    def plot_3d(self, direction=None):
+        if not self.supress_plotting_:
+            if type(direction) != NoneType:
+                self.plot_3d_single(direction)
+            else:
+                assert (
+                    self.physical_domain.number_of_dimensions == 3
+                ), "Only 3D supported for this plotting method."
+                fig = figure.Figure(layout="constrained")
+                base_len = 100
+                grd = (base_len, base_len)
+                lx = self.physical_domain.scale_factors[0]
+                ly = self.physical_domain.scale_factors[1] * 2
+                lz = self.physical_domain.scale_factors[2]
+                rows_x = int(ly / (ly + lx) * base_len)
+                cols_x = int(lz / (lz + ly) * base_len)
+                rows_y = int(lx / (ly + lx) * base_len)
+                cols_y = int(lz / (lz + ly) * base_len)
+                rows_z = int(lx / (ly + lx) * base_len)
+                cols_z = int(ly / (lz + ly) * base_len)
+                ax = [
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[
+                            rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
+                        ]
+                    ),
+                ]
+                ims = []
+                for dim in self.all_dimensions():
+                    N_c = self.physical_domain.number_of_cells(dim) // 2
+                    other_dim = [i for i in self.all_dimensions() if i != dim]
+                    ims.append(
+                        ax[dim].imshow(
+                            self.data.take(indices=N_c, axis=dim),
+                            interpolation=None,
+                            extent=[
+                                self.physical_domain.grid[other_dim[1]][0],
+                                self.physical_domain.grid[other_dim[1]][-1],
+                                self.physical_domain.grid[other_dim[0]][0],
+                                self.physical_domain.grid[other_dim[0]][-1],
+                            ],
+                        )
+                    )
+                    ax[dim].set_xlabel("xyz"[other_dim[1]])
+                    ax[dim].set_ylabel("xyz"[other_dim[0]])
+                # Find the min and max of all colors for use in setting the color scale.
+                vmin = min(image.get_array().min() for image in ims)
+                vmax = max(image.get_array().max() for image in ims)
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+                for im in ims:
+                    im.set_norm(norm)
+                fig.colorbar(ims[0], ax=ax, label=self.name)
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+
+    def plot_3d_single(self, dim):
+        if not self.supress_plotting_:
+            assert (
+                self.physical_domain.number_of_dimensions == 3
+            ), "Only 3D supported for this plotting method."
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ims = []
+            N_c = self.physical_domain.number_of_cells(dim) // 2
+            other_dim = [i for i in self.all_dimensions() if i != dim]
+            ims.append(
+                ax.imshow(
+                    self.data.take(indices=N_c, axis=dim).T,
+                    interpolation=None,
+                    extent=[
+                        self.physical_domain.grid[other_dim[0]][0],
+                        self.physical_domain.grid[other_dim[0]][-1],
+                        self.physical_domain.grid[other_dim[1]][0],
+                        self.physical_domain.grid[other_dim[1]][-1],
+                    ],
+                )
+            )
+            ax.set_xlabel("xyz"[other_dim[0]])
+            ax.set_ylabel("xyz"[other_dim[1]])
+            # Find the min and max of all colors for use in setting the color scale.
+            vmin = min(image.get_array().min() for image in ims)
+            vmax = max(image.get_array().max() for image in ims)
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            for im in ims:
+                im.set_norm(norm)
+            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+            fig.savefig(
+                self.plotting_dir
+                + "plot_3d_"
+                + "xyz"[dim]
+                + "_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_3d_"
+                + "xyz"[dim]
+                + "_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
+
+    def plot_isolines(self, normal_direction, isolines=None):
+        if not self.supress_plotting_:
+            if type(isolines) == NoneType:
+                isolines = [0, 1.5, 2.5, 3.5]
+                isolines += [-i for i in isolines[1:]]
+
+            isolines.sort()
+
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            directions = [i for i in self.all_dimensions() if i != normal_direction]
+            x = self.physical_domain.grid[directions[0]]
+            y = self.physical_domain.grid[directions[1]]
+            X, Y = jnp.meshgrid(x, y)
+            N_c = self.physical_domain.number_of_cells(normal_direction) // 2
+            f = self.data.take(indices=N_c, axis=normal_direction).T
+            cmap = colors.ListedColormap([("gray", 0.3), "white"])
+            bounds = [-1e10, 0, 1e10]
+            norm = colors.BoundaryNorm(bounds, cmap.N)
+            ax.imshow(
+                f,
+                interpolation="gaussian",
+                origin="lower",
+                cmap=cmap,
+                norm=norm,
+                extent=(x[0], x[-1], y[0], y[-1]),
+            )
+            CS = ax.contour(X, Y, f, isolines)
+            ax.clabel(CS, inline=True, fontsize=10)
+            fig.savefig(
+                self.plotting_dir
+                + "plot_iso_"
+                + "xyz"[normal_direction]
+                + "_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_iso_"
+                + "xyz"[normal_direction]
+                + "_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
+
+    def hat(self):
+        out = FourierField.FromField(self)
+        out.time_step = self.time_step
+        return out
+
+    def diff(self, direction, order=1):
+        name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
+        return PhysicalField(
+            self.physical_domain,
+            self.physical_domain.diff(self.data, direction, order),
+            self.name + "_" + name_suffix,
+        )
+
+    def integrate(self, direction, order=1, bc_left=None, bc_right=None):
+        out_bc = self.physical_domain.integrate(self.data, direction, order, bc_left, bc_right)
+        return PhysicalField(self.physical_domain, out_bc, name=self.name + "_int")
+
+    def definite_integral(self, direction):
+        def reduce_add_along_axis(arr, axis):
+            # return np.add.reduce(arr, axis=axis)
+            arr = jnp.moveaxis(arr, axis, 0)
+            out_arr = functools.reduce(lambda a, b: a + b, arr)
+            return out_arr
+
+        if not self.is_periodic(direction):
+            int = self.integrate(direction, 1, bc_right=0.0)
+            if self.number_of_dimensions() == 1:
+                return int[0] - int[-1]
+            else:
+                N = self.physical_domain.number_of_cells(direction)
+                inds = [i for i in self.all_dimensions() if i != direction]
+                shape = tuple((jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist())
+                periodic_directions = tuple(
+                    (jnp.array(self.physical_domain.periodic_directions)[tuple(inds),]).tolist()
+                )
+                scale_factors = tuple(
+                    (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
+                )
+                reduced_domain = Domain(
+                    shape, periodic_directions, scale_factors=scale_factors
+                )
+                field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
+                    int.data, indices=N - 1, axis=direction
+                )
+                return PhysicalField(reduced_domain, field)
+        else:
+            N = self.physical_domain.number_of_cells(direction)
+            if self.number_of_dimensions() == 1:
+                return self.physical_domain.scale_factors[direction] / N * jnp.sum(self.data[:])
+            else:
+                N = self.physical_domain.number_of_cells(direction)
+                inds = [i for i in self.all_dimensions() if i != direction]
+                shape = tuple((jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist())
+                periodic_directions = tuple(
+                    (jnp.array(self.physical_domain.periodic_directions)[tuple(inds),]).tolist()
+                )
+                scale_factors = tuple(
+                    (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
+                )
+                reduced_domain = PhysicalDomain(
+                    shape, periodic_directions, scale_factors=scale_factors
+                )
+                field = (
+                    self.physical_domain.scale_factors[direction]
+                    / N
+                    * reduce_add_along_axis(self.data, direction)
+                )
+                return PhysicalField(reduced_domain, field)
+
+
 
 class FourierField(Field):
     def __init__(self, domain: Domain, data: jnp.ndarray, name: str ="field_hat"):
@@ -1436,13 +1383,13 @@ class FourierField(Field):
                 out_field = (
                     super()
                     .integrate(direction, order, bc_right=bc_right, bc_left=bc_left)
-                    .field
+                    .data
                 )
             else:
                 out_field = (
                     super()
                     .integrate(direction, order, bc_right=bc_right, bc_left=bc_left)
-                    .field
+                    .data
                 )
 
         return FourierField(
@@ -1659,7 +1606,7 @@ class FourierFieldSlice(FourierField):
         return FourierFieldSlice(
             self.domain_no_hat,
             self.non_periodic_direction,
-            self.field + other.field,
+            self.field + other.data,
             new_name,
             *self.ks_raw,
             ks_int=self.ks_int
@@ -1680,7 +1627,7 @@ class FourierFieldSlice(FourierField):
             return FourierFieldSlice(
                 self.domain_no_hat,
                 self.non_periodic_direction,
-                self.field * other.field,
+                self.field * other.data,
                 new_name,
                 *self.ks_raw,
                 ks_int=self.ks_int

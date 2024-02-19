@@ -51,7 +51,7 @@ class Heat_Eq(Equation):
         u = self.get_latest_field("u")
         D2 = self.domain.get_cheb_mat_2_homogeneous_dirichlet(0)
         I = jnp.eye(D2.shape[0])
-        new_u = Field(u.domain, jnp.linalg.inv(I - dt * D2) @ u.field, name=u.name)
+        new_u = PhysicalField(u.domain, jnp.linalg.inv(I - dt * D2) @ u.data, name=u.name)
         new_u.update_boundary_conditions()
         new_u.name = "u_" + str(i)
         # self.fields["u"].append(new_u)
@@ -80,13 +80,13 @@ class Heat_Eq(Equation):
 
 
 def solve_heat_eq_1D():
-    Nx = 100000
-    # Nx = 100
+    # Nx = 100000
+    Nx = 100
 
-    domain = Domain((Nx,), (False))
+    domain = PhysicalDomain((Nx,), (False,))
 
     u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
-    u = Field.FromFunc(domain, func=u_fn, name="u")
+    u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
     heat_eq = Heat_Eq(domain, u)
 
     Nt = 3000
@@ -104,9 +104,9 @@ def solve_heat_eq_1D():
 def optimize_heat_eq_1D():
     Nx = 100
     def run(v0):
-        domain = Domain((Nx,), (False))
+        domain = PhysicalDomain((Nx,), (False,))
 
-        u = Field(domain, v0, name="u")
+        u = PhysicalField(domain, v0, name="u")
         e0 = u.energy()
 
         heat_eq = Heat_Eq(domain, u)
@@ -119,14 +119,14 @@ def optimize_heat_eq_1D():
 
 
 
-    domain = Domain((Nx,), (False))
+    domain = PhysicalDomain((Nx,), (False,))
 
     u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
-    u_0 = Field.FromFunc(domain, func=u_fn, name="u")
+    u_0 = PhysicalField.FromFunc(domain, func=u_fn, name="u")
 
-    v0s = [u_0.field]
+    v0s = [u_0.data]
     step_size = 1e-0
-    sq_grad_sums = 0.0 * u_0.field
+    sq_grad_sums = 0.0 * u_0.data
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
         corr_arr = jnp.array(corr)
@@ -135,23 +135,23 @@ def optimize_heat_eq_1D():
         print("gain: " + str(gain))
         # print("corr (abs): " + str(abs(corr_field)))
         sq_grad_sums += corr_arr**2.0
-        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
+        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].data.shape)])
         # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
         eps = step_size
 
         v0s.append(v0s[-1] + eps * corr_arr)
-        v0_new = Field(domain, v0s[-1])
+        v0_new = PhysicalField(domain, v0s[-1])
         v0_new.set_name("u_0_" + str(i))
-        v0_new.plot_3d(2)
+        v0_new.plot()
 
 def solve_heat_eq_2D():
     Nx = 24
     Ny = Nx
 
-    domain = Domain((Nx, Ny), (True, False))
+    domain = PhysicalDomain((Nx, Ny), (True, False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
-    u = Field.FromFunc(domain, func=u_fn, name="u")
+    u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
 
     heat_eq = Heat_Eq(domain, u)
 
@@ -166,10 +166,10 @@ def solve_heat_eq_3D():
     Ny = 100
     Nz = 100
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
-    u = Field.FromFunc(domain, func=u_fn, name="u")
+    u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
     heat_eq = Heat_Eq(domain, u)
 
     Nt = 3000
@@ -189,9 +189,9 @@ def optimize_heat_eq_3D():
     Ny = Nx
     Nz = Nx
     def run(v0):
-        domain = Domain((Nx, Ny, Nz), (True, False, True))
+        domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
 
-        u = Field(domain, v0, name="u")
+        u = PhysicalField(domain, v0, name="u")
         e0 = u.energy()
 
         heat_eq = Heat_Eq(domain, u)
@@ -204,14 +204,14 @@ def optimize_heat_eq_3D():
 
 
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
-    u_0 = Field.FromFunc(domain, func=u_fn, name="u")
+    u_0 = PhysicalField.FromFunc(domain, func=u_fn, name="u")
 
-    v0s = [u_0.field]
+    v0s = [u_0.data]
     step_size = 1e-0
-    sq_grad_sums = 0.0 * u_0.field
+    sq_grad_sums = 0.0 * u_0.data
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
         corr_arr = jnp.array(corr)
@@ -220,11 +220,11 @@ def optimize_heat_eq_3D():
         print("gain: " + str(gain))
         # print("corr (abs): " + str(abs(corr_field)))
         sq_grad_sums += corr_arr**2.0
-        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
+        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].data.shape)])
         # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
         eps = step_size
 
         v0s.append(v0s[-1] + eps * corr_arr)
-        v0_new = Field(domain, v0s[-1])
+        v0_new = PhysicalField(domain, v0s[-1])
         v0_new.set_name("u_0_" + str(i))
         v0_new.plot_3d(2)
