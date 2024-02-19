@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import jax
+import jax.scipy.optimize as jaxopt
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
+from functools import partial
 
 from importlib import reload
 import sys
@@ -965,9 +967,9 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
     alpha = float(alpha)
     beta = float(beta)
 
-    Nx = 24
+    Nx = 64
     Ny = 90
-    Nz = 24
+    Nz = 12
     end_time = T
     # number_of_modes = 100
     number_of_modes = 50
@@ -994,9 +996,10 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
                         Field.FromFunc(domain, lambda X: 0*X[2]),
                         ])
 
+    # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
     def run_case(v0):
 
-        U = VectorField([Field(domain, v0[i]) for i in range(3)])
+        U = VectorField([Field(domain, v0[i,...]) for i in range(3)])
         eps = 1e-5
         eps_ = eps / jnp.sqrt(U.energy())
 
@@ -1007,7 +1010,6 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
@@ -1016,25 +1018,18 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
 
         return vel.energy() / vel_0.energy()
 
-    v0s = [[v0_0[i].field for i in range(3)]]
-    step_size = 1e-0
-    sq_grad_sums = 0.0 * v0_0[0].field
-    for i in jnp.arange(10):
-        gain, corr = jax.value_and_grad(run_case)(v0s[-1])
-        corr_arr = jnp.array(corr)
-        corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
-        corr_field.plot_3d(2)
-        print("gain: " + str(gain))
-        print("corr (abs): " + str(abs(corr_field)))
-        sq_grad_sums += corr_arr**2.0
-        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
-        # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
-        eps = step_size
+    tol = 1e-3
+    res = jaxopt.minimize(
+        fun=run_case,
+        x0=v0_0.get_fields(),
+        method='BFGS',
+        tol=tol,
+        options = {'maxiter': 2},
+        )
+    vel_opt = VectorField([Field(domain, res.x[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    vel_opt.plot_3d(2)
 
-        v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
-        v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
-        v0_new.set_name("vel_0_" + str(i))
-        v0_new.plot_3d(2)
+
 
 def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     Re = float(Re)

@@ -1028,6 +1028,10 @@ class VectorField:
             field_array = np.array(f.field.tolist())
             field_array.dump(f.field_dir + filename)
 
+    def get_fields(self):
+        return jnp.array([f.field for f in self])
+
+
     def get_time_step(self):
         time_steps = [f.time_step for f in self]
         return max(time_steps)

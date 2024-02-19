@@ -267,7 +267,7 @@ class LinearStabilityCalculation:
             def to_3d_field(eigenvector, component=0):
                 if abs(self.beta) > 1e-25:
                     raise Exception("Spanwise dependency not implemented yet.")
-                phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
+                phi_mat = np.zeros((N_domain, self.n), dtype=np.complex64)
                 for i in range(N_domain):
                     for k in range(self.n):
                         if self.symm:
@@ -320,7 +320,7 @@ class LinearStabilityCalculation:
         def to_slice(eigenvector, component=0):
             if abs(self.beta) > 1e-25:
                 raise Exception("Spanwise dependency not implemented yet.")
-            phi_mat = np.zeros((N_domain, self.n), dtype=np.complex128)
+            phi_mat = np.zeros((N_domain, self.n), dtype=np.complex64)
             for i in range(N_domain):
                 for k in range(self.n):
                     if self.symm:
