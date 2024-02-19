@@ -529,6 +529,9 @@ class LinearStabilityCalculation:
             U = self.U
             V = self.V
 
+
+            print("expected energy growth: ", self.S[0]**2)
+
             factors = V[:,0]
             final_factors = U[:,0] * self.S[0]
             # u_0_slice, v_0_slice, w_0_slice = self.velocity_field_y_slice(
@@ -570,8 +573,6 @@ class LinearStabilityCalculation:
             ax_eig.set_xlim([0.2, 1.0])
             ax_eig.set_ylim([-1.0, 0.0])
             ax_eig.plot([-self.eigenvalues[0].imag], [self.eigenvalues[0].real], "ko")
-
-            print("energy growth: ", self.S[0]**2)
 
 
             n = [0]

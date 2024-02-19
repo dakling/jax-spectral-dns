@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import jax
-import jax.scipy.optimize as jaxopt
+# import jax.scipy.optimize as jaxopt
+import jaxopt
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
@@ -761,10 +762,10 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         nse.domain_no_hat,
         T,
         number_of_modes,
-        # recompute_full=False,
-        recompute_full=True,
-        # recompute_partial=False,
-        recompute_partial=True,
+        recompute_full=False,
+        # recompute_full=True,
+        recompute_partial=False,
+        # recompute_partial=True,
         save_modes=False,
         save_final=True,
     )
@@ -961,14 +962,17 @@ def run_optimization_pseudo_2d_pertubation():
         v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)
 
-def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
+def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
     beta = float(beta)
 
-    Nx = 64
-    Ny = 90
+    # Nx = 64
+    # Ny = 90
+    # Nz = 12
+    Nx = 48
+    Ny = 64
     Nz = 12
     end_time = T
     # number_of_modes = 100
@@ -977,7 +981,7 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
 
     # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain_ = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
 
     # v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -991,20 +995,22 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
     #     save_modes=False,
     #     save_final=True,
     # )
-    v0_0 = VectorField([Field.FromFunc(domain, lambda X: -0.1 * (1 - X[0]**2) + 0*X[2]),
-                        Field.FromFunc(domain, lambda X: 0*X[2]),
-                        Field.FromFunc(domain, lambda X: 0*X[2]),
+    v0_0 = VectorField([Field.FromFunc(domain_, lambda X: -0.1 * (1 - X[0]**2) + 0*X[2]),
+                        Field.FromFunc(domain_, lambda X: 0*X[2]),
+                        Field.FromFunc(domain_, lambda X: 0*X[2]),
                         ])
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
     def run_case(v0):
 
-        U = VectorField([Field(domain, v0[i,...]) for i in range(3)])
+        domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        U = VectorField([Field(domain, v0[i]) for i in range(3)])
         eps = 1e-5
-        eps_ = eps / jnp.sqrt(U.energy())
+        # eps_ = eps / jnp.sqrt(U.energy())
 
-        nse = NavierStokesVelVortPertubation.FromVelocityField(U*eps_, Re)
+        nse = NavierStokesVelVortPertubation.FromVelocityField(U*eps, Re)
         nse.max_dt = 0.02
+        nse.end_time = end_time
 
         # nse.set_linearize(False)
         nse.set_linearize(True)
@@ -1016,18 +1022,47 @@ def run_optimization_transient_growth(Re=3000.0, T=1.0, alpha=1.0, beta=0.0):
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
 
-        return vel.energy() / vel_0.energy()
+        gain = vel.energy() / vel_0.energy()
+        # print("gain", gain)
+        return gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
-    tol = 1e-3
-    res = jaxopt.minimize(
-        fun=run_case,
-        x0=v0_0.get_fields(),
-        method='BFGS',
-        tol=tol,
-        options = {'maxiter': 2},
-        )
-    vel_opt = VectorField([Field(domain, res.x[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
-    vel_opt.plot_3d(2)
+    # res = jaxopt.minimize(
+    #     fun=run_case,
+    #     x0=v0_0.get_fields().flatten(),
+    #     # method='l-bfgs-experimental-do-not-rely-on-this',
+    #     method='bfgs',
+    #     tol=tol,
+    #     options = {'maxiter': 2},
+    #     )
+    # adapted from Joe's code
+    # maxiter = 1000
+    # tol = 1e-3
+    # solver = jaxopt.ScipyMinimize(
+    # fun=run_case,
+    # method='L-BFGS-B',
+    # tol=tol,
+    # jit=True,
+    # maxiter = maxiter,
+    # )
+    # res = solver.run(v0_0.get_fields().flatten())
+    # print(res.state)
+    # vel_opt = VectorField([Field(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    # vel_opt.plot_3d(2)
+
+    v0s = [[v0_0[i].field for i in range(3)]]
+    step_size = 1e-1
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+        corr_arr = jnp.array(corr)
+        corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
+        print("gain: " + str(gain))
+        eps = step_size
+
+        # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+        v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
+        v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
+        v0_new.set_name("vel_0_" + str(i))
+        v0_new.plot_3d(2)
 
 
 
