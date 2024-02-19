@@ -9,7 +9,7 @@ from matplotlib import legend
 from numpy import float128
 import scipy as sc
 import functools
-from typing import Tuple, Union
+from typing import Tuple, Union, Sequence
 
 
 import numpy as np
@@ -26,7 +26,8 @@ class Domain:
     # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
     aliasing = 1 # no antialiasing (requires finer resolution)
 
-    def __init__(self, shape: Tuple[int], periodic_directions: Tuple[bool], scale_factors: Union[Tuple[jnp.float64], NoneType]=None):
+    # @functools.partial(jax.jit, static_argnums=(0, 1))
+    def __init__(self, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[Sequence[jnp.float64], NoneType]=None):
         self.number_of_dimensions = len(shape)
         self.periodic_directions = periodic_directions
         if type(scale_factors) == NoneType:
