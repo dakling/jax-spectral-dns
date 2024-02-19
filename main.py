@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import jax
+import warnings
+warnings.filterwarnings('ignore')
 
 jax.config.update("jax_enable_x64", True)
 
@@ -30,13 +32,15 @@ from examples import *
 
 
 def main():
-    pass
+    # pass
     # solve_heat_eq_1D()
     # optimize_heat_eq_1D()
     # run_jimenez_1990()
     # run_transient_growth()
     # run_pseudo_2d_pertubation()
     # run_optimization_pseudo_2d_pertubation()
+    run_optimization_transient_growth()
+    raise Exception("break")
 
     # run tests
     # tp = TestProject()
