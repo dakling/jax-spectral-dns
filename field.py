@@ -2,6 +2,7 @@
 
 import time
 
+from abc import ABC
 import math
 import jax
 import jax.numpy as jnp
@@ -11,6 +12,7 @@ from matplotlib import colors
 import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator
 import functools
+from typing import Self, Union
 
 import numpy as np
 
@@ -22,7 +24,7 @@ try:
 except:
     if hasattr(sys, "ps1"):
         print("Unable to load")
-from domain import Domain
+from domain import Domain, Domain
 
 NoneType = type(None)
 
@@ -78,7 +80,7 @@ def reconstruct_from_wavenumbers_jit(domain, fn):
     return out_field
 
 
-class Field:
+class Field(ABC):
     """Class that holds the information needed to describe a dependent variable
     and to perform operations on it."""
 
@@ -90,77 +92,8 @@ class Field:
     field_dir = "./fields/"
     performance_mode = True
 
-    def __init__(self, domain, field, name="field"):
-        self.domain = domain
-        self.domain_no_hat = domain
-        self.field = field
-        self.name = name
-        self.time_step = 0
-
-    @classmethod
-    def FromFunc(cls, domain, func=None, name="field"):
-        """Construct from function func depending on the independent variables described by domain."""
-        if not func:
-            func = lambda x: 0.0 * math.prod(x)
-        field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
-        return cls(domain, field, name)
-
-    @classmethod
-    def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
-        """Construct a random field depending on the independent variables described by domain."""
-        # TODO generate "nice" random fields
-        key = jax.random.PRNGKey(seed)
-        zero_field = Field.FromFunc(domain)
-        rands = []
-        for i in jnp.arange(zero_field.number_of_dofs()):
-            key, subkey = jax.random.split(key)
-            rands.append(
-                jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
-            )
-        field = jnp.array(rands).reshape(zero_field.domain.shape)
-        return cls(domain, field, name)
-
-    @classmethod
-    def FromField(cls, domain, field):
-        """Construct a new field depending on the independent variables described by
-        domain by interpolating a given field."""
-        # TODO testing + performance improvements needed
-        assert not isinstance(
-            field, FourierField
-        ), "Attempted to interpolate a Field from a FourierField."
-        out = []
-        if domain.number_of_dimensions == 1:
-            for x in domain.grid[0]:
-                out.append(field.eval(x))
-        elif domain.number_of_dimensions == 2:
-            for x in domain.grid[0]:
-                for y in domain.grid[1]:
-                    out.append(field.eval([x, y]))
-            out = jnp.array(out)
-            out.reshape(domain.number_of_cells(0), domain.number_of_cells(1))
-        elif domain.number_of_dimensions == 3:
-            for x in domain.grid[0]:
-                for y in domain.grid[1]:
-                    for z in domain.grid[2]:
-                        out.append(field.eval([x, y, z]))
-            out = jnp.array(out)
-            out.reshape(
-                domain.number_of_cells(0),
-                domain.number_of_cells(1),
-                domain.number_of_cells(2),
-            )
-        else:
-            raise NotImplementedError("Number of dimensions not supported.")
-        return Field(domain, out, field.name + "_projected")
-
-    @classmethod
-    def FromFile(cls, domain, filename, name="field"):
-        """Construct new field depending on the independent variables described
-        by domain by reading in a saved field from file filename."""
-        out = Field(domain, None, name=name)
-        field_array = np.load(out.field_dir + filename, allow_pickle=True)
-        out.field = jnp.array(field_array.tolist())
-        return out
+    def get_domain(self) -> Domain:
+        return self.physical_domain
 
     def save_to_file(self, filename):
         """Save field to file filename."""
@@ -204,86 +137,6 @@ class Field:
         ret = self * (-1.0)
         ret.time_step = self.time_step
         return ret
-
-    def __add__(self, other):
-        assert not isinstance(
-            other, FourierField
-        ), "Attempted to add a Field and a Fourier Field."
-        if self.performance_mode:
-            new_name = ""
-        else:
-            if other.name[0] == "-":
-                new_name = self.name + " - " + other.name[1:]
-            else:
-                new_name = self.name + " + " + other.name
-        ret = Field(self.domain, self.field + other.field, name=new_name)
-        ret.time_step = self.time_step
-        return ret
-
-    def __sub__(self, other):
-        assert not isinstance(
-            other, FourierField
-        ), "Attempted to subtract a Field and a Fourier Field."
-        return self + other * (-1.0)
-
-    def __mul__(self, other):
-        if isinstance(other, Field):
-            assert not isinstance(
-                other, FourierField
-            ), "Attempted to multiply a Field and a Fourier Field."
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    new_name = self.name + " * " + other.name
-                except Exception:
-                    new_name = "field"
-            ret = Field(self.domain, self.field * other.field, name=new_name)
-            ret.time_step = self.time_step
-            return ret
-        else:
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    if other.real >= 0:
-                        new_name = str(other) + self.name
-                    elif other == 1:
-                        new_name = self.name
-                    elif other == -1:
-                        new_name = "-" + self.name
-                    else:
-                        new_name = "(" + str(other) + ") " + self.name
-                except Exception:
-                    new_name = "field"
-            ret = Field(self.domain, self.field * other, name=new_name)
-            ret.time_step = self.time_step
-            return ret
-
-    __rmul__ = __mul__
-    __lmul__ = __mul__
-
-    def __truediv__(self, other):
-        if type(other) == Field:
-            raise Exception("Don't know how to divide by another field")
-        else:
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    if other.real >= 0:
-                        new_name = self.name + "/" + other
-                    elif other == 1:
-                        new_name = self.name
-                    elif other == -1:
-                        new_name = "-" + self.name
-                    else:
-                        new_name = self.name + "/ (" + str(other) + ") "
-                except Exception:
-                    new_name = "field"
-            ret = Field(self.domain, self.field * other, name=new_name)
-            ret.time_step = self.time_step
-            return ret
 
     def shift(self, value):
         out_field = self.field + value
@@ -916,7 +769,7 @@ class VectorField:
     def __init__(self, elements, name=None):
         self.elements = elements
         self.name = name
-        self.domain = elements[0].domain
+        self.domain = elements[0].get_domain()
 
     def __getattr__(self, attr):
         def on_all(*args, **kwargs):
@@ -1319,14 +1172,170 @@ class VectorField:
             )
 
 
+class Field(Field):
+
+    def __init__(self, domain: Domain, data: jnp.ndarray, name: str ="field"):
+        self.physical_domain = domain
+        self.data = data
+        self.name = name
+        self.time_step: int = 0
+
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
+        assert not isinstance(
+            other, FourierField
+        ), "Attempted to add a Field and a Fourier Field."
+        if self.performance_mode:
+            new_name = ""
+        else:
+            if other.name[0] == "-":
+                new_name = self.name + " - " + other.name[1:]
+            else:
+                new_name = self.name + " + " + other.name
+        ret = Field(self.physical_domain, self.data + other.data, name=new_name)
+        ret.time_step = self.time_step
+        return ret
+
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
+        assert not isinstance(
+            other, FourierField
+        ), "Attempted to subtract a Field and a Fourier Field."
+        return self + other * (-1.0)
+
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+        if isinstance(other, FourierField):
+            raise Exception("Attempted to multiply physical field and Fourier field")
+        elif isinstance(other, Field):
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    new_name = self.name + " * " + other.name
+                except Exception:
+                    new_name = "field"
+            ret = Field(self.domain, self.data * other.data, name=new_name)
+            ret.time_step = self.time_step
+            return ret
+        else:
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = str(other) + self.name
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = "(" + str(other) + ") " + self.name
+                except Exception:
+                    new_name = "field"
+            ret = Field(self.domain, self.data * other, name=new_name)
+            ret.time_step = self.time_step
+            return ret
+
+    __rmul__ = __mul__
+    __lmul__ = __mul__
+
+    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+        if type(other) == Field:
+            raise Exception("Don't know how to divide by another field")
+        else:
+            if self.performance_mode:
+                new_name = ""
+            else:
+                try:
+                    if other.real >= 0:
+                        new_name = self.name + "/" + other
+                    elif other == 1:
+                        new_name = self.name
+                    elif other == -1:
+                        new_name = "-" + self.name
+                    else:
+                        new_name = self.name + "/ (" + str(other) + ") "
+                except Exception:
+                    new_name = "field"
+            ret = Field(self.domain, self.data * other, name=new_name)
+            ret.time_step = self.time_step
+            return ret
+
+    @classmethod
+    def FromFunc(cls, domain, func=None, name="field"):
+        """Construct from function func depending on the independent variables described by domain."""
+        if not func:
+            func = lambda x: 0.0 * math.prod(x)
+        field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
+        return cls(domain, field, name)
+
+    @classmethod
+    def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
+        """Construct a random field depending on the independent variables described by domain."""
+        # TODO generate "nice" random fields
+        key = jax.random.PRNGKey(seed)
+        zero_field = Field.FromFunc(domain)
+        rands = []
+        for i in jnp.arange(zero_field.number_of_dofs()):
+            key, subkey = jax.random.split(key)
+            rands.append(
+                jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
+            )
+        field = jnp.array(rands).reshape(zero_field.domain.shape)
+        return cls(domain, field, name)
+
+    @classmethod
+    def FromField(cls, domain, field):
+        """Construct a new field depending on the independent variables described by
+        domain by interpolating a given field."""
+        # TODO testing + performance improvements needed
+        assert not isinstance(
+            field, FourierField
+        ), "Attempted to interpolate a Field from a FourierField."
+        out = []
+        if domain.number_of_dimensions == 1:
+            for x in domain.grid[0]:
+                out.append(field.eval(x))
+        elif domain.number_of_dimensions == 2:
+            for x in domain.grid[0]:
+                for y in domain.grid[1]:
+                    out.append(field.eval([x, y]))
+            out = jnp.array(out)
+            out.reshape(domain.number_of_cells(0), domain.number_of_cells(1))
+        elif domain.number_of_dimensions == 3:
+            for x in domain.grid[0]:
+                for y in domain.grid[1]:
+                    for z in domain.grid[2]:
+                        out.append(field.eval([x, y, z]))
+            out = jnp.array(out)
+            out.reshape(
+                domain.number_of_cells(0),
+                domain.number_of_cells(1),
+                domain.number_of_cells(2),
+            )
+        else:
+            raise NotImplementedError("Number of dimensions not supported.")
+        return Field(domain, out, field.name + "_projected")
+
+    @classmethod
+    def FromFile(cls, domain, filename, name="field"):
+        """Construct new field depending on the independent variables described
+        by domain by reading in a saved field from file filename."""
+        out = Field(domain, None, name=name)
+        field_array = np.load(out.field_dir + filename, allow_pickle=True)
+        out.field = jnp.array(field_array.tolist())
+        return out
 
 class FourierField(Field):
-    def __init__(self, domain, field, name="field_hat"):
-        super().__init__(domain, field, name)
-        self.domain_no_hat = domain
-        self.domain = domain.hat()
+    def __init__(self, domain: Domain, data: jnp.ndarray, name: str ="field_hat"):
+        self.name = name
+        self.time_step: int = 0
+        self.physical_domain = domain
+        self.fourier_domain = domain.hat()
+        self.data = data
 
-    def __add__(self, other):
+    def get_domain(self) -> Domain:
+        return self.fourier_domain
+
+    def __add__(self, other: Union[Self, ]):
         assert isinstance(
             other, FourierField
         ), "Attempted to add a Fourier Field and a Field."
@@ -1337,7 +1346,7 @@ class FourierField(Field):
                 new_name = self.name + " - " + other.name[1:]
             else:
                 new_name = self.name + " + " + other.name
-        ret = FourierField(self.domain_no_hat, self.field + other.field, name=new_name)
+        ret = FourierField(self.physical_domain, self.data + other.data, name=new_name)
         ret.time_step = self.time_step
         return ret
 
@@ -1356,7 +1365,7 @@ class FourierField(Field):
                 except Exception:
                     new_name = "field"
             ret = FourierField(
-                self.domain_no_hat, self.field * other.field, name=new_name
+                self.physical_domain, self.data * other.data, name=new_name
             )
             ret.time_step = self.time_step
             return ret
@@ -1375,7 +1384,7 @@ class FourierField(Field):
                         new_name = "(" + str(other) + ") " + self.name
                 except Exception:
                     new_name = "field"
-            ret = FourierField(self.domain_no_hat, self.field * other, name=new_name)
+            ret = FourierField(self.physical_domain, self.data * other, name=new_name)
             ret.time_step = self.time_step
             return ret
 
@@ -1384,31 +1393,31 @@ class FourierField(Field):
 
     def __truediv__(self, other):
         out = super().__truediv__(other)
-        return FourierField(self.domain_no_hat, out.field, name=out.name)
+        return FourierField(self.physical_domain, out.data, name=out.name)
 
     @classmethod
     def FromField(cls, field):
-        out = cls(field.domain, field.field, field.name + "_hat")
-        out.domain_no_hat = field.domain
-        out.domain = field.domain.hat()
-        out.field = out.domain_no_hat.field_hat(field.field)
+        out = cls(field.physical_domain, field.data, field.name + "_hat")
+        out.physical_domain = field.physical_domain
+        out.fourier_domain = field.physical_domain.hat()
+        out.data = out.physical_domain.field_hat(field.data)
         return out
 
     def diff(self, direction, order=1):
         if direction in self.all_periodic_dimensions():
-            out_field = (1j * self.domain.mgrid[direction]) ** order * self.field
+            out_field = (1j * self.fourier_domain.mgrid[direction]) ** order * self.data
         else:
-            out_field = super().diff(direction, order).field
+            out_field = super().diff(direction, order).data
         return FourierField(
-            self.domain_no_hat,
+            self.physical_domain,
             out_field,
             name=self.name + "_diff_" + str(order),
         )
 
     def integrate(self, direction, order=1, bc_right=None, bc_left=None):
         if direction in self.all_periodic_dimensions():
-            mgrid = self.domain.mgrid[direction]
-            field = self.field
+            mgrid = self.fourier_domain.mgrid[direction]
+            field = self.data
             N = mgrid.shape[direction]
             inds = jnp.arange(1, N)
             mgrid = mgrid.take(indices=inds, axis=direction)
@@ -1437,7 +1446,7 @@ class FourierField(Field):
                 )
 
         return FourierField(
-            self.domain_no_hat, out_field, name=self.name + "_int_" + str(order)
+            self.physical_domain, out_field, name=self.name + "_int_" + str(order)
         )
 
     # def laplacian(self):
@@ -1473,8 +1482,8 @@ class FourierField(Field):
                 [jnp.zeros((bc_padding, n))],
             ]
         )
-        k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
-        k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
+        k1 = self.fourier_domain.grid[self.all_periodic_dimensions()[0]]
+        k2 = self.fourier_domain.grid[self.all_periodic_dimensions()[1]]
         k1sq = k1**2
         k2sq = k2**2
         mat = jnp.array(
@@ -1490,7 +1499,7 @@ class FourierField(Field):
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
         ), "Poisson solution not implemented for the general case."
-        rhs_hat = self.field
+        rhs_hat = self.data
         if type(mat) == NoneType:
             mat = self.assemble_poisson_matrix()
         field = rhs_hat
@@ -1504,13 +1513,13 @@ class FourierField(Field):
             constant_values=0.0,
         )
         out_fourier = FourierField(
-            self.domain_no_hat, out_field, name=self.name + "_poisson"
+            self.physical_domain, out_field, name=self.name + "_poisson"
         )
         return out_fourier
 
     def no_hat(self):
-        out = self.domain_no_hat.no_hat(self.field)
-        out_field = Field(self.domain_no_hat, out, name=(self.name).replace("_hat", ""))
+        out = self.physical_domain.no_hat(self.data)
+        out_field = Field(self.physical_domain, out, name=(self.name).replace("_hat", ""))
         out_field.time_step = self.time_step
         return out_field
 
@@ -1518,8 +1527,8 @@ class FourierField(Field):
         if vectorize:
             print("vectorisation not implemented yet, using unvectorized version")
         assert self.number_of_dimensions != 3, "2D not implemented yet"
-        k1 = self.domain.grid[self.all_periodic_dimensions()[0]]
-        k2 = self.domain.grid[self.all_periodic_dimensions()[1]]
+        k1 = self.fourier_domain.grid[self.all_periodic_dimensions()[0]]
+        k2 = self.fourier_domain.grid[self.all_periodic_dimensions()[1]]
         k1_ints = jnp.arange((len(k1)), dtype=int)
         k2_ints = jnp.arange((len(k2)), dtype=int)
         out_field = jnp.moveaxis(
@@ -1529,7 +1538,7 @@ class FourierField(Field):
             -1,
             self.all_nonperiodic_dimensions()[0],
         )
-        return FourierField(self.domain_no_hat, out_field, name=self.name + "_reconstr")
+        return FourierField(self.physical_domain, out_field, name=self.name + "_reconstr")
 
 
 class FourierFieldSlice(FourierField):

@@ -11,14 +11,14 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         pass
-from domain import Domain
+from domain import PhysicalDomain
 
 try:
     reload(sys.modules["field"])
 except:
     if hasattr(sys, 'ps1'):
         pass
-from field import Field
+from field import PhysicalField
 
 try:
     reload(sys.modules["equation"])

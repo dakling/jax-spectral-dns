@@ -13,14 +13,14 @@ try:
 except:
     if hasattr(sys, "ps1"):
         pass
-from domain import Domain
+from domain import PhysicalDomain
 
 try:
     reload(sys.modules["field"])
 except:
     if hasattr(sys, "ps1"):
         pass
-from field import Field, VectorField, FourierField, FourierFieldSlice
+from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 
 try:
     reload(sys.modules["equation"])
@@ -406,8 +406,8 @@ class NavierStokesVelVort(Equation):
     u_max_over_u_tau = 1e0
 
     def __init__(self, velocity_field, **params):
-        domain = velocity_field[0].domain
-        self.domain_no_hat = velocity_field[0].domain_no_hat
+        domain = velocity_field[0].fourier_domain
+        self.physical_domain = velocity_field[0].physical_domain
 
         try:
             self.Re_tau = params["Re_tau"]
@@ -459,10 +459,10 @@ class NavierStokesVelVort(Equation):
         self.flow_rate = self.get_flow_rate()
         dPdx = -self.flow_rate * 3 / 2 / self.Re_tau
         self.dpdx = Field.FromFunc(
-            self.domain_no_hat, lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
+            self.physical_domain, lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()
         self.dpdz = Field.FromFunc(
-            self.domain_no_hat, lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
+            self.physical_domain, lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
         ).hat()
 
     def update_nonlinear_terms(self, velocity_field=None):
@@ -476,7 +476,7 @@ class NavierStokesVelVort(Equation):
             vort_hat,
             conv_ns_hat,
         ) = self.nonlinear_update_fn(
-            self.domain_no_hat,
+            self.physical_domain,
             jnp.array(
                 [
                     velocity_field_[0].field,
@@ -485,23 +485,23 @@ class NavierStokesVelVort(Equation):
                 ]
             ),
         )
-        h_v_hat_field = FourierField(self.domain_no_hat, h_v_hat, name="h_v_hat")
-        h_g_hat_field = FourierField(self.domain_no_hat, h_g_hat, name="h_g_hat")
+        h_v_hat_field = FourierField(self.physical_domain, h_v_hat, name="h_v_hat")
+        h_g_hat_field = FourierField(self.physical_domain, h_g_hat, name="h_g_hat")
         vort_hat_field = VectorField(
             [
                 FourierField(
-                    self.domain_no_hat, vort_hat[i], name="vort_hat_" + "xyz"[i]
+                    self.physical_domain, vort_hat[i], name="vort_hat_" + "xyz"[i]
                 )
-                for i in self.domain_no_hat.all_dimensions()
+                for i in self.physical_domain.all_dimensions()
             ]
         )
         vort_hat_field.set_name("vort_hat")
         conv_ns_hat_field = VectorField(
             [
                 FourierField(
-                    self.domain_no_hat, conv_ns_hat[i], name="conv_ns_hat_" + "xyz"[i]
+                    self.physical_domain, conv_ns_hat[i], name="conv_ns_hat_" + "xyz"[i]
                 )
-                for i in self.domain_no_hat.all_dimensions()
+                for i in self.physical_domain.all_dimensions()
             ]
         )
         conv_ns_hat_field.set_name("conv_ns_hat")
@@ -524,13 +524,13 @@ class NavierStokesVelVort(Equation):
         ].get_cheb_mat_2_homogeneous_dirichlet(1)
 
     def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self):
-        return self.domain_no_hat.get_cheb_mat_2_homogeneous_dirichlet_only_rows(1)
+        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(1)
 
     def get_time_step(self):
         if self.time_step % self.dt_update_frequency == 0:
-            dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
-            dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
-            dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
+            dX = self.physical_domain.grid[0][1:] - self.physical_domain.grid[0][:-1]
+            dY = self.physical_domain.grid[1][1:] - self.physical_domain.grid[1][:-1]
+            dZ = self.physical_domain.grid[2][1:] - self.physical_domain.grid[2][:-1]
             DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
             vel = self.get_latest_field("velocity_hat").no_hat()
             U = vel[0][1:, 1:, 1:]
@@ -579,7 +579,7 @@ class NavierStokesVelVort(Equation):
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
 
-        D2 = jnp.linalg.matrix_power(self.domain_no_hat.diff_mats[1], 2)
+        D2 = jnp.linalg.matrix_power(self.physical_domain.diff_mats[1], 2)
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2.shape[0]
         I = jnp.eye(n)
@@ -801,7 +801,7 @@ class NavierStokesVelVort(Equation):
                 vort_hat,
                 conv_ns_hat,
             ) = self.nonlinear_update_fn(
-                self.domain_no_hat,
+                self.physical_domain,
                 jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
             )
 
@@ -931,7 +931,7 @@ class NavierStokesVelVort(Equation):
             )
             vel_new_hat = VectorField(
                 [
-                    FourierField(self.domain_no_hat, vel_new_hat_field[i])
+                    FourierField(self.physical_domain, vel_new_hat_field[i])
                     for i in range(3)
                 ]
             )
@@ -962,7 +962,7 @@ class NavierStokesVelVort(Equation):
 
         Re = self.Re_tau
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-        D2 = jnp.linalg.matrix_power(self.domain_no_hat.diff_mats[1], 2)
+        D2 = jnp.linalg.matrix_power(self.physical_domain.diff_mats[1], 2)
         n = D2.shape[0]
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
@@ -1154,14 +1154,14 @@ class NavierStokesVelVort(Equation):
         vort_hat_1 = self.get_latest_field("vort_hat")[1].field
         conv_ns_hat = [
             self.get_latest_field("conv_ns_hat")[i].field
-            for i in self.domain_no_hat.all_dimensions()
+            for i in self.physical_domain.all_dimensions()
         ]
 
         h_v_hat_old = self.get_field("h_v_hat", max(0, self.time_step - 1)).field
         h_g_hat_old = self.get_field("h_g_hat", max(0, self.time_step - 1)).field
         conv_ns_hat_old = [
             self.get_field("conv_ns_hat", max(0, self.time_step - 1))[i].field
-            for i in self.domain_no_hat.all_dimensions()
+            for i in self.physical_domain.all_dimensions()
         ]
 
         # solve equations

@@ -891,8 +891,8 @@ class TestProject(unittest.TestCase):
                 1,
                 rhs_hat[kx, :, kz],
                 "rhs_hat_slice",
-                rhs_hat.domain.grid[0][kx],
-                rhs_hat.domain.grid[2][kz],
+                rhs_hat.fourier_domain.grid[0][kx],
+                rhs_hat.fourier_domain.grid[2][kz],
                 ks_int=[kx, kz],
             )
             out = rhs_hat_slice.solve_poisson(mat)
@@ -985,7 +985,8 @@ class TestProject(unittest.TestCase):
             lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
             + 0.0 * X[0] * X[2]
         )
-        vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
+        vel_x_ana = Field.FromFunc(nse.physical_domain
+, vel_x_fn_ana, name="vel_x_ana")
 
         print("Doing post-processing")
         vel_hat = nse.get_latest_field("velocity_hat")

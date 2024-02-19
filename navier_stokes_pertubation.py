@@ -15,14 +15,14 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         pass
-from domain import Domain
+from domain import PhysicalDomain
 
 try:
     reload(sys.modules["field"])
 except:
     if hasattr(sys, 'ps1'):
         pass
-from field import Field, VectorField, FourierField, FourierFieldSlice
+from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 
 try:
     reload(sys.modules["equation"])
@@ -109,7 +109,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
     max_dt = 2e-2
 
     def __init__(self, velocity_field, **params):
-        self.domain_no_hat = velocity_field[0].domain_no_hat
+        self.domain_no_hat = velocity_field[0].physical_domain
 
         super().__init__(velocity_field, **params)
 

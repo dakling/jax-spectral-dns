@@ -17,7 +17,7 @@ try:
 except:
     if hasattr(sys, "ps1"):
         print("Unable to load Domain")
-from domain import Domain
+from domain import PhysicalDomain
 
 try:
     reload(sys.modules["field"])
@@ -70,7 +70,8 @@ def run_optimization():
             Re=Re, Ny=Ny, end_time=end_time, max_iter=10, pertubation_factor=0.0
         )
         nse_.max_iter = 10
-        v0_field = Field(nse_.domain_no_hat, v0)
+        v0_field = Field(nse_.physical_domain
+, v0)
         vel_0 = nse_.get_initial_field("velocity_hat")
         vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
         nse_.set_field("velocity_hat", 0, vel_0_new)
@@ -82,18 +83,21 @@ def run_optimization():
     vel_x_fn_ana = (
         lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
-    v0_0 = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana)
+    v0_0 = Field.FromFunc(nse.physical_domain
+, vel_x_fn_ana)
 
     v0s = [v0_0.field]
     eps = 1e3
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = Field(nse.domain_no_hat, corr, name="correction")
+        corr_field = Field(nse.physical_domain
+, corr, name="correction")
         corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         print("corr (abs): " + str(abs(corr_field)))
         v0s.append(v0s[-1] + eps * corr_field.field)
-        v0_new = Field(nse.domain_no_hat, v0s[-1])
+        v0_new = Field(nse.physical_domain
+, v0s[-1])
         v0_new.name = "vel_0_" + str(i)
         v0_new.plot(v0_0)
 
@@ -162,7 +166,8 @@ def run_navier_stokes_turbulent():
         + 0.1 * jnp.sin(2 * jnp.pi * X[2] / Lz * omega)
         + 0 * X[0]
     )
-    vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
+    vel_x = Field.FromFunc(nse.physical_domain
+, vel_x_fn, name="velocity_x")
 
     # vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) * vortex_sum(X)[1]
     vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + 0.1 * jnp.sin(
@@ -170,8 +175,10 @@ def run_navier_stokes_turbulent():
     )
     # vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) *vortex_sum(X)[2]
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_y = Field.FromFunc(nse.domain_no_hat, vel_y_fn, name="velocity_y")
-    vel_z = Field.FromFunc(nse.domain_no_hat, vel_z_fn, name="velocity_z")
+    vel_y = Field.FromFunc(nse.physical_domain
+, vel_y_fn, name="velocity_y")
+    vel_z = Field.FromFunc(nse.physical_domain
+, vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
     )
@@ -229,19 +236,23 @@ def run_pseudo_2d():
         scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    u = lsc.velocity_field(nse.domain_no_hat)
+    u = lsc.velocity_field(nse.physical_domain
+)
     vel_x_hat = nse.get_initial_field("velocity_hat")
 
     eps = 5e-3
     nse.init_velocity(vel_x_hat + (u * eps).hat())
 
-    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.domain_no_hat)
+    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.physical_domain
+)
     energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
     energy_x_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(
-        nse.domain_no_hat
+        nse.physical_domain
+
     )[0](t, 0)
     energy_y_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(
-        nse.domain_no_hat
+        nse.physical_domain
+
     )[0](t, 1)
     print("eigenvalue: ", ev)
     plot_interval = 10
@@ -408,9 +419,12 @@ def run_dummy_velocity_field():
         + jnp.cos(X[1] * 2 * jnp.pi / 1.0)
     )  # fulfills bcs but breaks conti
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_x = Field.FromFunc(nse.domain_no_hat, vel_x_fn, name="velocity_x")
-    vel_y = Field.FromFunc(nse.domain_no_hat, vel_y_fn, name="velocity_y")
-    vel_z = Field.FromFunc(nse.domain_no_hat, vel_z_fn, name="velocity_z")
+    vel_x = Field.FromFunc(nse.physical_domain
+, vel_x_fn, name="velocity_x")
+    vel_y = Field.FromFunc(nse.physical_domain
+, vel_y_fn, name="velocity_y")
+    vel_z = Field.FromFunc(nse.physical_domain
+, vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
     )
@@ -419,7 +433,8 @@ def run_dummy_velocity_field():
 
     vel = nse.get_initial_field("velocity_hat").no_hat()
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana")
+    vel_x_ana = Field.FromFunc(nse.physical_domain
+, vel_x_fn_ana, name="vel_x_ana")
 
     def after_time_step(nse):
         i = nse.time_step
@@ -982,7 +997,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
     # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: Domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
 
     # v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -1009,9 +1024,9 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         # domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         # U = VectorField([Field(domain, v0[i]) for i in range(3)])
         eps = 1e-5
-        # eps_ = eps / jnp.sqrt(U.energy())
+        eps_ = eps / jnp.sqrt(U.energy())
 
-        nse = NavierStokesVelVortPertubation.FromVelocityField(U*eps, Re)
+        nse = NavierStokesVelVortPertubation.FromVelocityField(U*eps_, Re)
         nse.max_dt = end_time
         nse.end_time = end_time
 
@@ -1025,7 +1040,9 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
 
-        gain = vel.energy() / vel_0.energy()
+        # gain = vel.energy() / vel_0.energy()
+        # print("gain", gain)
+        gain = vel.energy()
         print("gain", gain)
         # return gain
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)

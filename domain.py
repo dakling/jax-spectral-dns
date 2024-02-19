@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from abc import ABC
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
@@ -18,7 +19,7 @@ NoneType = type(None)
 
 
 # TODO turn this into an abstract class, introduce Physical_Domain. Same with Field.
-class Domain:
+class Domain(ABC):
     """Class that mainly contains information on the independent variables of
     the problem (i.e. the basis) and implements some operations that can be
     performed on it."""
@@ -454,6 +455,10 @@ class Domain:
         out_2 = field_1[0] * field_2[1] - field_1[1] * field_2[0]
         return jnp.array([out_0, out_1, out_2])
 
+
+class PhysicalDomain(Domain):
+    """Domain that lives in physical space (as opposed to Fourier space)."""
+    pass
 
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
