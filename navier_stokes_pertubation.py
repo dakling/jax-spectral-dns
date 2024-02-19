@@ -113,17 +113,17 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
 
         super().__init__(velocity_field, **params)
 
-        velocity_x_base = Field.FromFunc(
+        velocity_x_base = PhysicalField.FromFunc(
             self.domain_no_hat,
             lambda X: self.u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
             name="velocity_x_base",
         )
-        velocity_y_base = Field.FromFunc(
+        velocity_y_base = PhysicalField.FromFunc(
             self.domain_no_hat,
             lambda X: 0.0 * X[0] * X[1] * X[2],
             name="velocity_y_base",
         )
-        velocity_z_base = Field.FromFunc(
+        velocity_z_base = PhysicalField.FromFunc(
             self.domain_no_hat,
             lambda X: 0.0 * X[0] * X[1] * X[2],
             name="velocity_z_base",
@@ -142,10 +142,10 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
 
     def update_flow_rate(self):
         self.flow_rate = 0.0
-        self.dpdx = Field.FromFunc(
+        self.dpdx = PhysicalField.FromFunc(
             self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]
         ).hat()
-        self.dpdz = Field.FromFunc(
+        self.dpdz = PhysicalField.FromFunc(
             self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]
         ).hat()
 
@@ -199,7 +199,7 @@ def solve_navier_stokes_pertubation(
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
     vel_x_fn = lambda X: (
         0.1
@@ -231,9 +231,9 @@ def solve_navier_stokes_pertubation(
         * pertubation_factor
         * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
     )
-    vel_x = Field.FromFunc(domain, vel_x_fn, name="vel_x")
-    vel_y = Field.FromFunc(domain, vel_y_fn, name="vel_y")
-    vel_z = Field.FromFunc(domain, vel_z_fn, name="vel_z")
+    vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="vel_x")
+    vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="vel_y")
+    vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="vel_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     nse = NavierStokesVelVortPertubation.FromVelocityField(vel, Re)

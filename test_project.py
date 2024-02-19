@@ -21,7 +21,7 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         print("Unable to load Field")
-from field import Field, FourierFieldSlice, VectorField
+from field import PhysicalField, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["equation"])
@@ -67,21 +67,21 @@ class TestProject(unittest.TestCase):
 
     def test_1D_cheb(self):
         Nx = 48
-        domain = Domain((Nx,), (False,))
+        domain = PhysicalDomain((Nx,), (False,))
 
         u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
         # u_fn = lambda X: 0.0 * jnp.cos(X[0] * jnp.pi / 2) + 2
-        u = Field.FromFunc(domain, func=u_fn, name="u_1d_cheb")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_1d_cheb")
         # u.update_boundary_conditions()
         u_x = u.diff(0, 1)
         u_xx = u.diff(0, 2)
 
-        u_x_ana = Field.FromFunc(
+        u_x_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.sin(X[0] * jnp.pi / 2) * jnp.pi / 2,
             name="u_x_ana",
         )
-        u_xx_ana = Field.FromFunc(
+        u_xx_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * jnp.pi / 2) * (jnp.pi / 2) ** 2,
             name="u_xx_ana",
@@ -102,10 +102,10 @@ class TestProject(unittest.TestCase):
     def test_1D_periodic(self):
         Nx = 24
         scale_factor = 1.0
-        domain = Domain((Nx,), (True,), scale_factors=(scale_factor,))
+        domain = PhysicalDomain((Nx,), (True,), scale_factors=(scale_factor,))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
-        u = Field.FromFunc(domain, func=u_fn, name="u_1d_periodic")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_1d_periodic")
         u.update_boundary_conditions()
         u_x = u.diff(0, 1)
         u_xx = u.diff(0, 2)
@@ -120,8 +120,8 @@ class TestProject(unittest.TestCase):
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
             * (2 * jnp.pi / scale_factor) ** 2
         )
-        u_x_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_x_ana")
-        u_xx_ana = Field.FromFunc(domain, func=u_diff_fn_2, name="u_xx_ana")
+        u_x_ana = PhysicalField.FromFunc(domain, func=u_diff_fn, name="u_x_ana")
+        u_xx_ana = PhysicalField.FromFunc(domain, func=u_diff_fn_2, name="u_xx_ana")
 
         # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
         tol = 8e-5
@@ -135,19 +135,19 @@ class TestProject(unittest.TestCase):
         # Ny = Nx
         Ny = 24
         scale_factor = 1.0
-        domain = Domain((Nx, Ny), (True, False), scale_factors=(scale_factor, 1.0))
+        domain = PhysicalDomain((Nx, Ny), (True, False), scale_factors=(scale_factor, 1.0))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor) * jnp.cos(
             X[1] * jnp.pi / 2
         )
-        u = Field.FromFunc(domain, func=u_fn, name="u_2d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_2d")
         u.update_boundary_conditions()
         u_x = u.diff(0, 1)
         u_xx = u.diff(0, 2)
         u_y = u.diff(1, 1)
         u_yy = u.diff(1, 2)
 
-        u_x_ana = Field.FromFunc(
+        u_x_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor)
             * jnp.cos(X[1] * jnp.pi / 2)
@@ -156,14 +156,14 @@ class TestProject(unittest.TestCase):
             / scale_factor,
             name="u_x_ana",
         )
-        u_xx_ana = Field.FromFunc(
+        u_xx_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
             * jnp.cos(X[1] * jnp.pi / 2)
             * (2 * jnp.pi / scale_factor) ** 2,
             name="u_xx_ana",
         )
-        u_y_ana = Field.FromFunc(
+        u_y_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
             * jnp.pi
@@ -171,7 +171,7 @@ class TestProject(unittest.TestCase):
             * jnp.sin(X[1] * jnp.pi / 2),
             name="u_y_ana",
         )
-        u_yy_ana = Field.FromFunc(
+        u_yy_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
             * (jnp.pi / 2) ** 2
@@ -197,7 +197,7 @@ class TestProject(unittest.TestCase):
         Nz = 20
         scale_factor_x = 1.0
         scale_factor_z = 2.0
-        domain = Domain(
+        domain = PhysicalDomain(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
@@ -208,7 +208,7 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[1] * jnp.pi / 2)
             * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z)
         )
-        u = Field.FromFunc(domain, func=u_fn, name="u_3d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_3d")
         # u.update_boundary_conditions()
         u_x = u.diff(0, 1)
         u_xx = u.diff(0, 2)
@@ -217,7 +217,7 @@ class TestProject(unittest.TestCase):
         u_z = u.diff(2, 1)
         u_zz = u.diff(2, 2)
 
-        u_x_ana = Field.FromFunc(
+        u_x_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * jnp.pi / 2)
@@ -227,7 +227,7 @@ class TestProject(unittest.TestCase):
             / scale_factor_x,
             name="u_x_ana",
         )
-        u_xx_ana = Field.FromFunc(
+        u_xx_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * jnp.pi / 2)
@@ -235,7 +235,7 @@ class TestProject(unittest.TestCase):
             * (2 * jnp.pi / scale_factor_x) ** 2,
             name="u_xx_ana",
         )
-        u_y_ana = Field.FromFunc(
+        u_y_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.pi
@@ -244,7 +244,7 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z),
             name="u_y_ana",
         )
-        u_yy_ana = Field.FromFunc(
+        u_yy_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * (jnp.pi / 2) ** 2
@@ -252,7 +252,7 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[2] * 2 * jnp.pi / scale_factor_z),
             name="u_yy_ana",
         )
-        u_z_ana = Field.FromFunc(
+        u_z_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * jnp.pi / 2)
@@ -262,7 +262,7 @@ class TestProject(unittest.TestCase):
             / scale_factor_z,
             name="u_z_ana",
         )
-        u_zz_ana = Field.FromFunc(
+        u_zz_ana = PhysicalField.FromFunc(
             domain,
             func=lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * jnp.pi / 2)
@@ -293,12 +293,12 @@ class TestProject(unittest.TestCase):
         Nx = 24
         scale_factor = 1.0
         # scale_factor = 2 * jnp.pi
-        domain = Domain((Nx,), (True,), scale_factors=(scale_factor,))
-        # domain = Domain((Nx,), (True,))
+        domain = PhysicalDomain((Nx,), (True,), scale_factors=(scale_factor,))
+        # domain = PhysicalDomain((Nx,), (True,))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
         # u_fn = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor))
-        u = Field.FromFunc(domain, func=u_fn, name="u_1d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_1d")
         u_hat = u.hat()
 
         u_diff_fn = (
@@ -308,23 +308,23 @@ class TestProject(unittest.TestCase):
             / scale_factor
             # lambda X: jnp.cos(X[0]) / scale_factor * jnp.exp(jnp.sin(X[0] / scale_factor))
         )
-        u_diff_ana = Field.FromFunc(domain, func=u_diff_fn, name="u_1d_diff_ana")
+        u_diff_ana = PhysicalField.FromFunc(domain, func=u_diff_fn, name="u_1d_diff_ana")
 
         u_diff_fn_2 = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
             * (2 * jnp.pi / scale_factor) ** 2
         )
-        u_diff_ana_2 = Field.FromFunc(domain, func=u_diff_fn_2, name="u_1d_diff_2_ana")
+        u_diff_ana_2 = PhysicalField.FromFunc(domain, func=u_diff_fn_2, name="u_1d_diff_2_ana")
 
         u_int_fn = lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor) * (
             2 * jnp.pi / scale_factor
         ) ** (-1)
-        u_int_ana = Field.FromFunc(domain, func=u_int_fn, name="u_1d_int_ana")
+        u_int_ana = PhysicalField.FromFunc(domain, func=u_int_fn, name="u_1d_int_ana")
 
         u_int_fn_2 = lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor) * (
             2 * jnp.pi / scale_factor
         ) ** (-2)
-        u_int_ana_2 = Field.FromFunc(domain, func=u_int_fn_2, name="u_1d_int_2_ana")
+        u_int_ana_2 = PhysicalField.FromFunc(domain, func=u_int_fn_2, name="u_1d_int_2_ana")
 
         u_hat_int = u_hat.integrate(0)
         u_int = u_hat_int.no_hat()
@@ -358,15 +358,15 @@ class TestProject(unittest.TestCase):
         scale_factor_y = 2.0
         # scale_factor_x = 2.0 * jnp.pi
         # scale_factor_y = 2.0 * jnp.pi
-        domain = Domain(
+        domain = PhysicalDomain(
             (Nx, Ny), (True, True), scale_factors=(scale_factor_x, scale_factor_y)
         )
-        # domain = Domain((Nx, Ny), (True, True))
+        # domain = PhysicalDomain((Nx, Ny), (True, True))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(
             X[1] * 2 * jnp.pi / scale_factor_y
         )
-        u = Field.FromFunc(domain, func=u_fn, name="u_2d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_2d")
 
         u_x_fn = (
             lambda X: -jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
@@ -375,13 +375,13 @@ class TestProject(unittest.TestCase):
             * jnp.pi
             / scale_factor_x
         )
-        u_x_ana = Field.FromFunc(domain, func=u_x_fn, name="u_2d_x_ana")
+        u_x_ana = PhysicalField.FromFunc(domain, func=u_x_fn, name="u_2d_x_ana")
         u_xx_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_x) ** 2
         )
-        u_xx_ana = Field.FromFunc(domain, func=u_xx_fn, name="u_2d_xx_ana")
+        u_xx_ana = PhysicalField.FromFunc(domain, func=u_xx_fn, name="u_2d_xx_ana")
 
         u_y_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
@@ -390,39 +390,39 @@ class TestProject(unittest.TestCase):
             * jnp.pi
             / scale_factor_y
         )
-        u_y_ana = Field.FromFunc(domain, func=u_y_fn, name="u_2d_y_ana")
+        u_y_ana = PhysicalField.FromFunc(domain, func=u_y_fn, name="u_2d_y_ana")
         u_yy_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_y) ** 2
         )
-        u_yy_ana = Field.FromFunc(domain, func=u_yy_fn, name="u_2d_yy_ana")
+        u_yy_ana = PhysicalField.FromFunc(domain, func=u_yy_fn, name="u_2d_yy_ana")
 
         u_int_x_fn = (
             lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_x) ** (-1)
         )
-        u_int_x_ana = Field.FromFunc(domain, func=u_int_x_fn, name="u_2d_int_x_ana")
+        u_int_x_ana = PhysicalField.FromFunc(domain, func=u_int_x_fn, name="u_2d_int_x_ana")
         u_int_xx_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_x) ** (-2)
         )
-        u_int_xx_ana = Field.FromFunc(domain, func=u_int_xx_fn, name="u_2d_int_xx_ana")
+        u_int_xx_ana = PhysicalField.FromFunc(domain, func=u_int_xx_fn, name="u_2d_int_xx_ana")
 
         u_int_y_fn = (
             lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.sin(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_y) ** (-1)
         )
-        u_int_y_ana = Field.FromFunc(domain, func=u_int_y_fn, name="u_2d_int_y_ana")
+        u_int_y_ana = PhysicalField.FromFunc(domain, func=u_int_y_fn, name="u_2d_int_y_ana")
         u_int_yy_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_y) ** (-2)
         )
-        u_int_yy_ana = Field.FromFunc(domain, func=u_int_yy_fn, name="u_2d_int_yy_ana")
+        u_int_yy_ana = PhysicalField.FromFunc(domain, func=u_int_yy_fn, name="u_2d_int_yy_ana")
 
         u_hat = u.hat()
 
@@ -477,7 +477,7 @@ class TestProject(unittest.TestCase):
         Nz = 20
         scale_factor_x = 1.0
         scale_factor_z = 2.0
-        domain = Domain(
+        domain = PhysicalDomain(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
@@ -503,9 +503,9 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[0] * jnp.pi * 6 / scale_factor_x)
             * jnp.cos(X[2] * jnp.pi * 6 / scale_factor_z)
         )
-        u = Field.FromFunc(domain, func=u_fn, name="u_3d")
-        v = Field.FromFunc(domain, func=u_0_fn, name="v_3d")
-        w = Field.FromFunc(domain, func=u_0_fn, name="w_3d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_3d")
+        v = PhysicalField.FromFunc(domain, func=u_0_fn, name="v_3d")
+        w = PhysicalField.FromFunc(domain, func=u_0_fn, name="w_3d")
         U = VectorField([u, v, w])
         U_hat = U.hat()
         u_hat = U_hat[0]
@@ -571,13 +571,13 @@ class TestProject(unittest.TestCase):
 
     def test_cheb_integration_1D(self):
         Nx = 24
-        domain = Domain((Nx,), (False,))
+        domain = PhysicalDomain((Nx,), (False,))
 
         u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
-        u = Field.FromFunc(domain, func=u_fn, name="u_1d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_1d")
 
         u_fn_int = lambda X: -((2 / jnp.pi) ** 2) * jnp.cos(X[0] * jnp.pi / 2)
-        u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_1d_int_ana")
+        u_int_ana = PhysicalField.FromFunc(domain, func=u_fn_int, name="u_1d_int_ana")
         u_int = u.integrate(0, order=2, bc_left=0.0, bc_right=0.0)
         u_int.name = "u_int"
         # u_int.plot(u, u_int_ana)
@@ -589,19 +589,19 @@ class TestProject(unittest.TestCase):
     def test_cheb_integration_2D(self):
         Nx = 24
         Ny = Nx + 4
-        domain = Domain((Nx, Ny), (True, False))
+        domain = PhysicalDomain((Nx, Ny), (True, False))
 
         u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
-        u = Field.FromFunc(domain, func=u_fn, name="u_2d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_2d")
 
         u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(
             X[1] * jnp.pi / 2
         ) + (2 / jnp.pi) * jnp.cos(X[0])
-        u_int_1_ana = Field.FromFunc(domain, func=u_fn_int_1, name="u_2d_int_1_ana")
+        u_int_1_ana = PhysicalField.FromFunc(domain, func=u_fn_int_1, name="u_2d_int_1_ana")
         u_fn_int_2 = (
             lambda X: -jnp.cos(X[0]) * (2 / jnp.pi) ** 2 * jnp.cos(X[1] * jnp.pi / 2)
         )
-        u_int_2_ana = Field.FromFunc(domain, func=u_fn_int_2, name="u_2d_int_2_ana")
+        u_int_2_ana = PhysicalField.FromFunc(domain, func=u_fn_int_2, name="u_2d_int_2_ana")
         u_int_1 = u.integrate(1, order=1, bc_left=0.0)
         u_int_2 = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
         u_int_1.name = "u_int_1"
@@ -619,10 +619,10 @@ class TestProject(unittest.TestCase):
         Nx = 24
         Ny = Nx + 4
         Nz = Nx - 4
-        domain = Domain((Nx, Ny, Nz), (True, False, True))
+        domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
 
         u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
-        u = Field.FromFunc(domain, func=u_fn, name="u_3d")
+        u = PhysicalField.FromFunc(domain, func=u_fn, name="u_3d")
 
         u_fn_int = (
             lambda X: -jnp.cos(X[0])
@@ -630,7 +630,7 @@ class TestProject(unittest.TestCase):
             * (2 / jnp.pi) ** 2
             * jnp.cos(X[1] * jnp.pi / 2)
         )
-        u_int_ana = Field.FromFunc(domain, func=u_fn_int, name="u_3d_int_ana")
+        u_int_ana = PhysicalField.FromFunc(domain, func=u_fn_int, name="u_3d_int_ana")
         u_int = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
         u_int.name = "u_int"
         # u_int.plot(u_int_ana)
@@ -645,18 +645,18 @@ class TestProject(unittest.TestCase):
         # Fourier
         Nx = 60
         sc_x = 1.0
-        domain_1D_fourier = Domain((Nx,), (True,), scale_factors=(sc_x,))
+        domain_1D_fourier = PhysicalDomain((Nx,), (True,), scale_factors=(sc_x,))
         u_fn_1d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x))
-        u_1d_fourier = Field.FromFunc(
+        u_1d_fourier = PhysicalField.FromFunc(
             domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier"
         )
         self.assertTrue(
             abs(u_1d_fourier.definite_integral(0) - 1.2660658777520084) < tol
         )
         # Chebyshev
-        domain_1D_cheb = Domain((Nx,), (False,))
+        domain_1D_cheb = PhysicalDomain((Nx,), (False,))
         u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
-        u_1d_cheb = Field.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
+        u_1d_cheb = PhysicalField.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
         # print(u_1d_cheb.definite_integral(0))
         # print(abs(u_1d_cheb.definite_integral(0) - 0.5321317555))
         self.assertTrue(abs(u_1d_cheb.definite_integral(0) - 0.5321317555) < tol)
@@ -664,11 +664,11 @@ class TestProject(unittest.TestCase):
         # Fourier
         Ny = 64
         sc_y = 2.0
-        domain_2D_fourier = Domain((Nx, Ny), (True, True), scale_factors=(sc_x, sc_y))
+        domain_2D_fourier = PhysicalDomain((Nx, Ny), (True, True), scale_factors=(sc_x, sc_y))
         u_fn_2d_fourier = lambda X: jnp.exp(
             jnp.sin(X[0] * 2 * jnp.pi / sc_x)
         ) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2)
-        u_2d_fourier = Field.FromFunc(
+        u_2d_fourier = PhysicalField.FromFunc(
             domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier"
         )
         # print(abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
@@ -691,11 +691,11 @@ class TestProject(unittest.TestCase):
             < tol
         )
         # Chebyshev
-        domain_2D_cheb = Domain((Nx, Ny), (False, False))
+        domain_2D_cheb = PhysicalDomain((Nx, Ny), (False, False))
         u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(
             jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2
         )
-        u_2d_cheb = Field.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
+        u_2d_cheb = PhysicalField.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
         # print(abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
         # print((u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
         self.assertTrue(
@@ -717,8 +717,8 @@ class TestProject(unittest.TestCase):
             < tol
         )
         # Mixed
-        domain_2D_mixed = Domain((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
-        u_2d_mixed = Field.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
+        domain_2D_mixed = PhysicalDomain((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
+        u_2d_mixed = PhysicalField.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
         # print(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
         self.assertTrue(
             (
@@ -738,8 +738,8 @@ class TestProject(unittest.TestCase):
             )
             < tol
         )
-        domain_2D_mixed_2 = Domain((Nx, Ny), (True, False), scale_factors=(sc_x, 1.0))
-        u_2d_mixed_2 = Field.FromFunc(
+        domain_2D_mixed_2 = PhysicalDomain((Nx, Ny), (True, False), scale_factors=(sc_x, 1.0))
+        u_2d_mixed_2 = PhysicalField.FromFunc(
             domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2"
         )
         # print(abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
@@ -767,7 +767,7 @@ class TestProject(unittest.TestCase):
         # Ny = 96
         Nz = 96
         sc_z = 3.0
-        domain_3D_fourier = Domain(
+        domain_3D_fourier = PhysicalDomain(
             (Nx, Ny, Nz), (True, True, True), scale_factors=(sc_x, sc_y, sc_z)
         )
         u_fn_3d_fourier = lambda X: jnp.exp(
@@ -775,7 +775,7 @@ class TestProject(unittest.TestCase):
         ) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2) * jnp.exp(
             jnp.cos(X[2] * 2 * jnp.pi / sc_z) ** 2
         )
-        u_3d_fourier = Field.FromFunc(
+        u_3d_fourier = PhysicalField.FromFunc(
             domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier"
         )
         # print(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)
@@ -794,13 +794,13 @@ class TestProject(unittest.TestCase):
             (abs(u_3d_fourier.volume_integral() - -10.84981433261992)) < tol
         )
         # Chebyshev
-        domain_3D_cheb = Domain((Nx, Ny, Nz), (False, False, False))
+        domain_3D_cheb = PhysicalDomain((Nx, Ny, Nz), (False, False, False))
         u_fn_3d_cheb = (
             lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi))
             - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
             + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi) ** 2)
         )
-        u_3d_cheb = Field.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
+        u_3d_cheb = PhysicalField.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
         # print(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)
         self.assertTrue(
             (
@@ -815,7 +815,7 @@ class TestProject(unittest.TestCase):
         )
         self.assertTrue((abs(u_3d_cheb.volume_integral() - 10.128527022082872)) < tol)
         # Mixed
-        domain_3D_mixed = Domain(
+        domain_3D_mixed = PhysicalDomain(
             (Nx, Ny, Nz), (True, False, True), scale_factors=(sc_x, 1.0, sc_z)
         )
         u_fn_3d_mixed = (
@@ -823,7 +823,7 @@ class TestProject(unittest.TestCase):
             - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
             + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z) ** 2)
         )
-        u_3d_mixed = Field.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
+        u_3d_mixed = PhysicalField.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
         # print(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)
         self.assertTrue(
             (
@@ -848,12 +848,12 @@ class TestProject(unittest.TestCase):
         scale_factor_x = 1.0
         scale_factor_z = 1.0
 
-        domain = Domain(
+        domain = PhysicalDomain(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
         )
-        domain_y = Domain((Ny,), (False))
+        domain_y = PhysicalDomain((Ny,), (False,))
 
         rhs_fn = (
             lambda X: -(
@@ -865,14 +865,14 @@ class TestProject(unittest.TestCase):
             * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
             * jnp.cos(X[1] * jnp.pi / 2)
         )
-        rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
+        rhs = PhysicalField.FromFunc(domain, rhs_fn, name="rhs")
 
         u_ana_fn = (
             lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
             * jnp.cos(X[1] * jnp.pi / 2)
         )
-        u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
+        u_ana = PhysicalField.FromFunc(domain, u_ana_fn, name="u_ana")
         rhs_hat = rhs.hat()
         # rhs_nohat = rhs_hat.no_hat()
 
@@ -921,7 +921,7 @@ class TestProject(unittest.TestCase):
         # scale_factor_z = 1.5
         scale_factor_x = 2 * jnp.pi
         scale_factor_z = 2 * jnp.pi
-        domain = Domain(
+        domain = PhysicalDomain(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
@@ -937,7 +937,7 @@ class TestProject(unittest.TestCase):
             * jnp.sin((X[2] + 1.0) * 2 * jnp.pi / scale_factor_z)
             * jnp.cos(X[1] * jnp.pi / 2)
         )
-        rhs = Field.FromFunc(domain, rhs_fn, name="rhs")
+        rhs = PhysicalField.FromFunc(domain, rhs_fn, name="rhs")
 
         u_ana_fn = (
             lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor_x)
@@ -945,7 +945,7 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[1] * jnp.pi / 2)
         )
 
-        u_ana = Field.FromFunc(domain, u_ana_fn, name="u_ana")
+        u_ana = PhysicalField.FromFunc(domain, u_ana_fn, name="u_ana")
         rhs_hat = rhs.hat()
 
         out_hat = rhs_hat.solve_poisson()
@@ -985,7 +985,7 @@ class TestProject(unittest.TestCase):
             lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
             + 0.0 * X[0] * X[2]
         )
-        vel_x_ana = Field.FromFunc(nse.physical_domain
+        vel_x_ana = PhysicalField.FromFunc(nse.physical_domain
 , vel_x_fn_ana, name="vel_x_ana")
 
         print("Doing post-processing")
@@ -1013,7 +1013,7 @@ class TestProject(unittest.TestCase):
     #         vel_x_fn_ana = (
     #             lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     #         )
-    #         # vel_x_ana = Field.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
+    #         # vel_x_ana = PhysicalField.FromFunc(nse.domain, vel_x_fn_ana, name="vel_x_ana")
     #         vel_hat = nse.get_latest_field("velocity_hat")
     #         vel = vel_hat.no_hat()
     #         return vel[0].l2error(vel_x_fn_ana)

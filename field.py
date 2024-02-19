@@ -24,7 +24,7 @@ try:
 except:
     if hasattr(sys, "ps1"):
         print("Unable to load")
-from domain import Domain, Domain
+from domain import Domain, PhysicalDomain, FourierDomain
 
 NoneType = type(None)
 
@@ -41,8 +41,9 @@ class Field(ABC):
     field_dir = "./fields/"
     performance_mode = True
 
+    @abstractmethod
     def get_domain(self) -> Domain:
-        return self.physical_domain
+        ...
 
     def save_to_file(self, filename):
         """Save field to file filename."""
@@ -582,7 +583,7 @@ class VectorField:
 
 class PhysicalField(Field):
 
-    def __init__(self, domain: Domain, data: jnp.ndarray, name: str ="field"):
+    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field"):
         self.physical_domain = domain
         self.data = data
         self.name = name
@@ -691,7 +692,7 @@ class PhysicalField(Field):
             rands.append(
                 jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
             )
-        field = jnp.array(rands).reshape(zero_field.domain.shape)
+        field = jnp.array(rands).reshape(zero_field.physical_domain.shape)
         return cls(domain, field, name)
 
     @classmethod
@@ -735,6 +736,9 @@ class PhysicalField(Field):
         field_array = np.load(out.field_dir + filename, allow_pickle=True)
         out.data = jnp.array(field_array.tolist())
         return out
+
+    def get_domain(self):
+        return self.physical_domain
 
     def l2error(self, fn):
         # TODO supersampling
@@ -1238,7 +1242,7 @@ class PhysicalField(Field):
                 scale_factors = tuple(
                     (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
                 )
-                reduced_domain = Domain(
+                reduced_domain = PhysicalDomain(
                     shape, periodic_directions, scale_factors=scale_factors
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
@@ -1272,14 +1276,14 @@ class PhysicalField(Field):
 
 
 class FourierField(Field):
-    def __init__(self, domain: Domain, data: jnp.ndarray, name: str ="field_hat"):
+    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field_hat"):
         self.name = name
         self.time_step: int = 0
         self.physical_domain = domain
         self.fourier_domain = domain.hat()
         self.data = data
 
-    def get_domain(self) -> Domain:
+    def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 
     def __add__(self, other: Union[Self, ]):
@@ -1354,7 +1358,7 @@ class FourierField(Field):
         if direction in self.all_periodic_dimensions():
             out_field = (1j * self.fourier_domain.mgrid[direction]) ** order * self.data
         else:
-            out_field = super().diff(direction, order).data
+            out_field = self.physical_domain.diff(self.data, direction, order)
         return FourierField(
             self.physical_domain,
             out_field,
@@ -1466,7 +1470,7 @@ class FourierField(Field):
 
     def no_hat(self):
         out = self.physical_domain.no_hat(self.data)
-        out_field = Field(self.physical_domain, out, name=(self.name).replace("_hat", ""))
+        out_field = PhysicalField(self.physical_domain, out, name=(self.name).replace("_hat", ""))
         out_field.time_step = self.time_step
         return out_field
 

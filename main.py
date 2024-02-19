@@ -34,7 +34,7 @@ from examples import *
 def main():
     # pass
     # solve_heat_eq_1D()
-    optimize_heat_eq_1D()
+    # optimize_heat_eq_1D()
     # run_jimenez_1990()
     # run_transient_growth()
     # run_pseudo_2d_pertubation()
@@ -42,8 +42,8 @@ def main():
     # run_optimization_transient_growth()
 
     # run tests
-    # tp = TestProject()
-    # tp.test_navier_stokes_laminar()
+    tp = TestProject()
+    tp.test_navier_stokes_laminar()
     # tp.test_2d_growth()
     # tp.test_linear_stability()
     raise Exception("break")

@@ -24,7 +24,7 @@ try:
 except:
     if hasattr(sys, "ps1"):
         print("Unable to load Field")
-from field import Field, FourierFieldSlice, VectorField
+from field import PhysicalField, FourierFieldSlice, VectorField
 
 try:
     reload(sys.modules["equation"])
@@ -70,7 +70,7 @@ def run_optimization():
             Re=Re, Ny=Ny, end_time=end_time, max_iter=10, pertubation_factor=0.0
         )
         nse_.max_iter = 10
-        v0_field = Field(nse_.physical_domain
+        v0_field = PhysicalField(nse_.physical_domain
 , v0)
         vel_0 = nse_.get_initial_field("velocity_hat")
         vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
@@ -83,20 +83,20 @@ def run_optimization():
     vel_x_fn_ana = (
         lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
-    v0_0 = Field.FromFunc(nse.physical_domain
+    v0_0 = PhysicalField.FromFunc(nse.physical_domain
 , vel_x_fn_ana)
 
-    v0s = [v0_0.field]
+    v0s = [v0_0.data]
     eps = 1e3
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = Field(nse.physical_domain
+        corr_field = PhysicalField(nse.physical_domain
 , corr, name="correction")
         corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         print("corr (abs): " + str(abs(corr_field)))
-        v0s.append(v0s[-1] + eps * corr_field.field)
-        v0_new = Field(nse.physical_domain
+        v0s.append(v0s[-1] + eps * corr_field.data)
+        v0_new = PhysicalField(nse.physical_domain
 , v0s[-1])
         v0_new.name = "vel_0_" + str(i)
         v0_new.plot(v0_0)
@@ -166,7 +166,7 @@ def run_navier_stokes_turbulent():
         + 0.1 * jnp.sin(2 * jnp.pi * X[2] / Lz * omega)
         + 0 * X[0]
     )
-    vel_x = Field.FromFunc(nse.physical_domain
+    vel_x = PhysicalField.FromFunc(nse.physical_domain
 , vel_x_fn, name="velocity_x")
 
     # vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) * vortex_sum(X)[1]
@@ -175,9 +175,9 @@ def run_navier_stokes_turbulent():
     )
     # vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) *vortex_sum(X)[2]
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_y = Field.FromFunc(nse.physical_domain
+    vel_y = PhysicalField.FromFunc(nse.physical_domain
 , vel_y_fn, name="velocity_y")
-    vel_z = Field.FromFunc(nse.physical_domain
+    vel_z = PhysicalField.FromFunc(nse.physical_domain
 , vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
@@ -278,7 +278,7 @@ def run_pseudo_2d():
             vel_x_fn_ana = (
                 lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             )
-            vel_x_ana = Field.FromFunc(
+            vel_x_ana = PhysicalField.FromFunc(
                 nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana"
             )
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
@@ -290,7 +290,7 @@ def run_pseudo_2d():
             # vel_x_fn_ana_old = (
             #     lambda X: -vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             # )
-            # vel_x_ana_old = Field.FromFunc(
+            # vel_x_ana_old = PhysicalField.FromFunc(
             #     nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old"
             # )
             # vel_pert_old = VectorField(
@@ -419,11 +419,11 @@ def run_dummy_velocity_field():
         + jnp.cos(X[1] * 2 * jnp.pi / 1.0)
     )  # fulfills bcs but breaks conti
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_x = Field.FromFunc(nse.physical_domain
+    vel_x = PhysicalField.FromFunc(nse.physical_domain
 , vel_x_fn, name="velocity_x")
-    vel_y = Field.FromFunc(nse.physical_domain
+    vel_y = PhysicalField.FromFunc(nse.physical_domain
 , vel_y_fn, name="velocity_y")
-    vel_z = Field.FromFunc(nse.physical_domain
+    vel_z = PhysicalField.FromFunc(nse.physical_domain
 , vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
@@ -433,7 +433,7 @@ def run_dummy_velocity_field():
 
     vel = nse.get_initial_field("velocity_hat").no_hat()
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = Field.FromFunc(nse.physical_domain
+    vel_x_ana = PhysicalField.FromFunc(nse.physical_domain
 , vel_x_fn_ana, name="vel_x_ana")
 
     def after_time_step(nse):
@@ -660,17 +660,17 @@ def run_jimenez_1990(start_time=0):
         eps = 1e-2 / jnp.sqrt(vel_pert.energy())
         nse.init_velocity((vel_pert * eps).hat())
     else:
-        u = Field.FromFile(
+        u = PhysicalField.FromFile(
             nse.domain_no_hat,
             "velocity_pertubation_" + str(0) + "_t_" + str(start_time),
             name="u_hat",
         )
-        v = Field.FromFile(
+        v = PhysicalField.FromFile(
             nse.domain_no_hat,
             "velocity_pertubation_" + str(1) + "_t_" + str(start_time),
             name="v_hat",
         )
-        w = Field.FromFile(
+        w = PhysicalField.FromFile(
             nse.domain_no_hat,
             "velocity_pertubation_" + str(2) + "_t_" + str(start_time),
             name="w_hat",
@@ -919,7 +919,7 @@ def run_optimization_pseudo_2d_pertubation():
     # Ny = 40
     # Nz = 10
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
-    # Field.supress_plotting()
+    # PhysicalField.supress_plotting()
 
     def run(v0):
         (
@@ -947,7 +947,7 @@ def run_optimization_pseudo_2d_pertubation():
     Equation.initialize()
 
 
-    dom = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    dom = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
     v0_0 = lsc.velocity_field(dom, 0)
 
@@ -997,7 +997,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
     # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain: Domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
 
     # v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -1011,9 +1011,9 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     #     save_modes=False,
     #     save_final=True,
     # )
-    v0_0 = VectorField([Field.FromFunc(domain, lambda X: -0.1 * (1 - X[0]**2) + 0*X[2]),
-                        Field.FromFunc(domain, lambda X: 0*X[2]),
-                        Field.FromFunc(domain, lambda X: 0*X[2]),
+    v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[0]**2) + 0*X[2]),
+                        PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+                        PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
                         ])
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
@@ -1021,7 +1021,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
         v0_ = v0.reshape((3, Nx, Ny, Nz))
         U = VectorField([Field(domain, v0_[i,...]) for i in range(3)])
-        # domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         # U = VectorField([Field(domain, v0[i]) for i in range(3)])
         eps = 1e-5
         eps_ = eps / jnp.sqrt(U.energy())
@@ -1135,12 +1135,12 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         save_final=True,
     )
 
-    # u = Field.FromFunc(nse.domain_no_hat, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
-    # v = Field.FromFunc(nse.domain_no_hat, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
-    # w = Field.FromFunc(nse.domain_no_hat, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
-    # # u = Field.FromFunc(nse.domain_no_hat, (lambda X: (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_x")
-    # # v = Field.FromFunc(nse.domain_no_hat, (lambda X: 2 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_y")
-    # # w = Field.FromFunc(nse.domain_no_hat, (lambda X: 3 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_z")
+    # u = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
+    # v = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
+    # w = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
+    # # u = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_x")
+    # # v = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 2 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_y")
+    # # w = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 3 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_z")
     # U = VectorField([u, v, w], name="vel")
 
     eps_ = eps / jnp.sqrt(U.energy())

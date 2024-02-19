@@ -430,10 +430,10 @@ class NavierStokesVelVort(Equation):
 
     @classmethod
     def FromRandom(cls, shape, Re, end_time=1e0):
-        domain = Domain(shape, (True, False, True))
-        vel_x = Field.FromRandom(domain, name="u0")
-        vel_y = Field.FromRandom(domain, name="u1")
-        vel_z = Field.FromRandom(domain, name="u2")
+        domain = PhysicalDomain(shape, (True, False, True))
+        vel_x = PhysicalField.FromRandom(domain, name="u0")
+        vel_y = PhysicalField.FromRandom(domain, name="u1")
+        vel_z = PhysicalField.FromRandom(domain, name="u2")
         vel = VectorField([vel_x, vel_y, vel_z], "velocity")
         return cls.FromVelocityField(vel, Re, end_time=end_time)
 
@@ -458,10 +458,10 @@ class NavierStokesVelVort(Equation):
     def update_flow_rate(self):
         self.flow_rate = self.get_flow_rate()
         dPdx = -self.flow_rate * 3 / 2 / self.Re_tau
-        self.dpdx = Field.FromFunc(
+        self.dpdx = PhysicalField.FromFunc(
             self.physical_domain, lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()
-        self.dpdz = Field.FromFunc(
+        self.dpdz = PhysicalField.FromFunc(
             self.physical_domain, lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
         ).hat()
 
@@ -479,9 +479,9 @@ class NavierStokesVelVort(Equation):
             self.physical_domain,
             jnp.array(
                 [
-                    velocity_field_[0].field,
-                    velocity_field_[1].field,
-                    velocity_field_[2].field,
+                    velocity_field_[0].data,
+                    velocity_field_[1].data,
+                    velocity_field_[2].data,
                 ]
             ),
         )
@@ -802,7 +802,7 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat,
             ) = self.nonlinear_update_fn(
                 self.physical_domain,
-                jnp.array([vel_hat[0].field, vel_hat[1].field, vel_hat[2].field]),
+                jnp.array([vel_hat[0].data, vel_hat[1].data, vel_hat[2].data]),
             )
 
             if type(h_v_hat_old) == NoneType:
@@ -919,8 +919,8 @@ class NavierStokesVelVort(Equation):
                 return vel_new_hat_field
 
             vel_new_hat_field = get_new_vel_field(
-                vel_hat[0].field.shape,
-                v_1_lap_hat.field,
+                vel_hat[0].data.shape,
+                v_1_lap_hat.data,
                 vort_hat[1],
                 conv_ns_hat,
                 conv_ns_hat_old,
@@ -1149,18 +1149,18 @@ class NavierStokesVelVort(Equation):
 
         v_1_lap_hat = vel_hat[1].laplacian()
 
-        h_v_hat = self.get_latest_field("h_v_hat").field
-        h_g_hat = self.get_latest_field("h_g_hat").field
-        vort_hat_1 = self.get_latest_field("vort_hat")[1].field
+        h_v_hat = self.get_latest_field("h_v_hat").data
+        h_g_hat = self.get_latest_field("h_g_hat").data
+        vort_hat_1 = self.get_latest_field("vort_hat")[1].data
         conv_ns_hat = [
-            self.get_latest_field("conv_ns_hat")[i].field
+            self.get_latest_field("conv_ns_hat")[i].data
             for i in self.physical_domain.all_dimensions()
         ]
 
-        h_v_hat_old = self.get_field("h_v_hat", max(0, self.time_step - 1)).field
-        h_g_hat_old = self.get_field("h_g_hat", max(0, self.time_step - 1)).field
+        h_v_hat_old = self.get_field("h_v_hat", max(0, self.time_step - 1)).data
+        h_g_hat_old = self.get_field("h_g_hat", max(0, self.time_step - 1)).data
         conv_ns_hat_old = [
-            self.get_field("conv_ns_hat", max(0, self.time_step - 1))[i].field
+            self.get_field("conv_ns_hat", max(0, self.time_step - 1))[i].data
             for i in self.physical_domain.all_dimensions()
         ]
 
@@ -1213,14 +1213,14 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = Domain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-    # domain = Domain((Nx, Ny, Nz), (True, False, True))
+    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = (
         lambda X: -1 * NavierStokesVelVort.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
         + 0.0 * X[0] * X[2]
     )
-    vel_x_ana = Field.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
+    vel_x_ana = PhysicalField.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     vel_x_fn = lambda X: jnp.pi / 3 * NavierStokesVelVort.u_max_over_u_tau * (
         pertubation_factor
@@ -1250,9 +1250,9 @@ def solve_navier_stokes_laminar(
         * NavierStokesVelVort.u_max_over_u_tau
         * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
     )
-    vel_x = Field.FromFunc(domain, vel_x_fn, name="velocity_x")
-    vel_y = Field.FromFunc(domain, vel_y_fn, name="velocity_y")
-    vel_z = Field.FromFunc(domain, vel_z_fn, name="velocity_z")
+    vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="velocity_x")
+    vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="velocity_y")
+    vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     nse = NavierStokesVelVort.FromVelocityField(vel, Re)
