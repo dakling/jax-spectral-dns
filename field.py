@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import time
 
 from abc import ABC, abstractmethod
@@ -1261,7 +1263,7 @@ class FourierField(Field):
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 
-    def __add__(self, other: Union[FourierField, ]):
+    def __add__(self, other: Union[FourierField, jnp.ndarray]):
         assert isinstance(
             other, FourierField
         ), "Attempted to add a Fourier Field and a Field."
