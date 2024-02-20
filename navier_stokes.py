@@ -267,19 +267,19 @@ class NavierStokesVelVort(Equation):
         L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         def perform_single_rk_step_for_single_wavenumber(
-                step,
-                v_1_lap_hat,
-                vort_1_hat,
-                conv_ns_hat,
-                conv_ns_hat_old,
-                h_v_hat,
-                h_g_hat,
-                h_v_hat_old,
-                h_g_hat_old,
+            step,
         ):
             # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
             def fn(
-                K
+                K,
+                v_1_lap_hat_sw,
+                vort_1_hat_sw,
+                conv_ns_hat_sw,
+                conv_ns_hat_old_sw,
+                h_v_hat_sw,
+                h_g_hat_sw,
+                h_v_hat_old_sw,
+                h_g_hat_old_sw,
             ):
                 domain = self.domain
                 kx = K[0]
@@ -292,13 +292,13 @@ class NavierStokesVelVort(Equation):
                 L_p_y = 1 / Re * D2
                 lhs_mat_p, rhs_mat_p = self.assemble_rk_matrices(L_p_y, kx_, kz_, step)
 
-                phi_hat_lap = v_1_lap_hat[kx, :, kz]
+                phi_hat_lap = v_1_lap_hat_sw
 
-                N_p_new = h_v_hat[kx, :, kz]
-                if type(h_v_hat_old[kx, :, kz]) == NoneType:
+                N_p_new = h_v_hat_sw
+                if type(h_v_hat_old_sw) == NoneType:
                     N_p_old = N_p_new
                 else:
-                    N_p_old = h_v_hat_old[kx, :, kz]
+                    N_p_old = h_v_hat_old_sw
                 rhs_p = (
                     rhs_mat_p @ phi_hat_lap
                     + (self.dt * gamma[step]) * N_p_new
@@ -368,13 +368,13 @@ class NavierStokesVelVort(Equation):
                     L_vort_y, kx_, kz_, step
                 )
 
-                phi_vort_hat = vort_1_hat[kx, :, kz]
+                phi_vort_hat = vort_1_hat_sw
 
-                N_vort_new = h_g_hat[kx, :, kz]
-                if type(h_g_hat_old[kx, :, kz] == NoneType):
+                N_vort_new = h_g_hat_sw
+                if type(h_g_hat_old_sw == NoneType):
                     N_vort_old = N_vort_new
                 else:
-                    N_vort_old = h_g_hat_old[kx, :, kz]
+                    N_vort_old = h_g_hat_old_sw
 
                 rhs_vort = (
                     rhs_mat_vort @ phi_vort_hat
@@ -406,8 +406,8 @@ class NavierStokesVelVort(Equation):
                     )
                     N_00_new = jnp.block(
                         [
-                            -conv_ns_hat[0][kx, :, kz],
-                            -conv_ns_hat[2][kx, :, kz],
+                            -conv_ns_hat_sw[0],
+                            -conv_ns_hat_sw[2],
                         ]
                     ) + jnp.block(
                         [
@@ -421,8 +421,8 @@ class NavierStokesVelVort(Equation):
                     else:
                         N_00_old = jnp.block(
                             [
-                                -conv_ns_hat_old[0][kx, :, kz],
-                                -conv_ns_hat_old[2][kx, :, kz],
+                                -conv_ns_hat_old_sw[0],
+                                -conv_ns_hat_old_sw[2],
                             ]
                         ) + jnp.block(
                             [
@@ -495,112 +495,11 @@ class NavierStokesVelVort(Equation):
             v_1_hat = vel_hat[1]
             v_1_lap_hat = v_1_hat.laplacian()
 
-            vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
-                perform_single_rk_step_for_single_wavenumber(
-                    step,
-                    v_1_lap_hat,
-                    vort_hat[1],
-                    conv_ns_hat,
-                    conv_ns_hat_old,
-                    h_v_hat,
-                    h_g_hat,
-                    h_v_hat_old,
-                    h_g_hat_old,
-                )
-            )
-
-            # @partial(jax.jit, static_argnums=(0))
-            # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=0)
-            # def get_new_vel_field(
-            #     shape,
-            #     v_1_lap_hat_,
-            #     vort_hat_1,
-            #     conv_ns_hat_,
-            #     conv_ns_hat_old_,
-            #     h_v_hat_,
-            #     h_g_hat_,
-            #     h_v_hat_old_,
-            #     h_g_hat_old_,
-            # ):
-            #     vel_0_new_hat_field = jnp.zeros(shape, dtype=jnp.complex64)
-            #     vel_1_new_hat_field = jnp.zeros(shape, dtype=jnp.complex64)
-            #     vel_2_new_hat_field = jnp.zeros(shape, dtype=jnp.complex64)
-
-            #     def inner_body_fn(kz, state):
-            #         (
-            #             kx,
-            #             vel_0_new_hat_field,
-            #             vel_1_new_hat_field,
-            #             vel_2_new_hat_field,
-            #             v_1_lap_hat_,
-            #             vort_hat_1,
-            #             conv_ns_hat_,
-            #             conv_ns_hat_old_,
-            #             h_v_hat_,
-            #             h_g_hat_,
-            #             h_v_hat_old_,
-            #             h_g_hat_old_,
-            #         ) = state
-            #         (
-            #             v_0_new_field,
-            #             v_1_hat_new,
-            #             v_2_new_field,
-            #             _,
-            #         ) = perform_single_rk_step_for_single_wavenumber(step)(
-            #             [kx, kz],
-            #             v_1_lap_hat_[kx, :, kz],
-            #             vort_hat_1[kx, :, kz],
-            #             [conv_ns_hat_[i][kx, :, kz] for i in range(3)],
-            #             [conv_ns_hat_old_[i][kx, :, kz] for i in range(3)],
-            #             h_v_hat_[kx, :, kz],
-            #             h_g_hat_[kx, :, kz],
-            #             h_v_hat_old_[kx, :, kz],
-            #             h_g_hat_old_[kx, :, kz],
-            #         )
-            #         vel_0_new_hat_field_out = vel_0_new_hat_field.at[kx, :, kz].set(v_0_new_field)
-            #         vel_1_new_hat_field_out = vel_1_new_hat_field.at[kx, :, kz].set(v_1_hat_new)
-            #         vel_2_new_hat_field_out = vel_2_new_hat_field.at[kx, :, kz].set(v_2_new_field)
-            #         return (
-            #             kx,
-            #             vel_0_new_hat_field_out,
-            #             vel_1_new_hat_field_out,
-            #             vel_2_new_hat_field_out,
-            #             v_1_lap_hat_,
-            #             vort_hat_1,
-            #             conv_ns_hat_,
-            #             conv_ns_hat_old_,
-            #             h_v_hat_,
-            #             h_g_hat_,
-            #             h_v_hat_old_,
-            #             h_g_hat_old_,
-            #         )
-
-            #     def outer_body_fn(kx, state):
-            #         new_state = jax.lax.fori_loop(0,
-            #                                       shape[2],
-            #                                       inner_body_fn,
-            #                                       (kx, *state)
-            #                                       )
-            #         return new_state[1:]
-
-            #     vel_new_hat_field = jax.lax.fori_loop(0,
-            #                                           shape[0],
-            #                                           outer_body_fn,
-            #                                           (vel_0_new_hat_field, vel_1_new_hat_field, vel_2_new_hat_field,
-            #                                            v_1_lap_hat_,
-            #                                            vort_hat_1,
-            #                                            conv_ns_hat_,
-            #                                            conv_ns_hat_old_,
-            #                                            h_v_hat_,
-            #                                            h_g_hat_,
-            #                                            h_v_hat_old_,
-            #                                            h_g_hat_old_,
-            #                                            ))[:3]
-            #     return vel_new_hat_field
-
-            # vel_new_hat_field = get_new_vel_field(
-            #     vel_hat[0].data.shape,
-            #     v_1_lap_hat.data,
+            # vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
+            #     perform_single_rk_step_for_single_wavenumber( # TODO each wavenumber gets the entire field!
+            #         step
+            #     ),
+            #     v_1_lap_hat,
             #     vort_hat[1],
             #     conv_ns_hat,
             #     conv_ns_hat_old,
@@ -609,12 +508,112 @@ class NavierStokesVelVort(Equation):
             #     h_v_hat_old,
             #     h_g_hat_old,
             # )
-            # vel_new_hat = VectorField(
-            #     [
-            #         FourierField(self.physical_domain, vel_new_hat_field[i])
-            #         for i in range(3)
-            #     ]
-            # )
+            @partial(jax.jit, static_argnums=(0))
+            @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=0)
+            def get_new_vel_field(
+                shape,
+                v_1_lap_hat_,
+                vort_hat_1,
+                conv_ns_hat_,
+                conv_ns_hat_old_,
+                h_v_hat_,
+                h_g_hat_,
+                h_v_hat_old_,
+                h_g_hat_old_,
+            ):
+                vel_0_new_hat_field = jnp.zeros(shape, dtype=jnp.complex64)
+                vel_1_new_hat_field = jnp.zeros(shape, dtype=jnp.complex64)
+                vel_2_new_hat_field = jnp.zeros(shape, dtype=jnp.complex64)
+
+                def inner_body_fn(kz, state):
+                    (
+                        kx,
+                        vel_0_new_hat_field,
+                        vel_1_new_hat_field,
+                        vel_2_new_hat_field,
+                        v_1_lap_hat_,
+                        vort_hat_1,
+                        conv_ns_hat_,
+                        conv_ns_hat_old_,
+                        h_v_hat_,
+                        h_g_hat_,
+                        h_v_hat_old_,
+                        h_g_hat_old_,
+                    ) = state
+                    (
+                        v_0_new_field,
+                        v_1_hat_new,
+                        v_2_new_field,
+                        _,
+                    ) = perform_single_rk_step_for_single_wavenumber(step)(
+                        [kx, kz],
+                        v_1_lap_hat_[kx, :, kz],
+                        vort_hat_1[kx, :, kz],
+                        [conv_ns_hat_[i][kx, :, kz] for i in range(3)],
+                        [conv_ns_hat_old_[i][kx, :, kz] for i in range(3)],
+                        h_v_hat_[kx, :, kz],
+                        h_g_hat_[kx, :, kz],
+                        h_v_hat_old_[kx, :, kz],
+                        h_g_hat_old_[kx, :, kz],
+                    )
+                    vel_0_new_hat_field_out = vel_0_new_hat_field.at[kx, :, kz].set(v_0_new_field)
+                    vel_1_new_hat_field_out = vel_1_new_hat_field.at[kx, :, kz].set(v_1_hat_new)
+                    vel_2_new_hat_field_out = vel_2_new_hat_field.at[kx, :, kz].set(v_2_new_field)
+                    return (
+                        kx,
+                        vel_0_new_hat_field_out,
+                        vel_1_new_hat_field_out,
+                        vel_2_new_hat_field_out,
+                        v_1_lap_hat_,
+                        vort_hat_1,
+                        conv_ns_hat_,
+                        conv_ns_hat_old_,
+                        h_v_hat_,
+                        h_g_hat_,
+                        h_v_hat_old_,
+                        h_g_hat_old_,
+                    )
+
+                def outer_body_fn(kx, state):
+                    new_state = jax.lax.fori_loop(0,
+                                                  shape[2],
+                                                  inner_body_fn,
+                                                  (kx, *state)
+                                                  )
+                    return new_state[1:]
+
+                vel_new_hat_field = jax.lax.fori_loop(0,
+                                                      shape[0],
+                                                      outer_body_fn,
+                                                      (vel_0_new_hat_field, vel_1_new_hat_field, vel_2_new_hat_field,
+                                                       v_1_lap_hat_,
+                                                       vort_hat_1,
+                                                       conv_ns_hat_,
+                                                       conv_ns_hat_old_,
+                                                       h_v_hat_,
+                                                       h_g_hat_,
+                                                       h_v_hat_old_,
+                                                       h_g_hat_old_,
+                                                       ))[:3]
+                return vel_new_hat_field
+
+            vel_new_hat_field = get_new_vel_field(
+                vel_hat[0].data.shape,
+                v_1_lap_hat.data,
+                vort_hat[1],
+                conv_ns_hat,
+                conv_ns_hat_old,
+                h_v_hat,
+                h_g_hat,
+                h_v_hat_old,
+                h_g_hat_old,
+            )
+            vel_new_hat = VectorField(
+                [
+                    FourierField(self.physical_domain, vel_new_hat_field[i])
+                    for i in range(3)
+                ]
+            )
 
             h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (
                 h_v_hat,
