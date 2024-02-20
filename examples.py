@@ -42,11 +42,11 @@ except:
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
-    reload(sys.modules["navier_stokes_pertubation"])
+    reload(sys.modules["navier_stokes_perturbation"])
 except:
     if hasattr(sys, "ps1"):
-        print("Unable to load navier-stokes-pertubation")
-from navier_stokes_pertubation import NavierStokesVelVortPertubation, solve_navier_stokes_pertubation
+        print("Unable to load navier-stokes-perturbation")
+from navier_stokes_perturbation import NavierStokesVelVortPerturbation, solve_navier_stokes_perturbation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
@@ -63,12 +63,12 @@ def run_optimization():
     end_time = 1
 
     nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=Ny, end_time=end_time, pertubation_factor=0.0
+        Re=Re, Ny=Ny, end_time=end_time, perturbation_factor=0.0
     )
 
     def run(v0):
         nse_ = solve_navier_stokes_laminar(
-            Re=Re, Ny=Ny, end_time=end_time, max_iter=10, pertubation_factor=0.0
+            Re=Re, Ny=Ny, end_time=end_time, max_iter=10, perturbation_factor=0.0
         )
         nse_.max_iter = 10
         v0_field = PhysicalField(nse_.physical_domain
@@ -116,9 +116,9 @@ def run_navier_stokes_turbulent():
         Ny=60,
         Nx=64,
         end_time=end_time,
-        pertubation_factor=0.1
-        # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
-        # Re=Re, Ny=48, Nx=24, end_time=end_time, pertubation_factor=1
+        perturbation_factor=0.1
+        # Re=Re, Ny=12, Nx=4, end_time=end_time, perturbation_factor=1
+        # Re=Re, Ny=48, Nx=24, end_time=end_time, perturbation_factor=1
     )
 
     def vortex_fun(center_y, center_z, a):
@@ -233,7 +233,7 @@ def run_pseudo_2d():
         Ny=Ny,
         Nz=Nz,
         end_time=end_time,
-        pertubation_factor=0.0,
+        perturbation_factor=0.0,
         scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
@@ -315,43 +315,43 @@ def run_pseudo_2d():
                 elif j == 1:
                     vel[j].plot_center(1, vel_pert_0)
                 # vel_hat[j].plot_3d()
-                vel_pert[j].name = "velocity_pertubation_" + "xyz"[j]
+                vel_pert[j].name = "velocity_perturbation_" + "xyz"[j]
                 vel_pert[j].plot_3d()
                 vel_pert[j].plot_3d(2)
                 # vel_pert[j].plot_center(0)
                 # vel_pert[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             print(
-                "analytical velocity pertubation energy: ",
+                "analytical velocity perturbation energy: ",
                 energy_over_time_fn(nse.time),
             )
-            print("velocity pertubation energy: ", vel_pert_energy)
-            print("velocity pertubation energy x: ", vel_pert[0].energy())
+            print("velocity perturbation energy: ", vel_pert_energy)
+            print("velocity perturbation energy x: ", vel_pert[0].energy())
             print(
-                "analytical velocity pertubation energy x: ",
+                "analytical velocity perturbation energy x: ",
                 energy_x_over_time_fn(nse.time),
             )
-            print("velocity pertubation energy y: ", vel_pert[1].energy())
+            print("velocity perturbation energy y: ", vel_pert[1].energy())
             print(
-                "analytical velocity pertubation energy y: ",
+                "analytical velocity perturbation energy y: ",
                 energy_y_over_time_fn(nse.time),
             )
-            print("velocity pertubation energy z: ", vel_pert[1].energy())
+            print("velocity perturbation energy z: ", vel_pert[1].energy())
             # vel_pert_energy_old = vel_pert_old.energy()
             # print(
-            #     "velocity pertubation energy change: ",
+            #     "velocity perturbation energy change: ",
             #     vel_pert_energy - vel_pert_energy_old,
             # )
             # print(
-            #     "velocity pertubation energy x change: ",
+            #     "velocity perturbation energy x change: ",
             #     vel_pert[0].energy() - vel_pert_old[0].energy(),
             # )
             # print(
-            #     "velocity pertubation energy y change: ",
+            #     "velocity perturbation energy y change: ",
             #     vel_pert[1].energy() - vel_pert_old[1].energy(),
             # )
             # print(
-            #     "velocity pertubation energy z change: ",
+            #     "velocity perturbation energy z change: ",
             #     vel_pert[2].energy() - vel_pert_old[2].energy(),
             # )
             ts.append(nse.time)
@@ -397,14 +397,14 @@ def run_dummy_velocity_field():
         # Ny=90,
         # Nx=64,
         # end_time=end_time,
-        # pertubation_factor=0.1
-        # Re=Re, Ny=12, Nx=4, end_time=end_time, pertubation_factor=1
-        # Re=Re, Ny=60, Nx=32, end_time=end_time, pertubation_factor=1
+        # perturbation_factor=0.1
+        # Re=Re, Ny=12, Nx=4, end_time=end_time, perturbation_factor=1
+        # Re=Re, Ny=60, Nx=32, end_time=end_time, perturbation_factor=1
         Re=Re,
         Ny=96,
         Nx=64,
         end_time=end_time,
-        pertubation_factor=0,
+        perturbation_factor=0,
     )
 
     sc_x = 1.87
@@ -462,8 +462,8 @@ def run_dummy_velocity_field():
             for j in range(3):
                 vel_pert_energy += vel_pert[j].energy()
                 vel_pert_abs += abs(vel_pert[j])
-            print("velocity pertubation energy: ", vel_pert_energy)
-            print("velocity pertubation abs: ", vel_pert_abs)
+            print("velocity perturbation energy: ", vel_pert_energy)
+            print("velocity perturbation abs: ", vel_pert_abs)
 
     nse.after_time_step_fn = after_time_step
     # nse.after_time_step_fn = None
@@ -471,7 +471,7 @@ def run_dummy_velocity_field():
     return nse.get_latest_field("velocity_hat").no_hat().field
 
 
-def run_pseudo_2d_pertubation(
+def run_pseudo_2d_perturbation(
     Re=3000.0,
     alpha=1.02056,
     end_time=1.0,
@@ -491,13 +491,13 @@ def run_pseudo_2d_pertubation(
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
 
-    nse = solve_navier_stokes_pertubation(
+    nse = solve_navier_stokes_perturbation(
         Re=Re,
         Nx=Nx,
         Ny=Ny,
         Nz=Nz,
         end_time=end_time,
-        pertubation_factor=0.0,
+        perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
     )
 
@@ -558,22 +558,22 @@ def run_pseudo_2d_pertubation(
                     vel[j].plot_center(1)
             vel_pert_energy = vel.energy()
             if plot:
-                print("velocity pertubation energy: ", vel_pert_energy)
+                print("velocity perturbation energy: ", vel_pert_energy)
                 print("\n\n")
                 print(
-                    "velocity pertubation energy: ",
+                    "velocity perturbation energy: ",
                     vel_pert_energy,
                 )
                 print(
-                    "velocity pertubation energy x: ",
+                    "velocity perturbation energy x: ",
                     vel[0].energy(),
                 )
                 print(
-                    "velocity pertubation energy y: ",
+                    "velocity perturbation energy y: ",
                     vel[1].energy(),
                 )
                 print(
-                    "velocity pertubation energy z: ",
+                    "velocity perturbation energy z: ",
                     vel[2].energy(),
                 )
                 print("")
@@ -641,13 +641,13 @@ def run_jimenez_1990(start_time=0):
     Nz = 2
     end_time = 1000
 
-    nse = solve_navier_stokes_pertubation(
+    nse = solve_navier_stokes_perturbation(
         Re=Re,
         Nx=Nx,
         Ny=Ny,
         Nz=Nz,
         end_time=end_time,
-        pertubation_factor=0.0,
+        perturbation_factor=0.0,
         scale_factors=(2 * jnp.pi / alpha, 1.0, 0.1),
     )
 
@@ -663,17 +663,17 @@ def run_jimenez_1990(start_time=0):
     else:
         u = PhysicalField.FromFile(
             nse.domain_no_hat,
-            "velocity_pertubation_" + str(0) + "_t_" + str(start_time),
+            "velocity_perturbation_" + str(0) + "_t_" + str(start_time),
             name="u_hat",
         )
         v = PhysicalField.FromFile(
             nse.domain_no_hat,
-            "velocity_pertubation_" + str(1) + "_t_" + str(start_time),
+            "velocity_perturbation_" + str(1) + "_t_" + str(start_time),
             name="v_hat",
         )
         w = PhysicalField.FromFile(
             nse.domain_no_hat,
-            "velocity_pertubation_" + str(2) + "_t_" + str(start_time),
+            "velocity_perturbation_" + str(2) + "_t_" + str(start_time),
             name="w_hat",
         )
         nse.init_velocity(
@@ -706,27 +706,27 @@ def run_jimenez_1990(start_time=0):
             [
                 f.unlink()
                 for f in Path("./fields/").glob(
-                    "velocity_pertubation_0_t_" + str(i - 10)
+                    "velocity_perturbation_0_t_" + str(i - 10)
                 )
                 if f.is_file()
             ]
             [
                 f.unlink()
                 for f in Path("./fields/").glob(
-                    "velocity_pertubation_1_t_" + str(i - 10)
+                    "velocity_perturbation_1_t_" + str(i - 10)
                 )
                 if f.is_file()
             ]
             [
                 f.unlink()
                 for f in Path("./fields/").glob(
-                    "velocity_pertubation_2_t_" + str(i - 10)
+                    "velocity_perturbation_2_t_" + str(i - 10)
                 )
                 if f.is_file()
             ]
             for j in range(3):
                 vel_pert[j].save_to_file(
-                    "velocity_pertubation_" + str(j) + "_t_" + str(i)
+                    "velocity_perturbation_" + str(j) + "_t_" + str(i)
                 )
                 vort[j].plot_3d()
                 vort[j].plot_3d(2)
@@ -760,13 +760,13 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
-    nse = solve_navier_stokes_pertubation(
+    nse = solve_navier_stokes_perturbation(
         Re=Re,
         Nx=Nx,
         Ny=Ny,
         Nz=Nz,
         end_time=end_time,
-        pertubation_factor=0.0,
+        perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
     nse.max_dt = 0.01
@@ -819,9 +819,9 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     ).T  # TODO get rid of this at some point
     # energy_max = []
     # energy_0_norm = vel_pert.energy_norm(1)
-    # print("inital pertubation energy norm: ", energy_0_norm)
+    # print("inital perturbation energy norm: ", energy_0_norm)
     energy_0 = vel_pert.energy()
-    print("inital pertubation energy: ", energy_0)
+    print("inital perturbation energy: ", energy_0)
 
     def before_time_step(nse):
         i = nse.time_step
@@ -849,19 +849,19 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             # vel_pert_energy_norm = vel_pert.energy_norm(1)
             print("\n\n")
             print(
-                "velocity pertubation energy change: ",
+                "velocity perturbation energy change: ",
                 vel_pert_energy - energy0,
             )
             # print(
-            #     "velocity pertubation energy x change: ",
+            #     "velocity perturbation energy x change: ",
             #     vel_pert[0].energy() - vel_pert_old[0].energy(),
             # )
             # print(
-            #     "velocity pertubation energy y change: ",
+            #     "velocity perturbation energy y change: ",
             #     vel_pert[1].energy() - vel_pert_old[1].energy(),
             # )
             # print(
-            #     "velocity pertubation energy z change: ",
+            #     "velocity perturbation energy z change: ",
             #     vel_pert[2].energy() - vel_pert_old[2].energy(),
             # )
             print("")
@@ -909,7 +909,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.solve()
 
 
-def run_optimization_pseudo_2d_pertubation():
+def run_optimization_pseudo_2d_perturbation():
     Re = 3000.0
     T = 1.0
     alpha = 1.02056
@@ -931,7 +931,7 @@ def run_optimization_pseudo_2d_pertubation():
             energy_x_t_ana,
             energy_y_t_ana,
             ts,
-        ) = run_pseudo_2d_pertubation(
+        ) = run_pseudo_2d_perturbation(
             # Re=Re,
             # alpha=alpha,
             # end_time=T,
@@ -1031,7 +1031,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         U_norm = U * eps_
         U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
 
-        nse = NavierStokesVelVortPertubation.FromVelocityField(U_norm, Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
         nse.max_dt = end_time
         nse.end_time = end_time
 
@@ -1131,13 +1131,13 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
-    nse = solve_navier_stokes_pertubation(
+    nse = solve_navier_stokes_perturbation(
         Re=Re,
         Nx=Nx,
         Ny=Ny,
         Nz=Nz,
         end_time=end_time,
-        pertubation_factor=0.0,
+        perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
     )
 
@@ -1212,27 +1212,27 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             vel_pert_energy_norm = vel_pert.energy_norm(1)
             print("\n\n")
             print(
-                "velocity pertubation energy: ",
+                "velocity perturbation energy: ",
                 vel_pert_energy,
             )
             print(
-                "velocity pertubation relative change: ",
+                "velocity perturbation relative change: ",
                 vel_pert_energy / energy0,
             )
             print(
-                "velocity pertubation energy change: ",
+                "velocity perturbation energy change: ",
                 vel_pert_energy - energy0,
             )
             # print(
-            #     "velocity pertubation energy x change: ",
+            #     "velocity perturbation energy x change: ",
             #     vel_pert[0].energy() - vel_pert_old[0].energy(),
             # )
             # print(
-            #     "velocity pertubation energy y change: ",
+            #     "velocity perturbation energy y change: ",
             #     vel_pert[1].energy() - vel_pert_old[1].energy(),
             # )
             # print(
-            #     "velocity pertubation energy z change: ",
+            #     "velocity perturbation energy z change: ",
             #     vel_pert[2].energy() - vel_pert_old[2].energy(),
             # )
 

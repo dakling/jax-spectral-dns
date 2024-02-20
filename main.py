@@ -37,8 +37,8 @@ def main():
     # optimize_heat_eq_1D()
     # run_jimenez_1990()
     # run_transient_growth()
-    # run_pseudo_2d_pertubation()
-    # run_optimization_pseudo_2d_pertubation()
+    # run_pseudo_2d_perturbation()
+    # run_optimization_pseudo_2d_perturbation()
     # run_optimization_transient_growth()
 
     # run tests

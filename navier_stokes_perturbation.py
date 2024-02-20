@@ -33,7 +33,7 @@ from equation import Equation
 
 
 # @partial(jax.jit, static_argnums=0)
-def update_nonlinear_terms_high_performance_pertubation(
+def update_nonlinear_terms_high_performance_perturbation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
     vel_new = jnp.array(
@@ -102,8 +102,8 @@ def update_nonlinear_terms_high_performance_pertubation(
     # return (jnp.zeros_like(h_v_hat_new), jnp.zeros_like(h_g_hat_new), [jnp.zeros_like(vort_hat_new[i]) for i in range(3)], [jnp.zeros_like(conv_ns_hat_new[i]) for i in range(3)])
 
 
-class NavierStokesVelVortPertubation(NavierStokesVelVort):
-    name = "Navier Stokes equation (velocity-vorticity formulation) for pertubations on top of a base flow."
+class NavierStokesVelVortPerturbation(NavierStokesVelVort):
+    name = "Navier Stokes equation (velocity-vorticity formulation) for perturbations on top of a base flow."
     max_cfl = 0.7
     # max_dt = 1e10
     max_dt = 2e-2
@@ -153,7 +153,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         self.linearize = lin
         velocity_base_hat = self.get_latest_field("velocity_base_hat")
         self.nonlinear_update_fn = (
-            lambda dom, vel: update_nonlinear_terms_high_performance_pertubation(
+            lambda dom, vel: update_nonlinear_terms_high_performance_perturbation(
                 dom,
                 vel,
                 jnp.array(
@@ -187,14 +187,14 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         return self.dt
 
 
-def solve_navier_stokes_pertubation(
+def solve_navier_stokes_perturbation(
     Re=1.8e2,
     end_time=1e1,
     max_iter=1e8,
     Nx=6,
     Ny=40,
     Nz=None,
-    pertubation_factor=0.1,
+    perturbation_factor=0.1,
     scale_factors=(1.87, 1.0, 0.93),
 ):
     Ny = Ny
@@ -204,7 +204,7 @@ def solve_navier_stokes_pertubation(
 
     vel_x_fn = lambda X: (
         0.1
-        * pertubation_factor
+        * perturbation_factor
         * (
             jnp.pi
             / 3
@@ -213,10 +213,10 @@ def solve_navier_stokes_pertubation(
             * jnp.cos(4 * X[2])
         )
     )
-    # add small pertubation in y and z to see if it decays
+    # add small perturbation in y and z to see if it decays
     vel_y_fn = (
         lambda X: 0.1
-        * pertubation_factor
+        * perturbation_factor
         * (
             jnp.pi
             / 3
@@ -229,7 +229,7 @@ def solve_navier_stokes_pertubation(
         lambda X: 0.1
         * jnp.pi
         / 3
-        * pertubation_factor
+        * perturbation_factor
         * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
     )
     vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="vel_x")
@@ -237,7 +237,7 @@ def solve_navier_stokes_pertubation(
     vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="vel_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVortPertubation.FromVelocityField(vel, Re)
+    nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re)
     nse.end_time = end_time
     nse.max_iter = max_iter
 

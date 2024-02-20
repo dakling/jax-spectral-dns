@@ -886,7 +886,7 @@ def solve_navier_stokes_laminar(
     Nx=6,
     Ny=40,
     Nz=None,
-    pertubation_factor=0.1,
+    perturbation_factor=0.1,
     scale_factors=(1.87, 1.0, 0.93),
 ):
     Ny = Ny
@@ -902,15 +902,15 @@ def solve_navier_stokes_laminar(
     vel_x_ana = PhysicalField.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     vel_x_fn = lambda X: jnp.pi / 3 * NavierStokesVelVort.u_max_over_u_tau * (
-        pertubation_factor
+        perturbation_factor
         * jnp.cos(X[1] * jnp.pi / 2)
         * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
-    ) + (1 - pertubation_factor) * vel_x_fn_ana(X)
+    ) + (1 - perturbation_factor) * vel_x_fn_ana(X)
 
-    # add small pertubation in y and z to see if it decays
+    # add small perturbation in y and z to see if it decays
     vel_y_fn = (
         lambda X: 0.1
-        * pertubation_factor
+        * perturbation_factor
         * NavierStokesVelVort.u_max_over_u_tau
         * (
             jnp.pi
@@ -925,7 +925,7 @@ def solve_navier_stokes_laminar(
         lambda X: 0.1
         * jnp.pi
         / 3
-        * pertubation_factor
+        * perturbation_factor
         * NavierStokesVelVort.u_max_over_u_tau
         * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
     )

@@ -38,11 +38,11 @@ except:
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
 try:
-    reload(sys.modules["navier_stokes_pertubation"])
+    reload(sys.modules["navier_stokes_perturbation"])
 except:
     if hasattr(sys, 'ps1'):
-        print("Unable to load navier-stokes-pertubation")
-from navier_stokes_pertubation import solve_navier_stokes_pertubation
+        print("Unable to load navier-stokes-perturbation")
+from navier_stokes_perturbation import solve_navier_stokes_perturbation
 
 try:
     reload(sys.modules["linear_stability_calculation"])
@@ -56,7 +56,7 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         print("Unable to load examples")
-from examples import run_pseudo_2d_pertubation
+from examples import run_pseudo_2d_perturbation
 
 NoneType = type(None)
 
@@ -957,7 +957,7 @@ class TestProject(unittest.TestCase):
         # print(abs(u_ana - out))
         self.assertTrue(abs(u_ana - out) < tol)
 
-    def test_navier_stokes_laminar(self, Ny=96, pertubation_factor=0.01):
+    def test_navier_stokes_laminar(self, Ny=96, perturbation_factor=0.01):
         Re = 1.5e0
 
         end_time = 1.0
@@ -967,7 +967,7 @@ class TestProject(unittest.TestCase):
             Ny=Ny,
             Nz=16,
             end_time=end_time,
-            pertubation_factor=pertubation_factor,
+            perturbation_factor=perturbation_factor,
         )
         def before_time_step(nse):
             u = nse.get_latest_field("velocity_hat").no_hat()
@@ -1007,7 +1007,7 @@ class TestProject(unittest.TestCase):
 
     #     def run(Ny):
     #         nse = solve_navier_stokes_laminar(
-    #             Re=1, end_time=end_time, Ny=Ny, pertubation_factor=0
+    #             Re=1, end_time=end_time, Ny=Ny, perturbation_factor=0
     #         )
     #         nse.solve()
     #         vel_x_fn_ana = (
@@ -1041,17 +1041,17 @@ class TestProject(unittest.TestCase):
         # print(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 
-    def test_pertubation_laminar(self, Ny=48, pertubation_factor=0.01):
+    def test_perturbation_laminar(self, Ny=48, perturbation_factor=0.01):
         Re = 1.5e0
 
         end_time = 1.0
-        nse = solve_navier_stokes_pertubation(
+        nse = solve_navier_stokes_perturbation(
             Re=Re,
             Nx=16,
             Ny=Ny,
             Nz=16,
             end_time=end_time,
-            pertubation_factor=pertubation_factor,
+            perturbation_factor=perturbation_factor,
         )
 
         nse.before_time_step_fn = None
@@ -1070,8 +1070,8 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
-        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
-        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        growth_5500_data = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        growth_6000_data = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
         growth_5500 = []
         growth_6000 = []
         for i in range(3):
@@ -1081,11 +1081,11 @@ class TestProject(unittest.TestCase):
         # print("growth_6000: ", growth_6000)
         self.assertTrue(
             all([growth < 0 for growth in growth_5500]),
-            "Expected pertubations to decay for Re=5500.",
+            "Expected perturbations to decay for Re=5500.",
         )
         self.assertTrue(
             all([growth > 0 for growth in growth_6000]),
-            "Expected pertubations to increase for Re=6000.",
+            "Expected perturbations to increase for Re=6000.",
         )
 
 
@@ -1099,13 +1099,13 @@ class TestProject(unittest.TestCase):
         alpha = 1.02056
 
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=50)
-        nse_rk = solve_navier_stokes_pertubation(
+        nse_rk = solve_navier_stokes_perturbation(
             Re=Re,
             Nx=Nx,
             Ny=Ny,
             Nz=Nz,
             end_time=end_time,
-            pertubation_factor=0.0,
+            perturbation_factor=0.0,
             scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
         )
         nse_rk.set_linearize(linearize)
@@ -1118,13 +1118,13 @@ class TestProject(unittest.TestCase):
         nse_rk.prepare()
         vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
 
-        nse_cnab = solve_navier_stokes_pertubation(
+        nse_cnab = solve_navier_stokes_perturbation(
             Re=Re,
             Nx=Nx,
             Ny=Ny,
             Nz=Nz,
             end_time=end_time,
-            pertubation_factor=0.0,
+            perturbation_factor=0.0,
             scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
         )
         nse_cnab.set_linearize(linearize)

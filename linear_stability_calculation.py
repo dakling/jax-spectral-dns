@@ -285,11 +285,11 @@ class LinearStabilityCalculation:
                 out = np.moveaxis(out, 0, -1)
                 return jnp.array(out.tolist())
 
-            print("calculating velocity pertubations in 3D")
+            print("calculating velocity perturbations in 3D")
             u_field = PhysicalField(domain, to_3d_field(u_vec, component=0), name="velocity_pert_x")
             v_field = PhysicalField(domain, to_3d_field(v_vec, component=1), name="velocity_pert_y")
             w_field = PhysicalField(domain, to_3d_field(w_vec, component=2), name="velocity_pert_z")
-            print("done calculating velocity pertubations in 3D")
+            print("done calculating velocity perturbations in 3D")
 
             if save:
                 u_field.save_to_file(self.make_field_file_name_mode(domain, "u", mode))
@@ -330,11 +330,11 @@ class LinearStabilityCalculation:
             out = factor * phi_mat @ eigenvector
             return jnp.array(out.tolist())
 
-        print("calculating velocity pertubations in 3D")
+        print("calculating velocity perturbations in 3D")
         u_slice = to_slice(u_vec, component=0)
         v_slice = to_slice(v_vec, component=1)
         w_slice = to_slice(w_vec, component=2)
-        print("done calculating velocity pertubations in 3D")
+        print("done calculating velocity perturbations in 3D")
 
         return (u_slice, v_slice, w_slice)
 
@@ -689,7 +689,7 @@ class LinearStabilityCalculation:
 
             if save_final:
                 for i in range(len(u)):
-                    u[i].name = "velocity_pertubation_" + "xyz"[i]
+                    u[i].name = "velocity_perturbation_" + "xyz"[i]
                     u[i].save_to_file(self.make_field_file_name(domain, "uvw"[i]))
 
         return u
