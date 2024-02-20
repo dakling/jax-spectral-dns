@@ -158,9 +158,9 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
                 vel,
                 jnp.array(
                     [
-                        velocity_base_hat[0].field,
-                        velocity_base_hat[1].field,
-                        velocity_base_hat[2].field,
+                        velocity_base_hat[0].data,
+                        velocity_base_hat[1].data,
+                        velocity_base_hat[2].data,
                     ]
                 ),
                 linearize=self.linearize,
@@ -168,6 +168,7 @@ class NavierStokesVelVortPertubation(NavierStokesVelVort):
         )
 
     def get_time_step(self):
+        return self.max_dt
         if self.time_step % self.dt_update_frequency == 0:
             dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
             dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]

@@ -324,13 +324,13 @@ class VectorField:
             field.update_boundary_conditions()
 
     def all_dimensions(self):
-        return self[0].domain.all_dimensions()
+        return self[0].get_domain().all_dimensions()
 
     def all_periodic_dimensions(self):
-        return self[0].domain.all_periodic_dimensions()
+        return self[0].get_domain().all_periodic_dimensions()
 
     def all_nonperiodic_dimensions(self):
-        return self[0].domain.all_nonperiodic_dimensions()
+        return self[0].get_domain().all_nonperiodic_dimensions()
 
     def hat(self):
         return VectorField([f.hat() for f in self])
@@ -388,14 +388,6 @@ class VectorField:
 
     def reconstruct_from_wavenumbers(self,
                                      fn,
-                                     v_1_lap_hat,
-                                     vort_1_hat,
-                                     conv_ns_hat,
-                                     conv_ns_hat_old,
-                                     h_v_hat,
-                                     h_g_hat,
-                                     h_v_hat_old,
-                                     h_g_hat_old,
                                      number_of_other_fields=0):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
 
@@ -407,28 +399,29 @@ class VectorField:
         vectorize = False
 
         if jit:
-            time_1 = time.time()
-            out_field = reconstruct_from_wavenumbers_jit(self[0].domain_no_hat, fn)
-            time_2 = time.time()
+            raise NotImplementedError()
+            # time_1 = time.time()
+            # out_field = reconstruct_from_wavenumbers_jit(self[0].domain_no_hat, fn)
+            # time_2 = time.time()
 
-            out = VectorField(
-                [
-                    FourierField(self[0].domain_no_hat, out_field[i])
-                    for i in self.all_dimensions()
-                ]
-            )
-            time_3 = time.time()
-            print("in reconstr: time for part 1: ", time_2 - time_1)
-            print("in reconstr: time for part 2: ", time_3 - time_2)
-            # out = VectorField(jax.lax.map(lambda i: FourierField(self[0].domain_no_hat, out_field.at[i].get()), jnp.arange(self[0].domain.number_of_dimensions)))
-            return out
+            # out = VectorField(
+            #     [
+            #         FourierField(self[0].domain_no_hat, out_field[i])
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
+            # time_3 = time.time()
+            # print("in reconstr: time for part 1: ", time_2 - time_1)
+            # print("in reconstr: time for part 2: ", time_3 - time_2)
+            # # out = VectorField(jax.lax.map(lambda i: FourierField(self[0].domain_no_hat, out_field.at[i].get()), jnp.arange(self[0].domain.number_of_dimensions)))
+            # return out
         else:
             time_1 = time.time()
             k1s = jnp.array(
-                self[0].domain.grid[self.all_periodic_dimensions()[0]].astype(int)
+                self[0].fourier_domain.grid[self.all_periodic_dimensions()[0]].astype(int)
             )
             k2s = jnp.array(
-                self[0].domain.grid[self.all_periodic_dimensions()[1]].astype(int)
+                self[0].fourier_domain.grid[self.all_periodic_dimensions()[1]].astype(int)
             )
             k1_ints = jnp.arange(len(k1s))
             k2_ints = jnp.arange(len(k2s))
@@ -440,20 +433,11 @@ class VectorField:
                 Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
                 # t1 = time.time()
                 out_array = jnp.array(
-                    [[jit_fn((k1_, k2_),
-                             v_1_lap_hat[k1_,:, k2_],
-                             vort_1_hat[k1_,:, k2_],
-                             [conv_ns_hat[i][k1_,:, k2_] for i in range(3)],
-                             [conv_ns_hat_old[i][k1_,:, k2_] for i in range(3)],
-                             h_v_hat[k1_,:, k2_],
-                             h_g_hat[k1_,:, k2_],
-                             h_v_hat_old[k1_,:, k2_],
-                             h_g_hat_old[k1_,:, k2_],
-                             ) for k2_ in k2_ints] for k1_ in k1_ints]
+                    [[jit_fn((k1_, k2_)) for k2_ in k2_ints] for k1_ in k1_ints]
                 )
                 out_field = [
                     FourierField(
-                        self[0].domain_no_hat,
+                        self[0].physical_domain,
                         jnp.moveaxis(
                             out_array[:, :, i, :],
                             -1,
@@ -468,7 +452,7 @@ class VectorField:
                 for i in range(number_of_other_fields):
                     other_field.append(
                         FourierField(
-                            self[0].domain_no_hat,
+                            self[0].physical_domain,
                             jnp.moveaxis(
                                 out_array[:, :, i + 3, :],
                                 -1,
@@ -484,19 +468,10 @@ class VectorField:
                 K = jnp.array(list(zip(K1.flatten(), K2.flatten())))
                 jit_fn_vec = jax.vmap(jit_fn)
                 Nx, Ny, Nz = len(k1_ints), -1, len(k2_ints)
-                out_array = jnp.array(jit_fn_vec(K,
-                                                 v_1_lap_hat[K[0], K[1]],
-                                                 vort_1_hat[K[0], K[1]],
-                                                 [conv_ns_hat[i][K[0], K[1]] for i in range(3)],
-                                                 [conv_ns_hat_old[i][K[0], K[1]] for i in range(3)],
-                                                 h_v_hat[K[0], K[1]],
-                                                 h_g_hat[K[0], K[1]],
-                                                 h_v_hat_old[K[0], K[1]],
-                                                 h_g_hat_old[K[0], K[1]],
-                                                 ))
+                out_array = jnp.array(jit_fn_vec(K))
                 out_field = [
                     FourierField(
-                        self[0].domain_no_hat,
+                        self[0].physical_domain,
                         jnp.moveaxis(
                             out_array[i, :, :].reshape(Nx, Nz, Ny),
                             -1,
@@ -1494,12 +1469,12 @@ class FourierField(Field):
 
 class FourierFieldSlice(FourierField):
     def __init__(
-        self, domain, non_periodic_direction, field, name="field", *ks, **params
+        self, domain, non_periodic_direction, data, name="field", *ks, **params
     ):
-        self.domain = domain
-        self.domain_no_hat = domain
+        # self.physical_domain = domain
+        self.fourier_domain = domain
         self.non_periodic_direction = non_periodic_direction
-        self.field = field
+        self.data = data
         self.ks_raw = list(ks)
         self.ks = jnp.array(ks)
         self.ks_int = jnp.array(params["ks_int"])
@@ -1522,11 +1497,11 @@ class FourierFieldSlice(FourierField):
 
     def diff(self, direction, order=1):
         if direction in self.all_periodic_dimensions():
-            out_field = (1j * self.ks[direction]) ** order * self.field
+            out_field = (1j * self.ks[direction]) ** order * self.data
         else:
-            out_field = self.domain.diff(self.field, 0, order)
+            out_field = self.physical_domain.diff(self.data, 0, order)
         return FourierFieldSlice(
-            self.domain_no_hat,
+            self.fourier_domain,
             self.non_periodic_direction,
             out_field,
             self.name + "_diff_" + str(order),
@@ -1536,11 +1511,11 @@ class FourierFieldSlice(FourierField):
 
     def integrate(self, direction, order=1, bc_right=None, bc_left=None):
         if direction in self.all_periodic_dimensions():
-            out_field = self.field / (1j * self.ks[direction]) ** order
+            out_field = self.data / (1j * self.ks[direction]) ** order
         else:
-            out_field = self.domain.integrate(self.field, 0, order)
+            out_field = self.physical_domain.integrate(self.data, 0, order)
         return FourierFieldSlice(
-            self.domain_no_hat,
+            self.fourier_domain,
             self.non_periodic_direction,
             out_field,
             self.name + "_int_" + str(order),
@@ -1567,10 +1542,10 @@ class FourierFieldSlice(FourierField):
             k1 = self.ks_int[self.all_periodic_dimensions()[0]]
             k2 = self.ks_int[self.all_periodic_dimensions()[1]]
             mat_inv = mat[k1, k2, :, :]
-        rhs_hat = self.field
+        rhs_hat = self.data
         out_field = mat_inv @ rhs_hat
         out_fourier = FourierFieldSlice(
-            self.domain,
+            self.physical_domain,
             self.non_periodic_direction,
             out_field,
             self.name + "_poisson",
@@ -1581,13 +1556,13 @@ class FourierFieldSlice(FourierField):
 
     def update_boundary_conditions(self):
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
-        self.field = jnp.take(
-            self.field,
-            jnp.arange(len(self.domain.grid[0]))[1:-1],
+        self.data = jnp.take(
+            self.data,
+            jnp.arange(len(self.physical_domain.grid[0]))[1:-1],
             axis=0,
         )
-        self.field = jnp.pad(
-            self.field,
+        self.data = jnp.pad(
+            self.data,
             [(1, 1)],
             mode="constant",
             constant_values=0.0,
@@ -1608,9 +1583,9 @@ class FourierFieldSlice(FourierField):
             except Exception:
                 new_name = "field"
         return FourierFieldSlice(
-            self.domain_no_hat,
+            self.fourier_domain,
             self.non_periodic_direction,
-            self.field + other.data,
+            self.data + other.data,
             new_name,
             *self.ks_raw,
             ks_int=self.ks_int
@@ -1629,9 +1604,9 @@ class FourierFieldSlice(FourierField):
                 except Exception:
                     new_name = "field"
             return FourierFieldSlice(
-                self.domain_no_hat,
+                self.fourier_domain,
                 self.non_periodic_direction,
-                self.field * other.data,
+                self.data * other.data,
                 new_name,
                 *self.ks_raw,
                 ks_int=self.ks_int
@@ -1652,9 +1627,9 @@ class FourierFieldSlice(FourierField):
                 except Exception:
                     new_name = "field"
             return FourierFieldSlice(
-                self.domain_no_hat,
+                self.fourier_domain,
                 self.non_periodic_direction,
-                self.field * other,
+                self.data * other,
                 new_name,
                 *self.ks_raw,
                 ks_int=self.ks_int
@@ -1682,14 +1657,14 @@ class FourierFieldSlice(FourierField):
                 except Exception:
                     new_name = "field"
             return FourierFieldSlice(
-                self.domain_no_hat,
+                self.fourier_domain,
                 self.non_periodic_direction,
-                self.field / other,
+                self.data / other,
                 new_name,
                 *self.ks_raw,
                 ks_int=self.ks_int
             )
 
     def shift(self, value):
-        out_field = self.field + value
-        return FourierField(self.domain_no_hat, out_field, name=self.name)
+        out_field = self.data + value
+        return FourierField(self.fourier_domain, out_field, name=self.name)

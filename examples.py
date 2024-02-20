@@ -508,7 +508,7 @@ def run_pseudo_2d_pertubation(
         U = lsc.velocity_field(nse.domain_no_hat)
     else:
         # U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)]).normalize()
-        U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)])
+        U = VectorField([PhysicalField(nse.domain_no_hat, v0[i]) for i in range(3)])
         print(U[0].energy())
 
     U_hat = U.hat()
@@ -1014,7 +1014,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     #     save_modes=False,
     #     save_final=True,
     # )
-    v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[0]**2) + 0*X[2]),
+    v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[1]**2) + 0*X[2]),
                         PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
                         PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
                         ])
@@ -1023,13 +1023,15 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     def run_case(v0):
 
         v0_ = v0.reshape((3, Nx, Ny, Nz))
-        U = VectorField([Field(domain, v0_[i,...]) for i in range(3)])
+        U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
         # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-        # U = VectorField([Field(domain, v0[i]) for i in range(3)])
+        # U = VectorField([PhysicalField(domain, v0[i]) for i in range(3)])
         eps = 1e-5
         eps_ = eps / jnp.sqrt(U.energy())
+        U_norm = U * eps_
+        U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
 
-        nse = NavierStokesVelVortPertubation.FromVelocityField(U*eps_, Re)
+        nse = NavierStokesVelVortPertubation.FromVelocityField(U_norm, Re)
         nse.max_dt = end_time
         nse.end_time = end_time
 
@@ -1074,7 +1076,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
     def callback(intermediate_result=None):
         global n_iter
-        vel_opt = VectorField([Field(domain, intermediate_result.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+        vel_opt = VectorField([PhysicalField(domain, intermediate_result.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
         vel_opt.set_time_step(n_iter)
         vel_opt.plot_3d(2)
         n_iter += 1
@@ -1089,7 +1091,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         callback=callback
     )
 
-    vel_opt = VectorField([Field(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    vel_opt = VectorField([PhysicalField(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
     vel_opt.plot_3d(2)
 
     # v0s = [[v0_0[i].field for i in range(3)]]

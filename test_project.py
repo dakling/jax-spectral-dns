@@ -14,7 +14,7 @@ try:
 except:
     if hasattr(sys, 'ps1'):
         print("Unable to load Domain")
-from domain import Domain
+from domain import PhysicalDomain
 
 try:
     reload(sys.modules["field"])
@@ -897,7 +897,7 @@ class TestProject(unittest.TestCase):
             )
             out = rhs_hat_slice.solve_poisson(mat)
             # out = rhs_hat_slice.solve_poisson()
-            return out.field
+            return out.data
 
         # start_time = time.time()
         out_hat = rhs_hat.reconstruct_from_wavenumbers(

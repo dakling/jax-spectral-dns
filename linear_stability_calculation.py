@@ -25,14 +25,14 @@ try:
 except:
     if hasattr(sys, "ps1"):
         pass
-from domain import Domain
+from domain import PhysicalDomain
 
 try:
     reload(sys.modules["field"])
 except:
     if hasattr(sys, "ps1"):
         pass
-from field import Field, VectorField
+from field import PhysicalField, VectorField
 
 try:
     reload(sys.modules["equation"])
@@ -49,7 +49,7 @@ class LinearStabilityCalculation:
         self.Re = Re
         self.alpha = alpha
         self.beta = beta
-        # self.n = int(n * Domain.aliasing)  # chebychev resolution
+        # self.n = int(n * PhysicalDomain.aliasing)  # chebychev resolution
         self.n = n  # chebychev resolution
 
         self.A = None
@@ -61,7 +61,7 @@ class LinearStabilityCalculation:
         self.growth = []
 
         # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
-        domain = Domain((n,), (False,))
+        domain = PhysicalDomain((n,), (False,))
         self.ys = domain.grid[0]
 
         self.velocity_field_ = None
@@ -236,17 +236,17 @@ class LinearStabilityCalculation:
         recompute_partial = recompute_partial or recompute_full
         try:
             if recompute_partial == False:
-                u_field = Field.FromFile(
+                u_field = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "u", mode),
                     name="velocity_pert_x",
                 )
-                v_field = Field.FromFile(
+                v_field = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "v", mode),
                     name="velocity_pert_y",
                 )
-                w_field = Field.FromFile(
+                w_field = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "w", mode),
                     name="velocity_pert_z",
@@ -286,9 +286,9 @@ class LinearStabilityCalculation:
                 return jnp.array(out.tolist())
 
             print("calculating velocity pertubations in 3D")
-            u_field = Field(domain, to_3d_field(u_vec, component=0), name="velocity_pert_x")
-            v_field = Field(domain, to_3d_field(v_vec, component=1), name="velocity_pert_y")
-            w_field = Field(domain, to_3d_field(w_vec, component=2), name="velocity_pert_z")
+            u_field = PhysicalField(domain, to_3d_field(u_vec, component=0), name="velocity_pert_x")
+            v_field = PhysicalField(domain, to_3d_field(v_vec, component=1), name="velocity_pert_y")
+            w_field = PhysicalField(domain, to_3d_field(w_vec, component=2), name="velocity_pert_z")
             print("done calculating velocity pertubations in 3D")
 
             if save:
@@ -341,17 +341,17 @@ class LinearStabilityCalculation:
     def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_) == NoneType:
             try:
-                u = Field.FromFile(
+                u = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "u", mode),
                     name="velocity_pert_x",
                 )
-                v = Field.FromFile(
+                v = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "v", mode),
                     name="velocity_pert_y",
                 )
-                w = Field.FromFile(
+                w = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name_mode(domain, "w", mode),
                     name="velocity_pert_z",
@@ -503,17 +503,17 @@ class LinearStabilityCalculation:
 
         try:
             if recompute_partial is False:
-                u_ = Field.FromFile(
+                u_ = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name(domain, "u"),
                     name="velocity_pert_x",
                 )
-                v_ = Field.FromFile(
+                v_ = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name(domain, "v"),
                     name="velocity_pert_y",
                 )
-                w_ = Field.FromFile(
+                w_ = PhysicalField.FromFile(
                     domain,
                     self.make_field_file_name(domain, "w"),
                     name="velocity_pert_z",
