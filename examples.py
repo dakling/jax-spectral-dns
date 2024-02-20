@@ -987,52 +987,51 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 64
-    Ny = 90
-    Nz = 12
+    Nx = 2
+    Ny = 50
+    Nz = 2
     # Nx = 48
     # Ny = 64
     # Nz = 12
     end_time = T
     # number_of_modes = 100
-    # number_of_modes = 50
+    number_of_modes = 50
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
 
-    # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
     domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
 
-    # v0_0 = lsc.calculate_transient_growth_initial_condition(
-    #     nse.domain_no_hat,
-    #     T,
-    #     number_of_modes,
-    #     # recompute_full=False,
-    #     recompute_full=True,
-    #     # recompute_partial=False,
-    #     recompute_partial=True,
-    #     save_modes=False,
-    #     save_final=True,
-    # )
-    v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[1]**2) + 0*X[2]),
-                        PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-                        PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-                        ])
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        number_of_modes,
+        # recompute_full=False,
+        recompute_full=True,
+        # recompute_partial=False,
+        recompute_partial=True,
+        save_modes=False,
+        save_final=True,
+    )
+    # v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[1]**2) + 0*X[2]),
+    #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    #                     ])
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
     def run_case(v0):
 
-        v0_ = v0.reshape((3, Nx, Ny, Nz))
-        U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
+        # v0_ = v0.reshape((3, Nx, Ny, Nz))
+        # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
         # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-        # U = VectorField([PhysicalField(domain, v0[i]) for i in range(3)])
+        U = VectorField([PhysicalField(domain, v0[i]) for i in range(3)])
         eps = 1e-5
         eps_ = eps / jnp.sqrt(U.energy())
         U_norm = U * eps_
         U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
-        nse.max_dt = end_time
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1045,12 +1044,9 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
 
-        # gain = vel.energy() / vel_0.energy()
-        # print("gain", gain)
-        gain = vel.energy()
-        print("gain", gain)
-        # return gain
-        return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
+        gain = vel.energy() / vel_0.energy()
+        return gain
+        # return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     # res = jaxopt.minimize(
     #     fun=run_case,
@@ -1061,8 +1057,8 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     #     options = {'maxiter': 2},
     #     )
     # adapted from Joe's code
-    maxiter = 1000
-    tol = 1e-10
+    # maxiter = 1000
+    # tol = 1e-10
     # solver = jaxopt.ScipyMinimize(
     #     fun=run_case,
     #     method='L-BFGS-B',
@@ -1074,40 +1070,40 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     # )
     # params, state = solver.run(v0_0.get_fields().flatten())
 
-    def callback(intermediate_result=None):
-        global n_iter
-        vel_opt = VectorField([PhysicalField(domain, intermediate_result.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
-        vel_opt.set_time_step(n_iter)
-        vel_opt.plot_3d(2)
-        n_iter += 1
+    # def callback(intermediate_result=None):
+    #     global n_iter
+    #     vel_opt = VectorField([PhysicalField(domain, intermediate_result.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    #     vel_opt.set_time_step(n_iter)
+    #     vel_opt.plot_3d(2)
+    #     n_iter += 1
 
-    res = sciopt.minimize(
-        fun=jax.value_and_grad(run_case),
-        x0=v0_0.get_fields().flatten(),
-        jac=True,
-        method='L-BFGS-B',
-        # method='CG',
-        tol=tol,
-        callback=callback
-    )
+    # res = sciopt.minimize(
+    #     fun=jax.value_and_grad(run_case),
+    #     x0=v0_0.get_fields().flatten(),
+    #     jac=True,
+    #     method='L-BFGS-B',
+    #     # method='CG',
+    #     tol=tol,
+    #     callback=callback
+    # )
 
-    vel_opt = VectorField([PhysicalField(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
-    vel_opt.plot_3d(2)
+    # vel_opt = VectorField([PhysicalField(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    # vel_opt.plot_3d(2)
 
-    # v0s = [[v0_0[i].field for i in range(3)]]
-    # step_size = 1e-3
-    # for i in jnp.arange(10):
-    #     gain, corr = jax.value_and_grad(run_case)(v0s[-1])
-    #     corr_arr = jnp.array(corr)
-    #     corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
-    #     print("gain: " + str(gain))
-    #     eps = step_size
+    v0s = [[v0_0[i].data for i in range(3)]]
+    step_size = 1e-1
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+        corr_arr = jnp.array(corr)
+        corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
+        print("gain: " + str(gain))
+        eps = step_size
 
-    #     # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
-    #     v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
-    #     v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
-    #     v0_new.set_name("vel_0_" + str(i))
-    #     v0_new.plot_3d(2)
+        # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+        v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
+        v0_new = VectorField([PhysicalField(v0_0[j].physical_domain, v0s[-1][j]) for j in range(3)])
+        v0_new.set_name("vel_0_" + str(i))
+        v0_new.plot_3d(2)
 
 
 
