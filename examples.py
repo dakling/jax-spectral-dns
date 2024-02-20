@@ -2,7 +2,8 @@
 
 import jax
 # import jax.scipy.optimize as jaxopt
-import jaxopt
+# import jaxopt
+import scipy.optimize as sciopt
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
@@ -962,6 +963,8 @@ def run_optimization_pseudo_2d_pertubation():
         v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)
 
+n_iter = 0
+
 def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     Re = float(Re)
     T = float(T)
@@ -1041,19 +1044,35 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     # adapted from Joe's code
     maxiter = 1000
     tol = 1e-10
-    solver = jaxopt.ScipyMinimize(
-        fun=run_case,
-        method='L-BFGS-B',
-        tol=tol,
-        # jit=True, # TODO
-        jit=False,
-        maxiter = maxiter,
-        # callback=callback
-    )
-    params, state = solver.run(v0_0.get_fields().flatten())
-    print(state)
+    # solver = jaxopt.ScipyMinimize(
+    #     fun=run_case,
+    #     method='L-BFGS-B',
+    #     tol=tol,
+    #     # jit=True, # TODO
+    #     jit=False,
+    #     maxiter = maxiter,
+    #     # callback=callback
+    # )
+    # params, state = solver.run(v0_0.get_fields().flatten())
 
-    vel_opt = VectorField([Field(domain, params.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    def callback(intermediate_result=None):
+        global n_iter
+        vel_opt = VectorField([Field(domain, intermediate_result.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+        vel_opt.set_time_step(n_iter)
+        vel_opt.plot_3d(2)
+        n_iter += 1
+
+    res = sciopt.minimize(
+        fun=jax.value_and_grad(run_case),
+        x0=v0_0.get_fields().flatten(),
+        jac=True,
+        method='L-BFGS-B',
+        # method='CG',
+        tol=tol,
+        callback=callback
+    )
+
+    vel_opt = VectorField([Field(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
     vel_opt.plot_3d(2)
 
     # v0s = [[v0_0[i].field for i in range(3)]]
