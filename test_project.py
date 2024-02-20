@@ -1070,8 +1070,8 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
-        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.5, eps=1e-1, linearize=True)
-        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=1.5, eps=1e-1, linearize=True)
+        growth_5500_data = run_pseudo_2d_pertubation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        growth_6000_data = run_pseudo_2d_pertubation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
         growth_5500 = []
         growth_6000 = []
         for i in range(3):
