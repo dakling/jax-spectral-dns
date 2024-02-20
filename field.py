@@ -12,7 +12,7 @@ from matplotlib import colors
 import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator
 import functools
-from typing import Self, Union
+from typing import Union
 
 import numpy as np
 
@@ -153,7 +153,7 @@ class Field(ABC):
         return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(direction)
 
     @abstractmethod
-    def diff(self, direction: int, order: int=1) -> Self:
+    def diff(self, direction: int, order: int=1) -> Field:
         ...
 
     def nabla(self):
@@ -165,8 +165,8 @@ class Field(ABC):
             out[dim].time_step = self.time_step
         return VectorField(out)
 
-    def laplacian(self) -> Self:
-        out: Self = self.diff(0, 2)
+    def laplacian(self) -> Field:
+        out: Field = self.diff(0, 2)
         for dim in self.all_dimensions()[1:]:
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
@@ -568,7 +568,7 @@ class PhysicalField(Field):
         out_field = self.data + value
         return PhysicalField(self.physical_domain, out_field, name=self.name)
 
-    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def __add__(self, other: Union[PhysicalField, jnp.ndarray]) -> PhysicalField:
         assert not isinstance(
             other, FourierField
         ), "Attempted to add a Field and a Fourier Field."
@@ -583,13 +583,13 @@ class PhysicalField(Field):
         ret.time_step = self.time_step
         return ret
 
-    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def __sub__(self, other: Union[PhysicalField, jnp.ndarray]) -> PhysicalField:
         assert not isinstance(
             other, FourierField
         ), "Attempted to subtract a Field and a Fourier Field."
         return self + other * (-1.0)
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __mul__(self, other: Union[PhysicalField, jnp.ndarray, float]) -> PhysicalField:
         if isinstance(other, FourierField):
             raise Exception("Attempted to multiply physical field and Fourier field")
         elif isinstance(other, Field):
@@ -625,7 +625,7 @@ class PhysicalField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __truediv__(self, other: Union[PhysicalField, jnp.ndarray, float]) -> PhysicalField:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
@@ -1261,7 +1261,7 @@ class FourierField(Field):
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 
-    def __add__(self, other: Union[Self, ]):
+    def __add__(self, other: Union[FourierField, ]):
         assert isinstance(
             other, FourierField
         ), "Attempted to add a Fourier Field and a Field."
