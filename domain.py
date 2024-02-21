@@ -10,7 +10,7 @@ from matplotlib import legend
 from numpy import float128
 import scipy as sc
 import functools
-from typing import Tuple, Union, Sequence
+from typing import Tuple, Union, Sequence, List
 
 
 import numpy as np
@@ -28,12 +28,13 @@ class Domain(ABC):
     aliasing = 1 # no antialiasing (requires finer resolution)
 
     # @functools.partial(jax.jit, static_argnums=(0, 1))
-    def __init__(self, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[Sequence[jnp.float64], NoneType]=None):
+    def __init__(self, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType]=None):
         self.number_of_dimensions = len(shape)
         self.periodic_directions = periodic_directions
         if type(scale_factors) == NoneType:
-            self.scale_factors = []
+            self.scale_factors: Union[List[jnp.float64], Tuple[jnp.float64]] = []
         else:
+            assert isinstance(scale_factors, List) or isinstance(scale_factors, Tuple)
             self.scale_factors = scale_factors
         self.shape = shape
         self.grid = []

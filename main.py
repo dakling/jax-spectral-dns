@@ -6,28 +6,28 @@ warnings.filterwarnings('ignore')
 
 jax.config.update("jax_enable_x64", True)
 
-from importlib import reload
+# from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["heat_eq"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load heat_eq")
+# try:
+#     reload(sys.modules["heat_eq"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load heat_eq")
 from heat_eq import optimize_heat_eq_1D, solve_heat_eq_1D
 
-try:
-    reload(sys.modules["test_project"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load test_project")
+# try:
+#     reload(sys.modules["test_project"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load test_project")
 from test_project import TestProject
 
-try:
-    reload(sys.modules["examples"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load examples")
+# try:
+#     reload(sys.modules["examples"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load examples")
 from examples import *
 
 

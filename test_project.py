@@ -4,58 +4,58 @@ import unittest
 import jax
 import jax.numpy as jnp
 
-from importlib import reload
+# from importlib import reload
 import sys
 
 jax.config.update("jax_enable_x64", True)
 
-try:
-    reload(sys.modules["domain"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load Domain")
+# try:
+#     reload(sys.modules["domain"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load Domain")
 from domain import PhysicalDomain
 
-try:
-    reload(sys.modules["field"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load Field")
+# try:
+#     reload(sys.modules["field"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load Field")
 from field import PhysicalField, FourierFieldSlice, VectorField
 
-try:
-    reload(sys.modules["equation"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load equation")
+# try:
+#     reload(sys.modules["equation"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load equation")
 from equation import Equation
 
-try:
-    reload(sys.modules["navier_stokes"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load Navier Stokes")
+# try:
+#     reload(sys.modules["navier_stokes"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
-try:
-    reload(sys.modules["navier_stokes_perturbation"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load navier-stokes-perturbation")
+# try:
+#     reload(sys.modules["navier_stokes_perturbation"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load navier-stokes-perturbation")
 from navier_stokes_perturbation import solve_navier_stokes_perturbation
 
-try:
-    reload(sys.modules["linear_stability_calculation"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load linear stability")
+# try:
+#     reload(sys.modules["linear_stability_calculation"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
-try:
-    reload(sys.modules["examples"])
-except:
-    if hasattr(sys, 'ps1'):
-        print("Unable to load examples")
+# try:
+#     reload(sys.modules["examples"])
+# except:
+#     if hasattr(sys, 'ps1'):
+#         print("Unable to load examples")
 from examples import run_pseudo_2d_perturbation
 
 NoneType = type(None)

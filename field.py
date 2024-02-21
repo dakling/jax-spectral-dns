@@ -21,11 +21,11 @@ import numpy as np
 from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["domain"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load")
+# try:
+#     reload(sys.modules["domain"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load")
 from domain import Domain, PhysicalDomain, FourierDomain
 
 NoneType = type(None)
@@ -46,6 +46,10 @@ class Field(ABC):
     @abstractmethod
     def get_domain(self) -> Domain:
         ...
+
+    # @abstractmethod
+    # def __add__(self, other: Union[Field, jnp.ndarray]) -> Field:
+    #     ...
 
     def save_to_file(self, filename):
         """Save field to file filename."""
@@ -170,6 +174,7 @@ class Field(ABC):
     def laplacian(self) -> Field:
         out: Field = self.diff(0, 2)
         for dim in self.all_dimensions()[1:]:
+            assert isinstance(out, Field)
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
         out.time_step = self.time_step
@@ -574,14 +579,21 @@ class PhysicalField(Field):
         assert not isinstance(
             other, FourierField
         ), "Attempted to add a Field and a Fourier Field."
-        if self.performance_mode:
-            new_name = ""
-        else:
-            if other.name[0] == "-":
-                new_name = self.name + " - " + other.name[1:]
+        if isinstance(other, PhysicalField):
+        # if True: # TODO
+            if self.performance_mode:
+                new_name = ""
             else:
-                new_name = self.name + " + " + other.name
-        ret = PhysicalField(self.physical_domain, self.data + other.data, name=new_name)
+                assert isinstance(other, PhysicalField)
+                if other.name[0] == "-":
+                    new_name = self.name + " - " + other.name[1:]
+                else:
+                    new_name = self.name + " + " + other.name
+            ret = PhysicalField(self.physical_domain, self.data + other.data, name=new_name)
+        else:
+            print(type(other))
+            assert isinstance(other, jnp.ndarray)
+            ret = PhysicalField(self.physical_domain, self.data + other, name="field")
         ret.time_step = self.time_step
         return ret
 
@@ -631,20 +643,7 @@ class PhysicalField(Field):
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            if self.performance_mode:
-                new_name = ""
-            else:
-                try:
-                    if other.real >= 0:
-                        new_name = self.name + "/" + other
-                    elif other == 1:
-                        new_name = self.name
-                    elif other == -1:
-                        new_name = "-" + self.name
-                    else:
-                        new_name = self.name + "/ (" + str(other) + ") "
-                except Exception:
-                    new_name = "field"
+            new_name = "field"
             ret = PhysicalField(self.physical_domain, self.data * other, name=new_name)
             ret.time_step = self.time_step
             return ret

@@ -10,49 +10,49 @@ from pathlib import Path
 import matplotlib.figure as figure
 from functools import partial
 
-from importlib import reload
+# from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["domain"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load Domain")
+# try:
+#     reload(sys.modules["domain"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load Domain")
 from domain import PhysicalDomain
 
-try:
-    reload(sys.modules["field"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load Field")
+# try:
+#     reload(sys.modules["field"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load Field")
 from field import PhysicalField, FourierFieldSlice, VectorField
 
-try:
-    reload(sys.modules["equation"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load Equation")
+# try:
+#     reload(sys.modules["equation"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load Equation")
 from equation import Equation
 
-try:
-    reload(sys.modules["navier_stokes"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load Navier Stokes")
+# try:
+#     reload(sys.modules["navier_stokes"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load Navier Stokes")
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 
-try:
-    reload(sys.modules["navier_stokes_perturbation"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load navier-stokes-perturbation")
+# try:
+#     reload(sys.modules["navier_stokes_perturbation"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load navier-stokes-perturbation")
 from navier_stokes_perturbation import NavierStokesVelVortPerturbation, solve_navier_stokes_perturbation
 
-try:
-    reload(sys.modules["linear_stability_calculation"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load linear stability")
+# try:
+#     reload(sys.modules["linear_stability_calculation"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
 NoneType = type(None)
@@ -498,7 +498,7 @@ def run_pseudo_2d_perturbation(
         Nz=Nz,
         end_time=end_time,
         perturbation_factor=0.0,
-        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6)
     )
 
     nse.set_linearize(linearize)
@@ -996,7 +996,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     end_time = T
     # number_of_modes = 100
     number_of_modes = 50
-    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
+    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-6)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
@@ -1018,6 +1018,9 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
     #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
     #                     ])
+    eps = 1e-5
+    eps_ = eps / v0_0.energy()
+    v0_0_norm = v0_0 * eps_
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
     def run_case(v0):
@@ -1027,7 +1030,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         U = VectorField([PhysicalField(domain, v0[i]) for i in range(3)])
         eps = 1e-5
-        eps_ = eps / jnp.sqrt(U.energy())
+        eps_ = eps / U.energy()
         U_norm = U * eps_
         U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
 
@@ -1090,8 +1093,8 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     # vel_opt = VectorField([PhysicalField(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
     # vel_opt.plot_3d(2)
 
-    v0s = [[v0_0[i].data for i in range(3)]]
-    step_size = 1e-1
+    v0s = [[v0_0_norm[i].data for i in range(3)]]
+    step_size = 1e-2
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run_case)(v0s[-1])
         corr_arr = jnp.array(corr)
@@ -1101,9 +1104,101 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
         # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
         v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
-        v0_new = VectorField([PhysicalField(v0_0[j].physical_domain, v0s[-1][j]) for j in range(3)])
+        v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, v0s[-1][j]) for j in range(3)])
         v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)
+        v0_new.save_to_file("vel_0_" + str(i))
+
+
+def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+
+    Equation.initialize()
+    Nx = 2
+    Ny = 50
+    Nz = 2
+    # Nx = 48
+    # Ny = 64
+    # Nz = 12
+    end_time = T
+    number_of_modes = 80
+    # number_of_modes = 10
+    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-6)
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    # HACK
+    domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+
+    _, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+    coeffs = V[:, 0]
+    # coeffs = jnp.ones((number_of_modes))
+
+    # v0_0 = lsc.calculate_transient_growth_initial_condition_from_coefficients(
+    #     domain,
+    #     coeffs
+    # )
+    # # v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[1]**2) + 0*X[2]),
+    # #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    # #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    # #                     ])
+    # eps = 1e-5
+    # eps_ = eps / v0_0.energy()
+    # v0_0_norm = v0_0 * eps_
+
+    # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
+    def run_case(coeffs_):
+
+        U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
+            domain,
+            coeffs_,
+            save=False,
+            recompute=False
+        )
+        # v0_ = v0.reshape((3, Nx, Ny, Nz))
+        # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
+        # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        eps = 1e-5
+        eps_ = eps / U.energy()
+        U_norm = U * eps_
+        U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
+        nse.end_time = end_time
+
+        # nse.set_linearize(False)
+        nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.before_time_step_fn = None
+        nse.after_time_step_fn = None
+
+        gain = vel.energy() / vel_0.energy()
+        return gain
+        # return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
+
+    coeffs_list = [coeffs]
+    step_size = 1e-1
+    print(coeffs_list[-1])
+    for i in jnp.arange(10):
+        gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
+        corr_arr = jnp.array(corr)
+        print("gain: " + str(gain))
+        eps = step_size
+
+        coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr # TODO + or - ?
+        print(coeffs_list[-1])
+        coeff_array = np.array(coeffs_list[-1].tolist())
+        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+        # v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, coeffs_list[-1][j]) for j in range(3)])
+        # v0_new.set_name("vel_0_" + str(i))
+        # v0_new.plot_3d(2)
+        # v0_new.save_to_file("vel_0_" + str(i))
 
 
 

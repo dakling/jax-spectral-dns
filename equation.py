@@ -13,10 +13,10 @@ import os
 from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["field"])
-except:
-    print("Unable to load Field")
+# try:
+#     reload(sys.modules["field"])
+# except:
+#     print("Unable to load Field")
 from field import Field
 
 

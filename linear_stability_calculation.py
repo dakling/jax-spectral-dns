@@ -10,35 +10,35 @@ import scipy
 import matplotlib.pyplot as plt
 import timeit
 
-from importlib import reload
+# from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["cheb"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["cheb"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from cheb import cheb, phi, phi_s, phi_a, phi_pressure
 
-try:
-    reload(sys.modules["domain"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["domain"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from domain import PhysicalDomain
 
-try:
-    reload(sys.modules["field"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["field"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from field import PhysicalField, VectorField
 
-try:
-    reload(sys.modules["equation"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["equation"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from equation import Equation
 
 NoneType = type(None)
@@ -260,30 +260,33 @@ class LinearStabilityCalculation:
 
             evec = self.eigenvectors[mode]
 
-            u_vec, v_vec, w_vec, _ = np.split(evec, 4)
+            u_vec, v_vec, w_vec, _ = jnp.split(evec, 4)
 
             N_domain = domain.number_of_cells(1)
             ys = domain.grid[1]
             def to_3d_field(eigenvector, component=0):
                 if abs(self.beta) > 1e-25:
                     raise Exception("Spanwise dependency not implemented yet.")
-                phi_mat = np.zeros((N_domain, self.n), dtype=np.complex64)
+                phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.complex64)
                 for i in range(N_domain):
                     for k in range(self.n):
                         if self.symm:
-                            phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                            # phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                            phi_mat = phi_mat.at[i, k].set([phi_a, phi_s, phi_a][component](k, 0, ys[i]))
                         else:
-                            phi_mat[i, k] = phi(k, 0, ys[i])
-                out = (factor * np.outer(
-                    np.exp(
+                            phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+                            # phi_mat[i, k] = phi(k, 0, ys[i])
+                out = (factor * jnp.outer(
+                    jnp.exp(
                         # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
                         1j * (self.alpha * domain.grid[0])
                     ),
                     phi_mat @ eigenvector,
                 )).real
-                out = np.tile(out, (len(domain.grid[2]), 1, 1))
-                out = np.moveaxis(out, 0, -1)
-                return jnp.array(out.tolist())
+                out = jnp.tile(out, (len(domain.grid[2]), 1, 1))
+                out = jnp.moveaxis(out, 0, -1)
+                # return jnp.array(out.tolist())
+                return out
 
             print("calculating velocity perturbations in 3D")
             u_field = PhysicalField(domain, to_3d_field(u_vec, component=0), name="velocity_pert_x")
@@ -471,17 +474,67 @@ class LinearStabilityCalculation:
             self.U = U
             self.V = V
 
-        factors = V[:,0]
-        out = U[:,0]
-        print("test:", jnp.linalg.norm(mat @ factors - S[0] * out) / jnp.linalg.norm(S[0] * out))
-        # TODO plot both initial (V) and final (U) velocity fields, compare energies
-        return (S, U)
+        return (S, V)
 
     def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
         S, _ = self.calculate_transient_growth_svd(
             domain, T, number_of_modes, save=False
         )
         return S[0] ** 2
+
+    def calculate_transient_growth_initial_condition_from_coefficients(
+            self,
+            domain,
+            coeffs,
+            save=False,
+            recompute=True
+    ):
+        """Calcluate the initial condition that achieves maximum growth at time
+        T. Uses cached values for velocity fields and eigenvalues/-vectors,
+        however, recompute_partial=True forces recomputation of the velocity
+        fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
+        recomputation of eigenvalues/eigenvectors as well as velocity fields."""
+
+
+        factors = coeffs
+        u_0 = self.velocity_field(
+            domain,
+            0,
+            save=save,
+            recompute_full=recompute,
+            recompute_partial=True,
+            factor=factors[0]
+        )
+        u = u_0
+
+
+        i = 1
+        number_of_modes = len(coeffs)
+        for mode in range(1, number_of_modes):
+
+            factor = factors[mode]
+            if abs(factor) > 1e-8:
+            # if True:
+                i += 1
+                # print("mode", mode, "of", number_of_modes, "factor:", factor)
+                print("mode", mode, "of", number_of_modes)
+                u_inc = self.velocity_field(
+                    domain,
+                    mode,
+                    save=save,
+                    recompute_full=False, # no need to recompute eigenvalues and eigenvectors
+                    recompute_partial=True,
+                    factor=factors[mode]
+                )
+                u += u_inc
+            else:
+                print("mode ", mode, " of ", number_of_modes, "(negligble, skipping)")
+
+
+        print("modes used:", i)
+        print("energy of initial field:", u.energy())
+
+        return u
 
     def calculate_transient_growth_initial_condition(
         self,
@@ -523,7 +576,7 @@ class LinearStabilityCalculation:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
             if recompute_full or type(self.V) == NoneType:
-                _, self.U = self.calculate_transient_growth_svd(
+                _, self.V = self.calculate_transient_growth_svd(
                     domain, T, number_of_modes, save=True, recompute=recompute_full
                 )
             U = self.U
@@ -533,6 +586,8 @@ class LinearStabilityCalculation:
             print("expected energy growth: ", self.S[0]**2)
 
             factors = V[:,0]
+            # TODO use calculate_transient_growth_initial_condition_from_coefficients
+
             # final_factors = U[:,0] * self.S[0]
             # u_0_slice, v_0_slice, w_0_slice = self.velocity_field_y_slice(
             #     domain,

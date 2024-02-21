@@ -5,35 +5,35 @@ import jax
 import jax.numpy as jnp
 from functools import partial
 
-from importlib import reload
+# from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["domain"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["domain"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from domain import PhysicalDomain
 
-try:
-    reload(sys.modules["field"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["field"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 
-try:
-    reload(sys.modules["equation"])
-except:
-    if hasattr(sys, "ps1"):
-        pass
+# try:
+#     reload(sys.modules["equation"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         pass
 from equation import Equation
 
-try:
-    reload(sys.modules["linear_stability_calculation"])
-except:
-    if hasattr(sys, "ps1"):
-        print("Unable to load linear stability")
+# try:
+#     reload(sys.modules["linear_stability_calculation"])
+# except:
+#     if hasattr(sys, "ps1"):
+#         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
 
@@ -578,7 +578,7 @@ class NavierStokesVelVort(Equation):
                     new_state = jax.lax.fori_loop(0,
                                                   shape[2],
                                                   inner_body_fn,
-                                                  (kx, *state)
+                                                  (kx, *state) # TODO only pass state[kx]?
                                                   )
                     return new_state[1:]
 
@@ -608,6 +608,20 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_old,
                 h_g_hat_old,
             )
+            def get_new_vel_field_map(kx,
+                                      kz,
+                                      v_1_lap_hat_,
+                                      vort_hat_1,
+                                      conv_ns_hat_,
+                                      conv_ns_hat_old_,
+                                      h_v_hat_,
+                                      h_g_hat_,
+                                      h_v_hat_old_,
+                                      h_g_hat_old_,
+                                      ):
+                def ret(vel_vec):
+
+
             vel_new_hat = VectorField(
                 [
                     FourierField(self.physical_domain, vel_new_hat_field[i])
