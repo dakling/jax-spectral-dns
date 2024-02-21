@@ -728,10 +728,10 @@ class PhysicalField(Field):
         return int
 
     def energy(self):
-        # energy = 0.5 * self * self
-        energy = 0.5 * PhysicalField(
-            self.physical_domain, self.data * self.data, name="energy"
-        )  # TODO why does the above not work?
+        energy = 0.5 * self * self
+        # energy = 0.5 * PhysicalField(
+        #     self.physical_domain, self.data * self.data, name="energy"
+        # )  # TODO why does the above not work? -> should be related to reloading
         domain_volume = 2.0 ** (
             len(self.all_nonperiodic_dimensions()) - 1
         ) * jnp.prod(

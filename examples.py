@@ -485,6 +485,8 @@ def run_pseudo_2d_perturbation(
     v0=None,
 ):
     Re = float(Re)
+    alpha = float(alpha)
+    end_time = float(end_time)
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
@@ -750,9 +752,9 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     eps = 1e-5
 
 
-    Nx = 50
-    Ny = 90
-    Nz = 24
+    Nx = 4
+    Ny = 24
+    Nz = 2
     end_time = 1.01 * T
     # number_of_modes = 4*Ny
     number_of_modes = 100
@@ -1124,7 +1126,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     # Ny = 64
     # Nz = 12
     end_time = T
-    number_of_modes = 80
+    number_of_modes = 60
     # number_of_modes = 10
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-6)
 
@@ -1163,7 +1165,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         eps = 1e-5
         eps_ = eps / U.energy()
         U_norm = U * eps_
-        U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
+        # U_norm.update_boundary_conditions()
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
         nse.end_time = end_time
@@ -1179,26 +1181,47 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         nse.after_time_step_fn = None
 
         gain = vel.energy() / vel_0.energy()
-        return gain
-        # return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
+        # return gain
+        print("gain:", gain)
+        return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
-    coeffs_list = [coeffs]
-    step_size = 1e-1
-    print(coeffs_list[-1])
-    for i in jnp.arange(10):
-        gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
-        corr_arr = jnp.array(corr)
-        print("gain: " + str(gain))
-        eps = step_size
+    # coeffs_list = [coeffs]
+    # step_size = 5e-1
+    # print(coeffs_list[-1])
+    # number_of_steps = 1000
+    # for i in jnp.arange(number_of_steps):
+    #     gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
+    #     corr_arr = jnp.array(corr)
+    #     print("gain: " + str(gain))
+    #     eps = step_size
 
-        coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr # TODO + or - ?
-        print(coeffs_list[-1])
-        coeff_array = np.array(coeffs_list[-1].tolist())
-        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
-        # v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, coeffs_list[-1][j]) for j in range(3)])
-        # v0_new.set_name("vel_0_" + str(i))
-        # v0_new.plot_3d(2)
-        # v0_new.save_to_file("vel_0_" + str(i))
+    #     coeffs_list[-1] = coeffs_list[-1] + eps * corr_arr
+    #     print(coeffs_list[-1])
+    #     coeff_array = np.array(coeffs_list[-1].tolist())
+    #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+    #     # v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, coeffs_list[-1][j]) for j in range(3)])
+    #     # v0_new.set_name("vel_0_" + str(i))
+    #     # v0_new.plot_3d(2)
+    #     # v0_new.save_to_file("vel_0_" + str(i))
+
+    def callback(intermediate_result=None):
+        global n_iter
+        coeff_array = np.array(intermediate_result.x.tolist())
+        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
+        n_iter += 1
+
+    tol = 1e-5
+    res = sciopt.minimize(
+        fun=jax.value_and_grad(run_case),
+        x0=coeffs,
+        jac=True,
+        # method='L-BFGS-B',
+        method='CG',
+        tol=tol,
+        callback=callback
+    )
+    print(res)
+
 
 
 
