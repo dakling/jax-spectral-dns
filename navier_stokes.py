@@ -860,11 +860,7 @@ class NavierStokesVelVort(Equation):
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + ["x", "y", "z"][i]
-        # self.append_field("velocity_hat", vel_new_hat)
-        self.fields["velocity_hat"][-2] = self.fields["velocity_hat"][
-            -1
-        ]  # TODO check this
-        self.fields["velocity_hat"][-1] = vel_new_hat
+        self.append_field("velocity_hat", vel_new_hat, in_place=False)
         self.update_nonlinear_terms()
 
     def perform_hybrid_time_step(self):

@@ -1515,7 +1515,7 @@ class FourierFieldSlice(FourierField):
         if direction in self.all_periodic_dimensions():
             out_field = self.data / (1j * self.ks[direction]) ** order
         else:
-            out_field = self.physical_domain.integrate(self.data, 0, order)
+            out_field = self.fourier_domain.integrate(self.data, 0, order)
         return FourierFieldSlice(
             self.fourier_domain,
             self.non_periodic_direction,
@@ -1547,7 +1547,7 @@ class FourierFieldSlice(FourierField):
         rhs_hat = self.data
         out_field = mat_inv @ rhs_hat
         out_fourier = FourierFieldSlice(
-            self.physical_domain,
+            self.fourier_domain,
             self.non_periodic_direction,
             out_field,
             self.name + "_poisson",
@@ -1560,7 +1560,7 @@ class FourierFieldSlice(FourierField):
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
         self.data = jnp.take(
             self.data,
-            jnp.arange(len(self.physical_domain.grid[0]))[1:-1],
+            jnp.arange(len(self.fourier_domain.grid[0]))[1:-1],
             axis=0,
         )
         self.data = jnp.pad(
