@@ -532,7 +532,7 @@ class LinearStabilityCalculation:
 
 
         print("modes used:", i)
-        print("energy of initial field:", u.energy())
+        # print("energy of initial field:", u.energy())
 
         return u
 
@@ -583,7 +583,7 @@ class LinearStabilityCalculation:
             V = self.V
 
 
-            print("expected energy growth: ", self.S[0]**2)
+            # print("expected energy growth: ", self.S[0]**2)
 
             factors = V[:,0]
             # TODO use calculate_transient_growth_initial_condition_from_coefficients
