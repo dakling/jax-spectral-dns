@@ -608,18 +608,6 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_old,
                 h_g_hat_old,
             )
-            def get_new_vel_field_map(kx,
-                                      kz,
-                                      v_1_lap_hat_,
-                                      vort_hat_1,
-                                      conv_ns_hat_,
-                                      conv_ns_hat_old_,
-                                      h_v_hat_,
-                                      h_g_hat_,
-                                      h_v_hat_old_,
-                                      h_g_hat_old_,
-                                      ):
-                def ret(vel_vec):
 
 
             vel_new_hat = VectorField(
