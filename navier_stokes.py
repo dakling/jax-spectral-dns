@@ -81,7 +81,7 @@ class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
 
     max_cfl = 0.7
-    max_dt = 1e10
+    max_dt = 0.02
     dt_update_frequency = (
         10  # update the timestep every time_step_udate_frequency time steps
     )
@@ -510,7 +510,7 @@ class NavierStokesVelVort(Equation):
             # )
             @partial(jax.jit, static_argnums=(0))
             @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=0)
-            def get_new_vel_field(
+            def get_new_vel_field_loop(
                 shape,
                 v_1_lap_hat_,
                 vort_hat_1,
@@ -611,51 +611,9 @@ class NavierStokesVelVort(Equation):
                                                        ))[:3]
                 return vel_new_hat_field
 
-                # fn = perform_single_rk_step_for_single_wavenumber(step)
-                # def get_new_vel_field_map(state):
-                #     (kx, kz
-                #     # v_1_lap_hat_sw,
-                #     # vort_hat_1_sw,
-                #     # conv_ns_hat_sw,
-                #     # conv_ns_hat_old_sw,
-                #     # h_v_hat_sw,
-                #     # h_g_hat_sw,
-                #     # h_v_hat_old_sw,
-                #     # h_g_hat_old_sw
-                #      ) = state
+            # def get_new_vel_field_map()
 
-                #     (
-                #         v_0_new_field,
-                #         v_1_hat_new,
-                #         v_2_new_field,
-                #         _,
-                #     ) = fn([kx, kz],
-                #            v_1_lap_hat_[kx, :, kz],
-                #            vort_hat_1[kx, :, kz],
-                #            [conv_ns_hat_[i][kx, :, kz] for i in range(3)],
-                #            [conv_ns_hat_old_[i][kx, :, kz] for i in range(3)],
-                #            h_v_hat_[kx, :, kz],
-                #            h_g_hat_[kx, :, kz],
-                #            h_v_hat_old_[kx, :, kz],
-                #            h_g_hat_old_[kx, :, kz]
-                #         )
-                #     return jnp.array([v_0_new_field, v_1_hat_new, v_2_new_field])
-
-                # kx_s = jnp.arange(self.domain.number_of_cells(0))
-                # kz_s = jnp.arange(self.domain.number_of_cells(2))
-                # KX_s, KZ_s = jnp.meshgrid(kx_s, kz_s)
-                # print("KX_s.shape", KX_s.shape)
-                # print("KZ_s.shape", KZ_s.shape)
-                # vel_out_new = jax.vmap(get_new_vel_field_map)(
-                #             (
-                #                 KX_s,
-                #                 KZ_s,
-                #             )
-                # )
-                # print(vel_out_new.shape)
-                # raise Exception("break")
-
-            vel_new_hat_field = get_new_vel_field(
+            vel_new_hat_field = get_new_vel_field_loop(
                 vel_hat[0].data.shape,
                 v_1_lap_hat.data,
                 vort_hat[1],
