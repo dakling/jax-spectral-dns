@@ -81,7 +81,7 @@ class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
 
     max_cfl = 0.7
-    max_dt = 0.02
+    max_dt = 1e10
     dt_update_frequency = (
         10  # update the timestep every time_step_udate_frequency time steps
     )
@@ -575,24 +575,10 @@ class NavierStokesVelVort(Equation):
                     )
 
                 def outer_body_fn(kx, state): # TODO why are we not using the state
-                    kx_state = (
-                        kx,
-                        vel_0_new_hat_field,
-                        vel_1_new_hat_field,
-                        vel_2_new_hat_field,
-                        v_1_lap_hat_,
-                        vort_hat_1,
-                        [conv_ns_hat_[i] for i in range(3)],
-                        [conv_ns_hat_old_[i] for i in range(3)],
-                        h_v_hat_,
-                        h_g_hat_,
-                        h_v_hat_old_,
-                        h_g_hat_old_,
-                        )
                     new_state = jax.lax.fori_loop(0,
                                                   shape[2],
                                                   inner_body_fn,
-                                                  kx_state
+                                                  (kx, *state)
                                                   )
                     return new_state[1:]
 
