@@ -1112,7 +1112,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         v0_new.save_to_file("vel_0_" + str(i))
 
 
-def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
+def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, beta=0.0, file=None):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
@@ -1131,11 +1131,15 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-6)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-    # HACK
-    domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    if file is None:
+        # HACK
+        domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
-    _, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
-    coeffs = V[:, 0]
+        _, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+        coeffs = V[:, 0]
+    else:
+        coeff_array = np.load(file, allow_pickle=True)
+        coeffs = jnp.array(coeff_array.tolist())
     # coeffs = jnp.ones((number_of_modes))
 
     # v0_0 = lsc.calculate_transient_growth_initial_condition_from_coefficients(
