@@ -88,7 +88,6 @@ class Equation:
                 self.fields[name][-1] = field
             else:
                 self.fields[name].append(field)
-                # self.fields[name] = self.fields[name].add(field) # does this make a difference? taken from jax-fluids
             self.fields[name][-1].name = name + "_" + str(self.time_step)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")

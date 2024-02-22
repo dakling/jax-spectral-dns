@@ -1112,6 +1112,8 @@ class TestProject(unittest.TestCase):
         nse_rk.max_dt = 1e-3
 
         U = lsc.velocity_field(nse_rk.domain_no_hat)
+        U.plot_3d(2)
+        # raise Exception("break")
         eps_ = 1.0 * jnp.sqrt(U.energy())
         U_hat = U.hat()
         nse_rk.init_velocity(U_hat * eps_)
@@ -1146,10 +1148,13 @@ class TestProject(unittest.TestCase):
         vel_cnab.time_step = 1
 
         vel_diff = vel_rk - vel_cnab
-        # for i in range(3):
-        #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
-        #     vel_cnab[i].plot_3d(2)
-        #     vel_diff[i].plot_3d(2)
+        for i in range(3):
+            vel_diff[i].name = "velocity_difference_" + "xyz"[i]
+            vel_rk[i].name = "velocity_rk_" + "xyz"[i]
+            vel_cnab[i].name = "velocity_cnab_" + "xyz"[i]
+            vel_rk[i].plot_3d(2)
+            vel_cnab[i].plot_3d(2)
+            vel_diff[i].plot_3d(2)
         print(abs(vel_diff))
         assert abs(vel_diff) < 1e-11
 
