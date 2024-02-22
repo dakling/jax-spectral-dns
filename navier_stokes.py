@@ -266,6 +266,7 @@ class NavierStokesVelVort(Equation):
 
         L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
+        # TODO could this ever be rewritten to allow for vectorization?
         def perform_single_rk_step_for_single_wavenumber(
             step,
         ):
@@ -274,8 +275,10 @@ class NavierStokesVelVort(Equation):
                 K,
                 v_1_lap_hat_sw,
                 vort_1_hat_sw,
-                conv_ns_hat_sw,
-                conv_ns_hat_old_sw,
+                conv_ns_hat_sw_0,
+                conv_ns_hat_sw_2,
+                conv_ns_hat_old_sw_0,
+                conv_ns_hat_old_sw_2,
                 h_v_hat_sw,
                 h_g_hat_sw,
                 h_v_hat_old_sw,
@@ -406,8 +409,8 @@ class NavierStokesVelVort(Equation):
                     )
                     N_00_new = jnp.block(
                         [
-                            -conv_ns_hat_sw[0],
-                            -conv_ns_hat_sw[2],
+                            -conv_ns_hat_sw_0,
+                            -conv_ns_hat_sw_2,
                         ]
                     ) + jnp.block(
                         [
@@ -421,8 +424,8 @@ class NavierStokesVelVort(Equation):
                     else:
                         N_00_old = jnp.block(
                             [
-                                -conv_ns_hat_old_sw[0],
-                                -conv_ns_hat_old_sw[2],
+                                -conv_ns_hat_old_sw_0,
+                                -conv_ns_hat_old_sw_2,
                             ]
                         ) + jnp.block(
                             [
@@ -514,8 +517,10 @@ class NavierStokesVelVort(Equation):
                 shape,
                 v_1_lap_hat_,
                 vort_hat_1,
-                conv_ns_hat_,
-                conv_ns_hat_old_,
+                conv_ns_hat_0_,
+                conv_ns_hat_2_,
+                conv_ns_hat_old_0_,
+                conv_ns_hat_old_2_,
                 h_v_hat_,
                 h_g_hat_,
                 h_v_hat_old_,
@@ -533,8 +538,10 @@ class NavierStokesVelVort(Equation):
                         vel_2_new_hat_field,
                         v_1_lap_hat_,
                         vort_hat_1,
-                        conv_ns_hat_,
-                        conv_ns_hat_old_,
+                        conv_ns_hat_0_,
+                        conv_ns_hat_2_,
+                        conv_ns_hat_old_0_,
+                        conv_ns_hat_old_2_,
                         h_v_hat_,
                         h_g_hat_,
                         h_v_hat_old_,
@@ -549,8 +556,12 @@ class NavierStokesVelVort(Equation):
                         [kx, kz],
                         v_1_lap_hat_[kx, :, kz],
                         vort_hat_1[kx, :, kz],
-                        [conv_ns_hat_[i][kx, :, kz] for i in range(3)],
-                        [conv_ns_hat_old_[i][kx, :, kz] for i in range(3)],
+                        # [conv_ns_hat_[i][kx, :, kz] for i in range(3)],
+                        # [conv_ns_hat_old_[i][kx, :, kz] for i in range(3)],
+                        conv_ns_hat_0_[kx, :, kz],
+                        conv_ns_hat_2_[kx, :, kz],
+                        conv_ns_hat_old_0_[kx, :, kz],
+                        conv_ns_hat_old_2_[kx, :, kz],
                         h_v_hat_[kx, :, kz],
                         h_g_hat_[kx, :, kz],
                         h_v_hat_old_[kx, :, kz],
@@ -566,8 +577,10 @@ class NavierStokesVelVort(Equation):
                         vel_2_new_hat_field_out,
                         v_1_lap_hat_,
                         vort_hat_1,
-                        conv_ns_hat_,
-                        conv_ns_hat_old_,
+                        conv_ns_hat_0_,
+                        conv_ns_hat_2_,
+                        conv_ns_hat_old_0_,
+                        conv_ns_hat_old_2_,
                         h_v_hat_,
                         h_g_hat_,
                         h_v_hat_old_,
@@ -588,8 +601,10 @@ class NavierStokesVelVort(Equation):
                                                       (vel_0_new_hat_field, vel_1_new_hat_field, vel_2_new_hat_field,
                                                        v_1_lap_hat_,
                                                        vort_hat_1,
-                                                       conv_ns_hat_,
-                                                       conv_ns_hat_old_,
+                                                       conv_ns_hat_0_,
+                                                       conv_ns_hat_2_,
+                                                       conv_ns_hat_old_0_,
+                                                       conv_ns_hat_old_2_,
                                                        h_v_hat_,
                                                        h_g_hat_,
                                                        h_v_hat_old_,
@@ -597,19 +612,99 @@ class NavierStokesVelVort(Equation):
                                                        ))[:3]
                 return vel_new_hat_field
 
-            # def get_new_vel_field_map()
+            def get_new_vel_field_map(
+                    v_1_lap_hat,
+                    vort_hat_1,
+                    conv_ns_hat_0,
+                    conv_ns_hat_2,
+                    conv_ns_hat_old_0,
+                    conv_ns_hat_old_2,
+                    h_v_hat,
+                    h_g_hat,
+                    h_v_hat_old,
+                    h_g_hat_old,
+            ):
+                Nx = self.domain.number_of_cells(0)
+                Ny = self.domain.number_of_cells(1)
+                Nz = self.domain.number_of_cells(2)
+                number_of_input_arguments = 10
+                def outer_map(kzs_):
+                    def fn(kx_state):
+                        kx = kx_state[0]
+                        fields_2d = jnp.split(kx_state[1:], number_of_input_arguments, axis=0)
+                        for i in range(len(fields_2d)):
+                            fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
+                        state_slice = jnp.concatenate(fields_2d).T
+                        kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
+                        return jax.lax.map(inner_map(kx), kz_state_slice)
+                    return fn
+                def inner_map(kx):
+                    def fn(kz_one_pt_state):
+                        kz = kz_one_pt_state[0]
+                        one_pt_state = kz_one_pt_state[1:] # y slice for one kx and kz
+                        fields_1d = jnp.split(one_pt_state, number_of_input_arguments, axis=0)
+                        (
+                            v_0_new_field,
+                            v_1_hat_new,
+                            v_2_new_field,
+                            _,
+                        ) = perform_single_rk_step_for_single_wavenumber(step)(
+                            [kx.astype(int), kz.astype(int)],
+                            *fields_1d
+                    )
+                        return [v_0_new_field, v_1_hat_new, v_2_new_field]
+                    return fn
+                kx_arr = jnp.atleast_2d(jnp.arange(Nx))
+                kz_arr = jnp.atleast_2d(jnp.arange(Nz))
+                state = jnp.concatenate([
+                    jnp.moveaxis(v_1_lap_hat, 1, 2),
+                    jnp.moveaxis(vort_hat_1, 1, 2),
+                    jnp.moveaxis(conv_ns_hat_0, 1, 2),
+                    jnp.moveaxis(conv_ns_hat_2, 1, 2),
+                    jnp.moveaxis(conv_ns_hat_old_0, 1, 2),
+                    jnp.moveaxis(conv_ns_hat_old_2, 1, 2),
+                    jnp.moveaxis(h_v_hat, 1, 2),
+                    jnp.moveaxis(h_g_hat, 1, 2),
+                    jnp.moveaxis(h_v_hat_old, 1, 2),
+                    jnp.moveaxis(h_g_hat_old, 1, 2),
+                ],
+                                           axis=1)
+                kx_state = jnp.concatenate([kx_arr.T, jnp.reshape(state, (Nx, (number_of_input_arguments*Ny*Nz)))], axis=1)
+                out = jax.lax.map(outer_map(kz_arr), kx_state)
+                return [jnp.moveaxis(v, 1, 2) for v in out]
 
-            vel_new_hat_field = get_new_vel_field_loop(
-                vel_hat[0].data.shape,
+            vel_new_hat_field = get_new_vel_field_map(
                 v_1_lap_hat.data,
                 vort_hat[1],
-                conv_ns_hat,
-                conv_ns_hat_old,
+                conv_ns_hat[0],
+                conv_ns_hat[2],
+                conv_ns_hat_old[0],
+                conv_ns_hat_old[2],
                 h_v_hat,
                 h_g_hat,
                 h_v_hat_old,
                 h_g_hat_old,
             )
+
+            # vel_new_hat_field_loop = get_new_vel_field_loop(
+            #     vel_hat[0].data.shape,
+            #     v_1_lap_hat.data,
+            #     vort_hat[1],
+            #     conv_ns_hat[0],
+            #     conv_ns_hat[2],
+            #     conv_ns_hat_old[0],
+            #     conv_ns_hat_old[2],
+            #     h_v_hat,
+            #     h_g_hat,
+            #     h_v_hat_old,
+            #     h_g_hat_old,
+            # )
+            # vel_new_hat = VectorField(
+            #     [
+            #         FourierField(self.physical_domain, vel_new_hat_field_loop[i])
+            #         for i in range(3)
+            #     ]
+            # )
 
             vel_new_hat = VectorField(
                 [
