@@ -612,7 +612,11 @@ class NavierStokesVelVort(Equation):
                                                        ))[:3]
                 return vel_new_hat_field
 
+            @partial(jax.jit, static_argnums=(0, 1, 2))
             def get_new_vel_field_map(
+                    Nx,
+                    Ny,
+                    Nz,
                     v_1_lap_hat,
                     vort_hat_1,
                     conv_ns_hat_0,
@@ -624,9 +628,6 @@ class NavierStokesVelVort(Equation):
                     h_v_hat_old,
                     h_g_hat_old,
             ):
-                Nx = self.domain.number_of_cells(0)
-                Ny = self.domain.number_of_cells(1)
-                Nz = self.domain.number_of_cells(2)
                 number_of_input_arguments = 10
                 def outer_map(kzs_):
                     def fn(kx_state):
@@ -676,7 +677,14 @@ class NavierStokesVelVort(Equation):
                     out = jax.lax.map(outer_map(kz_arr), kx_state)
                 return [jnp.moveaxis(v, 1, 2) for v in out]
 
+            Nx = self.domain.number_of_cells(0)
+            Ny = self.domain.number_of_cells(1)
+            Nz = self.domain.number_of_cells(2)
+
             vel_new_hat_field = get_new_vel_field_map(
+                Nx,
+                Ny,
+                Nz,
                 v_1_lap_hat.data,
                 vort_hat[1],
                 conv_ns_hat[0],

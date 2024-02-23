@@ -1120,7 +1120,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 4
+    Nx = 6
     Ny = 50
     Nz = 2
     # Nx = 48
@@ -1128,7 +1128,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     # Nz = 12
     end_time = T
     number_of_modes = 60
-    # number_of_modes = 10
+    # number_of_modes = 5
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-6)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
@@ -1208,19 +1208,18 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     #     # v0_new.plot_3d(2)
     #     # v0_new.save_to_file("vel_0_" + str(i))
 
-    learning_rate = 3e-3
-    solver = optax.adagrad(learning_rate=learning_rate)
+    learning_rate = 3e-1
+    solver = optax.adagrad(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(coeffs)
     number_of_steps = 1000
     print(coeffs)
     for i in jnp.arange(number_of_steps):
         gain, corr = jax.value_and_grad(run_case)(coeffs)
-        # corr_arr = jnp.array(corr)
         print("gain: " + str(-gain))
 
         updates, opt_state = solver.update(corr, opt_state, coeffs)
         coeffs = optax.apply_updates(coeffs, updates)
-        # print(coeffs)
+        print(coeffs)
         coeff_array = np.array(coeffs.tolist())
         coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 

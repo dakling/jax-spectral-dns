@@ -32,7 +32,7 @@ from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from equation import Equation
 
 
-# @partial(jax.jit, static_argnums=0)
+@partial(jax.jit, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
@@ -81,7 +81,8 @@ def update_nonlinear_terms_high_performance_perturbation(
         vel_new_sq_nabla_b
     )
 
-    hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
+    # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
+    hel_new =  jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_ + hel_new_a + hel_new_b
     conv_ns_new = -hel_new
 
     h_v_new = (
