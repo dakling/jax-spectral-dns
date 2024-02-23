@@ -320,7 +320,7 @@ class NavierStokesVelVort(Equation):
                         v_1_lap_hat_new_p, 1
                     )
                 )
-                v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(
+                v_1_hat_new_p = domain.solve_poisson_fourier_field_slice( # TODO there might be room for improvement here as well
                     v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
                 v_1_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
@@ -673,21 +673,7 @@ class NavierStokesVelVort(Equation):
                 out = jax.lax.map(outer_map(kz_arr), kx_state)
                 return [jnp.moveaxis(v, 1, 2) for v in out]
 
-            vel_new_hat_field = get_new_vel_field_map(
-                v_1_lap_hat.data,
-                vort_hat[1],
-                conv_ns_hat[0],
-                conv_ns_hat[2],
-                conv_ns_hat_old[0],
-                conv_ns_hat_old[2],
-                h_v_hat,
-                h_g_hat,
-                h_v_hat_old,
-                h_g_hat_old,
-            )
-
-            # vel_new_hat_field_loop = get_new_vel_field_loop(
-            #     vel_hat[0].data.shape,
+            # vel_new_hat_field = get_new_vel_field_map(
             #     v_1_lap_hat.data,
             #     vort_hat[1],
             #     conv_ns_hat[0],
@@ -699,19 +685,33 @@ class NavierStokesVelVort(Equation):
             #     h_v_hat_old,
             #     h_g_hat_old,
             # )
-            # vel_new_hat = VectorField(
-            #     [
-            #         FourierField(self.physical_domain, vel_new_hat_field_loop[i])
-            #         for i in range(3)
-            #     ]
-            # )
 
+            vel_new_hat_field_loop = get_new_vel_field_loop(
+                vel_hat[0].data.shape,
+                v_1_lap_hat.data,
+                vort_hat[1],
+                conv_ns_hat[0],
+                conv_ns_hat[2],
+                conv_ns_hat_old[0],
+                conv_ns_hat_old[2],
+                h_v_hat,
+                h_g_hat,
+                h_v_hat_old,
+                h_g_hat_old,
+            )
             vel_new_hat = VectorField(
                 [
-                    FourierField(self.physical_domain, vel_new_hat_field[i])
+                    FourierField(self.physical_domain, vel_new_hat_field_loop[i])
                     for i in range(3)
                 ]
             )
+
+            # vel_new_hat = VectorField(
+            #     [
+            #         FourierField(self.physical_domain, vel_new_hat_field[i])
+            #         for i in range(3)
+            #     ]
+            # )
 
             h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (
                 h_v_hat,

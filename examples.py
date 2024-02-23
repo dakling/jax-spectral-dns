@@ -1215,7 +1215,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
 
     tol = 1e-5
     res = sciopt.minimize(
-        fun=jax.value_and_grad(run_case),
+        fun=jax.value_and_grad(run_case), # TODO use jacfwd instead of grad?
         x0=coeffs,
         jac=True,
         # method='L-BFGS-B',
