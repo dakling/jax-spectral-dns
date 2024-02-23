@@ -3,6 +3,7 @@
 import jax
 # import jax.scipy.optimize as jaxopt
 # import jaxopt
+import optax
 import scipy.optimize as sciopt
 import jax.numpy as jnp
 import numpy as np
@@ -1207,23 +1208,40 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     #     # v0_new.plot_3d(2)
     #     # v0_new.save_to_file("vel_0_" + str(i))
 
-    def callback(intermediate_result=None):
-        global n_iter
-        coeff_array = np.array(intermediate_result.x.tolist())
-        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
-        n_iter += 1
+    learning_rate = 3e-3
+    solver = optax.adagrad(learning_rate=learning_rate)
+    opt_state = solver.init(coeffs)
+    number_of_steps = 1000
+    print(coeffs)
+    for i in jnp.arange(number_of_steps):
+        gain, corr = jax.value_and_grad(run_case)(coeffs)
+        # corr_arr = jnp.array(corr)
+        print("gain: " + str(gain))
 
-    tol = 1e-5
-    res = sciopt.minimize(
-        fun=jax.value_and_grad(run_case), # TODO use jacfwd instead of grad?
-        x0=coeffs,
-        jac=True,
-        # method='L-BFGS-B',
-        method='CG',
-        tol=tol,
-        callback=callback
-    )
-    print(res)
+        updates, opt_state = solver.update(corr, opt_state, coeffs)
+        coeffs = optax.apply_updates(coeffs, updates)
+        print(coeffs)
+        print(type(coeffs))
+        coeff_array = np.array(coeffs.tolist())
+        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+
+    # def callback(intermediate_result=None):
+    #     global n_iter
+    #     coeff_array = np.array(intermediate_result.x.tolist())
+    #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
+    #     n_iter += 1
+
+    # tol = 1e-5
+    # res = sciopt.minimize(
+    #     fun=jax.value_and_grad(run_case), # TODO use jacfwd instead of grad?
+    #     x0=coeffs,
+    #     jac=True,
+    #     # method='L-BFGS-B',
+    #     method='CG',
+    #     tol=tol,
+    #     callback=callback
+    # )
+    # print(res)
 
 
 
