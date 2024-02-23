@@ -745,13 +745,11 @@ class PhysicalField(Field):
         interpolant = []
         weights = []
         for dim in self.all_dimensions():
-            for i in jnp.arange(self.physical_domain.number_of_cells(dim)):
-                if (grd[dim][i] - X[dim]) * (grd[dim][i + 1] - X[dim]) <= 0:
-                    interpolant.append(i)
-                    weights.append(
-                        (grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1])
-                    )
-                    break
+            i = jnp.argmin((grd[dim] - X[dim])[:-1] * (jnp.roll(grd[dim], -1) - X[dim])[:-1])
+            interpolant.append(i)
+            weights.append(
+            (grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1])
+            )
         base_value = self.data
         other_values = []
         for dim in self.all_dimensions():
@@ -769,7 +767,7 @@ class PhysicalField(Field):
                     )
         out = base_value
         for dim in self.all_dimensions():
-            out += (other_values[dim] - base_value) * (1 - weights[dim])
+            out += (other_values[dim] - base_value) * weights[dim]
         return out
 
     def plot_center(self, dimension, *other_fields):
