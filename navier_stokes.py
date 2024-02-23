@@ -670,7 +670,10 @@ class NavierStokesVelVort(Equation):
                 ],
                                            axis=1)
                 kx_state = jnp.concatenate([kx_arr.T, jnp.reshape(state, (Nx, (number_of_input_arguments*Ny*Nz)))], axis=1)
-                out = jax.lax.map(outer_map(kz_arr), kx_state)
+                if jax.device_count() >= Nx: # TODO maybe do some reshaping to use maximum number of devices
+                    out = jax.pmap(outer_map(kz_arr))(kx_state)
+                else:
+                    out = jax.lax.map(outer_map(kz_arr), kx_state)
                 return [jnp.moveaxis(v, 1, 2) for v in out]
 
             vel_new_hat_field = get_new_vel_field_map(

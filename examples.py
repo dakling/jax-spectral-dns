@@ -1120,7 +1120,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 2
+    Nx = 4
     Ny = 50
     Nz = 2
     # Nx = 48
@@ -1186,7 +1186,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
 
         gain = vel.energy() / vel_0.energy()
         # return gain
-        print("gain:", gain)
+        # print("gain:", gain)
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     # coeffs_list = [coeffs]
@@ -1216,12 +1216,11 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     for i in jnp.arange(number_of_steps):
         gain, corr = jax.value_and_grad(run_case)(coeffs)
         # corr_arr = jnp.array(corr)
-        print("gain: " + str(gain))
+        print("gain: " + str(-gain))
 
         updates, opt_state = solver.update(corr, opt_state, coeffs)
         coeffs = optax.apply_updates(coeffs, updates)
-        print(coeffs)
-        print(type(coeffs))
+        # print(coeffs)
         coeff_array = np.array(coeffs.tolist())
         coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
