@@ -4,6 +4,7 @@ from abc import ABC
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
+from jax.tree_util import register_pytree_node_class
 from matplotlib import legend
 import matplotlib.pyplot as plt
 from matplotlib import legend
@@ -66,7 +67,7 @@ def assemble_fourier_diff_mat(n, order=1):
     return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
 
 
-
+# @register_pytree_node_class
 @dataclasses.dataclass(frozen=True)
 class Domain(ABC):
     """Class that mainly contains information on the independent variables of
@@ -84,24 +85,38 @@ class Domain(ABC):
     aliasing: jnp.float64 = 1 # no antialiasing (requires finer resolution)
     # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
 
+    # def tree_flatten(self):
+    #     children = (self.grid, self.diff_mats, self.mgrid)
+    #     aux_data = (self.number_of_dimensions, self.periodic_directions, self.scale_factors, self.shape, self.aliasing)
+    #     return (children, aux_data)
+
+    # @classmethod
+    # def tree_unflatten(cls, aux_data, children):
+    #     return cls(*aux_data[:4], *children, aux_data[5])
+
     # @functools.partial(jax.jit, static_argnums=(0, 1))
+
     @classmethod
-    def create(cls, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType]=None, aliasing=1):
+    def create(cls, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType]=None, aliasing=1, _grid: Union[NoneType, List[jnp.ndarray]]=None, _mgrid: Union[NoneType, List[jnp.ndarray]]=None):
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
             scale_factors_: Union[List[jnp.float64]] = []
         else:
             assert isinstance(scale_factors, List) or isinstance(scale_factors, Tuple)
             scale_factors_ = scale_factors
-        grid = []
+        if type(_grid) == NoneType:
+            grid = []
+        else:
+            grid = _grid
         diff_mats = []
         for dim in jnp.arange(number_of_dimensions):
             if type(periodic_directions) != NoneType and periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * jnp.pi)
-                grid.append(
-                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
-                )
+                if type(_grid) == NoneType:
+                    grid.append(
+                        get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
+                    )
                 diff_mats.append(
                     assemble_fourier_diff_mat(n=shape[dim], order=1)
                     * (2 * jnp.pi)
@@ -110,11 +125,15 @@ class Domain(ABC):
             else:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(1.0)
-                grid.append(
-                    get_cheb_grid(shape[dim], scale_factors_[dim])
-                )
+                if type(_grid) == NoneType:
+                    grid.append(
+                        get_cheb_grid(shape[dim], scale_factors_[dim])
+                    )
                 diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
-        mgrid = jnp.meshgrid(*grid, indexing="ij")
+        if type(_mgrid) == NoneType:
+            mgrid = jnp.meshgrid(*grid, indexing="ij")
+        else:
+            mgrid = _mgrid
         return cls(number_of_dimensions, periodic_directions, scale_factors_, shape, grid, diff_mats, mgrid, aliasing)
 
     def number_of_cells(self, direction):
@@ -166,18 +185,19 @@ class Domain(ABC):
             else:
                 fourier_grid.append(self.grid[i])
         fourier_grid_shifted = list(map(fftshift, fourier_grid, self.all_dimensions()))
-        out = FourierDomain(
-            self.shape, self.periodic_directions, scale_factors=self.scale_factors
+        grid = fourier_grid_shifted
+        mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
+        out = FourierDomain.create(
+            self.shape, self.periodic_directions, scale_factors=self.scale_factors, _grid=grid, _mgrid=mgrid
         )
-        out.grid = fourier_grid_shifted
-        out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
         return out
 
     def diff(self, field, direction, order=1):
         """Calculate and return the derivative of given order for field in
         direction."""
         inds = "ijk"
-        diff_mat_ind = "l" + inds[direction]
+        # diff_mat_ind = "l" + inds[direction]
+        diff_mat_ind = "l" + inds.at[direction].get()
         other_inds = "".join(
             [
                 ind
@@ -465,13 +485,48 @@ class Domain(ABC):
         return jnp.array([out_0, out_1, out_2])
 
 
-@dataclasses.dataclass(init=False, frozen=True)
+@dataclasses.dataclass(frozen=True)
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
-    pass
+    def __hash__(self):
+        return hash((self.number_of_dimensions, self.periodic_directions, self.scale_factors, self.shape, self.aliasing))
 
-@dataclasses.dataclass(init=False, frozen=True)
+@dataclasses.dataclass(frozen=True)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
+    def __hash__(self):
+        return hash((self.number_of_dimensions, self.periodic_directions, self.scale_factors, self.shape, self.aliasing))
 
-    pass
+    def assemble_poisson_matrix(self):
+        assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
+        assert (
+            len(self.all_nonperiodic_dimensions()) <= 1
+        ), "Poisson solution not implemented for the general case."
+        # y_mat = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows(
+        y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(
+            self.all_nonperiodic_dimensions()[0]
+        )
+        n = y_mat.shape[0]
+        bc_padding = 1
+        eye_bc = jnp.block(
+            [
+                [jnp.zeros((bc_padding, n))],
+                [
+                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
+                    jnp.eye(n - 2 * bc_padding),
+                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
+                ],
+                [jnp.zeros((bc_padding, n))],
+            ]
+        )
+        k1 = self.grid[self.all_periodic_dimensions()[0]]
+        k2 = self.grid[self.all_periodic_dimensions()[1]]
+        k1sq = k1**2
+        k2sq = k2**2
+        mat = jnp.array(
+            [
+                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
+                for k1sq_ in k1sq
+            ]
+        )
+        return mat

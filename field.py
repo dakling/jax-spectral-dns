@@ -272,7 +272,7 @@ class VectorField:
     def normalize(self):
         en = self.energy()
         for f in self:
-            f.field = f.field / en
+            f.data = f.data / en
         return self
 
     def energy_norm(self, k):
@@ -296,11 +296,11 @@ class VectorField:
         u.data = np.stack([u_array, v_array, w_array])"""
         self.set_name(self.name)
         for f in self:
-            field_array = np.array(f.field.tolist())
+            field_array = np.array(f.data.tolist())
             field_array.dump(f.field_dir + filename)
 
-    def get_fields(self):
-        return jnp.array([f.field for f in self])
+    def get_data(self):
+        return jnp.array([f.data for f in self])
 
 
     def get_time_step(self):
@@ -566,7 +566,7 @@ class VectorField:
 
 
 @register_pytree_node_class
-@dataclasses.dataclass(init=False)
+@dataclasses.dataclass(init=False, frozen=False)
 class PhysicalField(Field):
 
     def tree_flatten(self):
@@ -1208,7 +1208,7 @@ class PhysicalField(Field):
         out_bc = self.physical_domain.integrate(self.data, direction, order, bc_left, bc_right)
         return PhysicalField(self.physical_domain, out_bc, name=self.name + "_int")
 
-    def definite_integral(self, direction):
+    def definite_integral(self, direction): # TODO make this jittable by removing .tolist()-calls
         def reduce_add_along_axis(arr, axis):
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
@@ -1262,7 +1262,7 @@ class PhysicalField(Field):
 
 
 @register_pytree_node_class
-@dataclasses.dataclass(init=False)
+@dataclasses.dataclass(init=False, frozen=False)
 class FourierField(Field):
 
     def tree_flatten(self):

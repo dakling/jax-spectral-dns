@@ -6,6 +6,7 @@ import time
 
 import jax
 import jax.numpy as jnp
+from jax_cfd.base.funcutils import trajectory
 
 from pathlib import Path
 import os
@@ -17,7 +18,7 @@ import sys
 #     reload(sys.modules["field"])
 # except:
 #     print("Unable to load Field")
-from field import Field
+from field import Field, FourierField
 
 
 NoneType = type(None)
@@ -25,9 +26,11 @@ NoneType = type(None)
 
 class Equation:
     name = "equation"
+    max_dt = 1e10
 
     def __init__(self, domain, *fields, **params):
         self.domain = domain
+        self.physical_domain = domain
         self.fields = {}
         self.time_step = 0
         self.time = 0.0
@@ -151,10 +154,23 @@ class Equation:
         for _, field in self.fields.items():
             field[-1].time_step = self.time_step
 
+    def solve_scan(self): # TODO
+        self.prepare()
+        # @tree_math.wrap # TODO what does this do?
+        def step_fn(u0, _):
+            return (self.perform_time_step(), None)
+        u0 = self.get_latest_field("velocity_hat").get_data()
+        ts = jnp.arange(0, self.end_time, self.max_dt)
+        u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
+        # trajectory_fn = trajectory(step_fn, self.max_iter)
+        self.append_field("velocity_hat", FourierField(self.physical_domain, u_final))
+        return u_final
+
+
     def solve(self):
-        # TODO use lax.scan as done in jax-cfd?
         # TODO inner/outer steps?
         self.prepare()
+
         while not self.done():
             i = self.time_step
             print(

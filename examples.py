@@ -10,6 +10,7 @@ import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
 from functools import partial
+import typing
 
 # from importlib import reload
 import sys
@@ -1127,8 +1128,8 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     # Ny = 64
     # Nz = 12
     end_time = T
-    number_of_modes = 80
-    # number_of_modes = 5
+    # number_of_modes = 80
+    number_of_modes = 5
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
@@ -1158,30 +1159,33 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     # v0_0_norm = v0_0 * eps_
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
+    # @jax.jit
     def run_case(coeffs_):
 
-        U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
-            domain,
-            coeffs_,
-            save=False,
-            recompute=False
-        )
+        domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        # U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
+        #     domain_,
+        #     coeffs_,
+        #     save=False,
+        #     recompute=False
+        # )
+        U = PhysicalField.FromFunc(domain_, lambda X: coeffs_[0]*X[0] + coeffs_[1]*(1-X[1]**2) + coeffs_[2]*X[2], name="velocity")
         # v0_ = v0.reshape((3, Nx, Ny, Nz))
         # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
-        # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         eps = 1e-5
         eps_ = eps / U.energy()
         U_norm = U * eps_
         # U_norm.update_boundary_conditions()
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain_)
         nse.end_time = end_time
 
         # nse.set_linearize(False)
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.solve()
+        # nse.solve()
+        nse.solve_scan()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
         nse.before_time_step_fn = None
@@ -1215,7 +1219,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     #     # v0_new.plot_3d(2)
     #     # v0_new.save_to_file("vel_0_" + str(i))
 
-    learning_rate = 10
+    learning_rate = 1e-1
     solver = optax.adagrad(learning_rate=learning_rate) # minimizer
     # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
     # solver = optax.adam(learning_rate=learning_rate) # minimizer

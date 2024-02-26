@@ -89,8 +89,12 @@ class NavierStokesVelVort(Equation):
     u_max_over_u_tau = 1e0
 
     def __init__(self, velocity_field, **params):
-        domain = velocity_field[0].fourier_domain
-        self.physical_domain = velocity_field[0].physical_domain
+        if "physical_domain" in params:
+            self.physical_domain = params["physical_domain"]
+            domain = self.physical_domain.hat()
+        else:
+            domain = velocity_field[0].fourier_domain
+            self.physical_domain = velocity_field[0].physical_domain
 
         try:
             self.Re_tau = params["Re_tau"]
@@ -106,10 +110,10 @@ class NavierStokesVelVort(Equation):
         print("calculated flow rate: ", self.flow_rate)
 
     @classmethod
-    def FromVelocityField(cls, velocity_field, Re=1.8e2, end_time=1e0):
+    def FromVelocityField(cls, velocity_field, Re=1.8e2, end_time=1e0, **params):
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
-        return cls(velocity_field_hat, Re=Re, end_time=end_time)
+        return cls(velocity_field_hat, Re=Re, end_time=end_time, **params)
 
     @classmethod
     def FromRandom(cls, shape, Re, end_time=1e0):
@@ -160,13 +164,14 @@ class NavierStokesVelVort(Equation):
             conv_ns_hat,
         ) = self.nonlinear_update_fn(
             self.physical_domain,
-            jnp.array(
-                [
-                    velocity_field_[0].data,
-                    velocity_field_[1].data,
-                    velocity_field_[2].data,
-                ]
-            ),
+            velocity_field_
+            # jnp.array(
+            #     [
+            #         velocity_field_[0].data,
+            #         velocity_field_[1].data,
+            #         velocity_field_[2].data,
+            #     ]
+            # ),
         )
         h_v_hat_field = FourierField(self.physical_domain, h_v_hat, name="h_v_hat")
         h_g_hat_field = FourierField(self.physical_domain, h_g_hat, name="h_g_hat")
@@ -243,17 +248,15 @@ class NavierStokesVelVort(Equation):
 
     def prepare(self):
         self.dt = self.get_time_step()
-        self.poisson_mat = self.get_initial_field("velocity_hat")[
-            0
-        ].assemble_poisson_matrix()
+        self.poisson_mat = self.domain.assemble_poisson_matrix()
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
             self.add_field(field_name)
         self.update_nonlinear_terms()
 
-    def perform_runge_kutta_step(self):
+    def perform_runge_kutta_step(self, vel_hat_data):
         self.dt = self.get_time_step()
         Re = self.Re_tau
-        vel_hat = self.get_latest_field("velocity_hat")
+        # vel_hat = self.get_latest_field("velocity_hat")
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
@@ -473,7 +476,6 @@ class NavierStokesVelVort(Equation):
         number_of_rk_steps = 3
 
         h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (None, None, None)
-        vel_new_hat = vel_hat
 
         for step in range(number_of_rk_steps):
             # update nonlinear terms
@@ -484,7 +486,8 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat,
             ) = self.nonlinear_update_fn(
                 self.physical_domain,
-                jnp.array([vel_hat[0].data, vel_hat[1].data, vel_hat[2].data]),
+                # jnp.array([vel_hat[0].data, vel_hat[1].data, vel_hat[2].data]),
+                vel_hat_data
             )
 
             if type(h_v_hat_old) == NoneType:
@@ -495,8 +498,11 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat_old = conv_ns_hat
 
             # solve equations
-            v_1_hat = vel_hat[1]
-            v_1_lap_hat = v_1_hat.laplacian()
+            v_1_hat = vel_hat_data[1, ...]
+            # v_1_lap_hat = v_1_hat.laplacian()
+            domain = self.physical_domain
+            # v_1_lap_hat = domain.diff(v_1_hat, 0, 2) + domain.diff(v_1_hat, 1, 2) + domain.diff(v_1_hat, 2, 2)
+            v_1_lap_hat = jnp.sum(jnp.array([domain.diff(v_1_hat, i, 2) for i in self.all_dimensions()]))
 
             # vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
             #     perform_single_rk_step_for_single_wavenumber( # TODO each wavenumber gets the entire field!
@@ -731,15 +737,16 @@ class NavierStokesVelVort(Equation):
             )
 
             vel_new_hat.update_boundary_conditions()
-            vel_hat = vel_new_hat
+            # vel_hat_data = vel_new_hat
 
         vel_new_hat.name = "velocity_hat"
         for i in jnp.arange(len(vel_new_hat)):
             vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
         self.append_field("velocity_hat", vel_new_hat, in_place=True)
         # self.fields["velocity_hat"][-1] = vel_new_hat
+        return vel_new_hat
 
-    def perform_cn_ab_step(self):
+    def perform_cn_ab_step(self, vel_hat):
         print(
             "Warning: Using deprecated Crank-Nicolson/Adams-Bashforth solver \
         which only implementd for debugging purposes. Consider using Runge-Kutta \
@@ -755,7 +762,7 @@ class NavierStokesVelVort(Equation):
         Z = jnp.zeros((n, n))
         I = jnp.eye(n)
         L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        vel_hat = self.get_latest_field("velocity_hat")
+        # vel_hat = self.get_latest_field("velocity_hat")
 
         def perform_single_cn_ab_step_for_single_wavenumber(
             v_1_lap_hat_p,
@@ -972,14 +979,16 @@ class NavierStokesVelVort(Equation):
         self.append_field("velocity_hat", vel_new_hat, in_place=False)
         self.update_nonlinear_terms(in_place=False)
 
-    def perform_hybrid_time_step(self):
+    def perform_hybrid_time_step(self, vel_hat_data):
         if self.time_step == 0:
-            return self.perform_runge_kutta_step()
+            return self.perform_runge_kutta_step(vel_hat_data)
         else:
-            return self.perform_cn_ab_step()
+            return self.perform_cn_ab_step(vel_hat_data)
 
-    def perform_time_step(self):
-        return self.perform_runge_kutta_step()
+    def perform_time_step(self, vel_hat_data=None):
+        if type(vel_hat_data) == NoneType:
+            vel_hat_data = self.get_latest_field("velocity_hat").get_data()
+        return self.perform_runge_kutta_step(vel_hat_data)
         # return self.perform_cn_ab_step()
         # return self.perform_hybrid_time_step()
 

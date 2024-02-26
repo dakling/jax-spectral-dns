@@ -32,7 +32,7 @@ from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from equation import Equation
 
 
-@partial(jax.jit, static_argnums=(0,))
+@partial(jax.jit, static_argnums=(0,)) # TODO
 def update_nonlinear_terms_high_performance_perturbation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
@@ -110,22 +110,21 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     max_dt = 2e-2
 
     def __init__(self, velocity_field, **params):
-        self.domain_no_hat = velocity_field[0].physical_domain
 
         super().__init__(velocity_field, **params)
 
         velocity_x_base = PhysicalField.FromFunc(
-            self.domain_no_hat,
+            self.physical_domain,
             lambda X: self.u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
             name="velocity_x_base",
         )
         velocity_y_base = PhysicalField.FromFunc(
-            self.domain_no_hat,
+            self.physical_domain,
             lambda X: 0.0 * X[0] * X[1] * X[2],
             name="velocity_y_base",
         )
         velocity_z_base = PhysicalField.FromFunc(
-            self.domain_no_hat,
+            self.physical_domain,
             lambda X: 0.0 * X[0] * X[1] * X[2],
             name="velocity_z_base",
         )
@@ -144,10 +143,10 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     def update_flow_rate(self):
         self.flow_rate = 0.0
         self.dpdx = PhysicalField.FromFunc(
-            self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]
+            self.physical_domain, lambda X: 0.0 * X[0] * X[1] * X[2]
         ).hat()
         self.dpdz = PhysicalField.FromFunc(
-            self.domain_no_hat, lambda X: 0.0 * X[0] * X[1] * X[2]
+            self.physical_domain, lambda X: 0.0 * X[0] * X[1] * X[2]
         ).hat()
 
     def set_linearize(self, lin):
@@ -165,15 +164,14 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                     ]
                 ),
                 linearize=self.linearize,
-            )
-        )
+            ))
 
     def get_time_step(self):
         return self.max_dt
         if self.time_step % self.dt_update_frequency == 0:
-            dX = self.domain_no_hat.grid[0][1:] - self.domain_no_hat.grid[0][:-1]
-            dY = self.domain_no_hat.grid[1][1:] - self.domain_no_hat.grid[1][:-1]
-            dZ = self.domain_no_hat.grid[2][1:] - self.domain_no_hat.grid[2][:-1]
+            dX = self.physical_domain.grid[0][1:] - self.physical_domain.grid[0][:-1]
+            dY = self.physical_domain.grid[1][1:] - self.physical_domain.grid[1][:-1]
+            dZ = self.physical_domain.grid[2][1:] - self.physical_domain.grid[2][:-1]
             DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
             vel = self.get_latest_field("velocity_hat").no_hat()
             vel_base = self.get_latest_field("velocity_base_hat").no_hat()

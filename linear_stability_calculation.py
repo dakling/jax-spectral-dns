@@ -513,8 +513,8 @@ class LinearStabilityCalculation:
         for mode in range(1, number_of_modes):
 
             factor = factors[mode]
-            if abs(factor) > 1e-8:
-            # if True:
+            # if abs(factor) > 1e-8:
+            if True:
                 i += 1
                 # print("mode", mode, "of", number_of_modes, "factor:", factor)
                 print("mode", mode, "of", number_of_modes)
