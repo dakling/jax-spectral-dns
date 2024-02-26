@@ -9,8 +9,8 @@ import os
 import multiprocessing
 
 # max_devices = 1
-# max_devices = 6
-max_devices = 1e10
+max_devices = 6
+# max_devices = 1e10
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     min(multiprocessing.cpu_count(), max_devices)
 )
@@ -45,14 +45,14 @@ def main():
     # solve_heat_eq_1D()
     # optimize_heat_eq_1D()
     # run_jimenez_1990()
-    # run_transient_growth()
+    run_transient_growth(600, 2.0)
     # run_pseudo_2d_perturbation()
     # run_optimization_pseudo_2d_perturbation()
     # run_optimization_transient_growth()
 
     # run tests
-    tp = TestProject()
-    tp.test_navier_stokes_laminar()
+    # tp = TestProject()
+    # tp.test_navier_stokes_laminar()
     # tp.test_2d_growth()
     # tp.test_linear_stability()
     raise Exception("break")

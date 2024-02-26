@@ -67,7 +67,7 @@ class TestProject(unittest.TestCase):
 
     def test_1D_cheb(self):
         Nx = 48
-        domain = PhysicalDomain((Nx,), (False,))
+        domain = PhysicalDomain.create((Nx,), (False,))
 
         u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
         # u_fn = lambda X: 0.0 * jnp.cos(X[0] * jnp.pi / 2) + 2
@@ -102,7 +102,7 @@ class TestProject(unittest.TestCase):
     def test_1D_periodic(self):
         Nx = 24
         scale_factor = 1.0
-        domain = PhysicalDomain((Nx,), (True,), scale_factors=(scale_factor,))
+        domain = PhysicalDomain.create((Nx,), (True,), scale_factors=(scale_factor,))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
         u = PhysicalField.FromFunc(domain, func=u_fn, name="u_1d_periodic")
@@ -135,7 +135,7 @@ class TestProject(unittest.TestCase):
         # Ny = Nx
         Ny = 24
         scale_factor = 1.0
-        domain = PhysicalDomain((Nx, Ny), (True, False), scale_factors=(scale_factor, 1.0))
+        domain = PhysicalDomain.create((Nx, Ny), (True, False), scale_factors=(scale_factor, 1.0))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor) * jnp.cos(
             X[1] * jnp.pi / 2
@@ -197,7 +197,7 @@ class TestProject(unittest.TestCase):
         Nz = 20
         scale_factor_x = 1.0
         scale_factor_z = 2.0
-        domain = PhysicalDomain(
+        domain = PhysicalDomain.create(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
@@ -293,8 +293,8 @@ class TestProject(unittest.TestCase):
         Nx = 24
         scale_factor = 1.0
         # scale_factor = 2 * jnp.pi
-        domain = PhysicalDomain((Nx,), (True,), scale_factors=(scale_factor,))
-        # domain = PhysicalDomain((Nx,), (True,))
+        domain = PhysicalDomain.create((Nx,), (True,), scale_factors=(scale_factor,))
+        # domain = PhysicalDomain.create((Nx,), (True,))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
         # u_fn = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / scale_factor))
@@ -358,10 +358,10 @@ class TestProject(unittest.TestCase):
         scale_factor_y = 2.0
         # scale_factor_x = 2.0 * jnp.pi
         # scale_factor_y = 2.0 * jnp.pi
-        domain = PhysicalDomain(
+        domain = PhysicalDomain.create(
             (Nx, Ny), (True, True), scale_factors=(scale_factor_x, scale_factor_y)
         )
-        # domain = PhysicalDomain((Nx, Ny), (True, True))
+        # domain = PhysicalDomain.create((Nx, Ny), (True, True))
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x) * jnp.cos(
             X[1] * 2 * jnp.pi / scale_factor_y
@@ -477,7 +477,7 @@ class TestProject(unittest.TestCase):
         Nz = 20
         scale_factor_x = 1.0
         scale_factor_z = 2.0
-        domain = PhysicalDomain(
+        domain = PhysicalDomain.create(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
@@ -571,7 +571,7 @@ class TestProject(unittest.TestCase):
 
     def test_cheb_integration_1D(self):
         Nx = 24
-        domain = PhysicalDomain((Nx,), (False,))
+        domain = PhysicalDomain.create((Nx,), (False,))
 
         u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
         u = PhysicalField.FromFunc(domain, func=u_fn, name="u_1d")
@@ -589,7 +589,7 @@ class TestProject(unittest.TestCase):
     def test_cheb_integration_2D(self):
         Nx = 24
         Ny = Nx + 4
-        domain = PhysicalDomain((Nx, Ny), (True, False))
+        domain = PhysicalDomain.create((Nx, Ny), (True, False))
 
         u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
         u = PhysicalField.FromFunc(domain, func=u_fn, name="u_2d")
@@ -619,7 +619,7 @@ class TestProject(unittest.TestCase):
         Nx = 24
         Ny = Nx + 4
         Nz = Nx - 4
-        domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
+        domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
         u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
         u = PhysicalField.FromFunc(domain, func=u_fn, name="u_3d")
@@ -645,7 +645,7 @@ class TestProject(unittest.TestCase):
         # Fourier
         Nx = 60
         sc_x = 1.0
-        domain_1D_fourier = PhysicalDomain((Nx,), (True,), scale_factors=(sc_x,))
+        domain_1D_fourier = PhysicalDomain.create((Nx,), (True,), scale_factors=(sc_x,))
         u_fn_1d_fourier = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x))
         u_1d_fourier = PhysicalField.FromFunc(
             domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier"
@@ -654,7 +654,7 @@ class TestProject(unittest.TestCase):
             abs(u_1d_fourier.definite_integral(0) - 1.2660658777520084) < tol
         )
         # Chebyshev
-        domain_1D_cheb = PhysicalDomain((Nx,), (False,))
+        domain_1D_cheb = PhysicalDomain.create((Nx,), (False,))
         u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
         u_1d_cheb = PhysicalField.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
         # print(u_1d_cheb.definite_integral(0))
@@ -664,7 +664,7 @@ class TestProject(unittest.TestCase):
         # Fourier
         Ny = 64
         sc_y = 2.0
-        domain_2D_fourier = PhysicalDomain((Nx, Ny), (True, True), scale_factors=(sc_x, sc_y))
+        domain_2D_fourier = PhysicalDomain.create((Nx, Ny), (True, True), scale_factors=(sc_x, sc_y))
         u_fn_2d_fourier = lambda X: jnp.exp(
             jnp.sin(X[0] * 2 * jnp.pi / sc_x)
         ) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2)
@@ -691,7 +691,7 @@ class TestProject(unittest.TestCase):
             < tol
         )
         # Chebyshev
-        domain_2D_cheb = PhysicalDomain((Nx, Ny), (False, False))
+        domain_2D_cheb = PhysicalDomain.create((Nx, Ny), (False, False))
         u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(
             jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2
         )
@@ -717,7 +717,7 @@ class TestProject(unittest.TestCase):
             < tol
         )
         # Mixed
-        domain_2D_mixed = PhysicalDomain((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
+        domain_2D_mixed = PhysicalDomain.create((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
         u_2d_mixed = PhysicalField.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
         # print(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
         self.assertTrue(
@@ -738,7 +738,7 @@ class TestProject(unittest.TestCase):
             )
             < tol
         )
-        domain_2D_mixed_2 = PhysicalDomain((Nx, Ny), (True, False), scale_factors=(sc_x, 1.0))
+        domain_2D_mixed_2 = PhysicalDomain.create((Nx, Ny), (True, False), scale_factors=(sc_x, 1.0))
         u_2d_mixed_2 = PhysicalField.FromFunc(
             domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2"
         )
@@ -767,7 +767,7 @@ class TestProject(unittest.TestCase):
         # Ny = 96
         Nz = 96
         sc_z = 3.0
-        domain_3D_fourier = PhysicalDomain(
+        domain_3D_fourier = PhysicalDomain.create(
             (Nx, Ny, Nz), (True, True, True), scale_factors=(sc_x, sc_y, sc_z)
         )
         u_fn_3d_fourier = lambda X: jnp.exp(
@@ -794,7 +794,7 @@ class TestProject(unittest.TestCase):
             (abs(u_3d_fourier.volume_integral() - -10.84981433261992)) < tol
         )
         # Chebyshev
-        domain_3D_cheb = PhysicalDomain((Nx, Ny, Nz), (False, False, False))
+        domain_3D_cheb = PhysicalDomain.create((Nx, Ny, Nz), (False, False, False))
         u_fn_3d_cheb = (
             lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi))
             - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
@@ -815,7 +815,7 @@ class TestProject(unittest.TestCase):
         )
         self.assertTrue((abs(u_3d_cheb.volume_integral() - 10.128527022082872)) < tol)
         # Mixed
-        domain_3D_mixed = PhysicalDomain(
+        domain_3D_mixed = PhysicalDomain.create(
             (Nx, Ny, Nz), (True, False, True), scale_factors=(sc_x, 1.0, sc_z)
         )
         u_fn_3d_mixed = (
@@ -848,12 +848,12 @@ class TestProject(unittest.TestCase):
         scale_factor_x = 1.0
         scale_factor_z = 1.0
 
-        domain = PhysicalDomain(
+        domain = PhysicalDomain.create(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
         )
-        domain_y = PhysicalDomain((Ny,), (False,))
+        domain_y = PhysicalDomain.create((Ny,), (False,))
 
         rhs_fn = (
             lambda X: -(
@@ -921,7 +921,7 @@ class TestProject(unittest.TestCase):
         # scale_factor_z = 1.5
         scale_factor_x = 2 * jnp.pi
         scale_factor_z = 2 * jnp.pi
-        domain = PhysicalDomain(
+        domain = PhysicalDomain.create(
             (Nx, Ny, Nz),
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),

@@ -8,12 +8,14 @@ from abc import ABC, abstractmethod
 import math
 import jax
 import jax.numpy as jnp
+from jax.tree_util import register_pytree_node_class
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib import colors
 import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator
 import functools
+import dataclasses
 from typing import Union
 
 import numpy as np
@@ -563,13 +565,24 @@ class VectorField:
             )
 
 
+@register_pytree_node_class
+@dataclasses.dataclass(init=False)
 class PhysicalField(Field):
 
-    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field"):
+    def tree_flatten(self):
+        children = (self.data, self.time_step)
+        aux_data = (self.physical_domain, self.name)
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(aux_data[0], children[0], aux_data[1], children[2])
+
+    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field", time_step: int=0):
         self.physical_domain = domain
         self.data = data
         self.name = name
-        self.time_step: int = 0
+        self.time_step: int = time_step
 
     def shift(self, value):
         out_field = self.data + value
@@ -1216,7 +1229,7 @@ class PhysicalField(Field):
                 scale_factors = tuple(
                     (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
                 )
-                reduced_domain = PhysicalDomain(
+                reduced_domain = PhysicalDomain.create(
                     shape, periodic_directions, scale_factors=scale_factors
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
@@ -1237,7 +1250,7 @@ class PhysicalField(Field):
                 scale_factors = tuple(
                     (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
                 )
-                reduced_domain = PhysicalDomain(
+                reduced_domain = PhysicalDomain.create(
                     shape, periodic_directions, scale_factors=scale_factors
                 )
                 field = (
@@ -1248,11 +1261,22 @@ class PhysicalField(Field):
                 return PhysicalField(reduced_domain, field)
 
 
-
+@register_pytree_node_class
+@dataclasses.dataclass(init=False)
 class FourierField(Field):
-    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field_hat"):
+
+    def tree_flatten(self):
+        children = (self.data, self.time_step)
+        aux_data = (self.physical_domain, self.name, self.fourier_domain)
+        return (children, aux_data)
+
+    @classmethod
+    def tree_unflatten(cls, aux_data, children):
+        return cls(aux_data[0], children[0], aux_data[1], children[2])
+
+    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field_hat", time_step: int=0):
         self.name = name
-        self.time_step: int = 0
+        self.time_step: int = time_step
         self.physical_domain = domain
         self.fourier_domain = domain.hat()
         self.data = data

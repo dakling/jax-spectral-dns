@@ -113,7 +113,7 @@ class NavierStokesVelVort(Equation):
 
     @classmethod
     def FromRandom(cls, shape, Re, end_time=1e0):
-        domain = PhysicalDomain(shape, (True, False, True))
+        domain = PhysicalDomain.create(shape, (True, False, True))
         vel_x = PhysicalField.FromRandom(domain, name="u0")
         vel_y = PhysicalField.FromRandom(domain, name="u1")
         vel_z = PhysicalField.FromRandom(domain, name="u2")
@@ -997,8 +997,8 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-    # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = (
         lambda X: -1 * NavierStokesVelVort.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)

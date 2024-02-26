@@ -83,7 +83,7 @@ def solve_heat_eq_1D():
     # Nx = 100000
     Nx = 100
 
-    domain = PhysicalDomain((Nx,), (False,))
+    domain = PhysicalDomain.create((Nx,), (False,))
 
     u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
@@ -104,7 +104,7 @@ def solve_heat_eq_1D():
 def optimize_heat_eq_1D():
     Nx = 100
     def run(v0):
-        domain = PhysicalDomain((Nx,), (False,))
+        domain = PhysicalDomain.create((Nx,), (False,))
 
         u = PhysicalField(domain, v0, name="u")
         e0 = u.energy()
@@ -119,7 +119,7 @@ def optimize_heat_eq_1D():
 
 
 
-    domain = PhysicalDomain((Nx,), (False,))
+    domain = PhysicalDomain.create((Nx,), (False,))
 
     u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
     u_0 = PhysicalField.FromFunc(domain, func=u_fn, name="u")
@@ -148,7 +148,7 @@ def solve_heat_eq_2D():
     Nx = 24
     Ny = Nx
 
-    domain = PhysicalDomain((Nx, Ny), (True, False))
+    domain = PhysicalDomain.create((Nx, Ny), (True, False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
@@ -166,7 +166,7 @@ def solve_heat_eq_3D():
     Ny = 100
     Nz = 100
 
-    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
@@ -189,7 +189,7 @@ def optimize_heat_eq_3D():
     Ny = Nx
     Nz = Nx
     def run(v0):
-        domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
+        domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
         u = PhysicalField(domain, v0, name="u")
         e0 = u.energy()
@@ -204,7 +204,7 @@ def optimize_heat_eq_3D():
 
 
 
-    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True))
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
     u_0 = PhysicalField.FromFunc(domain, func=u_fn, name="u")

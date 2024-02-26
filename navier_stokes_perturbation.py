@@ -201,7 +201,7 @@ def solve_navier_stokes_perturbation(
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
     vel_x_fn = lambda X: (
         0.1

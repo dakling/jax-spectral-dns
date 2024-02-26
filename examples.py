@@ -754,12 +754,12 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
 
     Nx = 4
-    Ny = 24
+    Ny = 50
     Nz = 2
     end_time = 1.01 * T
     # number_of_modes = 4*Ny
-    number_of_modes = 100
-    # number_of_modes = 50
+    # number_of_modes = 100
+    number_of_modes = 80
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
@@ -951,7 +951,7 @@ def run_optimization_pseudo_2d_perturbation():
     Equation.initialize()
 
 
-    dom = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    dom = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
     v0_0 = lsc.velocity_field(dom, 0)
 
@@ -1003,7 +1003,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
 
 
     v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -1030,7 +1030,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
         # v0_ = v0.reshape((3, Nx, Ny, Nz))
         # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
-        # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         U = VectorField([PhysicalField(domain, v0[i]) for i in range(3)])
         eps = 1e-5
         eps_ = eps / U.energy()
@@ -1122,21 +1122,24 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     Equation.initialize()
     Nx = 6
     Ny = 50
-    Nz = 2
+    Nz = 6
     # Nx = 48
     # Ny = 64
     # Nz = 12
     end_time = T
-    number_of_modes = 60
+    number_of_modes = 80
     # number_of_modes = 5
-    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-6)
+    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain: PhysicalDomain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    energy_gain_svd = None
     if file is None:
-        _, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+        S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
         coeffs = V[:, 0]
+        energy_gain_svd = S[0]**2
+        print("excpected energy gain:", energy_gain_svd)
     else:
         coeff_array = np.load(file, allow_pickle=True)
         coeffs = jnp.array(coeff_array.tolist())
@@ -1165,7 +1168,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         )
         # v0_ = v0.reshape((3, Nx, Ny, Nz))
         # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
-        # domain = PhysicalDomain((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         eps = 1e-5
         eps_ = eps / U.energy()
         U_norm = U * eps_
@@ -1187,6 +1190,8 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         gain = vel.energy() / vel_0.energy()
         # return gain
         # print("gain:", gain)
+        if energy_gain_svd is not None:
+            print("expected gain:", energy_gain_svd)
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     # coeffs_list = [coeffs]
@@ -1197,6 +1202,8 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     #     gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
     #     corr_arr = jnp.array(corr)
     #     print("gain: " + str(gain))
+    #     if energy_gain_svd is not None:
+    #         print("expected gain:", energy_gain_svd)
     #     eps = step_size
 
     #     coeffs_list[-1] = coeffs_list[-1] + eps * corr_arr
@@ -1208,8 +1215,10 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     #     # v0_new.plot_3d(2)
     #     # v0_new.save_to_file("vel_0_" + str(i))
 
-    learning_rate = 3e-1
+    learning_rate = 10
     solver = optax.adagrad(learning_rate=learning_rate) # minimizer
+    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    # solver = optax.adam(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(coeffs)
     number_of_steps = 1000
     print(coeffs)
@@ -1219,7 +1228,8 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
 
         updates, opt_state = solver.update(corr, opt_state, coeffs)
         coeffs = optax.apply_updates(coeffs, updates)
-        print(coeffs)
+        print("coeffs:", coeffs)
+        print("gradient magnitudes:", jnp.linalg.norm(corr))
         coeff_array = np.array(coeffs.tolist())
         coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 

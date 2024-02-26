@@ -61,7 +61,7 @@ class LinearStabilityCalculation:
         self.growth = []
 
         # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
-        domain = PhysicalDomain((n,), (False,))
+        domain = PhysicalDomain.create((n,), (False,))
         self.ys = domain.grid[0]
 
         self.velocity_field_ = None
@@ -533,6 +533,7 @@ class LinearStabilityCalculation:
 
         print("modes used:", i)
         # print("energy of initial field:", u.energy())
+        # print("expected energy growth: ", self.S[0]**2)
 
         return u
 
@@ -576,14 +577,14 @@ class LinearStabilityCalculation:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
             if recompute_full or type(self.V) == NoneType:
-                _, self.V = self.calculate_transient_growth_svd(
+                self.S, self.V = self.calculate_transient_growth_svd(
                     domain, T, number_of_modes, save=True, recompute=recompute_full
                 )
             U = self.U
             V = self.V
 
 
-            # print("expected energy growth: ", self.S[0]**2)
+            print("expected energy growth: ", self.S[0]**2)
 
             factors = V[:,0]
             # TODO use calculate_transient_growth_initial_condition_from_coefficients

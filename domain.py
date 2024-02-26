@@ -10,6 +10,7 @@ from matplotlib import legend
 from numpy import float128
 import scipy as sc
 import functools
+import dataclasses
 from typing import Tuple, Union, Sequence, List
 
 
@@ -17,48 +18,104 @@ import numpy as np
 
 NoneType = type(None)
 
+def get_cheb_grid(N, scale_factor=1.0):
+    """Assemble a Chebyshev grid with N points on the interval [-1, 1],
+    unless scaled to a different interval using scale_factor (currently not
+    implemented)."""
+    assert (
+        scale_factor == 1.0
+    ), "different scaling of Chebyshev direction not implemented yet."
+    # n = int(N * self.aliasing)
+    n = N
+    return jnp.array(
+        [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
+    )  # gauss-lobatto points with endpoints
 
-# TODO turn this into an abstract class, introduce Physical_Domain. Same with Field.
+def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
+    """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
+    unless scaled to a different interval using scale_factor."""
+    if N % 2 != 0:
+        print(
+            "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
+        )
+        N += 1
+    return jnp.linspace(
+        start=0.0, stop=scale_factor, num=int(N * aliasing + 1)
+    )[:-1]
+
+def assemble_cheb_diff_mat(xs, order=1):
+    """Assemble a 1D Chebyshev differentiation matrix in direction i with
+    differentiation order order."""
+    N = len(xs)
+    c = jnp.block([2.0, jnp.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** jnp.arange(0, N)
+    X = jnp.repeat(xs, N).reshape(N, N)
+    dX = X - jnp.transpose(X)
+    D_ = jnp.transpose((jnp.transpose(1 / c) @ c)) / (dX + jnp.eye(N))
+    return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
+
+def assemble_fourier_diff_mat(n, order=1):
+    """Assemble a 1D Fourier differentiation matrix in direction i with
+    differentiation order order."""
+    if n % 2 != 0:
+        raise Exception("Fourier discretization points must be even!")
+    h = 2 * jnp.pi / n
+    column = jnp.block(
+        [0, 0.5 * (-1) ** jnp.arange(1, n) * 1 / jnp.tan(jnp.arange(1, n) * h / 2)]
+    )
+    column2 = jnp.block([column[0], jnp.flip(column[1:])])
+    return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
+
+
+
+@dataclasses.dataclass(frozen=True)
 class Domain(ABC):
     """Class that mainly contains information on the independent variables of
     the problem (i.e. the basis) and implements some operations that can be
     performed on it."""
 
+
+    number_of_dimensions: int
+    periodic_directions: Tuple[bool]
+    scale_factors: Union[List[jnp.float64], Tuple[jnp.float64]]
+    shape: Sequence[int]
+    grid: List[jnp.ndarray]
+    diff_mats: List[jnp.ndarray]
+    mgrid: List[jnp.ndarray]
+    aliasing: jnp.float64 = 1 # no antialiasing (requires finer resolution)
     # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
-    aliasing = 1 # no antialiasing (requires finer resolution)
 
     # @functools.partial(jax.jit, static_argnums=(0, 1))
-    def __init__(self, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType]=None):
-        self.number_of_dimensions = len(shape)
-        self.periodic_directions = periodic_directions
+    @classmethod
+    def create(cls, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType]=None, aliasing=1):
+        number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
-            self.scale_factors: Union[List[jnp.float64], Tuple[jnp.float64]] = []
+            scale_factors_: Union[List[jnp.float64]] = []
         else:
             assert isinstance(scale_factors, List) or isinstance(scale_factors, Tuple)
-            self.scale_factors = scale_factors
-        self.shape = shape
-        self.grid = []
-        self.diff_mats = []
-        for dim in jnp.arange(self.number_of_dimensions):
-            if type(periodic_directions) != NoneType and self.periodic_directions[dim]:
+            scale_factors_ = scale_factors
+        grid = []
+        diff_mats = []
+        for dim in jnp.arange(number_of_dimensions):
+            if type(periodic_directions) != NoneType and periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
-                    self.scale_factors.append(2.0 * jnp.pi)
-                self.grid.append(
-                    self.get_fourier_grid(shape[dim], self.scale_factors[dim])
+                    scale_factors_.append(2.0 * jnp.pi)
+                grid.append(
+                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
                 )
-                self.diff_mats.append(
-                    self.assemble_fourier_diff_mat(dim)
+                diff_mats.append(
+                    assemble_fourier_diff_mat(n=shape[dim], order=1)
                     * (2 * jnp.pi)
-                    / self.scale_factors[dim]
+                    / scale_factors_[dim]
                 )
             else:
                 if type(scale_factors) == NoneType:
-                    self.scale_factors.append(1.0)
-                self.grid.append(
-                    self.get_cheb_grid(shape[dim], self.scale_factors[dim])
+                    scale_factors_.append(1.0)
+                grid.append(
+                    get_cheb_grid(shape[dim], scale_factors_[dim])
                 )
-                self.diff_mats.append(self.assemble_cheb_diff_mat(dim))
-        self.mgrid = jnp.meshgrid(*self.grid, indexing="ij")
+                diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
+        mgrid = jnp.meshgrid(*grid, indexing="ij")
+        return cls(number_of_dimensions, periodic_directions, scale_factors_, shape, grid, diff_mats, mgrid, aliasing)
 
     def number_of_cells(self, direction):
         return len(self.grid[direction])
@@ -83,31 +140,6 @@ class Domain(ABC):
             for d in self.all_dimensions()
             if not self.is_periodic(d)
         ]
-
-    def get_cheb_grid(self, N, scale_factor=1.0):
-        """Assemble a Chebyshev grid with N points on the interval [-1, 1],
-        unless scaled to a different interval using scale_factor (currently not
-        implemented)."""
-        assert (
-            scale_factor == 1.0
-        ), "different scaling of Chebyshev direction not implemented yet."
-        # n = int(N * self.aliasing)
-        n = N
-        return jnp.array(
-            [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
-        )  # gauss-lobatto points with endpoints
-
-    def get_fourier_grid(self, N, scale_factor=2 * jnp.pi):
-        """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
-        unless scaled to a different interval using scale_factor."""
-        if N % 2 != 0:
-            print(
-                "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
-            )
-            N += 1
-        return jnp.linspace(
-            start=0.0, stop=scale_factor, num=int(N * self.aliasing + 1)
-        )[:-1]
 
     def hat(self):
         """Create a Fourier transform of the present domain in all periodic
@@ -140,30 +172,6 @@ class Domain(ABC):
         out.grid = fourier_grid_shifted
         out.mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
         return out
-
-    def assemble_cheb_diff_mat(self, i, order=1):
-        """Assemble a 1D Chebyshev differentiation matrix in direction i with
-        differentiation order order."""
-        xs = self.grid[i]
-        N = len(xs)
-        c = jnp.block([2.0, jnp.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** jnp.arange(0, N)
-        X = jnp.repeat(xs, N).reshape(N, N)
-        dX = X - jnp.transpose(X)
-        D_ = jnp.transpose((jnp.transpose(1 / c) @ c)) / (dX + jnp.eye(N))
-        return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
-
-    def assemble_fourier_diff_mat(self, i, order=1):
-        """Assemble a 1D Fourier differentiation matrix in direction i with
-        differentiation order order."""
-        n = self.number_of_cells(i)
-        if n % 2 != 0:
-            raise Exception("Fourier discretization points must be even!")
-        h = 2 * jnp.pi / n
-        column = jnp.block(
-            [0, 0.5 * (-1) ** jnp.arange(1, n) * 1 / jnp.tan(jnp.arange(1, n) * h / 2)]
-        )
-        column2 = jnp.block([column[0], jnp.flip(column[1:])])
-        return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
 
     def diff(self, field, direction, order=1):
         """Calculate and return the derivative of given order for field in
@@ -457,10 +465,12 @@ class Domain(ABC):
         return jnp.array([out_0, out_1, out_2])
 
 
+@dataclasses.dataclass(init=False, frozen=True)
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
     pass
 
+@dataclasses.dataclass(init=False, frozen=True)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
 
