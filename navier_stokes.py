@@ -487,7 +487,6 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat,
             ) = self.nonlinear_update_fn(
                 self.physical_domain,
-                # jnp.array([vel_hat[0].data, vel_hat[1].data, vel_hat[2].data]),
                 vel_hat_data
             )
 
@@ -500,9 +499,6 @@ class NavierStokesVelVort(Equation):
 
             # solve equations
             v_1_hat = vel_hat_data[1, ...]
-            # v_1_lap_hat_ = FourierField(self.physical_domain, v_1_hat).laplacian().data
-            # domain = self.physical_domain
-            # v_1_lap_hat = self.fourier_domain.diff(v_1_hat, 1, 2) + v_1_hat
             v_1_lap_hat = jnp.sum(jnp.array([self.domain.diff(v_1_hat, i, 2, self.physical_domain) for i in self.all_dimensions()]), axis=0)
 
             # vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
@@ -620,6 +616,7 @@ class NavierStokesVelVort(Equation):
                 return vel_new_hat_field
 
             @partial(jax.jit, static_argnums=(0, 1, 2))
+            @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,1,2))
             def get_new_vel_field_map(
                     Nx,
                     Ny,
@@ -986,6 +983,7 @@ class NavierStokesVelVort(Equation):
         else:
             return self.perform_cn_ab_step(vel_hat_data)
 
+    @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,))
     def perform_time_step(self, vel_hat_data=None):
         if type(vel_hat_data) == NoneType:
             vel_hat_data = self.get_latest_field("velocity_hat").get_data()
