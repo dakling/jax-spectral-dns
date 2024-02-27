@@ -740,11 +740,10 @@ class NavierStokesVelVort(Equation):
             vel_new_hat.update_boundary_conditions()
             # vel_hat_data = vel_new_hat
 
-        # vel_new_hat.name = "velocity_hat"
-        # for i in self.all_dimensions():
-        #     vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
-        # self.append_field("velocity_hat", vel_new_hat, in_place=True)
-        # self.fields["velocity_hat"][-1] = vel_new_hat
+        vel_new_hat.name = "velocity_hat"
+        for i in self.all_dimensions():
+            vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
+        self.append_field("velocity_hat", vel_new_hat, in_place=True)
         return vel_new_hat.get_data()
 
     def perform_cn_ab_step(self, vel_hat):

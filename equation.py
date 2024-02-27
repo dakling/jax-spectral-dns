@@ -170,8 +170,8 @@ class Equation:
     def update_time(self):
         self.time += self.dt
         self.time_step += 1
-        for _, field in self.fields.items():
-            field[-1].time_step = self.time_step
+        # for _, field in self.fields.items():
+        #     field[-1].time_step = self.time_step
 
     def solve_scan(self): # TODO
         self.prepare()
@@ -179,10 +179,10 @@ class Equation:
         def step_fn(u0, _):
             return (self.perform_time_step(u0), None)
         u0 = self.get_latest_field("velocity_hat").get_data()
-        # ts = jnp.arange(0, self.end_time, self.max_dt)
-        ts = jnp.arange(1)
-        # u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
-        u_final, _ = jax.jit(step_fn)(u0, None)
+        ts = jnp.arange(0, self.end_time + self.max_dt, self.max_dt)
+        print(ts)
+        u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
+        # u_final, _ = jax.jit(step_fn)(u0, None)
         # u_final, _ = step_fn(u0, None)
         # u_final, _ = step_fn(u0, None)
         # trajectory_fn = trajectory(step_fn, self.max_iter)

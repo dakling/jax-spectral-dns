@@ -210,7 +210,7 @@ class Domain(ABC):
         )
         return out
 
-    @partial(jax.jit, static_argnums=(0,2,3))
+    # @partial(jax.jit, static_argnums=(0,2,3))
     def diff(self, field, direction, order=1):
         """Calculate and return the derivative of given order for field in
         direction."""
@@ -479,7 +479,7 @@ class Domain(ABC):
 
         return out
 
-    @partial(jax.jit, static_argnums=(0))
+    # @partial(jax.jit, static_argnums=(0))
     def curl(self, field):
         """Compute the curl of field."""
         # assert len(field) == 3, "rotation only defined in 3 dimensions"

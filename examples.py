@@ -1134,7 +1134,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
 
     # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    # domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     energy_gain_svd = None
     # if file is None:
     #     S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
@@ -1162,14 +1162,14 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     # @jax.jit
     def run_case(coeffs_):
 
-        domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+        # domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
         # U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
         #     domain_,
         #     coeffs_,
         #     save=False,
         #     recompute=False
         # )
-        U = VectorField([PhysicalField.FromFunc(domain_, lambda X: coeffs_[0]*X[0] + coeffs_[1]*(1-X[1]**2) + coeffs_[2]*X[2], name="velocity") for _ in range(3)])
+        U = VectorField([PhysicalField.FromFunc(domain, lambda X: coeffs_[0]*X[0] + coeffs_[1]*(1-X[1]**2) + coeffs_[2]*X[2], name="velocity") for _ in range(3)])
         # v0_ = v0.reshape((3, Nx, Ny, Nz))
         # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
         eps = 1e-5
@@ -1177,7 +1177,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         U_norm = U * eps_
         # U_norm.update_boundary_conditions()
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain_)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain)
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1185,7 +1185,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         vel_jnp = nse.solve_scan()
-        vel = VectorField([FourierField(domain_, vel_jnp[i,...]) for i in range(3)]).no_hat()
+        vel = VectorField([FourierField(domain, vel_jnp[i,...]) for i in range(3)]).no_hat()
         # nse.solve()
         # vel = nse.get_latest_field("velocity_hat").no_hat()
 
@@ -1203,7 +1203,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     step_size = 5e-1
     print(coeffs_list[-1])
     number_of_steps = 1000
-    for i in jnp.arange(number_of_steps):
+    for i in range(number_of_steps):
         gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
         corr_arr = jnp.array(corr)
         print("gain: " + str(-gain))
