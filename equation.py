@@ -31,7 +31,6 @@ class Equation:
 
     def __init__(self, domain, *fields, **params):
         self.domain = domain
-        self.physical_domain = domain
         self.fields = {}
         self.time_step = 0
         self.time = 0.0

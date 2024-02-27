@@ -340,6 +340,11 @@ class TestProject(unittest.TestCase):
         u_diff.name = "u_1d_diff"
         u_diff_2 = u_hat_diff_2.no_hat()
         u_diff_2.name = "u_1d_diff_2"
+
+        u_dom_diff = PhysicalField(domain, domain.diff(u.data, 0, 1))
+        u_dom_diff_2 = PhysicalField(domain, domain.diff(u.data, 0, 2))
+        u_dom_diff.name = "u_1d_dom_diff"
+        u_dom_diff_2.name = "u_1d_dom_diff_2"
         # u_int.plot(u)
         # u.integrate(0).plot(u)
         # print(abs(u_int - u_int_ana))
@@ -350,6 +355,8 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_int_2 - u_int_ana_2) < tol)
         self.assertTrue(abs(u_diff - u_diff_ana) < tol)
         self.assertTrue(abs(u_diff_2 - u_diff_ana_2) < tol)
+        self.assertTrue(abs(u_dom_diff - u_diff_ana) < tol)
+        self.assertTrue(abs(u_dom_diff_2 - u_diff_ana_2) < tol)
 
     def test_fourier_2D(self):
         Nx = 24
@@ -972,10 +979,9 @@ class TestProject(unittest.TestCase):
         def before_time_step(nse):
             u = nse.get_latest_field("velocity_hat").no_hat()
             u.set_time_step(nse.time_step)
-            print(u.name)
-            print(u[0].name)
             u.plot_3d(2)
 
+        Equation.initialize()
         nse.before_time_step_fn = before_time_step
         # nse.before_time_step_fn = None
         nse.after_time_step_fn = None
@@ -985,8 +991,7 @@ class TestProject(unittest.TestCase):
             lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
             + 0.0 * X[0] * X[2]
         )
-        vel_x_ana = PhysicalField.FromFunc(nse.physical_domain
-, vel_x_fn_ana, name="vel_x_ana")
+        vel_x_ana = PhysicalField.FromFunc(nse.physical_domain , vel_x_fn_ana, name="vel_x_ana")
 
         print("Doing post-processing")
         vel_hat = nse.get_latest_field("velocity_hat")

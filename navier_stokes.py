@@ -40,7 +40,7 @@ from linear_stability_calculation import LinearStabilityCalculation
 def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     vel_new = jnp.array(
         [
-            domain.no_hat(vel_hat_new.at[i].get())
+            domain.no_hat(vel_hat_new.at[i,...].get())
             for i in jnp.arange(domain.number_of_dimensions)
         ]
     )
@@ -60,18 +60,18 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     conv_ns_new = -hel_new
 
     h_v_new = (
-        -domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
-        + domain.diff(hel_new[1], 0, 2)
-        + domain.diff(hel_new[1], 2, 2)
+        -domain.diff(domain.diff(hel_new[0,...], 0) + domain.diff(hel_new[2,...], 2), 1)
+        + domain.diff(hel_new[1,...], 0, 2)
+        + domain.diff(hel_new[1,...], 2, 2)
     )
 
-    h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
+    h_g_new = domain.diff(hel_new[0,...], 2) - domain.diff(hel_new[2,...], 0)
 
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
-    vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
+    vort_hat_new = [domain.field_hat(vort_new[i,...]) for i in domain.all_dimensions()]
     conv_ns_hat_new = [
-        domain.field_hat(conv_ns_new[i]) for i in domain.all_dimensions()
+        domain.field_hat(conv_ns_new[i,...]) for i in domain.all_dimensions()
     ]
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
@@ -80,8 +80,8 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
 
-    max_cfl = 0.7
-    max_dt = 1e10
+    max_cfl = 0.3
+    max_dt = 0.2
     dt_update_frequency = (
         10  # update the timestep every time_step_udate_frequency time steps
     )
@@ -95,6 +95,7 @@ class NavierStokesVelVort(Equation):
         else:
             domain = velocity_field[0].fourier_domain
             self.physical_domain = velocity_field[0].physical_domain
+
 
         try:
             self.Re_tau = params["Re_tau"]
@@ -251,7 +252,7 @@ class NavierStokesVelVort(Equation):
         self.poisson_mat = self.domain.assemble_poisson_matrix()
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
             self.add_field(field_name)
-        # self.update_nonlinear_terms() # TODO
+        self.update_nonlinear_terms()
 
     def perform_runge_kutta_step(self, vel_hat_data):
         self.dt = self.get_time_step()
@@ -406,9 +407,9 @@ class NavierStokesVelVort(Equation):
                     )
                     v_hat = jnp.block(
                         [
-                            vel_hat_data[0][kx__, :, kz__],
-                            vel_hat_data[2][kx__, :, kz__],
-                        ]  # TODO maybe
+                            vel_hat_data[0, kx__, :, kz__],
+                            vel_hat_data[2, kx__, :, kz__],
+                        ]
                     )
                     N_00_new = jnp.block(
                         [

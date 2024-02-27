@@ -353,6 +353,10 @@ class VectorField:
             other_fields_i = [item[i] for item in other_fields]
             self[i].plot(*other_fields_i)
 
+    def plot_3d(self, direction=None):
+        for f in self:
+            f.plot_3d(direction)
+
     def cross_product(self, other):
         out_0 = self[1] * other[2] - self[2] * other[1]
         out_1 = self[2] * other[0] - self[0] * other[2]
