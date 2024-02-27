@@ -164,14 +164,14 @@ class NavierStokesVelVort(Equation):
             conv_ns_hat,
         ) = self.nonlinear_update_fn(
             self.physical_domain,
-            velocity_field_
-            # jnp.array(
-            #     [
-            #         velocity_field_[0].data,
-            #         velocity_field_[1].data,
-            #         velocity_field_[2].data,
-            #     ]
-            # ),
+            # velocity_field_
+            jnp.array(
+                [
+                    velocity_field_[0].data,
+                    velocity_field_[1].data,
+                    velocity_field_[2].data,
+                ]
+            ),
         )
         h_v_hat_field = FourierField(self.physical_domain, h_v_hat, name="h_v_hat")
         h_g_hat_field = FourierField(self.physical_domain, h_g_hat, name="h_g_hat")
@@ -251,7 +251,7 @@ class NavierStokesVelVort(Equation):
         self.poisson_mat = self.domain.assemble_poisson_matrix()
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
             self.add_field(field_name)
-        self.update_nonlinear_terms()
+        # self.update_nonlinear_terms() # TODO
 
     def perform_runge_kutta_step(self, vel_hat_data):
         self.dt = self.get_time_step()
@@ -406,8 +406,8 @@ class NavierStokesVelVort(Equation):
                     )
                     v_hat = jnp.block(
                         [
-                            vel_hat[0][kx__, :, kz__],
-                            vel_hat[2][kx__, :, kz__],
+                            vel_hat_data[0][kx__, :, kz__],
+                            vel_hat_data[2][kx__, :, kz__],
                         ]  # TODO maybe
                     )
                     N_00_new = jnp.block(
@@ -502,7 +502,7 @@ class NavierStokesVelVort(Equation):
             # v_1_lap_hat = v_1_hat.laplacian()
             domain = self.physical_domain
             # v_1_lap_hat = domain.diff(v_1_hat, 0, 2) + domain.diff(v_1_hat, 1, 2) + domain.diff(v_1_hat, 2, 2)
-            v_1_lap_hat = jnp.sum(jnp.array([domain.diff(v_1_hat, i, 2) for i in self.all_dimensions()]))
+            v_1_lap_hat = jnp.sum(jnp.array([domain.diff(v_1_hat, i, 2) for i in self.all_dimensions()]), axis=0)
 
             # vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
             #     perform_single_rk_step_for_single_wavenumber( # TODO each wavenumber gets the entire field!
@@ -691,7 +691,8 @@ class NavierStokesVelVort(Equation):
                 Nx,
                 Ny,
                 Nz,
-                v_1_lap_hat.data,
+                # v_1_lap_hat.data,
+                v_1_lap_hat,
                 vort_hat[1],
                 conv_ns_hat[0],
                 conv_ns_hat[2],
@@ -739,12 +740,12 @@ class NavierStokesVelVort(Equation):
             vel_new_hat.update_boundary_conditions()
             # vel_hat_data = vel_new_hat
 
-        vel_new_hat.name = "velocity_hat"
-        for i in jnp.arange(len(vel_new_hat)):
-            vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
-        self.append_field("velocity_hat", vel_new_hat, in_place=True)
+        # vel_new_hat.name = "velocity_hat"
+        # for i in self.all_dimensions():
+        #     vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
+        # self.append_field("velocity_hat", vel_new_hat, in_place=True)
         # self.fields["velocity_hat"][-1] = vel_new_hat
-        return vel_new_hat
+        return vel_new_hat.get_data()
 
     def perform_cn_ab_step(self, vel_hat):
         print(

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib import legend
 from numpy import float128
 import scipy as sc
-import functools
+from functools import partial
 import dataclasses
 from typing import Tuple, Union, Sequence, List
 
@@ -18,6 +18,7 @@ from typing import Tuple, Union, Sequence, List
 import numpy as np
 
 NoneType = type(None)
+
 
 def get_cheb_grid(N, scale_factor=1.0):
     """Assemble a Chebyshev grid with N points on the interval [-1, 1],
@@ -32,6 +33,7 @@ def get_cheb_grid(N, scale_factor=1.0):
         [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
     )  # gauss-lobatto points with endpoints
 
+
 def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
@@ -40,9 +42,8 @@ def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
             "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
         )
         N += 1
-    return jnp.linspace(
-        start=0.0, stop=scale_factor, num=int(N * aliasing + 1)
-    )[:-1]
+    return jnp.linspace(start=0.0, stop=scale_factor, num=int(N * aliasing + 1))[:-1]
+
 
 def assemble_cheb_diff_mat(xs, order=1):
     """Assemble a 1D Chebyshev differentiation matrix in direction i with
@@ -53,6 +54,7 @@ def assemble_cheb_diff_mat(xs, order=1):
     dX = X - jnp.transpose(X)
     D_ = jnp.transpose((jnp.transpose(1 / c) @ c)) / (dX + jnp.eye(N))
     return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
+
 
 def assemble_fourier_diff_mat(n, order=1):
     """Assemble a 1D Fourier differentiation matrix in direction i with
@@ -74,7 +76,6 @@ class Domain(ABC):
     the problem (i.e. the basis) and implements some operations that can be
     performed on it."""
 
-
     number_of_dimensions: int
     periodic_directions: Tuple[bool]
     scale_factors: Union[List[jnp.float64], Tuple[jnp.float64]]
@@ -82,7 +83,7 @@ class Domain(ABC):
     grid: List[jnp.ndarray]
     diff_mats: List[jnp.ndarray]
     mgrid: List[jnp.ndarray]
-    aliasing: jnp.float64 = 1 # no antialiasing (requires finer resolution)
+    aliasing: jnp.float64 = 1  # no antialiasing (requires finer resolution)
     # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
 
     # def tree_flatten(self):
@@ -94,10 +95,16 @@ class Domain(ABC):
     # def tree_unflatten(cls, aux_data, children):
     #     return cls(*aux_data[:4], *children, aux_data[5])
 
-    # @functools.partial(jax.jit, static_argnums=(0, 1))
-
     @classmethod
-    def create(cls, shape: Sequence[int], periodic_directions: Sequence[bool], scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType]=None, aliasing=1, _grid: Union[NoneType, List[jnp.ndarray]]=None, _mgrid: Union[NoneType, List[jnp.ndarray]]=None):
+    def create(
+        cls,
+        shape: Sequence[int],
+        periodic_directions: Sequence[bool],
+        scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType] = None,
+        aliasing=1,
+        _grid: Union[NoneType, List[jnp.ndarray]] = None,
+        _mgrid: Union[NoneType, List[jnp.ndarray]] = None,
+    ):
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
             scale_factors_: Union[List[jnp.float64]] = []
@@ -109,7 +116,7 @@ class Domain(ABC):
         else:
             grid = _grid
         diff_mats = []
-        for dim in jnp.arange(number_of_dimensions):
+        for dim in range(number_of_dimensions):
             if type(periodic_directions) != NoneType and periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * jnp.pi)
@@ -126,15 +133,22 @@ class Domain(ABC):
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(1.0)
                 if type(_grid) == NoneType:
-                    grid.append(
-                        get_cheb_grid(shape[dim], scale_factors_[dim])
-                    )
+                    grid.append(get_cheb_grid(shape[dim], scale_factors_[dim]))
                 diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
         if type(_mgrid) == NoneType:
             mgrid = jnp.meshgrid(*grid, indexing="ij")
         else:
             mgrid = _mgrid
-        return cls(number_of_dimensions, periodic_directions, scale_factors_, shape, grid, diff_mats, mgrid, aliasing)
+        return cls(
+            number_of_dimensions,
+            periodic_directions,
+            scale_factors_,
+            shape,
+            grid,
+            diff_mats,
+            mgrid,
+            aliasing,
+        )
 
     def number_of_cells(self, direction):
         return len(self.grid[direction])
@@ -188,16 +202,20 @@ class Domain(ABC):
         grid = fourier_grid_shifted
         mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
         out = FourierDomain.create(
-            self.shape, self.periodic_directions, scale_factors=self.scale_factors, _grid=grid, _mgrid=mgrid
+            self.shape,
+            self.periodic_directions,
+            scale_factors=self.scale_factors,
+            _grid=grid,
+            _mgrid=mgrid,
         )
         return out
 
+    @partial(jax.jit, static_argnums=(0,2,3))
     def diff(self, field, direction, order=1):
         """Calculate and return the derivative of given order for field in
         direction."""
         inds = "ijk"
-        # diff_mat_ind = "l" + inds[direction]
-        diff_mat_ind = "l" + inds.at[direction].get()
+        diff_mat_ind = "l" + inds[direction]
         other_inds = "".join(
             [
                 ind
@@ -223,6 +241,7 @@ class Domain(ABC):
         homogeneous dirichlet boundary conditions at both ends by setting the
         off-diagonal elements of its first and last rows and columns to zero and
         the diagonal elements to unity."""
+
         def set_first_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
             return jnp.block(
@@ -234,8 +253,8 @@ class Domain(ABC):
             return jnp.block(
                 [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
             )
-        return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat)
-        )
+
+        return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
 
     def enforce_inhomogeneous_dirichlet(self, mat, rhs, bc_left, bc_right):
         # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
@@ -245,15 +264,12 @@ class Domain(ABC):
         # rhs to the desired values bc_left and bc_right."""
         def set_first_mat_row_to_unit(matr):
             N = matr.shape[0]
-            return jnp.block(
-                [[1, jnp.zeros((1, N - 1))], [matr[1:, :]]]
-            )
+            return jnp.block([[1, jnp.zeros((1, N - 1))], [matr[1:, :]]])
 
         def set_last_mat_row_to_unit(matr):
             N = matr.shape[0]
-            return jnp.block(
-                [[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]]
-            )
+            return jnp.block([[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]])
+
         out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
         out_rhs = jnp.block([bc_right, rhs[1:-1], bc_left])
 
@@ -265,7 +281,9 @@ class Domain(ABC):
         and last rows and columns to one (diagonal elements) and zero
         (off-diagonal elements)"""
 
-        return self.enforce_homogeneous_dirichlet(jnp.linalg.matrix_power(self.diff_mats[direction], 2))
+        return self.enforce_homogeneous_dirichlet(
+            jnp.linalg.matrix_power(self.diff_mats[direction], 2)
+        )
 
     def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
         """Calculate the integral or order for field in direction subject to the
@@ -461,15 +479,16 @@ class Domain(ABC):
 
         return out
 
+    @partial(jax.jit, static_argnums=(0))
     def curl(self, field):
         """Compute the curl of field."""
-        assert len(field) == 3, "rotation only defined in 3 dimensions"
-        u_y = self.diff(field[0], 1)
-        u_z = self.diff(field[0], 2)
-        v_x = self.diff(field[1], 0)
-        v_z = self.diff(field[1], 2)
-        w_x = self.diff(field[2], 0)
-        w_y = self.diff(field[2], 1)
+        # assert len(field) == 3, "rotation only defined in 3 dimensions"
+        u_y = self.diff(field[0,...], 1)
+        u_z = self.diff(field[0,...], 2)
+        v_x = self.diff(field[1,...], 0)
+        v_z = self.diff(field[1,...], 2)
+        w_x = self.diff(field[2,...], 0)
+        w_y = self.diff(field[2,...], 1)
 
         curl_0 = w_y - v_z
         curl_1 = u_z - w_x
@@ -479,23 +498,42 @@ class Domain(ABC):
 
     def cross_product(self, field_1, field_2):
         """Compute the cross (or vector) product of field_1 and field_2."""
-        out_0 = field_1[1] * field_2[2] - field_1[2] * field_2[1]
-        out_1 = field_1[2] * field_2[0] - field_1[0] * field_2[2]
-        out_2 = field_1[0] * field_2[1] - field_1[1] * field_2[0]
+        out_0 = field_1[1,...] * field_2[2,...] - field_1[2,...] * field_2[1,...]
+        out_1 = field_1[2,...] * field_2[0,...] - field_1[0,...] * field_2[2,...]
+        out_2 = field_1[0,...] * field_2[1,...] - field_1[1,...] * field_2[0,...]
         return jnp.array([out_0, out_1, out_2])
 
 
 @dataclasses.dataclass(frozen=True)
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
+
     def __hash__(self):
-        return hash((self.number_of_dimensions, self.periodic_directions, self.scale_factors, self.shape, self.aliasing))
+        return hash(
+            (
+                self.number_of_dimensions,
+                self.periodic_directions,
+                self.scale_factors,
+                self.shape,
+                self.aliasing,
+            )
+        )
+
 
 @dataclasses.dataclass(frozen=True)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
+
     def __hash__(self):
-        return hash((self.number_of_dimensions, self.periodic_directions, self.scale_factors, self.shape, self.aliasing))
+        return hash(
+            (
+                self.number_of_dimensions,
+                self.periodic_directions,
+                self.scale_factors,
+                self.shape,
+                self.aliasing,
+            )
+        )
 
     def assemble_poisson_matrix(self):
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."

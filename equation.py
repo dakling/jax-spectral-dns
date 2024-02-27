@@ -6,6 +6,7 @@ import time
 
 import jax
 import jax.numpy as jnp
+import tree_math
 from jax_cfd.base.funcutils import trajectory
 
 from pathlib import Path
@@ -108,8 +109,11 @@ class Equation:
         Field.supress_plotting_ = True
         self.supress_plotting_ = True
 
-    def all_dimensions(self):
+    def all_dimensions_jnp(self):
         return jnp.arange(self.domain.number_of_dimensions)
+
+    def all_dimensions(self):
+        return range(self.domain.number_of_dimensions)
 
     def all_periodic_dimensions(self):
         return [
@@ -125,6 +129,21 @@ class Equation:
             if not self.domain.periodic_directions[d]
         ]
 
+    def all_periodic_dimensions_jnp(self):
+        return [
+            self.all_dimensions_jnp()[d]
+            for d in self.all_dimensions_jnp()
+            if self.domain.periodic_directions[d]
+        ]
+
+    def all_nonperiodic_dimensions_jnp(self):
+        return [
+            self.all_dimensions_jnp()[d]
+            for d in self.all_dimensions_jnp()
+            if not self.domain.periodic_directions[d]
+        ]
+
+
     def done(self):
         iteration_done = False
         time_done = False
@@ -134,7 +153,7 @@ class Equation:
             time_done = self.time >= self.end_time + self.dt
         return iteration_done or time_done
 
-    def perform_time_step(self):
+    def perform_time_step(self, _=None):
         raise NotImplementedError()
 
     def before_time_step(self):
@@ -158,12 +177,15 @@ class Equation:
         self.prepare()
         # @tree_math.wrap # TODO what does this do?
         def step_fn(u0, _):
-            return (self.perform_time_step(), None)
+            return (self.perform_time_step(u0), None)
         u0 = self.get_latest_field("velocity_hat").get_data()
-        ts = jnp.arange(0, self.end_time, self.max_dt)
-        u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
+        # ts = jnp.arange(0, self.end_time, self.max_dt)
+        ts = jnp.arange(1)
+        # u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
+        u_final, _ = jax.jit(step_fn)(u0, None)
+        # u_final, _ = step_fn(u0, None)
+        # u_final, _ = step_fn(u0, None)
         # trajectory_fn = trajectory(step_fn, self.max_iter)
-        self.append_field("velocity_hat", FourierField(self.physical_domain, u_final))
         return u_final
 
 

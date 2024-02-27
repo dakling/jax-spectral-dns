@@ -32,21 +32,22 @@ from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from equation import Equation
 
 
-@partial(jax.jit, static_argnums=(0,)) # TODO
+# @partial(jax.jit, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
     vel_new = jnp.array(
         [
-            domain.no_hat(vel_hat_new.at[i].get())
-            for i in jnp.arange(domain.number_of_dimensions)
+            # domain.no_hat(vel_hat_new.at[i].get())
+            domain.no_hat(vel_hat_new[i,...])
+            for i in domain.all_dimensions()
         ]
     )
     vort_new = domain.curl(vel_new)
 
     vel_new_sq = 0
     for j in domain.all_dimensions():
-        vel_new_sq += vel_new[j] * vel_new[j]
+        vel_new_sq += vel_new[j,...] * vel_new[j,...]
     vel_new_sq_nabla = []
     for i in domain.all_dimensions():
         vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))

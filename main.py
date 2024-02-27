@@ -8,8 +8,8 @@ jax.config.update("jax_enable_x64", True)
 import os
 import multiprocessing
 
-# max_devices = 1
-max_devices = 6
+max_devices = 1
+# max_devices = 6
 # max_devices = 1e10
 os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
     min(multiprocessing.cpu_count(), max_devices)

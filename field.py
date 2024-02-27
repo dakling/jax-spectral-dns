@@ -189,14 +189,14 @@ class VectorField:
         self.name = name
         self.domain = elements[0].get_domain()
 
-    def __getattr__(self, attr):
-        def on_all(*args, **kwargs):
-            acc = []
-            for obj in self.elements:
-                acc += [getattr(obj, attr)(*args, **kwargs)]
-            return acc
+    # def __getattr__(self, attr):
+    #     def on_all(*args, **kwargs):
+    #         acc = []
+    #         for obj in self.elements:
+    #             acc += [getattr(obj, attr)(*args, **kwargs)]
+    #         return acc
 
-        return on_all
+    #     return on_all
 
     def __getitem__(self, index):
         return self.elements[index]
@@ -301,6 +301,7 @@ class VectorField:
 
     def get_data(self):
         return jnp.array([f.data for f in self])
+        # return [f.data for f in self]
 
 
     def get_time_step(self):
@@ -1272,13 +1273,16 @@ class FourierField(Field):
 
     @classmethod
     def tree_unflatten(cls, aux_data, children):
-        return cls(aux_data[0], children[0], aux_data[1], children[2])
+        return cls(aux_data[0], children[0], aux_data[1], children[1], aux_data[2])
 
-    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field_hat", time_step: int=0):
+    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field_hat", time_step: int=0, fourier_domain: FourierDomain=None):
         self.name = name
         self.time_step: int = time_step
         self.physical_domain = domain
-        self.fourier_domain = domain.hat()
+        if fourier_domain is None:
+            self.fourier_domain = domain.hat()
+        else:
+            self.fourier_domain = fourier_domain
         self.data = data
 
     def get_domain(self) -> FourierDomain:

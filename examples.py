@@ -27,7 +27,7 @@ from domain import PhysicalDomain
 # except:
 #     if hasattr(sys, "ps1"):
 #         print("Unable to load Field")
-from field import PhysicalField, FourierFieldSlice, VectorField
+from field import FourierField, PhysicalField, FourierFieldSlice, VectorField
 
 # try:
 #     reload(sys.modules["equation"])
@@ -1132,18 +1132,18 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     number_of_modes = 5
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    # domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     energy_gain_svd = None
-    if file is None:
-        S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
-        coeffs = V[:, 0]
-        energy_gain_svd = S[0]**2
-        print("excpected energy gain:", energy_gain_svd)
-    else:
-        coeff_array = np.load(file, allow_pickle=True)
-        coeffs = jnp.array(coeff_array.tolist())
+    # if file is None:
+    #     S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+    #     coeffs = V[:, 0]
+    #     energy_gain_svd = S[0]**2
+    #     print("excpected energy gain:", energy_gain_svd)
+    # else:
+    #     coeff_array = np.load(file, allow_pickle=True)
+    #     coeffs = jnp.array(coeff_array.tolist())
     # coeffs = jnp.ones((number_of_modes))
 
     # v0_0 = lsc.calculate_transient_growth_initial_condition_from_coefficients(
@@ -1169,7 +1169,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         #     save=False,
         #     recompute=False
         # )
-        U = PhysicalField.FromFunc(domain_, lambda X: coeffs_[0]*X[0] + coeffs_[1]*(1-X[1]**2) + coeffs_[2]*X[2], name="velocity")
+        U = VectorField([PhysicalField.FromFunc(domain_, lambda X: coeffs_[0]*X[0] + coeffs_[1]*(1-X[1]**2) + coeffs_[2]*X[2], name="velocity") for _ in range(3)])
         # v0_ = v0.reshape((3, Nx, Ny, Nz))
         # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
         eps = 1e-5
@@ -1184,9 +1184,10 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        vel_jnp = nse.solve_scan()
+        vel = VectorField([FourierField(domain_, vel_jnp[i,...]) for i in range(3)]).no_hat()
         # nse.solve()
-        nse.solve_scan()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
+        # vel = nse.get_latest_field("velocity_hat").no_hat()
 
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
@@ -1198,44 +1199,41 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
             print("expected gain:", energy_gain_svd)
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
-    # coeffs_list = [coeffs]
-    # step_size = 5e-1
-    # print(coeffs_list[-1])
-    # number_of_steps = 1000
-    # for i in jnp.arange(number_of_steps):
-    #     gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
-    #     corr_arr = jnp.array(corr)
-    #     print("gain: " + str(gain))
-    #     if energy_gain_svd is not None:
-    #         print("expected gain:", energy_gain_svd)
-    #     eps = step_size
-
-    #     coeffs_list[-1] = coeffs_list[-1] + eps * corr_arr
-    #     print(coeffs_list[-1])
-    #     coeff_array = np.array(coeffs_list[-1].tolist())
-    #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
-    #     # v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, coeffs_list[-1][j]) for j in range(3)])
-    #     # v0_new.set_name("vel_0_" + str(i))
-    #     # v0_new.plot_3d(2)
-    #     # v0_new.save_to_file("vel_0_" + str(i))
-
-    learning_rate = 1e-1
-    solver = optax.adagrad(learning_rate=learning_rate) # minimizer
-    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
-    # solver = optax.adam(learning_rate=learning_rate) # minimizer
-    opt_state = solver.init(coeffs)
+    coeffs_list = [jnp.array([1.0,2.0,3.0])]
+    step_size = 5e-1
+    print(coeffs_list[-1])
     number_of_steps = 1000
-    print(coeffs)
     for i in jnp.arange(number_of_steps):
-        gain, corr = jax.value_and_grad(run_case)(coeffs)
+        gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
+        corr_arr = jnp.array(corr)
         print("gain: " + str(-gain))
+        if energy_gain_svd is not None:
+            print("expected gain:", energy_gain_svd)
+        eps = step_size
 
-        updates, opt_state = solver.update(corr, opt_state, coeffs)
-        coeffs = optax.apply_updates(coeffs, updates)
-        print("coeffs:", coeffs)
-        print("gradient magnitudes:", jnp.linalg.norm(corr))
-        coeff_array = np.array(coeffs.tolist())
-        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+        coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
+        print(coeffs_list[-1])
+        # coeff_array = np.array(coeffs_list[-1].tolist())
+        # coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+
+    # coeffs = jnp.array([1.0,2.0,3.0])
+    # learning_rate = 1e-1
+    # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
+    # # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    # # solver = optax.adam(learning_rate=learning_rate) # minimizer
+    # opt_state = solver.init(coeffs)
+    # number_of_steps = 1000
+    # print(coeffs)
+    # for i in range(number_of_steps):
+    #     gain, corr = jax.value_and_grad(run_case)(coeffs)
+    #     print("gain: " + str(-gain))
+
+    #     updates, opt_state = solver.update(corr, opt_state, coeffs)
+    #     coeffs = optax.apply_updates(coeffs, updates)
+    #     print("coeffs:", coeffs)
+    #     print("gradient magnitudes:", jnp.linalg.norm(corr))
+    #     coeff_array = np.array(coeffs.tolist())
+    #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
     # def callback(intermediate_result=None):
     #     global n_iter
