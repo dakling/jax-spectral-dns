@@ -399,6 +399,25 @@ class Domain(ABC):
         out_bc = out
         return out_bc
 
+    def update_boundary_conditions(self, field):
+        """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
+        for dim in self.all_nonperiodic_dimensions():
+            field = jnp.take(
+                field,
+                jnp.arange(self.number_of_cells(dim))[1:-1],
+                axis=dim,
+            )
+            field = jnp.pad(
+                field,
+                [
+                    (0, 0) if self.periodic_directions[d] else (1, 1)
+                    for d in self.all_dimensions()
+                ],
+                mode="constant",
+                constant_values=0.0,
+            )
+        return field
+
     def solve_poisson_fourier_field_slice(self, field, mat, k1, k2):
         """Solve the poisson equation with field as the right-hand side for a
         one-dimensional slice at the wavenumbers k1 and k2. Use the provided

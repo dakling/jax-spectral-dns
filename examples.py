@@ -1121,57 +1121,40 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 6
-    Ny = 50
+    Nx = 12
+    Ny = 64
     Nz = 6
     # Nx = 48
     # Ny = 64
     # Nz = 12
     end_time = T
     # number_of_modes = 80
-    number_of_modes = 5
+    number_of_modes = 10
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
-    # lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
     domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     energy_gain_svd = None
-    # if file is None:
-    #     S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
-    #     coeffs = V[:, 0]
-    #     energy_gain_svd = S[0]**2
-    #     print("excpected energy gain:", energy_gain_svd)
-    # else:
-    #     coeff_array = np.load(file, allow_pickle=True)
-    #     coeffs = jnp.array(coeff_array.tolist())
-    # coeffs = jnp.ones((number_of_modes))
-
-    # v0_0 = lsc.calculate_transient_growth_initial_condition_from_coefficients(
-    #     domain,
-    #     coeffs
-    # )
-    # # v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[1]**2) + 0*X[2]),
-    # #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    # #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    # #                     ])
-    # eps = 1e-5
-    # eps_ = eps / v0_0.energy()
-    # v0_0_norm = v0_0 * eps_
+    if file is None:
+        S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+        coeffs = V[:, 0]
+        energy_gain_svd = S[0]**2
+        print("excpected energy gain:", energy_gain_svd)
+    else:
+        coeff_array = np.load(file, allow_pickle=True)
+        coeffs = jnp.array(coeff_array.tolist())
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
     # @jax.jit
     def run_case(coeffs_):
 
-        # domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-        # U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
-        #     domain_,
-        #     coeffs_,
-        #     save=False,
-        #     recompute=False
-        # )
-        U = VectorField([PhysicalField.FromFunc(domain, lambda X: coeffs_[0]*X[0] + coeffs_[1]*(1-X[1]**2) + coeffs_[2]*X[2], name="velocity") for _ in range(3)])
-        # v0_ = v0.reshape((3, Nx, Ny, Nz))
-        # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
+        U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
+            domain,
+            coeffs_,
+            save=False,
+            recompute=False
+        )
         eps = 1e-5
         eps_ = eps / U.energy()
         U_norm = U * eps_
@@ -1186,8 +1169,6 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         vel_jnp = nse.solve_scan()
         vel = VectorField([FourierField(domain, vel_jnp[i,...]) for i in range(3)]).no_hat()
-        # nse.solve()
-        # vel = nse.get_latest_field("velocity_hat").no_hat()
 
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
@@ -1195,28 +1176,27 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         gain = vel.energy() / vel_0.energy()
         # return gain
         # print("gain:", gain)
+        jax.debug.print("gain: {}", gain)
         if energy_gain_svd is not None:
             print("expected gain:", energy_gain_svd)
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
-    coeffs_list = [jnp.array([1.0,2.0,3.0])]
-    step_size = 5e-1
-    print(coeffs_list[-1])
-    number_of_steps = 1000
-    for i in range(number_of_steps):
-        gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
-        corr_arr = jnp.array(corr)
-        print("gain: " + str(-gain))
-        if energy_gain_svd is not None:
-            print("expected gain:", energy_gain_svd)
-        eps = step_size
+    # step_size = 5e-1
+    # print(coeffs_list[-1])
+    # number_of_steps = 1000
+    # for i in range(number_of_steps):
+    #     gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
+    #     corr_arr = jnp.array(corr)
+    #     print("gain: " + str(-gain))
+    #     if energy_gain_svd is not None:
+    #         print("expected gain:", energy_gain_svd)
+    #     eps = step_size
 
-        coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
-        print(coeffs_list[-1])
-        # coeff_array = np.array(coeffs_list[-1].tolist())
-        # coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+    #     coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
+    #     print(coeffs_list[-1])
+    #     # coeff_array = np.array(coeffs_list[-1].tolist())
+    #     # coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
-    # coeffs = jnp.array([1.0,2.0,3.0])
     # learning_rate = 1e-1
     # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
     # # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
@@ -1235,23 +1215,24 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
     #     coeff_array = np.array(coeffs.tolist())
     #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
-    # def callback(intermediate_result=None):
-    #     global n_iter
-    #     coeff_array = np.array(intermediate_result.x.tolist())
-    #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
-    #     n_iter += 1
+    def callback(intermediate_result=None):
+        global n_iter
+        coeff_array = np.array(intermediate_result.x.tolist())
+        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
+        print(coeff_array)
+        n_iter += 1
 
-    # tol = 1e-5
-    # res = sciopt.minimize(
-    #     fun=jax.value_and_grad(run_case), # TODO use jacfwd instead of grad?
-    #     x0=coeffs,
-    #     jac=True,
-    #     # method='L-BFGS-B',
-    #     method='CG',
-    #     tol=tol,
-    #     callback=callback
-    # )
-    # print(res)
+    tol = 1e-8
+    res = sciopt.minimize(
+        fun=jax.value_and_grad(run_case), # TODO use jacfwd instead of grad?
+        x0=coeffs,
+        jac=True,
+        # method='L-BFGS-B',
+        method='CG',
+        tol=tol,
+        callback=callback
+    )
+    print(res)
 
 
 
