@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import functools
+from functools import partial
 from typing import Callable, Optional
 import time
 
@@ -175,11 +175,11 @@ class Equation:
     def solve_scan(self): # TODO
         self.prepare()
         # @tree_math.wrap # TODO what does this do?
+        # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
         def step_fn(u0, _):
             return (self.perform_time_step(u0), None)
         u0 = self.get_latest_field("velocity_hat").get_data()
         ts = jnp.arange(0, self.end_time + self.max_dt, self.max_dt)
-        print(ts)
         u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
         # u_final, _ = jax.jit(step_fn)(u0, None)
         # u_final, _ = step_fn(u0, None)
