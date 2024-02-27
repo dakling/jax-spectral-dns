@@ -520,7 +520,7 @@ class PhysicalDomain(Domain):
         )
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, init=False)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
 
@@ -568,3 +568,13 @@ class FourierDomain(Domain):
             ]
         )
         return mat
+
+    # @partial(jax.jit, static_argnums=(0,2,3))
+    def diff(self, field, direction, order=1, physical_domain=None):
+        """Calculate and return the derivative of given order for field in
+        direction."""
+        if direction in self.all_periodic_dimensions():
+            f_diff = (1j * self.mgrid[direction]) ** order * field
+        else:
+            f_diff = physical_domain.diff(field, direction, order)
+        return f_diff

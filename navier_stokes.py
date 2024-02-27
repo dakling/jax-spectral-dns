@@ -500,10 +500,10 @@ class NavierStokesVelVort(Equation):
 
             # solve equations
             v_1_hat = vel_hat_data[1, ...]
-            # v_1_lap_hat = v_1_hat.laplacian()
-            domain = self.physical_domain
-            # v_1_lap_hat = domain.diff(v_1_hat, 0, 2) + domain.diff(v_1_hat, 1, 2) + domain.diff(v_1_hat, 2, 2)
-            v_1_lap_hat = jnp.sum(jnp.array([domain.diff(v_1_hat, i, 2) for i in self.all_dimensions()]), axis=0)
+            # v_1_lap_hat_ = FourierField(self.physical_domain, v_1_hat).laplacian().data
+            # domain = self.physical_domain
+            # v_1_lap_hat = self.fourier_domain.diff(v_1_hat, 1, 2) + v_1_hat
+            v_1_lap_hat = jnp.sum(jnp.array([self.domain.diff(v_1_hat, i, 2, self.physical_domain) for i in self.all_dimensions()]), axis=0)
 
             # vel_new_hat, _ = vel_hat.reconstruct_from_wavenumbers(
             #     perform_single_rk_step_for_single_wavenumber( # TODO each wavenumber gets the entire field!
