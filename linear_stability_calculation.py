@@ -266,8 +266,6 @@ class LinearStabilityCalculation:
             ys = domain.grid[1]
 
             def to_3d_field(eigenvector, component=0):
-                if abs(self.beta) > 1e-25:
-                    raise Exception("Spanwise dependency not implemented yet.")
                 phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.complex64)
                 for i in range(N_domain):
                     for k in range(self.n):
@@ -298,18 +296,20 @@ class LinearStabilityCalculation:
                     )
                 ).real
 
-                out_legacy = (factor * jnp.outer(
-                            jnp.exp(
-                                # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
-                                1j
-                                * (self.alpha * domain.grid[0])
-                            ),
-                            phi_mat @ eigenvector,
-                        )
-                ).real
-                out_legacy = jnp.tile(out_legacy, (len(domain.grid[2]), 1, 1))
-                out_legacy = jnp.moveaxis(out_legacy, 0, -1)
-                assert (out == out_legacy).all()
+                # if abs(self.beta) < 1e-25:
+                    # print("testing against old implementation")
+                    # out_legacy = (factor * jnp.outer(
+                    #             jnp.exp(
+                    #                 # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+                    #                 1j
+                    #                 * (self.alpha * domain.grid[0])
+                    #             ),
+                    #             phi_mat @ eigenvector,
+                    #         )
+                    # ).real
+                    # out_legacy = jnp.tile(out_legacy, (len(domain.grid[2]), 1, 1))
+                    # out_legacy = jnp.moveaxis(out_legacy, 0, -1)
+                    # assert (out == out_legacy).all()
                 return out
 
             print("calculating velocity perturbations in 3D")

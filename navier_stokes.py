@@ -242,7 +242,7 @@ class NavierStokesVelVort(Equation):
         alpha, beta, _, _ = self.get_rk_parameters()
         n = Ly.shape[0]
         I = jnp.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / self.Re_tau
+        L = Ly + I * (-(kx**2 + kz**2)) / self.Re_tau # TODO these would be the matrices going into transform
         rhs_mat = I + alpha[i] * self.dt * L
         lhs_mat = I - beta[i] * self.dt * L
         return (lhs_mat, rhs_mat)
@@ -270,11 +270,10 @@ class NavierStokesVelVort(Equation):
 
         L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
-        # TODO could this ever be rewritten to allow for vectorization?
         def perform_single_rk_step_for_single_wavenumber(
             step,
         ):
-            # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
+            # @partial(jax.checkpoint) # enable to reduce memory usage at the expense of runtime
             def fn(
                 K,
                 v_1_lap_hat_sw,
@@ -314,7 +313,7 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_p = domain.enforce_homogeneous_dirichlet(lhs_mat_p)
                 rhs_p = domain.update_boundary_conditions_fourier_field_slice(rhs_p, 1)
 
-                phi_hat_lap_new = jnp.linalg.inv(lhs_mat_p) @ rhs_p
+                phi_hat_lap_new = jnp.linalg.inv(lhs_mat_p) @ rhs_p # TODO use fast_diagonalization
 
                 v_1_lap_hat_new_p = phi_hat_lap_new
 
@@ -472,7 +471,10 @@ class NavierStokesVelVort(Equation):
                 )
                 return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_a)
 
-            return fn
+            if Nx*Nz > 100:
+                return jax.checkpoint(fn)
+            else:
+                return fn
 
         number_of_rk_steps = 3
 
@@ -595,10 +597,12 @@ class NavierStokesVelVort(Equation):
 
             vel_new_hat_field = jnp.array([self.physical_domain.update_boundary_conditions(vel_new_hat_field[i]) for i in self.all_dimensions()])
 
-        # vel_new_hat.name = "velocity_hat"
-        # for i in self.all_dimensions():
-        #     vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
-        # self.append_field("velocity_hat", vel_new_hat, in_place=True)
+        if not Field.supress_plotting_:
+            vel_new_hat = VectorField([FourierField(self.physical_domain, vel_new_hat_field[i], name="velocity_hat_" + "xyz"[i]) for i in self.all_dimensions()])
+            vel_new_hat.name = "velocity_hat"
+            for i in self.all_dimensions():
+                vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
+            self.append_field("velocity_hat", vel_new_hat, in_place=False)
         # return vel_new_hat.get_data()
         return vel_new_hat_field
 

@@ -1115,22 +1115,22 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         v0_new.save_to_file("vel_0_" + str(i))
 
 
-def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, beta=0.0, file=None):
+def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, beta=0.0, file=None):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 12
-    Ny = 64
-    Nz = 6
+    Nx = 6
+    Ny = 90
+    Nz = 4
     # Nx = 48
     # Ny = 64
     # Nz = 12
     end_time = T
     # number_of_modes = 80
-    number_of_modes = 10
+    number_of_modes = 2
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
@@ -1168,8 +1168,9 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.1, alpha=1.0, 
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        vel_jnp = nse.solve_scan()
-        vel = VectorField([FourierField(domain, vel_jnp[i,...]) for i in range(3)]).no_hat()
+        nse.supress_plotting()
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
 
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
