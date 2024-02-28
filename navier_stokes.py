@@ -20,7 +20,7 @@ from domain import PhysicalDomain
 # except:
 #     if hasattr(sys, "ps1"):
 #         pass
-from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
+from field import Field, PhysicalField, VectorField, FourierField, FourierFieldSlice
 
 # try:
 #     reload(sys.modules["equation"])
@@ -255,7 +255,8 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     def perform_runge_kutta_step(self, vel_hat_data):
-        self.dt = self.get_time_step()
+        if not Field.supress_plotting_:
+            self.dt = self.get_time_step()
         Re = self.Re_tau
 
         # start runge-kutta stepping
@@ -607,7 +608,8 @@ class NavierStokesVelVort(Equation):
         which only implementd for debugging purposes. Consider using Runge-Kutta \
         (method perform_runge_kutta_step()) instead."
         )
-        self.dt = self.get_time_step()
+        if not Field.supress_plotting_:
+            self.dt = self.get_time_step()
         dt = self.dt
 
         Re = self.Re_tau
@@ -848,8 +850,23 @@ class NavierStokesVelVort(Equation):
             vel_hat_data_ = vel_hat_data
         vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_)
         if type(vel_hat_data) == NoneType:
-            self.append_field("velocity_hat", vel_hat_data_new_)
+            vel_hat_new = VectorField([FourierField(self.physical_domain, vel_hat_data_new_[i], name="velocity_hat_" + "xyz"[i]) for i in self.all_dimensions()])
+            self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_
+
+    def solve_scan(self):
+        # @tree_math.wrap # TODO what does this do?
+        # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
+        def step_fn(u0, _):
+            return (self.perform_time_step(u0), None)
+        u0 = self.get_latest_field("velocity_hat").get_data()
+        self.dt = self.get_time_step()
+        ts = jnp.arange(0, self.end_time + self.dt, self.dt)
+        u_final, _ = jax.lax.scan(step_fn, u0, xs=ts)
+        # trajectory_fn = trajectory(step_fn, self.max_iter)
+        velocity_final = VectorField([FourierField(self.physical_domain, u_final[i], name="velocity_hat_" + "xyz"[i]) for i in self.all_dimensions()])
+        self.append_field("velocity_hat", velocity_final, in_place=False)
+        return (velocity_final, len(ts))
 
 
 def solve_navier_stokes_laminar(

@@ -21,7 +21,7 @@ from domain import PhysicalDomain
 # except:
 #     if hasattr(sys, 'ps1'):
 #         print("Unable to load Field")
-from field import PhysicalField, FourierFieldSlice, VectorField
+from field import Field, PhysicalField, FourierFieldSlice, VectorField
 
 # try:
 #     reload(sys.modules["equation"])
@@ -965,45 +965,51 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_ana - out) < tol)
 
     def test_navier_stokes_laminar(self, Ny=96, perturbation_factor=0.01):
-        Re = 1.5e0
+        for suppress_plotting in [True, False]:
+            Re = 1.5e0
 
-        end_time = 1.0
-        nse = solve_navier_stokes_laminar(
-            Re=Re,
-            Nx=24,
-            Ny=Ny,
-            Nz=16,
-            end_time=end_time,
-            perturbation_factor=perturbation_factor,
-        )
-        def before_time_step(nse):
-            u = nse.get_latest_field("velocity_hat").no_hat()
-            u.set_time_step(nse.time_step)
-            u.plot_3d(2)
+            end_time = 1.0
+            nse = solve_navier_stokes_laminar(
+                Re=Re,
+                Nx=24,
+                Ny=Ny,
+                Nz=16,
+                end_time=end_time,
+                perturbation_factor=perturbation_factor,
+            )
+            def before_time_step(nse):
+                u = nse.get_latest_field("velocity_hat").no_hat()
+                u.set_time_step(nse.time_step)
+                u.plot_3d(2)
 
-        Equation.initialize()
-        nse.before_time_step_fn = before_time_step
-        # nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
-        nse.solve()
+            Equation.initialize()
 
-        vel_x_fn_ana = (
-            lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
-            + 0.0 * X[0] * X[2]
-        )
-        vel_x_ana = PhysicalField.FromFunc(nse.physical_domain , vel_x_fn_ana, name="vel_x_ana")
+            if suppress_plotting:
+                nse.supress_plotting()
+                nse.before_time_step_fn = None
+            else:
+                nse.enable_plotting()
+                nse.before_time_step_fn = before_time_step
+            nse.after_time_step_fn = None
+            nse.solve()
 
-        print("Doing post-processing")
-        vel_hat = nse.get_latest_field("velocity_hat")
-        vel = vel_hat.no_hat()
-        tol = 6e-5
-        print(abs(vel[0] - vel_x_ana))
-        print(abs(vel[1]))
-        print(abs(vel[2]))
-        # check that the simulation is really converged
-        self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
-        self.assertTrue(abs(vel[1]) < tol)
-        self.assertTrue(abs(vel[2]) < tol)
+            vel_x_fn_ana = (
+                lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
+                + 0.0 * X[0] * X[2]
+            )
+            vel_x_ana = PhysicalField.FromFunc(nse.physical_domain , vel_x_fn_ana, name="vel_x_ana")
+
+            print("Doing post-processing")
+            vel_hat = nse.get_latest_field("velocity_hat")
+            vel = vel_hat.no_hat()
+            tol = 6e-5
+            print(abs(vel[0] - vel_x_ana))
+            print(abs(vel[1]))
+            print(abs(vel[2]))
+            # check that the simulation is really converged
+            self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
+            self.assertTrue(abs(vel[1]) < tol)
+            self.assertTrue(abs(vel[2]) < tol)
 
     # TODO
     # def test_navier_stokes_laminar_convergence(self):
@@ -1047,32 +1053,37 @@ class TestProject(unittest.TestCase):
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 
     def test_perturbation_laminar(self, Ny=48, perturbation_factor=0.01):
-        Re = 1.5e0
+        for suppress_plotting in [True, False]:
+            Re = 1.5e0
 
-        end_time = 1.0
-        nse = solve_navier_stokes_perturbation(
-            Re=Re,
-            Nx=16,
-            Ny=Ny,
-            Nz=16,
-            end_time=end_time,
-            perturbation_factor=perturbation_factor,
-        )
+            end_time = 1.0
+            nse = solve_navier_stokes_perturbation(
+                Re=Re,
+                Nx=16,
+                Ny=Ny,
+                Nz=16,
+                end_time=end_time,
+                perturbation_factor=perturbation_factor,
+            )
 
-        nse.before_time_step_fn = None
-        nse.solve()
+            if suppress_plotting:
+                nse.supress_plotting()
+            else:
+                nse.enable_plotting()
+            nse.before_time_step_fn = None
+            nse.solve()
 
-        print("Doing post-processing")
-        vel_hat = nse.get_latest_field("velocity_hat")
-        vel = vel_hat.no_hat()
-        tol = 5e-7
-        print(abs(vel[0]))
-        print(abs(vel[1]))
-        print(abs(vel[2]))
-        # check that the simulation is really converged
-        self.assertTrue(abs(vel[0]) < tol)
-        self.assertTrue(abs(vel[1]) < tol)
-        self.assertTrue(abs(vel[2]) < tol)
+            print("Doing post-processing")
+            vel_hat = nse.get_latest_field("velocity_hat")
+            vel = vel_hat.no_hat()
+            tol = 5e-7
+            print(abs(vel[0]))
+            print(abs(vel[1]))
+            print(abs(vel[2]))
+            # check that the simulation is really converged
+            self.assertTrue(abs(vel[0]) < tol)
+            self.assertTrue(abs(vel[1]) < tol)
+            self.assertTrue(abs(vel[2]) < tol)
 
     def test_2d_growth(self):
         growth_5500_data = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
@@ -1092,6 +1103,24 @@ class TestProject(unittest.TestCase):
             all([growth > 0 for growth in growth_6000]),
             "Expected perturbations to increase for Re=6000.",
         )
+        vel_final_plotting_5500 = growth_5500_data[-1]
+        vel_final_plotting_6000 = growth_6000_data[-1]
+
+        # Now check that the same result is obtained when using solve_scan. To
+        # simplify and strengthen the test, only compare the final velocity
+        # fields.
+        Field.supress_plotting_ = True
+        data_no_plotting_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        data_no_plotting_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        vel_final_no_plotting_5500 = data_no_plotting_5500[-1]
+        vel_final_no_plotting_6000 = data_no_plotting_6000[-1]
+        self.assertTrue(
+            (vel_final_plotting_5500 - vel_final_no_plotting_5500).energy() < 1e-25
+        )
+        self.assertTrue(
+            (vel_final_plotting_6000 - vel_final_no_plotting_6000).energy() < 1e-25
+        )
+
 
 
     def test_timesteppers(self):

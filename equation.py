@@ -106,7 +106,9 @@ class Equation:
 
     def supress_plotting(self):
         Field.supress_plotting_ = True
-        self.supress_plotting_ = True
+
+    def enable_plotting(self):
+        Field.supress_plotting_ = False
 
     def all_dimensions_jnp(self):
         return jnp.arange(self.domain.number_of_dimensions)
@@ -172,43 +174,36 @@ class Equation:
         # for _, field in self.fields.items():
         #     field[-1].time_step = self.time_step
 
-    def solve_scan(self): # TODO
-        self.prepare()
-        # @tree_math.wrap # TODO what does this do?
-        # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
-        def step_fn(u0, _):
-            return (self.perform_time_step(u0), None)
-        u0 = self.get_latest_field("velocity_hat").get_data()
-        ts = jnp.arange(0, self.end_time + self.max_dt, self.max_dt)
-        u_final, _ = jax.lax.scan(step_fn, u0, xs=ts, length=self.max_iter)
-        # u_final, _ = jax.jit(step_fn)(u0, None)
-        # u_final, _ = step_fn(u0, None)
-        # u_final, _ = step_fn(u0, None)
-        # trajectory_fn = trajectory(step_fn, self.max_iter)
-        return u_final
-
+    def solve_scan(self):
+        raise NotImplementedError()
 
     def solve(self):
-        # TODO inner/outer steps?
+
         self.prepare()
 
-        while not self.done():
-            i = self.time_step
-            print(
-                "Time Step "
-                + str(i + 1)
-                + ", time: "
-                + str(self.time)
-                + ", dt: "
-                + str(self.dt)
-            )
-            # print("Time Step " + str(i + 1))
+        if Field.supress_plotting_:
             start_time = time.time()
-            self.before_time_step()
-            self.perform_time_step()
-            self.update_time()
-            self.after_time_step()
-            print("Took " + str(time.time() - start_time) + " seconds")
+            _, number_of_time_steps = self.solve_scan()
+            print("Took on average " + str((time.time() - start_time)/number_of_time_steps) + " seconds per time step")
+
+        else:
+            while not self.done():
+                i = self.time_step
+                print(
+                    "Time Step "
+                    + str(i + 1)
+                    + ", time: "
+                    + str(self.time)
+                    + ", dt: "
+                    + str(self.dt)
+                )
+                # print("Time Step " + str(i + 1))
+                start_time = time.time()
+                self.before_time_step()
+                self.perform_time_step()
+                self.update_time()
+                self.after_time_step()
+                print("Took " + str(time.time() - start_time) + " seconds")
 
     def plot(self):
         raise NotImplementedError()

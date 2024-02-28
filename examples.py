@@ -282,7 +282,7 @@ def run_pseudo_2d():
                 lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             )
             vel_x_ana = PhysicalField.FromFunc(
-                nse.domain_no_hat, vel_x_fn_ana, name="vel_x_ana"
+                nse.physical_domain, vel_x_fn_ana, name="vel_x_ana"
             )
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
             # vel_1_lap_a.plot_3d()
@@ -294,7 +294,7 @@ def run_pseudo_2d():
             #     lambda X: -vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             # )
             # vel_x_ana_old = PhysicalField.FromFunc(
-            #     nse.domain_no_hat, vel_x_fn_ana_old, name="vel_x_ana_old"
+            #     nse.physical_domain, vel_x_fn_ana_old, name="vel_x_ana_old"
             # )
             # vel_pert_old = VectorField(
             #     [vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]]
@@ -508,18 +508,18 @@ def run_pseudo_2d_perturbation(
     nse.set_linearize(linearize)
 
     if type(v0) == NoneType:
-        # U = lsc.velocity_field(nse.domain_no_hat).normalize()
-        U = lsc.velocity_field(nse.domain_no_hat)
+        # U = lsc.velocity_field(nse.physical_domain).normalize()
+        U = lsc.velocity_field(nse.physical_domain)
     else:
-        # U = VectorField([Field(nse.domain_no_hat, v0[i]) for i in range(3)]).normalize()
-        U = VectorField([PhysicalField(nse.domain_no_hat, v0[i]) for i in range(3)])
+        # U = VectorField([Field(nse.physical_domain, v0[i]) for i in range(3)]).normalize()
+        U = VectorField([PhysicalField(nse.physical_domain, v0[i]) for i in range(3)])
         print(U[0].energy())
 
     U_hat = U.hat()
     nse.init_velocity(U_hat * eps)
 
 
-    energy_over_time_fn, _ = lsc.energy_over_time(nse.domain_no_hat, eps=eps)
+    energy_over_time_fn, _ = lsc.energy_over_time(nse.physical_domain, eps=eps)
     plot_interval = 1
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -632,6 +632,7 @@ def run_pseudo_2d_perturbation(
         energy_x_t_ana,
         energy_y_t_ana,
         ts,
+        vel_pert
     )
 
 
@@ -659,24 +660,24 @@ def run_jimenez_1990(start_time=0):
 
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
-        vel_pert = lsc.velocity_field(nse.domain_no_hat)
+        vel_pert = lsc.velocity_field(nse.physical_domain)
         vort_pert = vel_pert.curl()
         # eps = 1e0 / jnp.sqrt(vort_pert.energy())
         eps = 1e-2 / jnp.sqrt(vel_pert.energy())
         nse.init_velocity((vel_pert * eps).hat())
     else:
         u = PhysicalField.FromFile(
-            nse.domain_no_hat,
+            nse.physical_domain,
             "velocity_perturbation_" + str(0) + "_t_" + str(start_time),
             name="u_hat",
         )
         v = PhysicalField.FromFile(
-            nse.domain_no_hat,
+            nse.physical_domain,
             "velocity_perturbation_" + str(1) + "_t_" + str(start_time),
             name="v_hat",
         )
         w = PhysicalField.FromFile(
-            nse.domain_no_hat,
+            nse.physical_domain,
             "velocity_perturbation_" + str(2) + "_t_" + str(start_time),
             name="w_hat",
         )
@@ -779,7 +780,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
-        nse.domain_no_hat,
+        nse.physical_domain,
         T,
         number_of_modes,
         recompute_full=False,
@@ -802,7 +803,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.init_velocity(U_hat * eps_)
 
     e_max = lsc.calculate_transient_growth_max_energy(
-        nse.domain_no_hat, T, number_of_modes
+        nse.physical_domain, T, number_of_modes
     )
     print("expecting max growth of ", e_max)
 
@@ -874,7 +875,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
             # energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
-            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.domain_no_hat, nse.time, number_of_modes))
+            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.physical_domain, nse.time, number_of_modes))
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
@@ -1271,7 +1272,7 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
-        nse.domain_no_hat,
+        nse.physical_domain,
         T,
         number_of_modes,
         recompute_full=False,
@@ -1282,12 +1283,12 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         save_final=True,
     )
 
-    # u = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
-    # v = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
-    # w = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
-    # # u = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_x")
-    # # v = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 2 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_y")
-    # # w = PhysicalField.FromFunc(nse.domain_no_hat, (lambda X: 3 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_z")
+    # u = PhysicalField.FromFunc(nse.physical_domain, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
+    # v = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
+    # w = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
+    # # u = PhysicalField.FromFunc(nse.physical_domain, (lambda X: (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_x")
+    # # v = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 2 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_y")
+    # # w = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 3 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_z")
     # U = VectorField([u, v, w], name="vel")
 
     eps_ = eps / jnp.sqrt(U.energy())
