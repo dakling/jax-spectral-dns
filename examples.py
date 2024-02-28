@@ -1129,8 +1129,8 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     # Ny = 64
     # Nz = 12
     end_time = T
-    # number_of_modes = 80
-    number_of_modes = 2
+    number_of_modes = 80
+    # number_of_modes = 50
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)

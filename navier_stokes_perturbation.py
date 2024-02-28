@@ -33,7 +33,7 @@ from equation import Equation
 
 
 # @partial(jax.jit, static_argnums=(0,))
-@partial(jax.checkpoint, static_argnums=(0,))
+# @partial(jax.checkpoint, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
     domain, vel_hat_new, vel_base_hat, linearize=False
 ):
@@ -167,6 +167,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                 ),
                 linearize=self.linearize,
             ))
+        if self.physical_domain.number_of_cells(0) * self.physical_domain.number_of_cells(2) > 100:
+            self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,))
 
     def get_time_step(self):
         return self.max_dt
