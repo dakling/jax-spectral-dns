@@ -520,6 +520,7 @@ class LinearStabilityCalculation:
         fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
         recomputation of eigenvalues/eigenvectors as well as velocity fields."""
 
+
         factors = coeffs
         u_0 = self.velocity_field(
             domain,
@@ -530,6 +531,8 @@ class LinearStabilityCalculation:
             factor=factors[0],
         )
         u = u_0
+
+
 
         i = 1
         number_of_modes = len(coeffs)
@@ -549,12 +552,14 @@ class LinearStabilityCalculation:
                     factor=factors[mode],
                 )
                 u += u_inc
+
             else:
                 print("mode ", mode, " of ", number_of_modes, "(negligble, skipping)")
 
         print("modes used:", i)
         # print("energy of initial field:", u.energy())
         # print("expected energy growth: ", self.S[0]**2)
+
 
         return u
 

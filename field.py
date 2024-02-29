@@ -38,20 +38,18 @@ class Field(ABC):
     and to perform operations on it."""
 
     plotting_dir = "./plots/"
-    # plotting_format = ".pdf"
     plotting_format = ".png"
-    supress_plotting_ = False  # setting this to True can suppress plotting
-    # supress_plotting_ = True # setting this to True can suppress plotting
+
+    # setting this to True activates increases performance dramatically,
+    # though some convenience features such as printing or plotting intermediate
+    # state are disabled.
+    activate_jit_ = False
+
     field_dir = "./fields/"
-    performance_mode = True
 
     @abstractmethod
     def get_domain(self) -> Domain:
         ...
-
-    # @abstractmethod
-    # def __add__(self, other: Union[Field, jnp.ndarray]) -> Field:
-    #     ...
 
     def save_to_file(self, filename):
         """Save field to file filename."""
@@ -75,8 +73,8 @@ class Field(ABC):
         self.time_step = time_step
 
     # @classmethod
-    # def supress_plotting(cls):
-    #     cls.supress_plotting_ = True
+    # def activate_jit(cls):
+    #     cls.activate_jit_ = True
 
     def __repr__(self):
         # self.plot()
@@ -99,7 +97,6 @@ class Field(ABC):
     def __abs__(self):
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.data) / self.number_of_dofs()
-
 
     def normalize(self):
         self.data = self.data / self.energy()
@@ -158,10 +155,12 @@ class Field(ABC):
         return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
 
     def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self, direction):
-        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(direction)
+        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(
+            direction
+        )
 
     @abstractmethod
-    def diff(self, direction: int, order: int=1) -> Field:
+    def diff(self, direction: int, order: int = 1) -> Field:
         ...
 
     def nabla(self):
@@ -303,7 +302,6 @@ class VectorField:
         return jnp.array([f.data for f in self])
         # return [f.data for f in self]
 
-
     def get_time_step(self):
         time_steps = [f.time_step for f in self]
         return max(time_steps)
@@ -400,9 +398,7 @@ class VectorField:
             out += self[dim].diff(dim)
         return out
 
-    def reconstruct_from_wavenumbers(self,
-                                     fn,
-                                     number_of_other_fields=0):
+    def reconstruct_from_wavenumbers(self, fn, number_of_other_fields=0):
         assert self.number_of_dimensions != 3, "2D not implemented yet"
 
         # jit = True
@@ -432,10 +428,14 @@ class VectorField:
         else:
             time_1 = time.time()
             k1s = jnp.array(
-                self[0].fourier_domain.grid[self.all_periodic_dimensions()[0]].astype(int)
+                self[0]
+                .fourier_domain.grid[self.all_periodic_dimensions()[0]]
+                .astype(int)
             )
             k2s = jnp.array(
-                self[0].fourier_domain.grid[self.all_periodic_dimensions()[1]].astype(int)
+                self[0]
+                .fourier_domain.grid[self.all_periodic_dimensions()[1]]
+                .astype(int)
             )
             k1_ints = jnp.arange(len(k1s))
             k2_ints = jnp.arange(len(k2s))
@@ -498,7 +498,7 @@ class VectorField:
             return (VectorField(out_field), 0)
 
     def plot_streamlines(self, normal_direction):
-        if not self[0].supress_plotting_:
+        if not self[0].activate_jit_:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             directions = [i for i in self.all_dimensions() if i != normal_direction]
@@ -534,8 +534,9 @@ class VectorField:
                 + "_latest"
                 + self[0].plotting_format
             )
+
     def plot_vectors(self, normal_direction):
-        if not self[0].supress_plotting_:
+        if not self[0].activate_jit_:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             directions = [i for i in self.all_dimensions() if i != normal_direction]
@@ -573,7 +574,6 @@ class VectorField:
 @register_pytree_node_class
 @dataclasses.dataclass(init=False, frozen=False)
 class PhysicalField(Field):
-
     def tree_flatten(self):
         children = (self.data, self.time_step)
         aux_data = (self.physical_domain, self.name)
@@ -583,7 +583,13 @@ class PhysicalField(Field):
     def tree_unflatten(cls, aux_data, children):
         return cls(aux_data[0], children[0], aux_data[1], children[2])
 
-    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field", time_step: int=0):
+    def __init__(
+        self,
+        domain: PhysicalDomain,
+        data: jnp.ndarray,
+        name: str = "field",
+        time_step: int = 0,
+    ):
         self.physical_domain = domain
         self.data = data
         self.name = name
@@ -598,8 +604,8 @@ class PhysicalField(Field):
             other, FourierField
         ), "Attempted to add a Field and a Fourier Field."
         if isinstance(other, PhysicalField):
-        # if True: # TODO
-            if self.performance_mode:
+            # if True: # TODO
+            if self.activate_jit_:
                 new_name = ""
             else:
                 assert isinstance(other, PhysicalField)
@@ -607,7 +613,9 @@ class PhysicalField(Field):
                     new_name = self.name + " - " + other.name[1:]
                 else:
                     new_name = self.name + " + " + other.name
-            ret = PhysicalField(self.physical_domain, self.data + other.data, name=new_name)
+            ret = PhysicalField(
+                self.physical_domain, self.data + other.data, name=new_name
+            )
         else:
             print(type(other))
             assert isinstance(other, jnp.ndarray)
@@ -625,18 +633,20 @@ class PhysicalField(Field):
         if isinstance(other, FourierField):
             raise Exception("Attempted to multiply physical field and Fourier field")
         elif isinstance(other, Field):
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
                     new_name = self.name + " * " + other.name
                 except Exception:
                     new_name = "field"
-            ret = PhysicalField(self.physical_domain, self.data * other.data, name=new_name)
+            ret = PhysicalField(
+                self.physical_domain, self.data * other.data, name=new_name
+            )
             ret.time_step = self.time_step
             return ret
         else:
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
@@ -657,7 +667,9 @@ class PhysicalField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: Union[PhysicalField, jnp.ndarray, float]) -> PhysicalField:
+    def __truediv__(
+        self, other: Union[PhysicalField, jnp.ndarray, float]
+    ) -> PhysicalField:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
@@ -750,9 +762,7 @@ class PhysicalField(Field):
         # energy = 0.5 * PhysicalField(
         #     self.physical_domain, self.data * self.data, name="energy"
         # )  # TODO why does the above not work? -> should be related to reloading
-        domain_volume = 2.0 ** (
-            len(self.all_nonperiodic_dimensions()) - 1
-        ) * jnp.prod(
+        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions()) - 1) * jnp.prod(
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return energy.volume_integral() / domain_volume
@@ -763,11 +773,11 @@ class PhysicalField(Field):
         interpolant = []
         weights = []
         for dim in self.all_dimensions():
-            i = jnp.argmin((grd[dim] - X[dim])[:-1] * (jnp.roll(grd[dim], -1) - X[dim])[:-1])
-            interpolant.append(i)
-            weights.append(
-            (grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1])
+            i = jnp.argmin(
+                (grd[dim] - X[dim])[:-1] * (jnp.roll(grd[dim], -1) - X[dim])[:-1]
             )
+            interpolant.append(i)
+            weights.append((grd[dim][i] - X[dim]) / (grd[dim][i] - grd[dim][i + 1]))
         base_value = self.data
         other_values = []
         for dim in self.all_dimensions():
@@ -789,7 +799,7 @@ class PhysicalField(Field):
         return out
 
     def plot_center(self, dimension, *other_fields):
-        if not self.supress_plotting_:
+        if not self.activate_jit_:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
@@ -863,7 +873,9 @@ class PhysicalField(Field):
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
                 other_dim = [i for i in self.all_dimensions() if i != dimension]
-                N_c = [self.physical_domain.number_of_cells(dim) // 2 for dim in other_dim]
+                N_c = [
+                    self.physical_domain.number_of_cells(dim) // 2 for dim in other_dim
+                ]
                 ax.plot(
                     self.physical_domain.grid[dimension],
                     self.data.take(indices=N_c[1], axis=other_dim[1]).take(
@@ -904,7 +916,7 @@ class PhysicalField(Field):
                 raise Exception("Not implemented yet")
 
     def plot(self, *other_fields):
-        if not self.supress_plotting_:
+        if not self.activate_jit_:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
@@ -950,7 +962,9 @@ class PhysicalField(Field):
                         label=self.name,
                     )
                     ax3d.plot_surface(
-                        self.physical_domain.mgrid[0], (self.physical_domain.mgrid[1]), self.data
+                        self.physical_domain.mgrid[0],
+                        (self.physical_domain.mgrid[1]),
+                        self.data,
                     )
                     for other_field in other_fields:
                         ax[dimension].plot(
@@ -986,7 +1000,10 @@ class PhysicalField(Field):
                 ax = fig.subplots(1, 3)
                 for dimension in self.all_dimensions():
                     other_dim = [i for i in self.all_dimensions() if i != dimension]
-                    N_c = [self.physical_domain.number_of_cells(dim) // 2 for dim in other_dim]
+                    N_c = [
+                        self.physical_domain.number_of_cells(dim) // 2
+                        for dim in other_dim
+                    ]
                     ax[dimension].plot(
                         self.physical_domain.grid[dimension],
                         self.data.take(indices=N_c[1], axis=other_dim[1]).take(
@@ -1023,7 +1040,7 @@ class PhysicalField(Field):
                 raise Exception("Not implemented yet")
 
     def plot_3d(self, direction=None):
-        if not self.supress_plotting_:
+        if not self.activate_jit_:
             if type(direction) != NoneType:
                 self.plot_3d_single(direction)
             else:
@@ -1097,7 +1114,7 @@ class PhysicalField(Field):
                 )
 
     def plot_3d_single(self, dim):
-        if not self.supress_plotting_:
+        if not self.activate_jit_:
             assert (
                 self.physical_domain.number_of_dimensions == 3
             ), "Only 3D supported for this plotting method."
@@ -1148,7 +1165,7 @@ class PhysicalField(Field):
             )
 
     def plot_isolines(self, normal_direction, isolines=None):
-        if not self.supress_plotting_:
+        if not self.activate_jit_:
             if type(isolines) == NoneType:
                 isolines = [0, 1.5, 2.5, 3.5]
                 isolines += [-i for i in isolines[1:]]
@@ -1210,10 +1227,14 @@ class PhysicalField(Field):
         )
 
     def integrate(self, direction, order=1, bc_left=None, bc_right=None):
-        out_bc = self.physical_domain.integrate(self.data, direction, order, bc_left, bc_right)
+        out_bc = self.physical_domain.integrate(
+            self.data, direction, order, bc_left, bc_right
+        )
         return PhysicalField(self.physical_domain, out_bc, name=self.name + "_int")
 
-    def definite_integral(self, direction): # TODO make this jittable by removing .tolist()-calls
+    def definite_integral(
+        self, direction
+    ):  # TODO make this jittable by removing .tolist()-calls
         def reduce_add_along_axis(arr, axis):
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
@@ -1227,12 +1248,20 @@ class PhysicalField(Field):
             else:
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
-                shape = tuple((jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist())
+                shape = tuple(
+                    (jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist()
+                )
                 periodic_directions = tuple(
-                    (jnp.array(self.physical_domain.periodic_directions)[tuple(inds),]).tolist()
+                    (
+                        jnp.array(self.physical_domain.periodic_directions)[
+                            tuple(inds),
+                        ]
+                    ).tolist()
                 )
                 scale_factors = tuple(
-                    (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
+                    (
+                        jnp.array(self.physical_domain.scale_factors)[tuple(inds),]
+                    ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
                     shape, periodic_directions, scale_factors=scale_factors
@@ -1244,16 +1273,28 @@ class PhysicalField(Field):
         else:
             N = self.physical_domain.number_of_cells(direction)
             if self.number_of_dimensions() == 1:
-                return self.physical_domain.scale_factors[direction] / N * jnp.sum(self.data[:])
+                return (
+                    self.physical_domain.scale_factors[direction]
+                    / N
+                    * jnp.sum(self.data[:])
+                )
             else:
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
-                shape = tuple((jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist())
+                shape = tuple(
+                    (jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist()
+                )
                 periodic_directions = tuple(
-                    (jnp.array(self.physical_domain.periodic_directions)[tuple(inds),]).tolist()
+                    (
+                        jnp.array(self.physical_domain.periodic_directions)[
+                            tuple(inds),
+                        ]
+                    ).tolist()
                 )
                 scale_factors = tuple(
-                    (jnp.array(self.physical_domain.scale_factors)[tuple(inds),]).tolist()
+                    (
+                        jnp.array(self.physical_domain.scale_factors)[tuple(inds),]
+                    ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
                     shape, periodic_directions, scale_factors=scale_factors
@@ -1269,7 +1310,6 @@ class PhysicalField(Field):
 @register_pytree_node_class
 @dataclasses.dataclass(init=False, frozen=False)
 class FourierField(Field):
-
     def tree_flatten(self):
         children = (self.data, self.time_step)
         aux_data = (self.physical_domain, self.name, self.fourier_domain)
@@ -1279,7 +1319,14 @@ class FourierField(Field):
     def tree_unflatten(cls, aux_data, children):
         return cls(aux_data[0], children[0], aux_data[1], children[1], aux_data[2])
 
-    def __init__(self, domain: PhysicalDomain, data: jnp.ndarray, name: str ="field_hat", time_step: int=0, fourier_domain: FourierDomain=None):
+    def __init__(
+        self,
+        domain: PhysicalDomain,
+        data: jnp.ndarray,
+        name: str = "field_hat",
+        time_step: int = 0,
+        fourier_domain: FourierDomain = None,
+    ):
         self.name = name
         self.time_step: int = time_step
         self.physical_domain = domain
@@ -1296,7 +1343,7 @@ class FourierField(Field):
         assert isinstance(
             other, FourierField
         ), "Attempted to add a Fourier Field and a Field."
-        if self.performance_mode:
+        if self.activate_jit_:
             new_name = ""
         else:
             if other.name[0] == "-":
@@ -1314,7 +1361,7 @@ class FourierField(Field):
             ), "Attempted to multiply a Fourier Field and a Field."
 
         if isinstance(other, FourierField):
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
@@ -1327,7 +1374,7 @@ class FourierField(Field):
             ret.time_step = self.time_step
             return ret
         else:
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
@@ -1476,7 +1523,9 @@ class FourierField(Field):
 
     def no_hat(self):
         out = self.physical_domain.no_hat(self.data)
-        out_field = PhysicalField(self.physical_domain, out, name=(self.name).replace("_hat", ""))
+        out_field = PhysicalField(
+            self.physical_domain, out, name=(self.name).replace("_hat", "")
+        )
         out_field.time_step = self.time_step
         return out_field
 
@@ -1495,7 +1544,9 @@ class FourierField(Field):
             -1,
             self.all_nonperiodic_dimensions()[0],
         )
-        return FourierField(self.physical_domain, out_field, name=self.name + "_reconstr")
+        return FourierField(
+            self.physical_domain, out_field, name=self.name + "_reconstr"
+        )
 
 
 class FourierFieldSlice(FourierField):
@@ -1537,7 +1588,7 @@ class FourierFieldSlice(FourierField):
             out_field,
             self.name + "_diff_" + str(order),
             *self.ks_raw,
-            ks_int=self.ks_int
+            ks_int=self.ks_int,
         )
 
     def integrate(self, direction, order=1, bc_right=None, bc_left=None):
@@ -1551,7 +1602,7 @@ class FourierFieldSlice(FourierField):
             out_field,
             self.name + "_int_" + str(order),
             *self.ks_raw,
-            ks_int=self.ks_int
+            ks_int=self.ks_int,
         )
 
     def assemble_poisson_matrix(self):
@@ -1581,7 +1632,7 @@ class FourierFieldSlice(FourierField):
             out_field,
             self.name + "_poisson",
             *self.ks_raw,
-            ks_int=self.ks_int[jnp.array(self.all_periodic_dimensions())]
+            ks_int=self.ks_int[jnp.array(self.all_periodic_dimensions())],
         )
         return out_fourier
 
@@ -1603,7 +1654,7 @@ class FourierFieldSlice(FourierField):
         return self * (-1.0)
 
     def __add__(self, other):
-        if self.performance_mode:
+        if self.activate_jit_:
             new_name = ""
         else:
             try:
@@ -1619,7 +1670,7 @@ class FourierFieldSlice(FourierField):
             self.data + other.data,
             new_name,
             *self.ks_raw,
-            ks_int=self.ks_int
+            ks_int=self.ks_int,
         )
 
     def __sub__(self, other):
@@ -1627,7 +1678,7 @@ class FourierFieldSlice(FourierField):
 
     def __mul__(self, other):
         if isinstance(other, Field):
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
@@ -1640,10 +1691,10 @@ class FourierFieldSlice(FourierField):
                 self.data * other.data,
                 new_name,
                 *self.ks_raw,
-                ks_int=self.ks_int
+                ks_int=self.ks_int,
             )
         else:
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
@@ -1663,7 +1714,7 @@ class FourierFieldSlice(FourierField):
                 self.data * other,
                 new_name,
                 *self.ks_raw,
-                ks_int=self.ks_int
+                ks_int=self.ks_int,
             )
 
     __rmul__ = __mul__
@@ -1673,7 +1724,7 @@ class FourierFieldSlice(FourierField):
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
-            if self.performance_mode:
+            if self.activate_jit_:
                 new_name = ""
             else:
                 try:
@@ -1693,7 +1744,7 @@ class FourierFieldSlice(FourierField):
                 self.data / other,
                 new_name,
                 *self.ks_raw,
-                ks_int=self.ks_int
+                ks_int=self.ks_int,
             )
 
     def shift(self, value):

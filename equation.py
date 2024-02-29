@@ -63,7 +63,6 @@ class Equation:
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
 
-
     def get_field(self, name, index=None):
         try:
             if type(index) == NoneType:
@@ -104,11 +103,11 @@ class Equation:
             self.fields[name] = [field]
             self.fields[name][0].name = name + "_0"
 
-    def supress_plotting(self):
-        Field.supress_plotting_ = True
+    def activate_jit(self):
+        Field.activate_jit_ = True
 
-    def enable_plotting(self):
-        Field.supress_plotting_ = False
+    def deactivate_jit(self):
+        Field.activate_jit_ = False
 
     def all_dimensions_jnp(self):
         return jnp.arange(self.domain.number_of_dimensions)
@@ -144,7 +143,6 @@ class Equation:
             if not self.domain.periodic_directions[d]
         ]
 
-
     def done(self):
         iteration_done = False
         time_done = False
@@ -178,15 +176,29 @@ class Equation:
         raise NotImplementedError()
 
     def solve(self):
-
         self.prepare()
 
-        if Field.supress_plotting_:
+        if Field.activate_jit_:
+            msg = "Solving using jit/scan - this offers high performance but no "\
+                  "intermediate results will be available. To disable "\
+                  "high-performance mode, use the deactivate_jit()-method of the "\
+                  "Equation class."
+            print(msg)
             start_time = time.time()
             _, number_of_time_steps = self.solve_scan()
-            print("Took on average " + str((time.time() - start_time)/number_of_time_steps) + " seconds per time step")
+            print(
+                "Took on average "
+                + str((time.time() - start_time) / number_of_time_steps)
+                + " seconds per time step"
+            )
 
         else:
+            msg = "WARNING: Solving without jit/scan - performance will be "\
+                  "significantly lower but intermediate results will be available "\
+                  "for printing and plotting. Only recommended for testing. "\
+                  "To enable high-performance mode, use the "\
+                  "activate_jit()-method of the Equation class."
+            print(msg)
             while not self.done():
                 i = self.time_step
                 print(

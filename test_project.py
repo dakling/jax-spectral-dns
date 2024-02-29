@@ -965,7 +965,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_ana - out) < tol)
 
     def test_navier_stokes_laminar(self, Ny=96, perturbation_factor=0.01):
-        for suppress_plotting in [True, False]:
+        for activate_jit in [True, False]:
             Re = 1.5e0
 
             end_time = 1.0
@@ -984,11 +984,11 @@ class TestProject(unittest.TestCase):
 
             Equation.initialize()
 
-            if suppress_plotting:
-                nse.supress_plotting()
+            if activate_jit:
+                nse.activate_jit()
                 nse.before_time_step_fn = None
             else:
-                nse.enable_plotting()
+                nse.deactivate_jit()
                 nse.before_time_step_fn = before_time_step
             nse.after_time_step_fn = None
             nse.solve()
@@ -1053,7 +1053,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 
     def test_perturbation_laminar(self, Ny=48, perturbation_factor=0.01):
-        for suppress_plotting in [True, False]:
+        for activate_jit in [True, False]:
             Re = 1.5e0
 
             end_time = 1.0
@@ -1066,10 +1066,10 @@ class TestProject(unittest.TestCase):
                 perturbation_factor=perturbation_factor,
             )
 
-            if suppress_plotting:
-                nse.supress_plotting()
+            if activate_jit:
+                nse.activate_jit()
             else:
-                nse.enable_plotting()
+                nse.deactivate_jit()
             nse.before_time_step_fn = None
             nse.solve()
 
@@ -1103,22 +1103,22 @@ class TestProject(unittest.TestCase):
             all([growth > 0 for growth in growth_6000]),
             "Expected perturbations to increase for Re=6000.",
         )
-        vel_final_plotting_5500 = growth_5500_data[-1]
-        vel_final_plotting_6000 = growth_6000_data[-1]
+        vel_final_jit_5500 = growth_5500_data[-1]
+        vel_final_jit_6000 = growth_6000_data[-1]
 
         # Now check that the same result is obtained when using solve_scan. To
         # simplify and strengthen the test, only compare the final velocity
         # fields.
-        Field.supress_plotting_ = True
-        data_no_plotting_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
-        data_no_plotting_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
-        vel_final_no_plotting_5500 = data_no_plotting_5500[-1]
-        vel_final_no_plotting_6000 = data_no_plotting_6000[-1]
+        Field.activate_jit_ = True
+        data_no_jit_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        data_no_jit_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
+        vel_final_no_jit_5500 = data_no_jit_5500[-1]
+        vel_final_no_jit_6000 = data_no_jit_6000[-1]
         self.assertTrue(
-            (vel_final_plotting_5500 - vel_final_no_plotting_5500).energy() < 1e-25
+            (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-25
         )
         self.assertTrue(
-            (vel_final_plotting_6000 - vel_final_no_plotting_6000).energy() < 1e-25
+            (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-25
         )
 
 

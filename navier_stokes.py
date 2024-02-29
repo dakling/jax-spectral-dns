@@ -40,7 +40,7 @@ from linear_stability_calculation import LinearStabilityCalculation
 def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     vel_new = jnp.array(
         [
-            domain.no_hat(vel_hat_new.at[i,...].get())
+            domain.no_hat(vel_hat_new.at[i, ...].get())
             for i in jnp.arange(domain.number_of_dimensions)
         ]
     )
@@ -60,18 +60,20 @@ def update_nonlinear_terms_high_performance(domain, vel_hat_new):
     conv_ns_new = -hel_new
 
     h_v_new = (
-        -domain.diff(domain.diff(hel_new[0,...], 0) + domain.diff(hel_new[2,...], 2), 1)
-        + domain.diff(hel_new[1,...], 0, 2)
-        + domain.diff(hel_new[1,...], 2, 2)
+        -domain.diff(
+            domain.diff(hel_new[0, ...], 0) + domain.diff(hel_new[2, ...], 2), 1
+        )
+        + domain.diff(hel_new[1, ...], 0, 2)
+        + domain.diff(hel_new[1, ...], 2, 2)
     )
 
-    h_g_new = domain.diff(hel_new[0,...], 2) - domain.diff(hel_new[2,...], 0)
+    h_g_new = domain.diff(hel_new[0, ...], 2) - domain.diff(hel_new[2, ...], 0)
 
     h_v_hat_new = domain.field_hat(h_v_new)
     h_g_hat_new = domain.field_hat(h_g_new)
-    vort_hat_new = [domain.field_hat(vort_new[i,...]) for i in domain.all_dimensions()]
+    vort_hat_new = [domain.field_hat(vort_new[i, ...]) for i in domain.all_dimensions()]
     conv_ns_hat_new = [
-        domain.field_hat(conv_ns_new[i,...]) for i in domain.all_dimensions()
+        domain.field_hat(conv_ns_new[i, ...]) for i in domain.all_dimensions()
     ]
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
@@ -96,7 +98,6 @@ class NavierStokesVelVort(Equation):
             domain = velocity_field[0].fourier_domain
             self.physical_domain = velocity_field[0].physical_domain
 
-
         try:
             self.Re_tau = params["Re_tau"]
         except KeyError:
@@ -105,6 +106,15 @@ class NavierStokesVelVort(Equation):
             except KeyError:
                 raise Exception("Either Re or Re_tau has to be given as a parameter.")
         self.nonlinear_update_fn = update_nonlinear_terms_high_performance
+        # if (
+        #     self.physical_domain.number_of_cells(0)
+        #     * self.physical_domain.number_of_cells(2)
+        #     > 100
+        # ):
+        #     print("checkpointing activated")
+        #     self.nonlinear_update_fn = jax.checkpoint(
+        #         self.nonlinear_update_fn, static_argnums=(0,)
+        #     )
         self.poisson_mat = None
         super().__init__(domain, velocity_field, **params)
         self.update_flow_rate()
@@ -242,7 +252,9 @@ class NavierStokesVelVort(Equation):
         alpha, beta, _, _ = self.get_rk_parameters()
         n = Ly.shape[0]
         I = jnp.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / self.Re_tau # TODO these would be the matrices going into transform
+        L = (
+            Ly + I * (-(kx**2 + kz**2)) / self.Re_tau
+        )  # TODO these would be the matrices going into transform
         rhs_mat = I + alpha[i] * self.dt * L
         lhs_mat = I - beta[i] * self.dt * L
         return (lhs_mat, rhs_mat)
@@ -255,7 +267,7 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     def perform_runge_kutta_step(self, vel_hat_data):
-        if not Field.supress_plotting_:
+        if not Field.activate_jit_:
             self.dt = self.get_time_step()
         Re = self.Re_tau
 
@@ -313,7 +325,17 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_p = domain.enforce_homogeneous_dirichlet(lhs_mat_p)
                 rhs_p = domain.update_boundary_conditions_fourier_field_slice(rhs_p, 1)
 
+
                 phi_hat_lap_new = jnp.linalg.inv(lhs_mat_p) @ rhs_p # TODO use fast_diagonalization
+                # from jax_cfd.base import fast_diagonalization
+                # import numpy as np
+                # phi_hat_lap_new_jnp_inv = jnp.linalg.inv(lhs_mat_p) @ rhs_p # TODO use fast_diagonalization
+                # phi_hat_lap_new = (
+                #     fast_diagonalization.pseudoinverse(
+                #         lhs_mat_p, np.complex64, hermitian=True, circulant=False
+                #     )(rhs_p)
+                # )  # TODO use fast_diagonalization
+                # assert (phi_hat_lap_new - phi_hat_lap_new_jnp_inv < 1e-5).all()
 
                 v_1_lap_hat_new_p = phi_hat_lap_new
 
@@ -323,7 +345,7 @@ class NavierStokesVelVort(Equation):
                         v_1_lap_hat_new_p, 1
                     )
                 )
-                v_1_hat_new_p = domain.solve_poisson_fourier_field_slice( # TODO there might be room for improvement here as well
+                v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(  # TODO there might be room for improvement here as well
                     v_1_lap_hat_new_p, self.poisson_mat, kx, kz
                 )
                 v_1_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
@@ -471,8 +493,8 @@ class NavierStokesVelVort(Equation):
                 )
                 return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_a)
 
-            if Nx*Nz > 100:
-                return jax.checkpoint(fn)
+            if Nx * Nz > 100:
+                return jax.checkpoint(fn, policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
             else:
                 return fn
 
@@ -487,10 +509,7 @@ class NavierStokesVelVort(Equation):
                 h_g_hat,
                 vort_hat,
                 conv_ns_hat,
-            ) = self.nonlinear_update_fn(
-                self.physical_domain,
-                vel_hat_data
-            )
+            ) = self.nonlinear_update_fn(self.physical_domain, vel_hat_data)
 
             if type(h_v_hat_old) == NoneType:
                 h_v_hat_old = h_v_hat
@@ -501,69 +520,95 @@ class NavierStokesVelVort(Equation):
 
             # solve equations
             v_1_hat = vel_hat_data[1, ...]
-            v_1_lap_hat = jnp.sum(jnp.array([self.domain.diff(v_1_hat, i, 2, self.physical_domain) for i in self.all_dimensions()]), axis=0)
+            v_1_lap_hat = jnp.sum(
+                jnp.array(
+                    [
+                        self.domain.diff(v_1_hat, i, 2, self.physical_domain)
+                        for i in self.all_dimensions()
+                    ]
+                ),
+                axis=0,
+            )
 
             @partial(jax.jit, static_argnums=(0, 1, 2))
             # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,1,2))
             def get_new_vel_field_map(
-                    Nx,
-                    Ny,
-                    Nz,
-                    v_1_lap_hat,
-                    vort_hat_1,
-                    conv_ns_hat_0,
-                    conv_ns_hat_2,
-                    conv_ns_hat_old_0,
-                    conv_ns_hat_old_2,
-                    h_v_hat,
-                    h_g_hat,
-                    h_v_hat_old,
-                    h_g_hat_old,
+                Nx,
+                Ny,
+                Nz,
+                v_1_lap_hat,
+                vort_hat_1,
+                conv_ns_hat_0,
+                conv_ns_hat_2,
+                conv_ns_hat_old_0,
+                conv_ns_hat_old_2,
+                h_v_hat,
+                h_g_hat,
+                h_v_hat_old,
+                h_g_hat_old,
             ):
                 number_of_input_arguments = 10
+
                 def outer_map(kzs_):
                     def fn(kx_state):
                         kx = kx_state[0]
-                        fields_2d = jnp.split(kx_state[1:], number_of_input_arguments, axis=0)
+                        fields_2d = jnp.split(
+                            kx_state[1:], number_of_input_arguments, axis=0
+                        )
                         for i in range(len(fields_2d)):
                             fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
                         state_slice = jnp.concatenate(fields_2d).T
                         kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
                         return jax.lax.map(inner_map(kx), kz_state_slice)
+
                     return fn
+
                 def inner_map(kx):
                     def fn(kz_one_pt_state):
                         kz = kz_one_pt_state[0]
-                        one_pt_state = kz_one_pt_state[1:] # y slice for one kx and kz
-                        fields_1d = jnp.split(one_pt_state, number_of_input_arguments, axis=0)
+                        one_pt_state = kz_one_pt_state[1:]  # y slice for one kx and kz
+                        fields_1d = jnp.split(
+                            one_pt_state, number_of_input_arguments, axis=0
+                        )
                         (
                             v_0_new_field,
                             v_1_hat_new,
                             v_2_new_field,
                             _,
                         ) = perform_single_rk_step_for_single_wavenumber(step)(
-                            [kx.astype(int), kz.astype(int)],
-                            *fields_1d
-                    )
+                            [kx.astype(int), kz.astype(int)], *fields_1d
+                        )
                         return [v_0_new_field, v_1_hat_new, v_2_new_field]
+
                     return fn
+
                 kx_arr = jnp.atleast_2d(jnp.arange(Nx))
                 kz_arr = jnp.atleast_2d(jnp.arange(Nz))
-                state = jnp.concatenate([
-                    jnp.moveaxis(v_1_lap_hat, 1, 2),
-                    jnp.moveaxis(vort_hat_1, 1, 2),
-                    jnp.moveaxis(conv_ns_hat_0, 1, 2),
-                    jnp.moveaxis(conv_ns_hat_2, 1, 2),
-                    jnp.moveaxis(conv_ns_hat_old_0, 1, 2),
-                    jnp.moveaxis(conv_ns_hat_old_2, 1, 2),
-                    jnp.moveaxis(h_v_hat, 1, 2),
-                    jnp.moveaxis(h_g_hat, 1, 2),
-                    jnp.moveaxis(h_v_hat_old, 1, 2),
-                    jnp.moveaxis(h_g_hat_old, 1, 2),
-                ],
-                                           axis=1)
-                kx_state = jnp.concatenate([kx_arr.T, jnp.reshape(state, (Nx, (number_of_input_arguments*Ny*Nz)))], axis=1)
-                if jax.device_count() >= Nx: # TODO maybe do some reshaping to use maximum number of devices
+                state = jnp.concatenate(
+                    [
+                        jnp.moveaxis(v_1_lap_hat, 1, 2),
+                        jnp.moveaxis(vort_hat_1, 1, 2),
+                        jnp.moveaxis(conv_ns_hat_0, 1, 2),
+                        jnp.moveaxis(conv_ns_hat_2, 1, 2),
+                        jnp.moveaxis(conv_ns_hat_old_0, 1, 2),
+                        jnp.moveaxis(conv_ns_hat_old_2, 1, 2),
+                        jnp.moveaxis(h_v_hat, 1, 2),
+                        jnp.moveaxis(h_g_hat, 1, 2),
+                        jnp.moveaxis(h_v_hat_old, 1, 2),
+                        jnp.moveaxis(h_g_hat_old, 1, 2),
+                    ],
+                    axis=1,
+                )
+                kx_state = jnp.concatenate(
+                    [
+                        kx_arr.T,
+                        jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
+                    ],
+                    axis=1,
+                )
+                if (
+                    jax.device_count() >= Nx
+                ):  # TODO maybe do some reshaping to use maximum number of devices
                     out = jax.pmap(outer_map(kz_arr))(kx_state)
                 else:
                     out = jax.lax.map(outer_map(kz_arr), kx_state)
@@ -595,10 +640,26 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat,
             )
 
-            vel_new_hat_field = jnp.array([self.physical_domain.update_boundary_conditions(vel_new_hat_field[i]) for i in self.all_dimensions()])
+            vel_new_hat_field = jnp.array(
+                [
+                    self.physical_domain.update_boundary_conditions(
+                        vel_new_hat_field[i]
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
 
-        if not Field.supress_plotting_:
-            vel_new_hat = VectorField([FourierField(self.physical_domain, vel_new_hat_field[i], name="velocity_hat_" + "xyz"[i]) for i in self.all_dimensions()])
+        if not Field.activate_jit_:
+            vel_new_hat = VectorField(
+                [
+                    FourierField(
+                        self.physical_domain,
+                        vel_new_hat_field[i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
             vel_new_hat.name = "velocity_hat"
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
@@ -612,7 +673,7 @@ class NavierStokesVelVort(Equation):
         which only implementd for debugging purposes. Consider using Runge-Kutta \
         (method perform_runge_kutta_step()) instead."
         )
-        if not Field.supress_plotting_:
+        if not Field.activate_jit_:
             self.dt = self.get_time_step()
         dt = self.dt
 
@@ -854,7 +915,16 @@ class NavierStokesVelVort(Equation):
             vel_hat_data_ = vel_hat_data
         vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_)
         if type(vel_hat_data) == NoneType:
-            vel_hat_new = VectorField([FourierField(self.physical_domain, vel_hat_data_new_[i], name="velocity_hat_" + "xyz"[i]) for i in self.all_dimensions()])
+            vel_hat_new = VectorField(
+                [
+                    FourierField(
+                        self.physical_domain,
+                        vel_hat_data_new_[i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_
 
@@ -863,12 +933,20 @@ class NavierStokesVelVort(Equation):
         # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
         def step_fn(u0, _):
             return (self.perform_time_step(u0), None)
+
         u0 = self.get_latest_field("velocity_hat").get_data()
         self.dt = self.get_time_step()
         ts = jnp.arange(0, self.end_time + self.dt, self.dt)
         u_final, _ = jax.lax.scan(step_fn, u0, xs=ts)
         # trajectory_fn = trajectory(step_fn, self.max_iter)
-        velocity_final = VectorField([FourierField(self.physical_domain, u_final[i], name="velocity_hat_" + "xyz"[i]) for i in self.all_dimensions()])
+        velocity_final = VectorField(
+            [
+                FourierField(
+                    self.physical_domain, u_final[i], name="velocity_hat_" + "xyz"[i]
+                )
+                for i in self.all_dimensions()
+            ]
+        )
         self.append_field("velocity_hat", velocity_final, in_place=False)
         return (velocity_final, len(ts))
 
@@ -886,7 +964,9 @@ def solve_navier_stokes_laminar(
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors
+    )
     # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
     vel_x_fn_ana = (
