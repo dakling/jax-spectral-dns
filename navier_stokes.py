@@ -3,6 +3,7 @@
 NoneType = type(None)
 import jax
 import jax.numpy as jnp
+import numpy as np
 from functools import partial
 
 # from importlib import reload
@@ -251,7 +252,7 @@ class NavierStokesVelVort(Equation):
     def assemble_rk_matrices(self, Ly, kx, kz, i):
         alpha, beta, _, _ = self.get_rk_parameters()
         n = Ly.shape[0]
-        I = jnp.eye(n)
+        I = np.eye(n)
         L = (
             Ly + I * (-(kx**2 + kz**2)) / self.Re_tau
         )  # TODO these would be the matrices going into transform
@@ -274,11 +275,11 @@ class NavierStokesVelVort(Equation):
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
 
-        D2 = jnp.linalg.matrix_power(self.physical_domain.diff_mats[1], 2)
+        D2 = np.linalg.matrix_power(self.physical_domain.diff_mats[1], 2)
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = D2.shape[0]
-        I = jnp.eye(n)
-        Z = jnp.zeros((n, n))
+        I = np.eye(n)
+        Z = np.zeros((n, n))
 
         L_NS_y = 1 / Re * jnp.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 

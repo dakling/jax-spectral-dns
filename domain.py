@@ -3,7 +3,9 @@
 from abc import ABC
 import jax
 import jax.numpy as jnp
-import jax.scipy as jsc
+import numpy as np
+# import jax.scipy as jsc
+import scipy as sc
 from jax.tree_util import register_pytree_node_class
 from matplotlib import legend
 import matplotlib.pyplot as plt
@@ -15,7 +17,6 @@ import dataclasses
 from typing import Tuple, Union, Sequence, List
 
 
-import numpy as np
 
 NoneType = type(None)
 
@@ -29,12 +30,12 @@ def get_cheb_grid(N, scale_factor=1.0):
     ), "different scaling of Chebyshev direction not implemented yet."
     # n = int(N * self.aliasing)
     n = N
-    return jnp.array(
-        [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
+    return np.array(
+        [np.cos(np.pi / (n - 1) * i) for i in np.arange(n)]
     )  # gauss-lobatto points with endpoints
 
 
-def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
+def get_fourier_grid(N, scale_factor=2 * np.pi, aliasing=1.0):
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
     if N % 2 != 0:
@@ -42,18 +43,18 @@ def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
             "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
         )
         N += 1
-    return jnp.linspace(start=0.0, stop=scale_factor, num=int(N * aliasing + 1))[:-1]
+    return np.linspace(start=0.0, stop=scale_factor, num=int(N * aliasing + 1))[:-1]
 
 
 def assemble_cheb_diff_mat(xs, order=1):
     """Assemble a 1D Chebyshev differentiation matrix in direction i with
     differentiation order order."""
     N = len(xs)
-    c = jnp.block([2.0, jnp.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** jnp.arange(0, N)
-    X = jnp.repeat(xs, N).reshape(N, N)
-    dX = X - jnp.transpose(X)
-    D_ = jnp.transpose((jnp.transpose(1 / c) @ c)) / (dX + jnp.eye(N))
-    return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
+    c = np.block([2.0, np.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** np.arange(0, N)
+    X = np.repeat(xs, N).reshape(N, N)
+    dX = X - np.transpose(X)
+    D_ = np.transpose((np.transpose(1 / c) @ c)) / (dX + np.eye(N))
+    return np.linalg.matrix_power(D_ - np.diag(sum(np.transpose(D_))), order)
 
 
 def assemble_fourier_diff_mat(n, order=1):
@@ -61,12 +62,12 @@ def assemble_fourier_diff_mat(n, order=1):
     differentiation order order."""
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
-    h = 2 * jnp.pi / n
-    column = jnp.block(
-        [0, 0.5 * (-1) ** jnp.arange(1, n) * 1 / jnp.tan(jnp.arange(1, n) * h / 2)]
+    h = 2 * np.pi / n
+    column = np.block(
+        [0, 0.5 * (-1) ** np.arange(1, n) * 1 / np.tan(np.arange(1, n) * h / 2)]
     )
-    column2 = jnp.block([column[0], jnp.flip(column[1:])])
-    return jnp.linalg.matrix_power(jsc.linalg.toeplitz(column, column2), order)
+    column2 = np.block([column[0], np.flip(column[1:])])
+    return np.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order)
 
 
 # @register_pytree_node_class
@@ -80,9 +81,9 @@ class Domain(ABC):
     periodic_directions: Tuple[bool]
     scale_factors: Union[List[jnp.float64], Tuple[jnp.float64]]
     shape: Sequence[int]
-    grid: List[jnp.ndarray]
-    diff_mats: List[jnp.ndarray]
-    mgrid: List[jnp.ndarray]
+    grid: List[np.ndarray]
+    diff_mats: List[np.ndarray]
+    mgrid: List[np.ndarray]
     aliasing: jnp.float64 = 1  # no antialiasing (requires finer resolution)
     # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
 
