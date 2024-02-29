@@ -328,15 +328,6 @@ class NavierStokesVelVort(Equation):
 
 
                 phi_hat_lap_new = jnp.linalg.inv(lhs_mat_p) @ rhs_p # TODO use fast_diagonalization
-                # from jax_cfd.base import fast_diagonalization
-                # import numpy as np
-                # phi_hat_lap_new_jnp_inv = jnp.linalg.inv(lhs_mat_p) @ rhs_p # TODO use fast_diagonalization
-                # phi_hat_lap_new = (
-                #     fast_diagonalization.pseudoinverse(
-                #         lhs_mat_p, np.complex64, hermitian=True, circulant=False
-                #     )(rhs_p)
-                # )  # TODO use fast_diagonalization
-                # assert (phi_hat_lap_new - phi_hat_lap_new_jnp_inv < 1e-5).all()
 
                 v_1_lap_hat_new_p = phi_hat_lap_new
 
