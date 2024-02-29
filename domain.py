@@ -3,6 +3,7 @@
 from abc import ABC
 import jax
 import jax.numpy as jnp
+import numpy as np
 # import jax.scipy as jsc
 import scipy as sc
 from jax.tree_util import register_pytree_node_class
@@ -167,7 +168,7 @@ class Domain(ABC):
             if self.is_periodic(d)
         ]
 
-    def all_nojnperiodic_dimensions(self):
+    def all_nonperiodic_dimensions(self):
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
@@ -178,16 +179,16 @@ class Domain(ABC):
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
-        def fftshift(ijnp, i):
+        def fftshift(inp, i):
             if self.periodic_directions[i]:
-                N = len(ijnp)
+                N = len(inp)
                 return (
-                    (jnp.block([ijnp[N // 2 :], ijnp[: N // 2]]) - N // 2)
+                    (jnp.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
                     * (2 * jnp.pi)
                     / self.scale_factors[i]
                 )
             else:
-                return ijnp
+                return inp
 
         Ns = []
         for i in self.all_dimensions():
@@ -401,7 +402,7 @@ class Domain(ABC):
 
     def update_boundary_conditions(self, field):
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
-        for dim in self.all_nojnperiodic_dimensions():
+        for dim in self.all_nonperiodic_dimensions():
             field = jnp.take(
                 field,
                 jnp.arange(self.number_of_cells(dim))[1:-1],
@@ -557,11 +558,11 @@ class FourierDomain(Domain):
     def assemble_poisson_matrix(self):
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
-            len(self.all_nojnperiodic_dimensions()) <= 1
+            len(self.all_nonperiodic_dimensions()) <= 1
         ), "Poisson solution not implemented for the general case."
         # y_mat = self.get_cheb_mat_2_homogeneous_dirichlet_only_rows(
         y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(
-            self.all_nojnperiodic_dimensions()[0]
+            self.all_nonperiodic_dimensions()[0]
         )
         n = y_mat.shape[0]
         bc_padding = 1
