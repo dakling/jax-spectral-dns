@@ -1127,7 +1127,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     Ny = 80
     Nz = 6
     end_time = T
-    number_of_modes = 80
+    number_of_modes = 10
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
@@ -1142,8 +1142,15 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     else:
         coeff_array = np.load(file, allow_pickle=True)
         coeffs = jnp.array(coeff_array.tolist())
+    # coeffs = jnp.array([1.0+3.0j, 6.0+7.0j, 5.0+8.0j])
 
-    # @jax.jit
+    def coeffs_to_complex_coeffs(c):
+        half_len = len(c) // 2
+        return c[:half_len] + 1j*c[half_len:]
+
+    def complex_coeffs_to_coeffs(c):
+        return jnp.block([c.real, c.imag])
+
     def run_case(coeffs_):
 
         start_time = time.time()
@@ -1228,13 +1235,13 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         print(coeff_array)
         n_iter += 1
 
-        ax[0].set_coeffscale("log")
+        ax[0].set_yscale("log")
         ax[0].plot(n, np.array(coeffs) / coeffs[0], "o")
         # ax[0].plot(
         #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
         # )
         ax[1].set_ylim([1e-4, 1e4])
-        ax[1].set_coeffscale("log")
+        ax[1].set_yscale("log")
         ax[1].plot(n, np.array(coeffs) / coeffs[0], "o")
         # ax[1].plot(
         #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
@@ -1256,10 +1263,15 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     # ax[1].plot(
     #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
     # )
+    print(coeffs)
+    print(complex_coeffs_to_coeffs(coeffs))
+    print(coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs)))
+    print(jnp.linalg.norm(coeffs - coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs))))
+    assert jnp.linalg.norm(coeffs - coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs))) < 1e-30
     fig.savefig("plots/coeffs.pdf")
     res = sciopt.minimize(
-        fun=jax.value_and_grad(run_case), # TODO use jacfwd instead of grad?
-        x0=coeffs,
+        fun=jax.value_and_grad(lambda c: run_case(coeffs_to_complex_coeffs(c))),
+        x0=complex_coeffs_to_coeffs(coeffs),
         jac=True,
         # method='L-BFGS-B',
         method='CG',
