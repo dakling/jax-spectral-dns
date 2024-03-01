@@ -1291,14 +1291,14 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
     Ny = 90
     Nz = 64
     end_time = T
-    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
+    scale_factors=(1.87, 1.0, 0.93)
 
     # HACK
     domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     def run_case(coeffs_):
 
         start_time = time.time()
-        U = VectorField([PhysicalField.FromFunc(domain, lambda X: coeffs_[0] * jnp.sin(X[0]) + coeffs_[1] * (1 - X[1]**2) + coeffs_[2] * jnp.cos(X[2])) for _ in range(3)])
+        U = VectorField([PhysicalField.FromFunc(domain, lambda X: 0.1 * (coeffs_[0] * jnp.sin(X[0]) + coeffs_[1] * (1 - X[1]**2) + coeffs_[2] * jnp.cos(X[2]))) for _ in range(3)])
         eps = 1e-5
         eps_ = eps / U.energy()
         U_norm = U * eps_

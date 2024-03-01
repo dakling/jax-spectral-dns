@@ -486,7 +486,8 @@ class NavierStokesVelVort(Equation):
                 return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_a)
 
             if Nx * Nz > 100:
-                return jax.checkpoint(fn, policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
+                # return jax.checkpoint(fn, policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
+                return jax.checkpoint(fn)
             else:
                 return fn
 
