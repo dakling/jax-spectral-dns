@@ -566,24 +566,24 @@ class FourierDomain(Domain):
         )
         n = y_mat.shape[0]
         bc_padding = 1
-        eye_bc = jnp.block(
+        eye_bc = np.block(
             [
-                [jnp.zeros((bc_padding, n))],
+                [np.zeros((bc_padding, n))],
                 [
-                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
-                    jnp.eye(n - 2 * bc_padding),
-                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
+                    np.zeros((n - 2 * bc_padding, bc_padding)),
+                    np.eye(n - 2 * bc_padding),
+                    np.zeros((n - 2 * bc_padding, bc_padding)),
                 ],
-                [jnp.zeros((bc_padding, n))],
+                [np.zeros((bc_padding, n))],
             ]
         )
         k1 = self.grid[self.all_periodic_dimensions()[0]]
         k2 = self.grid[self.all_periodic_dimensions()[1]]
         k1sq = k1**2
         k2sq = k2**2
-        mat = jnp.array(
+        mat = np.array(
             [
-                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
+                [np.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
                 for k1sq_ in k1sq
             ]
         )
