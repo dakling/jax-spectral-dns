@@ -30,12 +30,12 @@ def get_cheb_grid(N, scale_factor=1.0):
     ), "different scaling of Chebyshev direction not implemented yet."
     # n = int(N * self.aliasing)
     n = N
-    return jnp.array(
-        [jnp.cos(jnp.pi / (n - 1) * i) for i in jnp.arange(n)]
+    return np.array(
+        [np.cos(np.pi / (n - 1) * i) for i in np.arange(n)]
     )  # gauss-lobatto points with endpoints
 
 
-def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
+def get_fourier_grid(N, scale_factor=2 * np.pi, aliasing=1.0):
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
     if N % 2 != 0:
@@ -43,18 +43,18 @@ def get_fourier_grid(N, scale_factor=2 * jnp.pi, aliasing=1.0):
             "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
         )
         N += 1
-    return jnp.linspace(start=0.0, stop=scale_factor, num=int(N * aliasing + 1))[:-1]
+    return np.linspace(start=0.0, stop=scale_factor, num=int(N * aliasing + 1))[:-1]
 
 
 def assemble_cheb_diff_mat(xs, order=1):
     """Assemble a 1D Chebyshev differentiation matrix in direction i with
     differentiation order order."""
     N = len(xs)
-    c = jnp.block([2.0, jnp.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** jnp.arange(0, N)
-    X = jnp.repeat(xs, N).reshape(N, N)
-    dX = X - jnp.transpose(X)
-    D_ = jnp.transpose((jnp.transpose(1 / c) @ c)) / (dX + jnp.eye(N))
-    return jnp.linalg.matrix_power(D_ - jnp.diag(sum(jnp.transpose(D_))), order)
+    c = np.block([2.0, np.ones((1, N - 2)) * 1.0, 2.0]) * (-1) ** np.arange(0, N)
+    X = np.repeat(xs, N).reshape(N, N)
+    dX = X - np.transpose(X)
+    D_ = np.transpose((np.transpose(1 / c) @ c)) / (dX + np.eye(N))
+    return np.linalg.matrix_power(D_ - np.diag(sum(np.transpose(D_))), order)
 
 
 def assemble_fourier_diff_mat(n, order=1):
@@ -62,12 +62,12 @@ def assemble_fourier_diff_mat(n, order=1):
     differentiation order order."""
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
-    h = 2 * jnp.pi / n
-    column = jnp.block(
-        [0, 0.5 * (-1) ** jnp.arange(1, n) * 1 / jnp.tan(jnp.arange(1, n) * h / 2)]
+    h = 2 * np.pi / n
+    column = np.block(
+        [0, 0.5 * (-1) ** np.arange(1, n) * 1 / np.tan(np.arange(1, n) * h / 2)]
     )
-    column2 = jnp.block([column[0], jnp.flip(column[1:])])
-    return jnp.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order)
+    column2 = np.block([column[0], np.flip(column[1:])])
+    return np.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order)
 
 
 # @register_pytree_node_class
@@ -101,14 +101,14 @@ class Domain(ABC):
         cls,
         shape: Sequence[int],
         periodic_directions: Sequence[bool],
-        scale_factors: Union[List[jnp.float64], Tuple[jnp.float64], NoneType] = None,
+        scale_factors: Union[List[np.float64], Tuple[np.float64], NoneType] = None,
         aliasing=1,
-        _grid: Union[NoneType, List[jnp.ndarray]] = None,
-        _mgrid: Union[NoneType, List[jnp.ndarray]] = None,
+        _grid: Union[NoneType, List[np.ndarray]] = None,
+        _mgrid: Union[NoneType, List[np.ndarray]] = None,
     ):
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
-            scale_factors_: Union[List[jnp.float64]] = []
+            scale_factors_: Union[List[np.float64]] = []
         else:
             assert isinstance(scale_factors, List) or isinstance(scale_factors, Tuple)
             scale_factors_ = scale_factors
@@ -120,14 +120,14 @@ class Domain(ABC):
         for dim in range(number_of_dimensions):
             if type(periodic_directions) != NoneType and periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
-                    scale_factors_.append(2.0 * jnp.pi)
+                    scale_factors_.append(2.0 * np.pi)
                 if type(_grid) == NoneType:
                     grid.append(
                         get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
                     )
                 diff_mats.append(
                     assemble_fourier_diff_mat(n=shape[dim], order=1)
-                    * (2 * jnp.pi)
+                    * (2 * np.pi)
                     / scale_factors_[dim]
                 )
             else:
@@ -137,7 +137,7 @@ class Domain(ABC):
                     grid.append(get_cheb_grid(shape[dim], scale_factors_[dim]))
                 diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
         if type(_mgrid) == NoneType:
-            mgrid = jnp.meshgrid(*grid, indexing="ij")
+            mgrid = np.meshgrid(*grid, indexing="ij")
         else:
             mgrid = _mgrid
         return cls(
@@ -183,8 +183,8 @@ class Domain(ABC):
             if self.periodic_directions[i]:
                 N = len(inp)
                 return (
-                    (jnp.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
-                    * (2 * jnp.pi)
+                    (np.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
+                    * (2 * np.pi)
                     / self.scale_factors[i]
                 )
             else:
@@ -196,12 +196,12 @@ class Domain(ABC):
         fourier_grid = []
         for i in self.all_dimensions():
             if self.periodic_directions[i]:
-                fourier_grid.append(jnp.linspace(0, Ns[i] - 1, int(Ns[i])))
+                fourier_grid.append(np.linspace(0, Ns[i] - 1, int(Ns[i])))
             else:
                 fourier_grid.append(self.grid[i])
         fourier_grid_shifted = list(map(fftshift, fourier_grid, self.all_dimensions()))
         grid = fourier_grid_shifted
-        mgrid = jnp.meshgrid(*fourier_grid_shifted, indexing="ij")
+        mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
         out = FourierDomain.create(
             self.shape,
             self.periodic_directions,
@@ -228,14 +228,14 @@ class Domain(ABC):
         field_ind = inds[0 : self.number_of_dimensions]
         ind = field_ind + "," + diff_mat_ind + "->" + target_inds
         f_diff = jnp.einsum(
-            ind, field, jnp.linalg.matrix_power(self.diff_mats[direction], order)
+            ind, field, np.linalg.matrix_power(self.diff_mats[direction], order)
         )
         return f_diff
 
     def diff_fourier_field_slice(self, field, direction, order=1):
         """Calculate and return the derivative of given order for a Fourier
         field slice in direction."""
-        return jnp.linalg.matrix_power(self.diff_mats[direction], order) @ field
+        return np.linalg.matrix_power(self.diff_mats[direction], order) @ field
 
     def enforce_homogeneous_dirichlet(self, mat):
         """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
@@ -245,14 +245,14 @@ class Domain(ABC):
 
         def set_first_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
-            return jnp.block(
-                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]
+            return np.block(
+                [[1, np.zeros((1, N - 1))], [np.zeros((N - 1, 1)), matr[1:, 1:]]]
             )
 
         def set_last_mat_row_and_col_to_unit(matr):
             N = matr.shape[0]
-            return jnp.block(
-                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
+            return np.block(
+                [[matr[:-1, :-1], np.zeros((N - 1, 1))], [np.zeros((1, N - 1)), 1]]
             )
 
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
@@ -265,14 +265,14 @@ class Domain(ABC):
         # rhs to the desired values bc_left and bc_right."""
         def set_first_mat_row_to_unit(matr):
             N = matr.shape[0]
-            return jnp.block([[1, jnp.zeros((1, N - 1))], [matr[1:, :]]])
+            return np.block([[1, np.zeros((1, N - 1))], [matr[1:, :]]])
 
         def set_last_mat_row_to_unit(matr):
             N = matr.shape[0]
-            return jnp.block([[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]])
+            return np.block([[matr[:-1, :]], [np.zeros((1, N - 1)), 1]])
 
         out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
-        out_rhs = jnp.block([bc_right, rhs[1:-1], bc_left])
+        out_rhs = np.block([bc_right, rhs[1:-1], bc_left])
 
         return (out_mat, out_rhs)
 
@@ -283,7 +283,7 @@ class Domain(ABC):
         (off-diagonal elements)"""
 
         return self.enforce_homogeneous_dirichlet(
-            jnp.linalg.matrix_power(self.diff_mats[direction], 2)
+            np.linalg.matrix_power(self.diff_mats[direction], 2)
         )
 
     def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):

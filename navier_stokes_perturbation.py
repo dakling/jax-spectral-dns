@@ -167,10 +167,10 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                 ),
                 linearize=self.linearize,
             ))
-        if self.physical_domain.number_of_cells(0) * self.physical_domain.number_of_cells(2) > 100:
-            print("checkpointing activated")
-            # self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,), policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
-            self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,))
+        # if self.physical_domain.number_of_cells(0) * self.physical_domain.number_of_cells(2) > 100:
+        #     print("checkpointing activated")
+        #     # self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,), policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
+        #     self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,))
 
     def get_time_step(self):
         return self.max_dt
