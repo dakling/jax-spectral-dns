@@ -3,6 +3,7 @@
 import jax
 import warnings
 warnings.filterwarnings('ignore')
+import jax.profiler
 
 jax.config.update("jax_enable_x64", True)
 import os
@@ -66,3 +67,5 @@ if __name__ == '__main__':
     else:
         args = sys.argv[2:]
         globals()[sys.argv[1]](*args)
+
+jax.profiler.save_device_memory_profile("memory.prof")

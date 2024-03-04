@@ -1287,9 +1287,9 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 64
+    Nx = 32
     Ny = 90
-    Nz = 64
+    Nz = 4
     end_time = T
     scale_factors=(1.87, 1.0, 0.93)
 
@@ -1329,7 +1329,7 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
     coeffs_list = [coeffs]
     step_size = 5e-1
     print(coeffs_list[-1])
-    number_of_steps = 1000
+    number_of_steps = 2
     for i in range(number_of_steps):
         start_time = time.time()
         gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
