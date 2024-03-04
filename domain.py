@@ -423,7 +423,10 @@ class Domain(ABC):
         """Solve the poisson equation with field as the right-hand side for a
         one-dimensional slice at the wavenumbers k1 and k2. Use the provided
         differentiation matrix mat."""
-        mat_inv = mat[k1, k2, :, :]
+        if type(k1) == NoneType and type(k2) == NoneType:
+            mat_inv = mat[:, :]
+        else:
+            mat_inv = mat[k1, k2, :, :]
         rhs_hat = field
         out_field = mat_inv @ rhs_hat
         return out_field

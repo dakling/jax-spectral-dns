@@ -1287,7 +1287,7 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 32
+    Nx = 14
     Ny = 90
     Nz = 4
     end_time = T
