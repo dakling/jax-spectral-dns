@@ -28,6 +28,7 @@ NoneType = type(None)
 class Equation:
     name = "equation"
     max_dt = 1e10
+    write_intermediate_output = False
 
     def __init__(self, domain, *fields, **params):
         self.domain = domain

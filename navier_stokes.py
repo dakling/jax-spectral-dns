@@ -85,7 +85,7 @@ class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
 
     max_cfl = 0.3
-    max_dt = 0.2
+    max_dt = 1e-2
     dt_update_frequency = (
         10  # update the timestep every time_step_udate_frequency time steps
     )
@@ -293,10 +293,9 @@ class NavierStokesVelVort(Equation):
                     self.rk_mats_lhs_inv_inhom[i,xi,zi] = lhs_mat_inv_inhom
 
             I_ns = np.eye(2*n)
-            L_ns = (L_NS_y + I_ns * (-(kx**2 + kz**2)) / self.Re_tau)
+            L_ns = (L_NS_y + I_ns * (-(0**2 + 0**2)) / self.Re_tau)
             rhs_mat_ns = I_ns + alpha[i] * self.dt * L_ns
             lhs_mat_ns = I_ns - beta[i] * self.dt * L_ns
-            lhs_mat_ns = self.domain.enforce_homogeneous_dirichlet(lhs_mat_ns)
             lhs_mat_inv_ns = np.linalg.inv(lhs_mat_ns)
             self.rk_mats_rhs_ns[i] = rhs_mat_ns
             self.rk_mats_lhs_inv_ns[i] = lhs_mat_inv_ns
@@ -494,11 +493,12 @@ class NavierStokesVelVort(Equation):
                 def rk_00():
                     kx__ = 0
                     kz__ = 0
-                    # lhs_mat_00, rhs_mat_00 = self.assemble_rk_matrices(
+                    # lhs_mat_00_, rhs_mat_00_ = self.assemble_rk_matrices(
                     #     L_NS_y, kx__, kz__, step
                     # )
                     lhs_mat_inv_00 = jnp.asarray(self.rk_mats_lhs_inv_ns)[step]
                     rhs_mat_00 = jnp.asarray(self.rk_mats_rhs_ns)[step]
+
                     v_hat = jnp.block(
                         [
                             vel_hat_data[0, kx__, :, kz__],
@@ -1020,35 +1020,45 @@ class NavierStokesVelVort(Equation):
     def solve_scan(self):
         # @tree_math.wrap # TODO what does this do?
         def inner_step_fn(u0, _):
-            # return (jax.checkpoint(self.perform_time_step)(u0), None)
-            return (self.perform_time_step(u0), None)
+            out = self.perform_time_step(u0)
+            return (out, None)
 
         def step_fn(u0, _):
-            return jax.lax.scan(jax.checkpoint(inner_step_fn), u0, xs=None, length=number_of_inner_steps)
-            # return (self.perform_time_step(u0), None)
+            out, _ = jax.lax.scan(jax.checkpoint(inner_step_fn), u0, xs=None, length=number_of_inner_steps)
+            return out, out
 
         u0 = self.get_latest_field("velocity_hat").get_data()
         self.dt = self.get_time_step()
-        ts = jnp.arange(0, self.end_time + self.dt, self.dt)
+        ts = jnp.arange(0, self.end_time, self.dt)
         number_of_time_steps = len(ts)
-        number_of_inner_steps = int(np.sqrt(number_of_time_steps)) # TODO improve the maths of this
-        number_of_outer_steps = number_of_time_steps // number_of_inner_steps + 1
-        print(number_of_time_steps)
-        print(number_of_outer_steps)
-        print(number_of_inner_steps)
-        # u_final, _ = jax.lax.scan(step_fn, u0, xs=ts)
-        u_final, _ = jax.lax.scan(step_fn, u0, xs=None, length=number_of_outer_steps)
-        # trajectory_fn = trajectory(step_fn, self.max_iter)
-        velocity_final = VectorField(
-            [
-                FourierField(
-                    self.physical_domain, u_final[i], name="velocity_hat_" + "xyz"[i]
+        number_of_inner_steps = int(np.sqrt(number_of_time_steps))
+        number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+        self.dt = self.dt * number_of_time_steps / (number_of_outer_steps * number_of_inner_steps)
+        if self.write_intermediate_output:
+            u_final, trajectory = jax.lax.scan(step_fn, u0, xs=None, length=number_of_outer_steps)
+            for u in trajectory:
+                velocity = VectorField(
+                    [
+                        FourierField(
+                            self.physical_domain, u[i], name="velocity_hat_" + "xyz"[i]
+                        )
+                        for i in self.all_dimensions()
+                    ]
                 )
-                for i in self.all_dimensions()
-            ]
-        )
-        self.append_field("velocity_hat", velocity_final, in_place=False)
-        return (velocity_final, len(ts))
+                self.append_field("velocity_hat", velocity, in_place=False)
+            return (velocity, len(ts))
+        else:
+            u_final, _ = jax.lax.scan(step_fn, u0, xs=None, length=number_of_outer_steps)
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.physical_domain, u_final[i], name="velocity_hat_" + "xyz"[i]
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            self.append_field("velocity_hat", velocity_final, in_place=False)
+            return (velocity_final, len(ts))
 
 
 def solve_navier_stokes_laminar(

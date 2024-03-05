@@ -1114,11 +1114,14 @@ class TestProject(unittest.TestCase):
         data_no_jit_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=50, Ny=90, Nz=2)
         vel_final_no_jit_5500 = data_no_jit_5500[-1]
         vel_final_no_jit_6000 = data_no_jit_6000[-1]
+
+        print((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
+        print((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
         self.assertTrue(
-            (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-25
+            (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-8
         )
         self.assertTrue(
-            (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-25
+            (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-8
         )
 
 

@@ -1480,3 +1480,42 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         # print(i, U_[i])
         # U_hat[i].save_to_file("uvw"[i])
 
+
+def run_get_mean_profile(Re=2000):
+    Nx = 64
+    Ny = 90
+    Nz = 64
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    vel = VectorField([PhysicalField.FromFunc(domain, lambda X: (1 - X[1]**2) + 0*X[2]),
+                       PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+                       PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+    vel_hat = vel.hat()
+    vel_hat.set_name("velocity_hat")
+    nse = NavierStokesVelVort(vel_hat, Re=Re)
+    nse.activate_jit()
+    nse.write_intermediate_output = True
+    nse.end_time = 10
+    nse.initialize()
+    nse.solve()
+    nse.deactivate_jit()
+
+    # post-processing
+    mean_vel = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+                       PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+                       PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+    n = len(nse.get_field("velocity_hat"))
+    for i, velocity_hat in enumerate(nse.get_field("velocity_hat")):
+        velocity = velocity_hat.no_hat()
+        mean_vel += velocity / n
+        velocity.set_name("velocity")
+        velocity.set_time_step(i)
+        velocity[0].plot_3d(2)
+        velocity[0].plot_center(1)
+
+        mean_vel += velocity / n
+
+        mean_vel_ = (mean_vel * n / (i+1))
+        mean_vel_.set_name("mean_velocity")
+        mean_vel_.set_time_step(i)
+        mean_vel_[0].plot_3d(2)
+        mean_vel_[0].plot_center(1)

@@ -109,7 +109,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for perturbations on top of a base flow."
     max_cfl = 0.7
     # max_dt = 1e10
-    max_dt = 1e-2
+    max_dt = 2e-2
 
     def __init__(self, velocity_field, **params):
 
