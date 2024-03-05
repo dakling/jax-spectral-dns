@@ -3,7 +3,7 @@
 import jax
 # import jax.scipy.optimize as jaxopt
 # import jaxopt
-import optax
+# import optax
 import scipy.optimize as sciopt
 import jax.numpy as jnp
 import numpy as np
@@ -1123,9 +1123,9 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 12
-    Ny = 80
-    Nz = 6
+    Nx = 64
+    Ny = 90
+    Nz = 64
     end_time = T
     number_of_modes = 10
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
@@ -1287,9 +1287,9 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 14
+    Nx = 64
     Ny = 90
-    Nz = 4
+    Nz = 64
     end_time = T
     scale_factors=(1.87, 1.0, 0.93)
 

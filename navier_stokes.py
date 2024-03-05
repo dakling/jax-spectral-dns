@@ -342,17 +342,24 @@ class NavierStokesVelVort(Equation):
         ):
             # @partial(jax.checkpoint) # enable to reduce memory usage at the expense of runtime
             def fn(
-                K,
-                v_1_lap_hat_sw,
-                vort_1_hat_sw,
-                conv_ns_hat_sw_0,
-                conv_ns_hat_sw_2,
-                conv_ns_hat_old_sw_0,
-                conv_ns_hat_old_sw_2,
-                h_v_hat_sw,
-                h_g_hat_sw,
-                h_v_hat_old_sw,
-                h_g_hat_old_sw,
+                    K,
+                    # poisson_mat,
+                    # rk_rhs_mat,
+                    # rk_lhs_mat_inv,
+                    # rk_rhs_inhom,
+                    # rk_lhs_mat_inv_inhom,
+                    # rk_rhs_mat_ns,
+                    # rk_lhs_mat_inv_ns,
+                    v_1_lap_hat_sw,
+                    vort_1_hat_sw,
+                    conv_ns_hat_sw_0,
+                    conv_ns_hat_sw_2,
+                    conv_ns_hat_old_sw_0,
+                    conv_ns_hat_old_sw_2,
+                    h_v_hat_sw,
+                    h_g_hat_sw,
+                    h_v_hat_old_sw,
+                    h_g_hat_old_sw,
             ):
                 domain = self.domain
                 kx = K[0]
@@ -365,8 +372,8 @@ class NavierStokesVelVort(Equation):
                 # L_p_y = 1 / Re * D2
                 # lhs_mat_p_, rhs_mat_p_ = self.assemble_rk_matrices(L_p_y, kx_, kz_, step)
                 # lhs_mat_p_ = domain.enforce_homogeneous_dirichlet(lhs_mat_p_)
-                lhs_mat_p_inv = self.rk_mats_lhs_inv[step, kx, kz]
-                rhs_mat_p = self.rk_mats_rhs[step, kx, kz]
+                lhs_mat_p_inv = jnp.asarray(self.rk_mats_lhs_inv)[step, kx, kz]
+                rhs_mat_p = jnp.asarray(self.rk_mats_rhs)[step, kx, kz]
                 # jax.debug.print("{x}", x = np.linalg.norm(rhs_mat_p - rhs_mat_p_))
                 # jax.debug.print("{x}", x = np.linalg.norm(lhs_mat_p_inv - np.linalg.inv(lhs_mat_p_)))
 
@@ -398,8 +405,11 @@ class NavierStokesVelVort(Equation):
                     )
                 )
                 v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(  # TODO there might be room for improvement here as well
-                    v_1_lap_hat_new_p, self.poisson_mat, kx, kz
+                    v_1_lap_hat_new_p, jnp.asarray(self.poisson_mat), kx, kz
                 )
+                # v_1_hat_new_p = domain.solve_poisson_fourier_field_slice(  # TODO there might be room for improvement here as well
+                #     v_1_lap_hat_new_p, poisson_mat, None, None
+                # )
                 v_1_hat_new_p = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new_p, 1
                 )
@@ -413,8 +423,8 @@ class NavierStokesVelVort(Equation):
                 #     lhs_mat_a_, rhs_a_, 0.0, 1.0
                 # )
                 # phi_a_hat_new = np.linalg.inv(lhs_mat_a) @ rhs_a
-                lhs_mat_a_inv = self.rk_mats_lhs_inv_inhom[step, kx, kz]
-                rhs_a = self.rk_rhs_inhom[step, kx, kz]
+                lhs_mat_a_inv = jnp.asarray(self.rk_mats_lhs_inv_inhom)[step, kx, kz]
+                rhs_a = jnp.asarray(self.rk_rhs_inhom)[step, kx, kz]
                 phi_a_hat_new = lhs_mat_a_inv @ rhs_a
                 v_1_lap_hat_new_a = phi_a_hat_new
 
@@ -423,7 +433,7 @@ class NavierStokesVelVort(Equation):
 
                 # compute velocity in y direction
                 v_1_hat_new_a = domain.solve_poisson_fourier_field_slice(
-                    v_1_lap_hat_new_a, self.poisson_mat, kx, kz
+                    v_1_lap_hat_new_a, jnp.asarray(self.poisson_mat), kx, kz
                 )
                 v_1_hat_new_a = domain.update_boundary_conditions_fourier_field_slice(
                     v_1_hat_new_a, 1
@@ -449,8 +459,8 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # vorticity
-                lhs_mat_vort_inv = self.rk_mats_lhs_inv[step, kx, kz]
-                rhs_mat_vort = self.rk_mats_rhs[step, kx, kz]
+                lhs_mat_vort_inv = jnp.asarray(self.rk_mats_lhs_inv)[step, kx, kz]
+                rhs_mat_vort = jnp.asarray(self.rk_mats_rhs)[step, kx, kz]
                 # L_vort_y = 1 / Re * D2
                 # lhs_mat_vort, rhs_mat_vort = self.assemble_rk_matrices(
                 #     L_vort_y, kx_, kz_, step
@@ -487,8 +497,8 @@ class NavierStokesVelVort(Equation):
                     # lhs_mat_00, rhs_mat_00 = self.assemble_rk_matrices(
                     #     L_NS_y, kx__, kz__, step
                     # )
-                    lhs_mat_inv_00 = self.rk_mats_lhs_inv_ns[step]
-                    rhs_mat_00 = self.rk_mats_rhs_ns[step]
+                    lhs_mat_inv_00 = jnp.asarray(self.rk_mats_lhs_inv_ns)[step]
+                    rhs_mat_00 = jnp.asarray(self.rk_mats_rhs_ns)[step]
                     v_hat = jnp.block(
                         [
                             vel_hat_data[0, kx__, :, kz__],
@@ -530,8 +540,8 @@ class NavierStokesVelVort(Equation):
                     return (v_hat_new[:n], v_hat_new[n:])
 
                 def rk_not_00(kx, kz):
-                    kx_ = domain.grid[0][kx]
-                    kz_ = domain.grid[2][kz]
+                    kx_ = jnp.asarray(domain.grid[0])[kx]
+                    kz_ = jnp.asarray(domain.grid[2])[kz]
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1)
                     v_0_new = (
@@ -542,28 +552,28 @@ class NavierStokesVelVort(Equation):
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
-                # v_0_new_field, v_2_new_field = jax.lax.cond(
-                #     kx == 0,
-                #     lambda kx___, kz___: jax.lax.cond(
-                #         kz___ == 0,
-                #         lambda _, __: rk_00(),
-                #         lambda kx__, kz__: rk_not_00(kx__, kz__),
-                #         kx___,
-                #         kz___,
-                #     ),
-                #     lambda kx___, kz___: rk_not_00(kx___, kz___),
-                #     kx,
-                #     kz,
-                # )
-                if kx == 0 and kz == 0:
-                    v_0_new_field, v_2_new_field = rk_00()
-                else:
-                    v_0_new_field, v_2_new_field = rk_not_00(kx, kz)
+                v_0_new_field, v_2_new_field = jax.lax.cond(
+                    kx == 0,
+                    lambda kx___, kz___: jax.lax.cond(
+                        kz___ == 0,
+                        lambda _, __: rk_00(),
+                        lambda kx__, kz__: rk_not_00(kx__, kz__),
+                        kx___,
+                        kz___,
+                    ),
+                    lambda kx___, kz___: rk_not_00(kx___, kz___),
+                    kx,
+                    kz,
+                )
+                # if kx == 0 and kz == 0:
+                #     v_0_new_field, v_2_new_field = rk_00()
+                # else:
+                #     v_0_new_field, v_2_new_field = rk_not_00(kx, kz)
                 return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_a)
 
             if Nx * Nz > 100:
                 # return jax.checkpoint(fn, policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
-                # return jax.checkpoint(fn)
+                # return jax.checkpoint(fn, static_argnums=(0,))
                 return fn
             else:
                 return fn
@@ -621,27 +631,30 @@ class NavierStokesVelVort(Equation):
                 number_of_input_arguments = 10
 
                 def outer_map(kzs_):
-                    def fn(kx_, state):
-                        # kx = kx_state[0]
-                        kx = kx_[0]
+                    # def fn(kx_, state):
+                    def fn(kx_state):
+                        kx = kx_state[0]
+                        # kx = kx_[0]
                         fields_2d = jnp.split(
-                            # kx_state[1:], number_of_input_arguments, axis=0
-                            state, number_of_input_arguments, axis=0
+                            kx_state[1:], number_of_input_arguments, axis=0
+                            # state, number_of_input_arguments, axis=0
                         )
                         for i in range(len(fields_2d)):
                             fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
                         state_slice = jnp.concatenate(fields_2d).T
-                        # kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
-                        # return jax.lax.map(inner_map(kx), kz_state_slice)
-                        return jnp.array(list(map(inner_map(kx), kzs_.T, state_slice)))
+                        kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
+                        return jax.lax.map(inner_map(kx), kz_state_slice)
+                        # return jnp.array(list(map(inner_map(kx), kzs_.T, state_slice)))
 
                     return fn
 
                 def inner_map(kx):
-                    def fn(kz_, one_pt_state):
-                        kz = kz_[0]
+                    # def fn(kz_, one_pt_state):
+                    def fn(kz_one_pt_state):
+                        kz = kz_one_pt_state[0]
                         fields_1d = jnp.split(
-                            one_pt_state, number_of_input_arguments, axis=0
+                            # one_pt_state, number_of_input_arguments, axis=0
+                            kz_one_pt_state[1:], number_of_input_arguments, axis=0
                         )
                         (
                             v_0_new_field,
@@ -668,25 +681,25 @@ class NavierStokesVelVort(Equation):
                         jnp.moveaxis(h_v_hat, 1, 2),
                         jnp.moveaxis(h_g_hat, 1, 2),
                         jnp.moveaxis(h_v_hat_old, 1, 2),
-                        jnp.moveaxis(h_g_hat_old, 1, 2),
+                        jnp.moveaxis(h_g_hat_old, 1, 2)
                     ],
                     axis=1,
                 )
-                state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
-                # kx_state = jnp.concatenate(
-                #     [
-                #         kx_arr.T,
-                #         jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
-                #     ],
-                #     axis=1,
-                # )
+                # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
+                kx_state = jnp.concatenate(
+                    [
+                        kx_arr.T,
+                        jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
+                    ],
+                    axis=1,
+                )
                 if (
                     jax.device_count() >= Nx
                 ):  # TODO maybe do some reshaping to use maximum number of devices
                     out = jax.pmap(outer_map(kz_arr))(kx_state)
                 else:
-                    # out = jax.lax.map(outer_map(kz_arr), kx_state)
-                    out = jnp.moveaxis(jnp.array(list(map(outer_map(kz_arr), kx_arr.T, state_))), 2, 0)
+                    out = jax.lax.map(outer_map(kz_arr), kx_state)
+                    # out = jnp.moveaxis(jnp.array(list(map(outer_map(kz_arr), kx_arr.T, state_))), 2, 0)
                     # out = list(map(outer_map(kz_arr), kx_arr.T, state_))
                 return [jnp.moveaxis(v, 1, 2) for v in out]
 
@@ -1006,14 +1019,25 @@ class NavierStokesVelVort(Equation):
 
     def solve_scan(self):
         # @tree_math.wrap # TODO what does this do?
-        def step_fn(u0, _):
+        def inner_step_fn(u0, _):
             # return (jax.checkpoint(self.perform_time_step)(u0), None)
             return (self.perform_time_step(u0), None)
+
+        def step_fn(u0, _):
+            return jax.lax.scan(jax.checkpoint(inner_step_fn), u0, xs=None, length=number_of_inner_steps)
+            # return (self.perform_time_step(u0), None)
 
         u0 = self.get_latest_field("velocity_hat").get_data()
         self.dt = self.get_time_step()
         ts = jnp.arange(0, self.end_time + self.dt, self.dt)
-        u_final, _ = jax.lax.scan(step_fn, u0, xs=ts)
+        number_of_time_steps = len(ts)
+        number_of_inner_steps = int(np.sqrt(number_of_time_steps)) # TODO improve the maths of this
+        number_of_outer_steps = number_of_time_steps // number_of_inner_steps + 1
+        print(number_of_time_steps)
+        print(number_of_outer_steps)
+        print(number_of_inner_steps)
+        # u_final, _ = jax.lax.scan(step_fn, u0, xs=ts)
+        u_final, _ = jax.lax.scan(step_fn, u0, xs=None, length=number_of_outer_steps)
         # trajectory_fn = trajectory(step_fn, self.max_iter)
         velocity_final = VectorField(
             [

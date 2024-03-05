@@ -7,7 +7,7 @@ import time
 import jax
 import jax.numpy as jnp
 import tree_math
-from jax_cfd.base.funcutils import trajectory
+# from jax_cfd.base.funcutils import trajectory
 
 from pathlib import Path
 import os
