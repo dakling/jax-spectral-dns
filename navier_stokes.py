@@ -136,7 +136,7 @@ class NavierStokesVelVort(Equation):
             rk_mats_lhs_inv_inhom,
             rk_mats_rhs_ns,
             rk_mats_lhs_inv_ns,
-        ) = self.prepare_assemble_rk_matrices(domain, physical_domain, Re_tau)
+        ) = self.prepare_assemble_rk_matrices(domain, physical_domain, Re_tau, dt)
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
             physical_domain,
             poisson_mat,
@@ -321,7 +321,7 @@ class NavierStokesVelVort(Equation):
             [0, -17 / 60, -5 / 12],
         )
 
-    def prepare_assemble_rk_matrices(self, domain, physical_domain, Re_tau):
+    def prepare_assemble_rk_matrices(self, domain, physical_domain, Re_tau, dt):
         alpha, beta, _, _ = self.get_rk_parameters()
         D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
         Ly = 1 / Re_tau * D2
@@ -352,8 +352,8 @@ class NavierStokesVelVort(Equation):
             for xi, kx in enumerate(domain.grid[0]):
                 for zi, kz in enumerate(domain.grid[2]):
                     L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-                    rhs_mat = I + alpha[i] * self.dt * L
-                    lhs_mat = I - beta[i] * self.dt * L
+                    rhs_mat = I + alpha[i] * dt * L
+                    lhs_mat = I - beta[i] * dt * L
                     lhs_mat = domain.enforce_homogeneous_dirichlet(lhs_mat)
                     lhs_mat_inv = np.linalg.inv(lhs_mat)
                     rk_mats_rhs[i, xi, zi] = rhs_mat
@@ -361,7 +361,7 @@ class NavierStokesVelVort(Equation):
 
                     rhs_inhom = np.zeros(n)
 
-                    lhs_mat_inhom = I - beta[i] * self.dt * L
+                    lhs_mat_inhom = I - beta[i] * dt * L
                     (
                         lhs_mat_inhom,
                         rhs_inhom,
@@ -374,8 +374,8 @@ class NavierStokesVelVort(Equation):
 
             I_ns = np.eye(2 * n)
             L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
-            rhs_mat_ns = I_ns + alpha[i] * self.dt * L_ns
-            lhs_mat_ns = I_ns - beta[i] * self.dt * L_ns
+            rhs_mat_ns = I_ns + alpha[i] * dt * L_ns
+            lhs_mat_ns = I_ns - beta[i] * dt * L_ns
             lhs_mat_inv_ns = np.linalg.inv(lhs_mat_ns)
             rk_mats_rhs_ns[i] = rhs_mat_ns
             rk_mats_lhs_inv_ns[i] = lhs_mat_inv_ns

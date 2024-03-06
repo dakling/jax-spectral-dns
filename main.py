@@ -53,8 +53,8 @@ def main():
 
     # run tests
     tp = TestProject()
-    # tp.test_navier_stokes_laminar()
-    tp.test_perturbation_laminar()
+    tp.test_navier_stokes_laminar()
+    # tp.test_perturbation_laminar()
     # tp.test_2d_growth()
     # tp.test_linear_stability()
     raise Exception("break")

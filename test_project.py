@@ -976,7 +976,7 @@ class TestProject(unittest.TestCase):
                 Nz=16,
                 end_time=end_time,
                 # max_dt=1e-2,
-                dt=3e-2,
+                dt=2e-2,
                 perturbation_factor=perturbation_factor,
             )
             def before_time_step(nse):
