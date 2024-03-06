@@ -271,7 +271,7 @@ class VectorField:
     def normalize(self):
         en = self.energy()
         for f in self:
-            f.data = f.data / en
+            f.data = f.data / jnp.sqrt(en)
         return self
 
     def energy_norm(self, k):

@@ -1555,8 +1555,8 @@ def run_get_mean_profile(Re=2000):
 
 
 def run_ld_2020(Re_tau=180):
-    Nx = 64
-    Ny = 90
+    Nx = 60
+    Ny = 80
     Nz = 48
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
@@ -1590,20 +1590,20 @@ def run_ld_2020(Re_tau=180):
                                 PhysicalField(domain_, vel_data[1]),
                                 PhysicalField(domain_, vel_data[2])])
         vel_pert.set_name("velocity")
-        vel_pert.normalize()
-        vel_pert *= energy_0 / jnp.sqrt(2)
         vel_pert.update_boundary_conditions()
+        vel_pert.normalize()
+        vel_pert *= jnp.sqrt(energy_0)
         energy_0_ = vel_pert.energy()
         jax.debug.print("initial energy: {x}", x=vel_pert.energy())
         vel_hat = vel_pert.hat()
         vel_hat.set_name("velocity_hat")
-        nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat(), dt=1e-3)
+        nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat(), dt=5e-4)
         # nse.u_max_over_u_tau = vel_base[0].max()
         # nse.max_dt = nse.get_time_step()
         nse.activate_jit()
         # nse.write_intermediate_output = False
         nse.write_intermediate_output = True
-        nse.end_time = 0.1
+        nse.end_time = 0.05
         # nse.initialize()
         nse.solve()
         vel_final = nse.get_latest_field("velocity_hat").no_hat()
@@ -1617,7 +1617,6 @@ def run_ld_2020(Re_tau=180):
     nse.deactivate_jit()
     print("gain:", gain)
     for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
-        print("hello")
         vel = vel_hat.no_hat()
         vel.set_name("velocity")
         vel.set_time_step(i)
