@@ -89,7 +89,7 @@ class NavierStokesVelVort(Equation):
     def __init__(self, velocity_field, **params):
         if "physical_domain" in params:
             physical_domain = params["physical_domain"]
-            domain = self.get_physical_domain().hat()
+            domain = physical_domain.hat()
         else:
             domain = velocity_field[0].fourier_domain
             physical_domain = velocity_field[0].physical_domain
@@ -365,7 +365,7 @@ class NavierStokesVelVort(Equation):
                     (
                         lhs_mat_inhom,
                         rhs_inhom,
-                    ) = self.get_domain().enforce_inhomogeneous_dirichlet(
+                    ) = domain.enforce_inhomogeneous_dirichlet(
                         lhs_mat_inhom, rhs_inhom, 0.0, 1.0
                     )
                     lhs_mat_inv_inhom = np.linalg.inv(lhs_mat_inhom)
@@ -473,8 +473,8 @@ class NavierStokesVelVort(Equation):
                     N_p_old = h_v_hat_old_sw
                 rhs_p = (
                     rhs_mat_p @ phi_hat_lap
-                    + (self.dt * gamma[step]) * N_p_new
-                    + (self.dt * xi[step]) * N_p_old
+                    + (self.get_dt() * gamma[step]) * N_p_new
+                    + (self.get_dt() * xi[step]) * N_p_old
                 )
                 # lhs_mat_p = domain.enforce_homogeneous_dirichlet(lhs_mat_p)
                 rhs_p = domain.update_boundary_conditions_fourier_field_slice(rhs_p, 1)
@@ -562,8 +562,8 @@ class NavierStokesVelVort(Equation):
 
                 rhs_vort = (
                     rhs_mat_vort @ phi_vort_hat
-                    + (self.dt * gamma[step]) * N_vort_new
-                    + (self.dt * xi[step]) * N_vort_old
+                    + (self.get_dt() * gamma[step]) * N_vort_new
+                    + (self.get_dt() * xi[step]) * N_vort_old
                 )
 
                 # lhs_mat_vort = domain.enforce_homogeneous_dirichlet(lhs_mat_vort)
@@ -621,8 +621,8 @@ class NavierStokesVelVort(Equation):
                     # v_hat_new = np.linalg.inv(lhs_mat_00) @ (
                     v_hat_new = lhs_mat_inv_00 @ (
                         rhs_mat_00 @ v_hat
-                        + (self.dt * gamma[step]) * N_00_new
-                        + (self.dt * xi[step]) * N_00_old
+                        + (self.get_dt() * gamma[step]) * N_00_new
+                        + (self.get_dt() * xi[step]) * N_00_old
                     )
                     return (v_hat_new[:n], v_hat_new[n:])
 
@@ -1129,6 +1129,7 @@ class NavierStokesVelVort(Equation):
         #       * number_of_time_steps
         #       / (number_of_outer_steps * number_of_inner_steps)
         #       )
+        print()
         if self.write_intermediate_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, u0, xs=None, length=number_of_outer_steps

@@ -15,12 +15,12 @@ class FixedParameters():
 class NavierStokesVelVortFixedParameters():
     physical_domain: PhysicalDomain
     poisson_mat: np.ndarray
-    rk_mats_lhs_inv: np.ndarray
     rk_mats_rhs: np.ndarray
-    rk_mats_lhs_inv_inhom: np.ndarray
+    rk_mats_lhs_inv: np.ndarray
     rk_rhs_inhom: np.ndarray
-    rk_mats_lhs_inv_ns: np.ndarray
+    rk_mats_lhs_inv_inhom: np.ndarray
     rk_mats_rhs_ns: np.ndarray
+    rk_mats_lhs_inv_ns: np.ndarray
     Re_tau: np.float64
     max_cfl: np.float64 = 0.3
     dt_update_frequency: int = (
