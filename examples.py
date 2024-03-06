@@ -75,7 +75,7 @@ def run_optimization():
             Re=Re, Ny=Ny, end_time=end_time, max_iter=10, perturbation_factor=0.0
         )
         nse_.max_iter = 10
-        v0_field = PhysicalField(nse_.physical_domain
+        v0_field = PhysicalField(nse_.get_physical_domain()
 , v0)
         vel_0 = nse_.get_initial_field("velocity_hat")
         vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
@@ -88,20 +88,20 @@ def run_optimization():
     vel_x_fn_ana = (
         lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
-    v0_0 = PhysicalField.FromFunc(nse.physical_domain
+    v0_0 = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_x_fn_ana)
 
     v0s = [v0_0.data]
     eps = 1e3
     for i in jnp.arange(10):
         gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = PhysicalField(nse.physical_domain
+        corr_field = PhysicalField(nse.get_physical_domain()
 , corr, name="correction")
         corr_field.update_boundary_conditions()
         print("gain: " + str(gain))
         print("corr (abs): " + str(abs(corr_field)))
         v0s.append(v0s[-1] + eps * corr_field.data)
-        v0_new = PhysicalField(nse.physical_domain
+        v0_new = PhysicalField(nse.get_physical_domain()
 , v0s[-1])
         v0_new.name = "vel_0_" + str(i)
         v0_new.plot(v0_0)
@@ -171,7 +171,7 @@ def run_navier_stokes_turbulent():
         + 0.1 * jnp.sin(2 * jnp.pi * X[2] / Lz * omega)
         + 0 * X[0]
     )
-    vel_x = PhysicalField.FromFunc(nse.physical_domain
+    vel_x = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_x_fn, name="velocity_x")
 
     # vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) * vortex_sum(X)[1]
@@ -180,9 +180,9 @@ def run_navier_stokes_turbulent():
     )
     # vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + (1 - X[1]**2) *vortex_sum(X)[2]
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_y = PhysicalField.FromFunc(nse.physical_domain
+    vel_y = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_y_fn, name="velocity_y")
-    vel_z = PhysicalField.FromFunc(nse.physical_domain
+    vel_z = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
@@ -241,22 +241,22 @@ def run_pseudo_2d():
         scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    u = lsc.velocity_field(nse.physical_domain
+    u = lsc.velocity_field(nse.get_physical_domain()
 )
     vel_x_hat = nse.get_initial_field("velocity_hat")
 
     eps = 5e-3
     nse.init_velocity(vel_x_hat + (u * eps).hat())
 
-    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.physical_domain
+    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.get_physical_domain()
 )
     energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
     energy_x_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(
-        nse.physical_domain
+        nse.get_physical_domain()
 
     )[0](t, 0)
     energy_y_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(
-        nse.physical_domain
+        nse.get_physical_domain()
 
     )[0](t, 1)
     print("eigenvalue: ", ev)
@@ -284,7 +284,7 @@ def run_pseudo_2d():
                 lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             )
             vel_x_ana = PhysicalField.FromFunc(
-                nse.physical_domain, vel_x_fn_ana, name="vel_x_ana"
+                nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
             )
             # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
             # vel_1_lap_a.plot_3d()
@@ -296,7 +296,7 @@ def run_pseudo_2d():
             #     lambda X: -vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             # )
             # vel_x_ana_old = PhysicalField.FromFunc(
-            #     nse.physical_domain, vel_x_fn_ana_old, name="vel_x_ana_old"
+            #     nse.get_physical_domain(), vel_x_fn_ana_old, name="vel_x_ana_old"
             # )
             # vel_pert_old = VectorField(
             #     [vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]]
@@ -424,11 +424,11 @@ def run_dummy_velocity_field():
         + jnp.cos(X[1] * 2 * jnp.pi / 1.0)
     )  # fulfills bcs but breaks conti
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
-    vel_x = PhysicalField.FromFunc(nse.physical_domain
+    vel_x = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_x_fn, name="velocity_x")
-    vel_y = PhysicalField.FromFunc(nse.physical_domain
+    vel_y = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_y_fn, name="velocity_y")
-    vel_z = PhysicalField.FromFunc(nse.physical_domain
+    vel_z = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_z_fn, name="velocity_z")
     nse.set_field(
         "velocity_hat", 0, VectorField([vel_x.hat(), vel_y.hat(), vel_z.hat()])
@@ -438,7 +438,7 @@ def run_dummy_velocity_field():
 
     vel = nse.get_initial_field("velocity_hat").no_hat()
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    vel_x_ana = PhysicalField.FromFunc(nse.physical_domain
+    vel_x_ana = PhysicalField.FromFunc(nse.get_physical_domain()
 , vel_x_fn_ana, name="vel_x_ana")
 
     def after_time_step(nse):
@@ -510,18 +510,18 @@ def run_pseudo_2d_perturbation(
     nse.set_linearize(linearize)
 
     if type(v0) == NoneType:
-        # U = lsc.velocity_field(nse.physical_domain).normalize()
-        U = lsc.velocity_field(nse.physical_domain)
+        # U = lsc.velocity_field(nse.get_physical_domain()).normalize()
+        U = lsc.velocity_field(nse.get_physical_domain())
     else:
-        # U = VectorField([Field(nse.physical_domain, v0[i]) for i in range(3)]).normalize()
-        U = VectorField([PhysicalField(nse.physical_domain, v0[i]) for i in range(3)])
+        # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
+        U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
         print(U[0].energy())
 
     U_hat = U.hat()
     nse.init_velocity(U_hat * eps)
 
 
-    energy_over_time_fn, _ = lsc.energy_over_time(nse.physical_domain, eps=eps)
+    energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), eps=eps)
     plot_interval = 1
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -662,24 +662,24 @@ def run_jimenez_1990(start_time=0):
 
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
-        vel_pert = lsc.velocity_field(nse.physical_domain)
+        vel_pert = lsc.velocity_field(nse.get_physical_domain())
         vort_pert = vel_pert.curl()
         # eps = 1e0 / jnp.sqrt(vort_pert.energy())
         eps = 1e-2 / jnp.sqrt(vel_pert.energy())
         nse.init_velocity((vel_pert * eps).hat())
     else:
         u = PhysicalField.FromFile(
-            nse.physical_domain,
+            nse.get_physical_domain(),
             "velocity_perturbation_" + str(0) + "_t_" + str(start_time),
             name="u_hat",
         )
         v = PhysicalField.FromFile(
-            nse.physical_domain,
+            nse.get_physical_domain(),
             "velocity_perturbation_" + str(1) + "_t_" + str(start_time),
             name="v_hat",
         )
         w = PhysicalField.FromFile(
-            nse.physical_domain,
+            nse.get_physical_domain(),
             "velocity_perturbation_" + str(2) + "_t_" + str(start_time),
             name="w_hat",
         )
@@ -782,7 +782,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
-        nse.physical_domain,
+        nse.get_physical_domain(),
         T,
         number_of_modes,
         recompute_full=False,
@@ -805,7 +805,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.init_velocity(U_hat * eps_)
 
     e_max = lsc.calculate_transient_growth_max_energy(
-        nse.physical_domain, T, number_of_modes
+        nse.get_physical_domain(), T, number_of_modes
     )
     print("expecting max growth of ", e_max)
 
@@ -877,7 +877,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             energy_x_t.append(vel_pert[0].energy() / energy_0)
             energy_y_t.append(vel_pert[1].energy() / energy_0)
             # energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
-            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.physical_domain, nse.time, number_of_modes))
+            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.get_physical_domain(), nse.time, number_of_modes))
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
@@ -1379,7 +1379,7 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.set_linearize(True)
 
     U = lsc.calculate_transient_growth_initial_condition(
-        nse.physical_domain,
+        nse.get_physical_domain(),
         T,
         number_of_modes,
         recompute_full=False,
@@ -1598,7 +1598,7 @@ def run_ld_2020(Re_tau=180):
         vel_hat = vel_pert.hat()
         vel_hat.set_name("velocity_hat")
         nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat())
-        nse.u_max_over_u_tau = vel_base[0].max()
+        # nse.u_max_over_u_tau = vel_base[0].max()
         nse.max_dt = 6e-5
         # nse.max_dt = nse.get_time_step()
         nse.activate_jit()

@@ -975,6 +975,7 @@ class TestProject(unittest.TestCase):
                 Ny=Ny,
                 Nz=16,
                 end_time=end_time,
+                max_dt=1e-2,
                 perturbation_factor=perturbation_factor,
             )
             def before_time_step(nse):
@@ -994,10 +995,10 @@ class TestProject(unittest.TestCase):
             nse.solve()
 
             vel_x_fn_ana = (
-                lambda X: -1 * nse.u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
+                lambda X: -1 * nse.get_u_max_over_u_tau() * (X[1] + 1) * (X[1] - 1)
                 + 0.0 * X[0] * X[2]
             )
-            vel_x_ana = PhysicalField.FromFunc(nse.physical_domain , vel_x_fn_ana, name="vel_x_ana")
+            vel_x_ana = PhysicalField.FromFunc(nse.get_physical_domain() , vel_x_fn_ana, name="vel_x_ana")
 
             print("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")

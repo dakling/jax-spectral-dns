@@ -20,6 +20,7 @@ import sys
 # except:
 #     print("Unable to load Field")
 from field import Field, FourierField
+from fixed_parameters import FixedParameters
 
 
 NoneType = type(None)
@@ -27,11 +28,14 @@ NoneType = type(None)
 
 class Equation:
     name = "equation"
-    max_dt = 1e10
     write_intermediate_output = False
 
     def __init__(self, domain, *fields, **params):
-        self.domain = domain
+        try:
+            max_dt = params["max_dt"]
+        except KeyError:
+            max_dt = 1e-2
+        self.fixed_parameters = FixedParameters(domain, max_dt)
         self.fields = {}
         self.time_step = 0
         self.time = 0.0
@@ -63,6 +67,9 @@ class Equation:
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.pdf") if f.is_file()]
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
+
+    def get_domain(self):
+        return self.fixed_parameters.domain
 
     def get_field(self, name, index=None):
         try:
@@ -111,37 +118,37 @@ class Equation:
         Field.activate_jit_ = False
 
     def all_dimensions_jnp(self):
-        return jnp.arange(self.domain.number_of_dimensions)
+        return jnp.arange(self.get_domain().number_of_dimensions)
 
     def all_dimensions(self):
-        return range(self.domain.number_of_dimensions)
+        return range(self.get_domain().number_of_dimensions)
 
     def all_periodic_dimensions(self):
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
-            if self.domain.periodic_directions[d]
+            if self.get_domain().periodic_directions[d]
         ]
 
     def all_nonperiodic_dimensions(self):
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
-            if not self.domain.periodic_directions[d]
+            if not self.get_domain().periodic_directions[d]
         ]
 
     def all_periodic_dimensions_jnp(self):
         return [
             self.all_dimensions_jnp()[d]
             for d in self.all_dimensions_jnp()
-            if self.domain.periodic_directions[d]
+            if self.get_domain().periodic_directions[d]
         ]
 
     def all_nonperiodic_dimensions_jnp(self):
         return [
             self.all_dimensions_jnp()[d]
             for d in self.all_dimensions_jnp()
-            if not self.domain.periodic_directions[d]
+            if not self.get_domain().periodic_directions[d]
         ]
 
     def done(self):
