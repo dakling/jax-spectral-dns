@@ -196,14 +196,15 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
 
 def solve_navier_stokes_perturbation(
-    Re=1.8e2,
-    end_time=1e1,
-    max_iter=1e8,
-    Nx=6,
-    Ny=40,
-    Nz=None,
-    perturbation_factor=0.1,
-    scale_factors=(1.87, 1.0, 0.93),
+        Re=1.8e2,
+        end_time=1e1,
+        max_iter=1e8,
+        Nx=6,
+        Ny=40,
+        Nz=None,
+        perturbation_factor=0.1,
+        scale_factors=(1.87, 1.0, 0.93),
+        dt=1e-2
 ):
     Ny = Ny
     Nz = Nz or Nx + 4
@@ -245,7 +246,7 @@ def solve_navier_stokes_perturbation(
     vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="vel_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re)
+    nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re, dt=dt)
     nse.end_time = end_time
     nse.max_iter = max_iter
 

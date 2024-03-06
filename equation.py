@@ -32,10 +32,10 @@ class Equation:
 
     def __init__(self, domain, *fields, **params):
         try:
-            max_dt = params["max_dt"]
+            dt = params["dt"]
         except KeyError:
-            max_dt = 1e-2
-        self.fixed_parameters = FixedParameters(domain, max_dt)
+            dt = 1e-2
+        self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step = 0
         self.time = 0.0

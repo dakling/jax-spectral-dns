@@ -8,7 +8,7 @@ from domain import Domain, PhysicalDomain
 @dataclasses.dataclass(frozen=True)
 class FixedParameters():
     domain: Domain
-    max_dt: np.float64
+    dt: np.float64
 
 
 @dataclasses.dataclass(frozen=True)

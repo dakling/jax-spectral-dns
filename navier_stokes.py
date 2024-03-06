@@ -100,6 +100,11 @@ class NavierStokesVelVort(Equation):
             u_max_over_u_tau = 1.0
 
         try:
+            dt = params["dt"]
+        except KeyError:
+            dt = 1e-2
+
+        try:
             max_cfl = params["max_cfl"]
         except KeyError:
             max_cfl = 0.7
@@ -121,7 +126,7 @@ class NavierStokesVelVort(Equation):
         #     self.nonlinear_update_fn = jax.checkpoint(
         #         self.nonlinear_update_fn, static_argnums=(0,)
         #     )
-        super().__init__(domain, velocity_field, **params)
+        super().__init__(domain, velocity_field, dt=dt)
 
         poisson_mat = domain.assemble_poisson_matrix()
         (
@@ -166,8 +171,8 @@ class NavierStokesVelVort(Equation):
     def get_physical_domain(self):
         return self.nse_fixed_parameters.physical_domain
 
-    def get_max_dt(self):
-        return self.fixed_parameters.max_dt
+    def get_dt(self):
+        return self.fixed_parameters.dt
 
     def get_poisson_mat(self):
         return self.nse_fixed_parameters.poisson_mat
@@ -289,6 +294,7 @@ class NavierStokesVelVort(Equation):
         return self.get_physical_domain().get_cheb_mat_2_homogeneous_dirichlet_only_rows(1)
 
     def get_time_step(self):
+        return self.get_dt()
         if self.time_step % self.get_dt_update_frequency() == 0:
             dX = self.get_physical_domain().grid[0][1:] - self.get_physical_domain().grid[0][:-1]
             dY = self.get_physical_domain().grid[1][1:] - self.get_physical_domain().grid[1][:-1]
@@ -301,7 +307,7 @@ class NavierStokesVelVort(Equation):
             u_cfl = (abs(DX) / abs(U)).min().real
             v_cfl = (abs(DY) / abs(V)).min().real
             w_cfl = (abs(DZ) / abs(W)).min().real
-            self.dt = min(self.get_max_dt(), self.get_max_cfl() * min([u_cfl, v_cfl, w_cfl]))
+            self.dt = self.get_max_cfl() * min([u_cfl, v_cfl, w_cfl])
             assert (
                 self.dt > 1e-8
             ), "Breaking due to small timestep, which indicates an issue with the calculation."
@@ -1115,16 +1121,14 @@ class NavierStokesVelVort(Equation):
             return out, out
 
         u0 = self.get_latest_field("velocity_hat").get_data()
-        self.dt = self.get_time_step()
-        ts = jnp.arange(0, self.end_time, self.dt)
+        ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
         number_of_inner_steps = int(np.sqrt(number_of_time_steps))
         number_of_outer_steps = number_of_time_steps // number_of_inner_steps
-        self.dt = (
-            self.dt
-            * number_of_time_steps
-            / (number_of_outer_steps * number_of_inner_steps)
-        )
+        # dt = (dt
+        #       * number_of_time_steps
+        #       / (number_of_outer_steps * number_of_inner_steps)
+        #       )
         if self.write_intermediate_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, u0, xs=None, length=number_of_outer_steps
