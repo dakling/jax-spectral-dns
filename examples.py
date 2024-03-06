@@ -16,6 +16,7 @@ import time
 # from importlib import reload
 import sys
 
+from cheb import cheb
 # try:
 #     reload(sys.modules["domain"])
 # except:
@@ -1134,15 +1135,6 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     # HACK
     domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     energy_gain_svd = None
-    if file is None:
-        S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
-        coeffs = V[:, 0]
-        energy_gain_svd = S[0]**2
-        print("excpected energy gain:", energy_gain_svd)
-    else:
-        coeff_array = np.load(file, allow_pickle=True)
-        coeffs = jnp.array(coeff_array.tolist())
-    # coeffs = jnp.array([1.0+3.0j, 6.0+7.0j, 5.0+8.0j])
 
     def coeffs_to_complex_coeffs(c):
         half_len = len(c) // 2
@@ -1150,6 +1142,16 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
 
     def complex_coeffs_to_coeffs(c):
         return jnp.block([c.real, c.imag])
+
+    if file is None:
+        S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+        coeffs = V[:, 0]
+        energy_gain_svd = S[0]**2
+        print("excpected energy gain:", energy_gain_svd)
+    else:
+        coeff_array = np.load(file, allow_pickle=True)
+        coeffs = coeffs_to_complex_coeffs(jnp.array(coeff_array.tolist()))
+    # coeffs = jnp.array([1.0+3.0j, 6.0+7.0j, 5.0+8.0j])
 
     def run_case(coeffs_):
 
@@ -1486,36 +1488,152 @@ def run_get_mean_profile(Re=2000):
     Ny = 90
     Nz = 64
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
-    vel = VectorField([PhysicalField.FromFunc(domain, lambda X: (1 - X[1]**2) + 0*X[2]),
-                       PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-                       PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-    vel_hat = vel.hat()
+    avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
+    def get_vel_field(domain, cheb_coeffs):
+        U_mat = np.zeros((Ny, len(cheb_coeffs)))
+        for i in range(Ny):
+            for j in range(len(cheb_coeffs)):
+                U_mat[i, j] = cheb(j, 0, domain.grid[1][i])
+        U_y_slice = U_mat @ cheb_coeffs
+        u_data = np.moveaxis(np.tile(np.tile(U_y_slice, reps=(Nz, 1)), reps=(Nx, 1, 1)), 1, 2)
+        vel_base = VectorField([PhysicalField(domain, jnp.asarray(u_data)),
+                                PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+                                PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+        return vel_base, U_y_slice
+
+    vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
+    vel_base.set_name("velocity_base")
+    # vel_base.plot_3d(0)
+    # vel_base.plot_3d(1)
+    # vel_base.plot_3d(2)
+
+    # vel_base_max = vel_base[0].max()
+    # fit_fn = lambda y, k, n: vel_base_max * (((1 - y**2)**(1/n) + (1 - y**1.1)**(1/k)) / 2)
+    # fit_fn_jac = jax.jacrev(fit_fn)
+    # out = sciopt.curve_fit(lambda y, m, n: vel_base_max * (1 - y**m)**(1/n), domain.grid[1], U_y_slice, p0=(2.0, 1.0), maxfev=60000)
+    # print(out)
+    # vel_base_fit, _ = get_vel_field(domain, avg_vel_coeffs[:16])
+    # vel_base_fit = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2] + fit_fn(X[1], out[0], out[1])),
+    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+    # vel_base_fit = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2] + fit_fn(X[1], 4.0, 3.0)),
+    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+
+    # vel_base[0].plot_center(1, vel_base_fit[0])
+
+    # vel_hat = vel.hat()
+    # vel_hat.set_name("velocity_hat")
+    # nse = NavierStokesVelVort(vel_hat, Re=Re)
+    # nse.activate_jit()
+    # nse.write_intermediate_output = True
+    # nse.end_time = 10
+    # nse.initialize()
+    # nse.solve()
+    # nse.deactivate_jit()
+
+    # # post-processing
+    # mean_vel = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    #                    PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+    #                    PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+    # n = len(nse.get_field("velocity_hat"))
+    # for i, velocity_hat in enumerate(nse.get_field("velocity_hat")):
+    #     velocity = velocity_hat.no_hat()
+    #     mean_vel += velocity / n
+    #     velocity.set_name("velocity")
+    #     velocity.set_time_step(i)
+    #     velocity[0].plot_3d(2)
+    #     velocity[0].plot_center(1)
+
+    #     mean_vel += velocity / n
+
+    #     mean_vel_ = mean_vel * n / (i+1)
+    #     mean_vel_.set_name("mean_velocity")
+    #     mean_vel_.set_time_step(i)
+    #     mean_vel_[0].plot_3d(2)
+    #     mean_vel_[0].plot_center(1)
+
+
+def run_ld_2020(Re_tau=180):
+    Nx = 64
+    Ny = 90
+    Nz = 48
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
+    def get_vel_field(domain, cheb_coeffs):
+        U_mat = np.zeros((Ny, len(cheb_coeffs)))
+        for i in range(Ny):
+            for j in range(len(cheb_coeffs)):
+                U_mat[i, j] = cheb(j, 0, domain.grid[1][i])
+        U_y_slice = U_mat @ cheb_coeffs
+        u_data = np.moveaxis(np.tile(np.tile(U_y_slice, reps=(Nz, 1)), reps=(Nx, 1, 1)), 1, 2)
+        vel_base = VectorField([PhysicalField(domain, jnp.asarray(u_data)),
+                                PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
+                                PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
+        return vel_base, U_y_slice
+
+    vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
+    vel_base.set_name("velocity_base")
+
+    vel_pert = VectorField([PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (1*jnp.cos(0.1 * 2 * jnp.pi / 1.87 * X[0]) + 1*jnp.cos(0.1 * 2 * jnp.pi / 0.93 * X[2]))),
+                            PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (0.1*jnp.cos(0.1 * 2 * jnp.pi / 1.87 * X[0]) + 0.1*jnp.cos(0.1 * 2 * jnp.pi / 0.93 * X[2]))),
+                            PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (0.1*jnp.cos(0.1 * 2 * jnp.pi / 1.87 * X[0]) + 0.1*jnp.cos(0.1 * 2 * jnp.pi / 0.93 * X[2])))])
+    vel_pert.set_name("velocity")
+
+    vel_hat = vel_pert.hat()
     vel_hat.set_name("velocity_hat")
-    nse = NavierStokesVelVort(vel_hat, Re=Re)
-    nse.activate_jit()
-    nse.write_intermediate_output = True
-    nse.end_time = 10
+
+    def run_case(vel_data):
+        energy_0 = 1e-3
+        domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+        vel_pert = VectorField([PhysicalField(domain_, vel_data[0]),
+                                PhysicalField(domain_, vel_data[1]),
+                                PhysicalField(domain_, vel_data[2])])
+        vel_pert.set_name("velocity")
+        vel_pert.normalize()
+        vel_pert *= energy_0 / jnp.sqrt(2)
+        vel_pert.update_boundary_conditions()
+        energy_0_ = vel_pert.energy()
+        jax.debug.print("initial energy: {x}", x=vel_pert.energy())
+        vel_hat = vel_pert.hat()
+        vel_hat.set_name("velocity_hat")
+        nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat())
+        nse.u_max_over_u_tau = vel_base[0].max()
+        nse.max_dt = 6e-5
+        # nse.max_dt = nse.get_time_step()
+        nse.activate_jit()
+        # nse.write_intermediate_output = False
+        nse.write_intermediate_output = True
+        nse.end_time = 0.1
+        # nse.initialize()
+        nse.solve()
+        vel_final = nse.get_latest_field("velocity_hat").no_hat()
+        gain = vel_final.energy() / energy_0_
+        jax.debug.print("gain: {x}", x=gain)
+        return gain, nse
+
+    v0s = [vel_pert.get_data()]
+    gain, nse = run_case(v0s[-1])
     nse.initialize()
-    nse.solve()
     nse.deactivate_jit()
+    print("gain:", gain)
+    for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
+        print("hello")
+        vel = vel_hat.no_hat()
+        vel.set_name("velocity")
+        vel.set_time_step(i)
+        vel.plot_3d(2)
+    # step_size = 1e-2
+    # for i in jnp.arange(2):
+    #     gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+    #     corr_arr = jnp.array(corr)
+    #     corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
+    #     print("gain: " + str(gain))
+    #     eps = step_size
 
-    # post-processing
-    mean_vel = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-                       PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-                       PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-    n = len(nse.get_field("velocity_hat"))
-    for i, velocity_hat in enumerate(nse.get_field("velocity_hat")):
-        velocity = velocity_hat.no_hat()
-        mean_vel += velocity / n
-        velocity.set_name("velocity")
-        velocity.set_time_step(i)
-        velocity[0].plot_3d(2)
-        velocity[0].plot_center(1)
-
-        mean_vel += velocity / n
-
-        mean_vel_ = (mean_vel * n / (i+1))
-        mean_vel_.set_name("mean_velocity")
-        mean_vel_.set_time_step(i)
-        mean_vel_[0].plot_3d(2)
-        mean_vel_[0].plot_center(1)
+    #     # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+    #     v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
+    #     v0_new = VectorField([PhysicalField(domain, v0s[-1][j]) for j in range(3)])
+    #     v0_new.set_name("vel_0_" + str(i))
+    #     v0_new.plot_3d(2)
+    #     v0_new.save_to_file("vel_0_" + str(i))

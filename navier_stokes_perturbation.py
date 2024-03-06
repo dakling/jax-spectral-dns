@@ -107,7 +107,7 @@ def update_nonlinear_terms_high_performance_perturbation(
 
 class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for perturbations on top of a base flow."
-    max_cfl = 0.7
+    max_cfl = 0.2
     # max_dt = 1e10
     max_dt = 2e-2
 
@@ -115,25 +115,28 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
         super().__init__(velocity_field, **params)
 
-        velocity_x_base = PhysicalField.FromFunc(
-            self.physical_domain,
-            lambda X: self.u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
-            name="velocity_x_base",
-        )
-        velocity_y_base = PhysicalField.FromFunc(
-            self.physical_domain,
-            lambda X: 0.0 * X[0] * X[1] * X[2],
-            name="velocity_y_base",
-        )
-        velocity_z_base = PhysicalField.FromFunc(
-            self.physical_domain,
-            lambda X: 0.0 * X[0] * X[1] * X[2],
-            name="velocity_z_base",
-        )
-        velocity_base_hat = VectorField(
-            [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
-        )
-        velocity_base_hat.set_name("velocity_base_hat")
+        try:
+            velocity_base_hat = params["velocity_base_hat"]
+        except KeyError:
+            velocity_x_base = PhysicalField.FromFunc(
+                self.physical_domain,
+                lambda X: self.u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
+                name="velocity_x_base",
+            )
+            velocity_y_base = PhysicalField.FromFunc(
+                self.physical_domain,
+                lambda X: 0.0 * X[0] * X[1] * X[2],
+                name="velocity_y_base",
+            )
+            velocity_z_base = PhysicalField.FromFunc(
+                self.physical_domain,
+                lambda X: 0.0 * X[0] * X[1] * X[2],
+                name="velocity_z_base",
+            )
+            velocity_base_hat = VectorField(
+                [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
+            )
+            velocity_base_hat.set_name("velocity_base_hat")
         self.add_field("velocity_base_hat", velocity_base_hat)
 
         try:
@@ -173,7 +176,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         #     self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,))
 
     def get_time_step(self):
-        return self.max_dt
+        # return self.max_dt
         if self.time_step % self.dt_update_frequency == 0:
             dX = self.physical_domain.grid[0][1:] - self.physical_domain.grid[0][:-1]
             dY = self.physical_domain.grid[1][1:] - self.physical_domain.grid[1][:-1]

@@ -313,7 +313,8 @@ class NavierStokesVelVort(Equation):
         return (lhs_mat, rhs_mat)
 
     def prepare(self):
-        self.dt = self.get_time_step()
+        if not Field.activate_jit_:
+            self.dt = self.get_time_step()
         self.poisson_mat = self.domain.assemble_poisson_matrix()
         self.prepare_assemble_rk_matrices()
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
