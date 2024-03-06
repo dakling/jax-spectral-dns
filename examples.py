@@ -1597,9 +1597,8 @@ def run_ld_2020(Re_tau=180):
         jax.debug.print("initial energy: {x}", x=vel_pert.energy())
         vel_hat = vel_pert.hat()
         vel_hat.set_name("velocity_hat")
-        nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat())
+        nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat(), dt=1e-3)
         # nse.u_max_over_u_tau = vel_base[0].max()
-        nse.max_dt = 6e-5
         # nse.max_dt = nse.get_time_step()
         nse.activate_jit()
         # nse.write_intermediate_output = False
