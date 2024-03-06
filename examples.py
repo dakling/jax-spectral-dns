@@ -1603,35 +1603,42 @@ def run_ld_2020(Re_tau=180):
         nse.activate_jit()
         # nse.write_intermediate_output = False
         nse.write_intermediate_output = True
-        nse.end_time = 0.05
+        nse.end_time = 0.1
         # nse.initialize()
         nse.solve()
         vel_final = nse.get_latest_field("velocity_hat").no_hat()
         gain = vel_final.energy() / energy_0_
         jax.debug.print("gain: {x}", x=gain)
-        return gain, nse
+        return gain
 
     v0s = [vel_pert.get_data()]
-    gain, nse = run_case(v0s[-1])
-    nse.initialize()
-    nse.deactivate_jit()
-    print("gain:", gain)
-    for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
-        vel = vel_hat.no_hat()
-        vel.set_name("velocity")
-        vel.set_time_step(i)
-        vel.plot_3d(2)
-    # step_size = 1e-2
-    # for i in jnp.arange(2):
-    #     gain, corr = jax.value_and_grad(run_case)(v0s[-1])
-    #     corr_arr = jnp.array(corr)
-    #     corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
-    #     print("gain: " + str(gain))
-    #     eps = step_size
+    # gain, nse = run_case(v0s[-1])
+    # nse.initialize()
+    # nse.deactivate_jit()
+    # print("gain:", gain)
+    # for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
+    #     vel = vel_hat.no_hat()
+    #     vel.set_name("velocity")
+    #     vel.set_time_step(i)
+    #     vel.plot_3d(2)
+    step_size = 1e-2
+    for i in jnp.arange(100):
+        start_time = time.time()
+        gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+        corr_arr = jnp.array(corr)
+        corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
+        print("gain: " + str(gain))
+        eps = step_size
 
-    #     # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
-    #     v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
-    #     v0_new = VectorField([PhysicalField(domain, v0s[-1][j]) for j in range(3)])
-    #     v0_new.set_name("vel_0_" + str(i))
-    #     v0_new.plot_3d(2)
-    #     v0_new.save_to_file("vel_0_" + str(i))
+        # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+        v0s[-1] = jnp.array([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+        v0_new = VectorField([PhysicalField(domain, v0s[-1][j]) for j in range(3)])
+        v0_new.set_name("vel_0")
+        v0_new.set_time_step(i)
+        v0_new.plot_3d(2)
+        v0_new.save_to_file("vel_0_" + str(i))
+        corr = VectorField([PhysicalField(domain, corr[j]) for j in range(3)])
+        corr.set_name("corr")
+        corr.set_time_step(i)
+        corr.plot_3d(2)
+        print("Iteration took", time.time() - start_time, "seconds")
