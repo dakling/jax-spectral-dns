@@ -32,7 +32,7 @@ from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from equation import Equation
 
 
-# @partial(jax.jit, static_argnums=(0,))
+@partial(jax.jit, static_argnums=(0,))
 # @partial(jax.checkpoint, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
     domain, vel_hat_new, vel_base_hat, linearize=False

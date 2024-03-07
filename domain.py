@@ -79,11 +79,11 @@ class Domain(ABC):
 
     number_of_dimensions: int
     periodic_directions: Tuple[bool]
-    scale_factors: Union[List[jnp.float64], Tuple[jnp.float64]]
-    shape: Sequence[int]
-    grid: List[jnp.ndarray]
-    diff_mats: List[jnp.ndarray]
-    mgrid: List[jnp.ndarray]
+    scale_factors: Tuple[jnp.float64]
+    shape: Tuple[int]
+    grid: Tuple[jnp.ndarray]
+    diff_mats: Tuple[jnp.ndarray]
+    mgrid: Tuple[jnp.ndarray]
     aliasing: jnp.float64 = 1  # no antialiasing (requires finer resolution)
     # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
 
@@ -101,10 +101,8 @@ class Domain(ABC):
         cls,
         shape: Sequence[int],
         periodic_directions: Sequence[bool],
-        scale_factors: Union[List[np.float64], Tuple[np.float64], NoneType] = None,
+        scale_factors: Union[Tuple[np.float64], NoneType] = None,
         aliasing=1,
-        _grid: Union[NoneType, List[np.ndarray]] = None,
-        _mgrid: Union[NoneType, List[np.ndarray]] = None,
     ):
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
@@ -112,19 +110,15 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, List) or isinstance(scale_factors, Tuple)
             scale_factors_ = scale_factors
-        if type(_grid) == NoneType:
-            grid = []
-        else:
-            grid = _grid
+        grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):
             if type(periodic_directions) != NoneType and periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
-                if type(_grid) == NoneType:
-                    grid.append(
-                        get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
-                    )
+                grid.append(
+                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
+                )
                 diff_mats.append(
                     assemble_fourier_diff_mat(n=shape[dim], order=1)
                     * (2 * np.pi)
@@ -133,21 +127,17 @@ class Domain(ABC):
             else:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(1.0)
-                if type(_grid) == NoneType:
-                    grid.append(get_cheb_grid(shape[dim], scale_factors_[dim]))
+                grid.append(get_cheb_grid(shape[dim], scale_factors_[dim]))
                 diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
-        if type(_mgrid) == NoneType:
-            mgrid = np.meshgrid(*grid, indexing="ij")
-        else:
-            mgrid = _mgrid
+        mgrid = np.meshgrid(*grid, indexing="ij")
         return cls(
             number_of_dimensions,
-            periodic_directions,
-            scale_factors_,
-            shape,
-            grid,
-            diff_mats,
-            mgrid,
+            tuple(periodic_directions),
+            tuple(scale_factors_),
+            tuple(shape),
+            tuple(grid),
+            tuple(diff_mats),
+            tuple(mgrid),
             aliasing,
         )
 
@@ -174,42 +164,6 @@ class Domain(ABC):
             for d in self.all_dimensions()
             if not self.is_periodic(d)
         ]
-
-    def hat(self):
-        """Create a Fourier transform of the present domain in all periodic
-        directions and return the resulting domain."""
-
-        def fftshift(inp, i):
-            if self.periodic_directions[i]:
-                N = len(inp)
-                return (
-                    (np.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
-                    * (2 * np.pi)
-                    / self.scale_factors[i]
-                )
-            else:
-                return inp
-
-        Ns = []
-        for i in self.all_dimensions():
-            Ns.append(self.number_of_cells(i) / self.aliasing)
-        fourier_grid = []
-        for i in self.all_dimensions():
-            if self.periodic_directions[i]:
-                fourier_grid.append(np.linspace(0, Ns[i] - 1, int(Ns[i])))
-            else:
-                fourier_grid.append(self.grid[i])
-        fourier_grid_shifted = list(map(fftshift, fourier_grid, self.all_dimensions()))
-        grid = fourier_grid_shifted
-        mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
-        out = FourierDomain.create(
-            self.shape,
-            self.periodic_directions,
-            scale_factors=self.scale_factors,
-            _grid=grid,
-            _mgrid=mgrid,
-        )
-        return out
 
     # @partial(jax.jit, static_argnums=(0,2,3))
     def diff(self, field, direction, order=1):
@@ -531,33 +485,84 @@ class Domain(ABC):
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
 
-    ...
-    # def __hash__(self):
-    #     return hash(
-    #         (
-    #             self.number_of_dimensions,
-    #             self.periodic_directions,
-    #             self.scale_factors,
-    #             self.shape,
-    #             self.aliasing,
-    #         )
-    #     )
+    def __hash__(self):
+        return hash(
+            (
+                self.number_of_dimensions,
+                self.periodic_directions,
+                self.scale_factors,
+                self.shape,
+                self.aliasing,
+            )
+        )
+    def __eq__(self, other):
+        return hash(self) is hash(other)
+
+    def hat(self):
+        """Create a Fourier transform of the present domain in all periodic
+        directions and return the resulting domain."""
+
+        return FourierDomain.FromPhysicalDomain(self)
 
 
 @dataclasses.dataclass(frozen=True, init=False)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
 
-    # def __hash__(self):
-    #     return hash(
-    #         (
-    #             self.number_of_dimensions,
-    #             self.periodic_directions,
-    #             self.scale_factors,
-    #             self.shape,
-    #             self.aliasing,
-    #         )
-    #     )
+    def __hash__(self):
+        return hash(
+            (
+                self.number_of_dimensions,
+                self.periodic_directions,
+                self.scale_factors,
+                self.shape,
+                self.aliasing,
+            )
+        )
+
+    def __eq__(self, other):
+        return hash(self) is hash(other)
+    
+
+    @classmethod
+    def FromPhysicalDomain(cls, physical_domain):
+        """Create a Fourier transform of the present domain in all periodic
+        directions and return the resulting domain."""
+
+        def fftshift(inp, i):
+            if physical_domain.periodic_directions[i]:
+                N = len(inp)
+                return (
+                    (np.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
+                    * (2 * np.pi)
+                    / physical_domain.scale_factors[i]
+                )
+            else:
+                return inp
+
+        Ns = []
+        for i in physical_domain.all_dimensions():
+            Ns.append(physical_domain.number_of_cells(i) / physical_domain.aliasing)
+        fourier_grid = []
+        for i in physical_domain.all_dimensions():
+            if physical_domain.periodic_directions[i]:
+                fourier_grid.append(np.linspace(0, Ns[i] - 1, int(Ns[i])))
+            else:
+                fourier_grid.append(physical_domain.grid[i])
+        fourier_grid_shifted = list(map(fftshift, fourier_grid, physical_domain.all_dimensions()))
+        grid = fourier_grid_shifted
+        mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
+        out = FourierDomain(
+            physical_domain.number_of_dimensions,
+            tuple(physical_domain.periodic_directions),
+            tuple(physical_domain.scale_factors),
+            tuple(physical_domain.shape),
+            tuple(grid),
+            tuple(physical_domain.diff_mats),
+            tuple(mgrid),
+            physical_domain.aliasing,
+        )
+        return out
 
     def assemble_poisson_matrix(self):
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
