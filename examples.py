@@ -520,15 +520,6 @@ def run_pseudo_2d_perturbation(
             scale_factors=(1e-6, 1.0, 1 * (2 * jnp.pi / alpha)),
             rotated=True
         )
-        vel = nse.get_initial_field("velocity_hat").no_hat()
-        vel.set_name("velocity")
-        vel.plot_3d(0)
-        vel.plot_3d(2)
-        vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
-        vel_base.set_name("velocity_base")
-        vel_base.plot_3d(0)
-        vel_base.plot_3d(2)
-        raise Exception("break")
 
 
     nse.set_linearize(linearize)
