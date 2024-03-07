@@ -107,7 +107,7 @@ def update_nonlinear_terms_high_performance_perturbation(
 
 class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     name = "Navier Stokes equation (velocity-vorticity formulation) for perturbations on top of a base flow."
-    max_cfl = 0.2
+    max_cfl = 0.5
     # max_dt = 1e10
     max_dt = 2e-2
 

@@ -6,19 +6,10 @@ import time
 
 import jax
 import jax.numpy as jnp
-import tree_math
-# from jax_cfd.base.funcutils import trajectory
 
 from pathlib import Path
 import os
 
-from importlib import reload
-import sys
-
-# try:
-#     reload(sys.modules["field"])
-# except:
-#     print("Unable to load Field")
 from field import Field, FourierField
 from fixed_parameters import FixedParameters
 

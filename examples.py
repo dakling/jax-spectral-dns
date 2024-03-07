@@ -1617,6 +1617,12 @@ def run_ld_2020(Re_tau=180):
     vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
     vel_base.set_name("velocity_base")
 
+    vel_base_lam = VectorField([PhysicalField.FromFunc(domain, lambda X: 18.5 * (1 - X[1]**2) + 0*X[2]),
+                                PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2]),
+                                PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2])])
+
+    vel_base_lam.set_name("velocity_base")
+
     vel_pert = VectorField([PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (1*jnp.cos(0.1 * 2 * jnp.pi / 1.87 * X[0]) + 1*jnp.cos(0.1 * 2 * jnp.pi / 0.93 * X[2]))),
                             PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (0.1*jnp.cos(0.1 * 2 * jnp.pi / 1.87 * X[0]) + 0.1*jnp.cos(0.1 * 2 * jnp.pi / 0.93 * X[2]))),
                             PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (0.1*jnp.cos(0.1 * 2 * jnp.pi / 1.87 * X[0]) + 0.1*jnp.cos(0.1 * 2 * jnp.pi / 0.93 * X[2])))])
@@ -1640,11 +1646,12 @@ def run_ld_2020(Re_tau=180):
         vel_hat = vel_pert.hat()
         vel_hat.set_name("velocity_hat")
         nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re_tau, velocity_base_hat=vel_base.hat(), dt=5e-4)
+        # jax.debug.print("recommended time step: {x}", x=nse.get_time_step())
         # nse.u_max_over_u_tau = vel_base[0].max()
         # nse.max_dt = nse.get_time_step()
         nse.activate_jit()
-        # nse.write_intermediate_output = False
-        nse.write_intermediate_output = True
+        nse.write_intermediate_output = False
+        # nse.write_intermediate_output = True
         nse.end_time = 0.1
         # nse.initialize()
         nse.solve()
