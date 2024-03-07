@@ -39,7 +39,6 @@ class Equation:
         self.fields = {}
         self.time_step = 0
         self.time = 0.0
-        self.dt = 0.0
         self.before_time_step_fn = None
         self.after_time_step_fn = None
         try:
@@ -67,6 +66,9 @@ class Equation:
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.pdf") if f.is_file()]
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
         [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
+
+    def get_dt(self):
+        return self.fixed_parameters.dt
 
     def get_domain(self):
         return self.fixed_parameters.domain
@@ -157,7 +159,7 @@ class Equation:
         if type(self.max_iter) != NoneType:
             iteration_done = self.time_step > self.max_iter
         if type(self.end_time) != NoneType:
-            time_done = self.time >= self.end_time + self.dt
+            time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
     def perform_time_step(self, _=None):
@@ -175,7 +177,7 @@ class Equation:
         pass
 
     def update_time(self):
-        self.time += self.dt
+        self.time += self.get_dt()
         self.time_step += 1
         # for _, field in self.fields.items():
         #     field[-1].time_step = self.time_step
@@ -215,7 +217,7 @@ class Equation:
                     + ", time: "
                     + str(self.time)
                     + ", dt: "
-                    + str(self.dt)
+                    + str(self.get_dt())
                 )
                 # print("Time Step " + str(i + 1))
                 start_time = time.time()

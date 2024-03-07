@@ -171,9 +171,6 @@ class NavierStokesVelVort(Equation):
     def get_physical_domain(self):
         return self.nse_fixed_parameters.physical_domain
 
-    def get_dt(self):
-        return self.fixed_parameters.dt
-
     def get_poisson_mat(self):
         return self.nse_fixed_parameters.poisson_mat
 
@@ -400,8 +397,8 @@ class NavierStokesVelVort(Equation):
     #     return (lhs_mat, rhs_mat)
 
     def prepare(self):
-        if not Field.activate_jit_:
-            self.dt = self.get_time_step()
+        # if not Field.activate_jit_:
+        #     self.dt = self.get_time_step()
         # self.poisson_mat = self.domain.assemble_poisson_matrix()
         # self.prepare_assemble_rk_matrices()
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
@@ -409,8 +406,8 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     def perform_runge_kutta_step(self, vel_hat_data):
-        if not Field.activate_jit_:
-            self.dt = self.get_time_step()
+        # if not Field.activate_jit_:
+            # self.dt = self.get_time_step()
         # Re = self.Re_tau
 
         # start runge-kutta stepping
@@ -854,9 +851,9 @@ class NavierStokesVelVort(Equation):
         which only implementd for debugging purposes. Consider using Runge-Kutta \
         (method perform_runge_kutta_step()) instead."
         )
-        if not Field.activate_jit_:
-            self.dt = self.get_time_step()
-        dt = self.dt
+        # if not Field.activate_jit_:
+        #     self.dt = self.get_time_step()
+        dt = self.get_time_step()
 
         Re = self.get_Re_tau()
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
