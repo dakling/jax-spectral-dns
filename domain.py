@@ -531,32 +531,33 @@ class Domain(ABC):
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
 
-    def __hash__(self):
-        return hash(
-            (
-                self.number_of_dimensions,
-                self.periodic_directions,
-                self.scale_factors,
-                self.shape,
-                self.aliasing,
-            )
-        )
+    ...
+    # def __hash__(self):
+    #     return hash(
+    #         (
+    #             self.number_of_dimensions,
+    #             self.periodic_directions,
+    #             self.scale_factors,
+    #             self.shape,
+    #             self.aliasing,
+    #         )
+    #     )
 
 
 @dataclasses.dataclass(frozen=True, init=False)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
 
-    def __hash__(self):
-        return hash(
-            (
-                self.number_of_dimensions,
-                self.periodic_directions,
-                self.scale_factors,
-                self.shape,
-                self.aliasing,
-            )
-        )
+    # def __hash__(self):
+    #     return hash(
+    #         (
+    #             self.number_of_dimensions,
+    #             self.periodic_directions,
+    #             self.scale_factors,
+    #             self.shape,
+    #             self.aliasing,
+    #         )
+    #     )
 
     def assemble_poisson_matrix(self):
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."

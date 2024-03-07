@@ -571,17 +571,17 @@ class VectorField:
             )
 
 
-@register_pytree_node_class
+# @register_pytree_node_class
 @dataclasses.dataclass(init=False, frozen=False)
 class PhysicalField(Field):
-    def tree_flatten(self):
-        children = (self.data, self.time_step)
-        aux_data = (self.physical_domain, self.name)
-        return (children, aux_data)
+    # def tree_flatten(self):
+    #     children = (self.data, self.time_step)
+    #     aux_data = (self.physical_domain, self.name)
+    #     return (children, aux_data)
 
-    @classmethod
-    def tree_unflatten(cls, aux_data, children):
-        return cls(aux_data[0], children[0], aux_data[1], children[2])
+    # @classmethod
+    # def tree_unflatten(cls, aux_data, children):
+    #     return cls(aux_data[0], children[0], aux_data[1], children[2])
 
     def __init__(
         self,
@@ -1307,17 +1307,17 @@ class PhysicalField(Field):
                 return PhysicalField(reduced_domain, field)
 
 
-@register_pytree_node_class
+# @register_pytree_node_class
 @dataclasses.dataclass(init=False, frozen=False)
 class FourierField(Field):
-    def tree_flatten(self):
-        children = (self.data, self.time_step)
-        aux_data = (self.physical_domain, self.name, self.fourier_domain)
-        return (children, aux_data)
+    # def tree_flatten(self):
+    #     children = (self.data, self.time_step)
+    #     aux_data = (self.physical_domain, self.name, self.fourier_domain)
+    #     return (children, aux_data)
 
-    @classmethod
-    def tree_unflatten(cls, aux_data, children):
-        return cls(aux_data[0], children[0], aux_data[1], children[1], aux_data[2])
+    # @classmethod
+    # def tree_unflatten(cls, aux_data, children):
+    #     return cls(aux_data[0], children[0], aux_data[1], children[1], aux_data[2])
 
     def __init__(
         self,
