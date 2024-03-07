@@ -204,7 +204,9 @@ def solve_navier_stokes_perturbation(
         Nz=None,
         perturbation_factor=0.1,
         scale_factors=(1.87, 1.0, 0.93),
-        dt=1e-2
+        dt=1e-2,
+        u_max_over_u_tau=1.0,
+        rotated=False
 ):
     Ny = Ny
     Nz = Nz or Nx + 4
@@ -241,12 +243,40 @@ def solve_navier_stokes_perturbation(
         * perturbation_factor
         * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
     )
-    vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="vel_x")
-    vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="vel_y")
-    vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="vel_z")
+    if not rotated:
+        vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="vel_x")
+        vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="vel_y")
+        vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="vel_z")
+    else:
+        vel_z = PhysicalField.FromFunc(domain, vel_x_fn, name="vel_z")
+        vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="vel_y")
+        vel_x = PhysicalField.FromFunc(domain, vel_z_fn, name="vel_x")
+        velocity_z_base = PhysicalField.FromFunc(
+            domain,
+            lambda X: u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
+            name="velocity_z_base",
+        )
+        velocity_y_base = PhysicalField.FromFunc(
+            domain,
+            lambda X: 0.0 * X[0] * X[1] * X[2],
+            name="velocity_y_base",
+        )
+        velocity_x_base = PhysicalField.FromFunc(
+            domain,
+            lambda X: 0.0 * X[0] * X[1] * X[2],
+            name="velocity_x_base",
+        )
+        velocity_base_hat = VectorField(
+            [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
+        )
+        velocity_base_hat.set_name("velocity_base_hat")
+
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re, dt=dt)
+    if not rotated:
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re, dt=dt)
+    else:
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re, dt=dt, velocity_base_hat=velocity_base_hat)
     nse.end_time = end_time
     nse.max_iter = max_iter
 

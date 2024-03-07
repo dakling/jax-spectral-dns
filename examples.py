@@ -476,17 +476,18 @@ def run_dummy_velocity_field():
 
 
 def run_pseudo_2d_perturbation(
-    Re=3000.0,
-    alpha=1.02056,
-    end_time=1.0,
-    Nx=64,
-    Ny=96,
-    Nz=24,
-    eps=1e-0,
-    linearize=True,
-    plot=True,
-    save=True,
-    v0=None,
+        Re=3000.0,
+        alpha=1.02056,
+        end_time=1.0,
+        Nx=64,
+        Ny=96,
+        Nz=24,
+        eps=1e-0,
+        linearize=True,
+        plot=True,
+        save=True,
+        v0=None,
+        rotated=False
 ):
     Re = float(Re)
     alpha = float(alpha)
@@ -495,17 +496,40 @@ def run_pseudo_2d_perturbation(
     Ny = int(Ny)
     Nz = int(Nz)
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
+    if not rotated:
+        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
+        nse = solve_navier_stokes_perturbation(
+            Re=Re,
+            Nx=Nx,
+            Ny=Ny,
+            Nz=Nz,
+            end_time=end_time,
+            perturbation_factor=0.0,
+            scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
+            rotated=False
+        )
+    else:
+        lsc = LinearStabilityCalculation(Re=Re, alpha=0, beta=alpha, n=96)
+        nse = solve_navier_stokes_perturbation(
+            Re=Re,
+            Nx=Nz,
+            Ny=Ny,
+            Nz=Nx,
+            end_time=end_time,
+            perturbation_factor=0.0,
+            scale_factors=(1e-6, 1.0, 1 * (2 * jnp.pi / alpha)),
+            rotated=True
+        )
+        vel = nse.get_initial_field("velocity_hat").no_hat()
+        vel.set_name("velocity")
+        vel.plot_3d(0)
+        vel.plot_3d(2)
+        vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
+        vel_base.set_name("velocity_base")
+        vel_base.plot_3d(0)
+        vel_base.plot_3d(2)
+        raise Exception("break")
 
-    nse = solve_navier_stokes_perturbation(
-        Re=Re,
-        Nx=Nx,
-        Ny=Ny,
-        Nz=Nz,
-        end_time=end_time,
-        perturbation_factor=0.0,
-        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6)
-    )
 
     nse.set_linearize(linearize)
 
