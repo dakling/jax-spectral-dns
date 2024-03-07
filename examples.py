@@ -641,10 +641,67 @@ def run_pseudo_2d_perturbation(
                 fig.legend()
                 fig.savefig("plots/energy_y_t.pdf")
 
-    nse.before_time_step_fn = before_time_step
+    # nse.before_time_step_fn = before_time_step
+    nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
+    nse.activate_jit()
+    nse.write_intermediate_output = plot
     nse.solve()
+    nse.deactivate_jit()
+
+    n_steps = len(nse.get_field("velocity_hat"))
+    for i in range(n_steps):
+        time = (i / (n_steps - 1)) * end_time # TODO not sure if this is accurate
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+        # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+        vort = vel.curl()
+        for j in range(3):
+            vel[j].time_step = i
+            vort[j].time_step = i
+            vel[j].name = "velocity_" + "xyz"[j]
+            vort[j].name = "vorticity_" + "xyz"[j]
+            if plot:
+                # vel[j].plot_3d()
+                vel[j].plot_3d(2)
+                vort[j].plot_3d(2)
+                vel[j].plot_center(0)
+                vel[j].plot_center(1)
+        vel_pert_energy = vel.energy()
+        ts.append(time)
+        energy_t.append(vel_pert_energy)
+        energy_x_t.append(vel[0].energy())
+        energy_y_t.append(vel[1].energy())
+        energy_t_ana.append(energy_over_time_fn(time))
+        energy_x_t_ana.append(energy_over_time_fn(time, 0))
+        energy_y_t_ana.append(energy_over_time_fn(time, 1))
+        save_array(ts, "fields/ts")
+        save_array(energy_t, "fields/energy_Re_" + str(Re))
+        save_array(energy_x_t, "fields/energy_x_Re_" + str(Re))
+        save_array(energy_y_t, "fields/energy_y_Re_" + str(Re))
+        save_array(energy_t_ana, "fields/energy_ana_Re_" + str(Re))
+        save_array(energy_x_t_ana, "fields/energy_x_ana_Re_" + str(Re))
+        save_array(energy_y_t_ana, "fields/energy_y_ana_Re_" + str(Re))
+        if plot:
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ax.plot(ts, energy_t_ana, label="analytical growth")
+            ax.plot(ts, energy_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_t.pdf")
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ax.plot(ts, energy_x_t_ana, label="analytical growth")
+            ax.plot(ts, energy_x_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_x_t.pdf")
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ax.plot(ts, energy_y_t_ana, label="analytical growth")
+            ax.plot(ts, energy_y_t, ".", label="numerical growth")
+            fig.legend()
+            fig.savefig("plots/energy_y_t.pdf")
 
     vel_pert = nse.get_latest_field("velocity_hat").no_hat()
     # vel_pert_old = nse.get_field("velocity_hat", nse.time_step - 3).no_hat()
