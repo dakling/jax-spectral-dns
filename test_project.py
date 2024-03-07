@@ -1133,7 +1133,7 @@ class TestProject(unittest.TestCase):
 
         def run_re(Re):
             return run_pseudo_2d_perturbation(
-                Re=Re, end_time=1e0, Nx=6, Ny=50, Nz=2, linearize=True, plot=True, save=True, eps=1.0, dt=1e-3
+                Re=Re, end_time=1e0, Nx=8, Ny=64, Nz=2, linearize=True, plot=True, save=True, eps=1.0, dt=1e-2
             )
 
         def run():
