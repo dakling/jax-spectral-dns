@@ -3,6 +3,8 @@
 import unittest
 import jax
 import jax.numpy as jnp
+import numpy as np
+import matplotlib.figure as figure
 
 # from importlib import reload
 import sys
@@ -1127,6 +1129,79 @@ class TestProject(unittest.TestCase):
             (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-8
         )
 
+    def test_2d_growth_rates_quantitatively(self):
+
+        def run_re(Re):
+            return run_pseudo_2d_perturbation(
+                Re=Re, end_time=1e0, Nx=6, Ny=50, Nz=2, linearize=True, plot=True, save=True, eps=1.0, dt=1e-3
+            )
+
+        def run():
+            ts = []
+            energy = []
+            energy_ana = []
+            for Re in [5500, 5772.22, 6000]:
+                out = run_re(Re)
+                ts.append(out[-2])
+                energy.append(out[0])
+                energy_ana.append(out[3])
+            return (ts, jnp.array(energy), jnp.array(energy_ana))
+
+        def calculate_growth_rates(ts, energy, energy_ana):
+            start_index = 1 # don't start at 0 to allow for some initial transient
+            time = ts[0][-1] - ts[0][start_index]
+            print("Re = 5500:")
+            growth_rate = (energy[0][-1] - energy[0][start_index]) / (time * energy_ana[0][start_index])
+            growth_rate_ana = (energy_ana[0][-1] - energy_ana[0][start_index]) / (time * energy_ana[0][start_index])
+            print("growth rate: ", growth_rate)
+            print("growth rate (analytical): ", growth_rate_ana)
+            print("difference: ", abs(growth_rate_ana - growth_rate))
+            rel_error_5500 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
+            print("relative error: ", rel_error_5500)
+            assert rel_error_5500 < 1e-2
+
+            print("Re = 5772.22:")
+            growth_rate = (energy[1][-1] - energy[1][start_index]) / (time * energy_ana[1][start_index])
+            growth_rate_ana = (energy_ana[1][-1] - energy_ana[1][start_index]) / (time * energy_ana[1][start_index])
+            print("growth rate: ", growth_rate)
+            print("growth rate (analytical): ", growth_rate_ana)
+            print("difference: ", abs(growth_rate_ana - growth_rate))
+            rel_error_5772 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
+            print("relative error: ", rel_error_5772)
+            assert rel_error_5772 < 3 # (this can be quite large as the denominator is almost zero)
+
+            print("Re = 6000:")
+            growth_rate = (energy[2][-1] - energy[2][start_index]) / (time * energy_ana[2][start_index])
+            growth_rate_ana = (energy_ana[2][-1] - energy_ana[2][start_index]) / (time * energy_ana[2][start_index])
+            print("growth rate: ", growth_rate)
+            print("growth rate (analytical): ", growth_rate_ana)
+            print("difference: ", abs(growth_rate_ana - growth_rate))
+            rel_error_6000 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
+            print("relative error: ", rel_error_6000)
+            assert rel_error_6000 < 1e-2
+
+
+
+        def plot(ts, dataset, dataset_ana):
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ax.plot(ts[0], dataset_ana[0]/dataset_ana[0][0], "-", label="Re_5500")
+            ax.plot(ts[0], dataset[0]/dataset_ana[0][0], ".", label="Re_5500")
+            ax.plot(ts[1], dataset_ana[1]/dataset_ana[1][0], "-", label="Re_5772")
+            ax.plot(ts[1], dataset[1]/dataset_ana[1][0], ".", label="Re_5772")
+            ax.plot(ts[2], dataset_ana[2]/dataset_ana[2][0], "-", label="Re_6000")
+            ax.plot(ts[2], dataset[2]/dataset_ana[2][0], ".", label="Re_6000")
+            fig.legend()
+            fig.savefig(
+                "plots/" + "energy" + ".png"
+            )
+
+        def main():
+            ts, energy, energy_ana = run()
+            plot(ts, energy, energy_ana)
+            calculate_growth_rates(ts, energy, energy_ana)
+
+        main()
 
 
     def test_timesteppers(self):
