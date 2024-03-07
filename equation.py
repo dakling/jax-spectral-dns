@@ -190,7 +190,8 @@ class Equation:
 
         if Field.activate_jit_:
             msg = "Solving using jit/scan - this offers high performance but no "\
-                  "intermediate results will be available. To disable "\
+                  "intermediate results won't be available until after the "\
+                  "calculation finishes. To disable "\
                   "high-performance mode, use the deactivate_jit()-method of the "\
                   "Equation class."
             print(msg)
