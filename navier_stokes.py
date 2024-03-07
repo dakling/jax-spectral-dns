@@ -828,6 +828,7 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
+            vel_hat_data = vel_new_hat_field
 
         if not Field.activate_jit_:
             vel_new_hat = VectorField(

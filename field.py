@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 import math
 import jax
 import jax.numpy as jnp
-from jax.tree_util import register_pytree_node_class
+# from jax.tree_util import register_pytree_node_class
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib import colors
