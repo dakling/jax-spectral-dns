@@ -762,7 +762,7 @@ class PhysicalField(Field):
         # energy = 0.5 * PhysicalField(
         #     self.physical_domain, self.data * self.data, name="energy"
         # )  # TODO why does the above not work? -> should be related to reloading
-        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions()) - 1) * jnp.prod(
+        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return energy.volume_integral() / domain_volume
