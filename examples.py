@@ -1598,10 +1598,10 @@ def run_get_mean_profile(Re=2000):
 
 def run_ld_2020(Re_tau=180):
     Re_tau = float(Re_tau)
-    Nx = 60
+    Nx = 48
     Ny = 80
-    Nz = 48
-    end_time = 0.02 # in ld2020 units
+    Nz = 36
+    end_time = 0.7 # in ld2020 units
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
     def get_vel_field(domain, cheb_coeffs):
