@@ -1598,7 +1598,7 @@ def run_get_mean_profile(Re=2000):
 
 def run_ld_2020(turb=True, Re_tau=180):
     Re_tau = float(Re_tau)
-    turb = bool(turb)
+    turb = str(turb) == 'True'
     Nx = 48
     Ny = 80
     Nz = 36
@@ -1618,11 +1618,13 @@ def run_ld_2020(turb=True, Re_tau=180):
         return vel_base, U_y_slice
 
     if turb:
+        print("using turbulent base profile")
         vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
         vel_base, max = vel_base.normalize_by_max_value()
         vel_base.set_name("velocity_base")
         u_max_over_u_tau = max[0]
     else:
+        print("using laminar base profile")
         vel_base = VectorField([PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1]**2) + 0*X[2]),
                                     PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2]),
                                     PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2])])
