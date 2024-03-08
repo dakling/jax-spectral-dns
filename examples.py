@@ -1596,8 +1596,9 @@ def run_get_mean_profile(Re=2000):
     #     mean_vel_[0].plot_center(1)
 
 
-def run_ld_2020(Re_tau=180):
+def run_ld_2020(turb=True, Re_tau=180):
     Re_tau = float(Re_tau)
+    turb = bool(turb)
     Nx = 48
     Ny = 80
     Nz = 36
@@ -1616,17 +1617,18 @@ def run_ld_2020(Re_tau=180):
                                 PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
         return vel_base, U_y_slice
 
-    vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
-    vel_base, max = vel_base.normalize_by_max_value()
-    vel_base.set_name("velocity_base")
-    u_max_over_u_tau = max[0]
+    if turb:
+        vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
+        vel_base, max = vel_base.normalize_by_max_value()
+        vel_base.set_name("velocity_base")
+        u_max_over_u_tau = max[0]
+    else:
+        vel_base = VectorField([PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1]**2) + 0*X[2]),
+                                    PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2]),
+                                    PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2])])
 
-    # vel_base_lam = VectorField([PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1]**2) + 0*X[2]),
-    #                             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2]),
-    #                             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2])])
-
-    # vel_base_lam.set_name("velocity_base")
-    # u_max_over_u_tau = 1.0
+        vel_base.set_name("velocity_base")
+        u_max_over_u_tau = 18.5 # matches Vilda's profile
 
     vel_pert = VectorField([PhysicalField.FromFunc(domain, lambda X: 0.1 * (1 - X[1]**2) * 0.5 * (0*jnp.cos(1/0.5 * 2 * jnp.pi / 1.87 * X[0]) + 1*jnp.cos(1/0.5 * 2 * jnp.pi / 0.93 * X[2]))),
                             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2) * 0.5 * (0.1*jnp.cos(1/0.5 * 2 * jnp.pi / 1.87 * X[0]) + 0.1*jnp.cos(1/0.5 * 2 * jnp.pi / 0.93 * X[2]))),
