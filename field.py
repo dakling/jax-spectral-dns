@@ -268,11 +268,21 @@ class VectorField:
             en += f.energy()
         return en
 
-    def normalize(self):
+    def normalize_by_energy(self):
+        """Divide each field by the energy of the Vector field."""
         en = self.energy()
         for f in self:
             f.data = f.data / jnp.sqrt(en)
         return self
+
+    def normalize_by_max_value(self):
+        """Divide each field by the absolute value of its maximum, unless it is
+        very small (this prevents divide-by-zero issues)."""
+        max = []
+        for f in self:
+            f, max_i = f.normalize_by_max_value()
+            max.append(max_i)
+        return self, max
 
     def energy_norm(self, k):
         energy = k**2 * self[1] * self[1]
@@ -743,6 +753,14 @@ class PhysicalField(Field):
         out.data = jnp.array(field_array.tolist())
         return out
 
+    def normalize_by_max_value(self):
+        """Divide field by the absolute value of its maximum, unless it is
+        very small (this prevents divide-by-zero issues)."""
+        max = abs(self.max())
+        if max > 1e-20:
+            self.data = self.data / max
+        return self, max
+
     def get_domain(self):
         return self.physical_domain
 
@@ -759,9 +777,6 @@ class PhysicalField(Field):
 
     def energy(self):
         energy = 0.5 * self * self
-        # energy = 0.5 * PhysicalField(
-        #     self.physical_domain, self.data * self.data, name="energy"
-        # )  # TODO why does the above not work? -> should be related to reloading
         domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
@@ -1406,6 +1421,10 @@ class FourierField(Field):
         out.fourier_domain = field.physical_domain.hat()
         out.data = out.physical_domain.field_hat(field.data)
         return out
+
+    def normalize_by_max_value(self):
+        raise Exception("This is not supported for Fourier Fields. Transform to PhysicalField, normalize, and transform back to FourierField instead.")
+
 
     def diff(self, direction, order=1):
         if direction in self.all_periodic_dimensions():

@@ -1123,11 +1123,6 @@ class NavierStokesVelVort(Equation):
         number_of_time_steps = len(ts)
         number_of_inner_steps = int(np.sqrt(number_of_time_steps))
         number_of_outer_steps = number_of_time_steps // number_of_inner_steps
-        # dt = (dt
-        #       * number_of_time_steps
-        #       / (number_of_outer_steps * number_of_inner_steps)
-        #       )
-        print()
         if self.write_intermediate_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, u0, xs=None, length=number_of_outer_steps

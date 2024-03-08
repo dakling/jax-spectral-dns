@@ -193,6 +193,7 @@ class Equation:
                 + str((time.time() - start_time) / number_of_time_steps)
                 + " seconds per time step"
             )
+            self.deactivate_jit()
 
         else:
             msg = "WARNING: Solving without jit/scan - performance will be "\

@@ -84,8 +84,8 @@ class Domain(ABC):
     grid: Tuple[jnp.ndarray]
     diff_mats: Tuple[jnp.ndarray]
     mgrid: Tuple[jnp.ndarray]
-    aliasing: jnp.float64 = 1  # no antialiasing (requires finer resolution)
-    # aliasing = 3 / 2  # prevent aliasing using the 3/2-rule
+    aliasing: float = 1  # no antialiasing (requires finer resolution)
+    # aliasing : float = 3 / 2  # prevent aliasing using the 3/2-rule
 
     # def tree_flatten(self):
     #     children = (self.grid, self.diff_mats, self.mgrid)
