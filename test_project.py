@@ -1131,17 +1131,22 @@ class TestProject(unittest.TestCase):
 
     def test_2d_growth_rates_quantitatively(self):
 
-        def run_re(Re):
-            return run_pseudo_2d_perturbation(
-                Re=Re, end_time=1e0, Nx=4, Ny=64, Nz=2, linearize=True, plot=True, save=True, eps=1.0, dt=1e-2
-            )
+        def run_re(Re, rotated=False):
+            if rotated:
+                return run_pseudo_2d_perturbation(
+                    Re=Re, end_time=1e0, Nx=2, Ny=64, Nz=6, linearize=True, plot=True, save=True, eps=1.0, dt=1e-2, rotated=True
+                )
+            else:
+                return run_pseudo_2d_perturbation(
+                    Re=Re, end_time=1e0, Nx=6, Ny=64, Nz=2, linearize=True, plot=True, save=True, eps=1.0, dt=1e-2
+                )
 
-        def run():
+        def run(rotated=False):
             ts = []
             energy = []
             energy_ana = []
             for Re in [5500, 5772.22, 6000]:
-                out = run_re(Re)
+                out = run_re(Re, rotated)
                 ts.append(out[-2])
                 energy.append(out[0])
                 energy_ana.append(out[3])
@@ -1197,9 +1202,11 @@ class TestProject(unittest.TestCase):
             )
 
         def main():
-            ts, energy, energy_ana = run()
-            plot(ts, energy, energy_ana)
-            calculate_growth_rates(ts, energy, energy_ana)
+            for rotated in [False, True]:
+                print("testing growth rates in " + ("rotated" if rotated else "normal") + " domain")
+                ts, energy, energy_ana = run(rotated)
+                plot(ts, energy, energy_ana)
+                calculate_growth_rates(ts, energy, energy_ana)
 
         main()
 

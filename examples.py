@@ -497,8 +497,9 @@ def run_pseudo_2d_perturbation(
     Ny = int(Ny)
     Nz = int(Nz)
 
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
+
     if not rotated:
-        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
         nse = solve_navier_stokes_perturbation(
             Re=Re,
             Nx=Nx,
@@ -511,12 +512,11 @@ def run_pseudo_2d_perturbation(
             rotated=False
         )
     else:
-        lsc = LinearStabilityCalculation(Re=Re, alpha=0, beta=alpha, n=96)
         nse = solve_navier_stokes_perturbation(
             Re=Re,
-            Nx=Nz,
+            Nx=Nx,
             Ny=Ny,
-            Nz=Nx,
+            Nz=Nz,
             dt=dt,
             end_time=end_time,
             perturbation_factor=0.0,
@@ -526,6 +526,7 @@ def run_pseudo_2d_perturbation(
 
 
     nse.set_linearize(linearize)
+    # nse.initialize()
 
     if type(v0) == NoneType:
         # U = lsc.velocity_field(nse.get_physical_domain()).normalize()
@@ -535,12 +536,19 @@ def run_pseudo_2d_perturbation(
         U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
         print(U[0].energy())
 
+
+    if rotated:
+        U_ = lsc.velocity_field(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6)))
+        U = VectorField([PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[2].data, 0, 2), 0, 1)),
+                         PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[1].data, 0, 2), 0, 1)),
+                         PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[0].data, 0, 2), 0, 1))
+                         ])
+
     U_hat = U.hat()
     nse.init_velocity(U_hat * eps)
 
 
     energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), eps=eps)
-    plot_interval = 1
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
@@ -561,81 +569,6 @@ def run_pseudo_2d_perturbation(
                 pass
             np.array(arr).dump(filename)
 
-    def before_time_step(nse):
-        i = nse.time_step
-        if i % plot_interval == 0:
-            # vel_hat = nse.get_field("velocity_hat", i)
-            vel_hat = nse.get_latest_field("velocity_hat")
-            vel = vel_hat.no_hat()
-            # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
-            vort = vel.curl()
-            for j in range(3):
-                vel[j].time_step = i
-                vort[j].time_step = i
-                vel[j].name = "velocity_" + "xyz"[j]
-                vort[j].name = "vorticity_" + "xyz"[j]
-                if plot:
-                    # vel[j].plot_3d()
-                    vel[j].plot_3d(2)
-                    vort[j].plot_3d(2)
-                    vel[j].plot_center(0)
-                    vel[j].plot_center(1)
-            vel_pert_energy = vel.energy()
-            if plot:
-                print("velocity perturbation energy: ", vel_pert_energy)
-                print("\n\n")
-                print(
-                    "velocity perturbation energy: ",
-                    vel_pert_energy,
-                )
-                print(
-                    "velocity perturbation energy x: ",
-                    vel[0].energy(),
-                )
-                print(
-                    "velocity perturbation energy y: ",
-                    vel[1].energy(),
-                )
-                print(
-                    "velocity perturbation energy z: ",
-                    vel[2].energy(),
-                )
-                print("")
-            ts.append(nse.time)
-            energy_t.append(vel_pert_energy)
-            energy_x_t.append(vel[0].energy())
-            energy_y_t.append(vel[1].energy())
-            energy_t_ana.append(energy_over_time_fn(nse.time))
-            energy_x_t_ana.append(energy_over_time_fn(nse.time, 0))
-            energy_y_t_ana.append(energy_over_time_fn(nse.time, 1))
-            save_array(ts, "fields/ts")
-            save_array(energy_t, "fields/energy_Re_" + str(Re))
-            save_array(energy_x_t, "fields/energy_x_Re_" + str(Re))
-            save_array(energy_y_t, "fields/energy_y_Re_" + str(Re))
-            save_array(energy_t_ana, "fields/energy_ana_Re_" + str(Re))
-            save_array(energy_x_t_ana, "fields/energy_x_ana_Re_" + str(Re))
-            save_array(energy_y_t_ana, "fields/energy_y_ana_Re_" + str(Re))
-            if plot:
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                ax.plot(ts, energy_t_ana, label="analytical growth")
-                ax.plot(ts, energy_t, ".", label="numerical growth")
-                fig.legend()
-                fig.savefig("plots/energy_t.pdf")
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                ax.plot(ts, energy_x_t_ana, label="analytical growth")
-                ax.plot(ts, energy_x_t, ".", label="numerical growth")
-                fig.legend()
-                fig.savefig("plots/energy_x_t.pdf")
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                ax.plot(ts, energy_y_t_ana, label="analytical growth")
-                ax.plot(ts, energy_y_t, ".", label="numerical growth")
-                fig.legend()
-                fig.savefig("plots/energy_y_t.pdf")
-
-    # nse.before_time_step_fn = before_time_step
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
@@ -655,10 +588,12 @@ def run_pseudo_2d_perturbation(
             vort[j].time_step = i
             vel[j].name = "velocity_" + "xyz"[j]
             vort[j].name = "vorticity_" + "xyz"[j]
+        vel[0].plot_3d(0)
         vel_pert_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_pert_energy)
-        energy_x_t.append(vel[0].energy())
+        # energy_x_t.append(vel[0].energy())
+        energy_x_t.append(vel[2].energy())
         energy_y_t.append(vel[1].energy())
         energy_t_ana.append(energy_over_time_fn(time))
         energy_x_t_ana.append(energy_over_time_fn(time, 0))
@@ -1601,8 +1536,9 @@ def run_ld_2020(turb=True, Re_tau=180):
     turb = str(turb) == 'True'
     Nx = 48
     Ny = 80
-    Nz = 36
-    end_time = 0.7 # in ld2020 units
+    Nz = 32
+    # end_time = 0.7 # in ld2020 units
+    end_time = 0.02 # in ld2020 units
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
     def get_vel_field(domain, cheb_coeffs):
@@ -1642,9 +1578,9 @@ def run_ld_2020(turb=True, Re_tau=180):
 
     Re = Re_tau * u_max_over_u_tau
     end_time_ = end_time * u_max_over_u_tau
+    energy_0 = 1e-6
 
     def run_case(vel_data):
-        energy_0 = 1e-6
         domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
         vel_hat = VectorField([FourierField(domain_, vel_data[0]),
                                FourierField(domain_, vel_data[1]),
@@ -1660,8 +1596,8 @@ def run_ld_2020(turb=True, Re_tau=180):
         nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re, velocity_base_hat=vel_base.hat(), dt=1e-2)
         # jax.debug.print("recommended time step: {x}", x=nse.get_time_step())
         nse.activate_jit()
-        nse.write_intermediate_output = False
-        # nse.write_intermediate_output = True
+        # nse.write_intermediate_output = False
+        nse.write_intermediate_output = True
         nse.end_time = end_time_
         # nse.initialize()
         nse.solve()
@@ -1671,14 +1607,15 @@ def run_ld_2020(turb=True, Re_tau=180):
         return gain, nse
 
     v0s = [vel_hat.get_data()]
-    # gain, nse = run_case(v0s[-1])
-    # nse.initialize()
-    # print("gain:", gain)
-    # for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
-    #     vel = vel_hat.no_hat()
-    #     vel.set_name("velocity")
-    #     vel.set_time_step(i)
-    #     vel.plot_3d(2)
+    gain, nse = run_case(v0s[-1])
+    nse.initialize()
+    print("gain:", gain)
+    for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
+        vel = vel_hat.no_hat()
+        vel.set_name("velocity")
+        vel.set_time_step(i)
+        vel.plot_3d(2)
+    raise Exception("done")
     step_size = 1e-2
     for i in jnp.arange(100):
         start_time = time.time()
@@ -1691,6 +1628,8 @@ def run_ld_2020(turb=True, Re_tau=180):
         # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
         v0s[-1] = jnp.array([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
         v0_new = VectorField([FourierField(domain, v0s[-1][j]).no_hat() for j in range(3)])
+        v0_new.normalize_by_energy()
+        v0_new *= energy_0
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i)
         v0_new.plot_3d(2)

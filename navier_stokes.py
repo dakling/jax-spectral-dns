@@ -819,7 +819,8 @@ class NavierStokesVelVort(Equation):
 
             vel_new_hat_field = jnp.array(
                 [
-                    self.get_physical_domain().update_boundary_conditions(
+                    # self.get_physical_domain().update_boundary_conditions(
+                    self.get_domain().update_boundary_conditions(
                         vel_new_hat_field[i]
                     )
                     for i in self.all_dimensions()

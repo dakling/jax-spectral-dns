@@ -180,7 +180,7 @@ class Equation:
         self.prepare()
 
         if Field.activate_jit_:
-            msg = "Solving using jit/scan - this offers high performance but no "\
+            msg = "Solving using jit/scan - this offers high performance but "\
                   "intermediate results won't be available until after the "\
                   "calculation finishes. To disable "\
                   "high-performance mode, use the deactivate_jit()-method of the "\
