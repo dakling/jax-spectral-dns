@@ -183,6 +183,7 @@ class LinearStabilityCalculation:
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
 
+        # A = 1j * A
         self.A = A
         self.B = B
         return (A, B)
@@ -442,19 +443,19 @@ class LinearStabilityCalculation:
             if self.symm:
                 # out_s, _ = fixed_quad(f_s, -1, 1, n=2)
                 # out_a, _ = fixed_quad(f_a, -1, 1, n=2)
-                out_s, _ = quad(f_s, -1, 1, limit=100)
-                out_a, _ = quad(f_a, -1, 1, limit=100)
-                # xs = self.ys
-                # fs_s = list(map(f_s, xs))
-                # fa_s = list(map(f_a, xs))
-                # out_s = simpson(fs_s, x=xs)
-                # out_a = simpson(fa_s, x=xs)
+                # out_s, _ = quad(f_s, -1, 1, limit=100)
+                # out_a, _ = quad(f_a, -1, 1, limit=100)
+                xs = self.ys
+                fs_s = list(map(f_s, xs))
+                fa_s = list(map(f_a, xs))
+                out_s = simpson(fs_s, x=xs)
+                out_a = simpson(fa_s, x=xs)
                 return (out_s, out_a)
             else:
-                out, _ = quad(f, -1, 1, limit=100)
-                # xs = self.ys
-                # fs = np.fromiter(map(f, xs), dtype=np.float64)
-                # out = simpson(fs, x=xs)
+                # out_quad, _ = quad(f, -1, 1, limit=100)
+                xs = self.ys
+                fs = np.fromiter(map(f, xs), dtype=np.float64)
+                out = -simpson(fs, x=xs)
                 return out
 
         integ = np.zeros([n, n])
@@ -495,6 +496,7 @@ class LinearStabilityCalculation:
             ].real  # just elminates O(10^-16) complex parts which bothers `chol'
         F = cholesky(C)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
+        # Sigma = np.diag([np.exp(-1j * evs[i] * T) for i in range(number_of_modes)])
         mat = F @ Sigma @ np.linalg.inv(F)
         U, S, Vh = svd(mat, compute_uv=True)
         V = Vh.conj().T
@@ -502,6 +504,15 @@ class LinearStabilityCalculation:
             self.S = S
             self.U = U
             self.V = V
+
+        fig_eig, ax_eig = plt.subplots(1, 1)
+        # ax_eig.plot(-self.eigenvalues.imag, self.eigenvalues.real, "k.", alpha=0.4)
+        ax_eig.plot(self.eigenvalues.real, self.eigenvalues.imag, "k.", alpha=0.4)
+        ax_eig.set_xlim([0.2, 1.0])
+        ax_eig.set_ylim([-1.0, 0.0])
+        fig_eig.savefig("plots/eigenvalues.pdf")
+        print("expected growth")
+        print(S[0]**2)
 
         return (S, V)
 

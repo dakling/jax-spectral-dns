@@ -745,11 +745,11 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
     Nx = 4
     Ny = 50
-    Nz = 2
+    Nz = 4
     end_time = 1.01 * T
     # number_of_modes = 4*Ny
     # number_of_modes = 100
-    number_of_modes = 80
+    number_of_modes = 50
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
@@ -1116,10 +1116,11 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     end_time = T
     number_of_modes = 50
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-0)
+    aliasing = 1.0
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing )
     energy_gain_svd = None
 
     def coeffs_to_complex_coeffs(c):
@@ -1138,6 +1139,55 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         coeff_array = np.load(file, allow_pickle=True)
         coeffs = coeffs_to_complex_coeffs(jnp.array(coeff_array.tolist()))
     # coeffs = jnp.array([1.0+3.0j, 6.0+7.0j, 5.0+8.0j])
+
+    correct_coeffs = coeffs_to_complex_coeffs(jnp.array([4.34764619e-14,1.32303681e-02,3.92520959e-11,-9.04709746e-05,
+                                                         2.15886763e-04,-1.02942018e-02,-1.09454748e-13,7.30117704e-13,
+                                                         1.38533034e-14,3.30576081e-11,-5.59880684e-01,9.35123909e-05,
+                                                         9.14614269e-14,-1.36998039e-11,5.21419267e-14,-6.98347617e-01,
+                                                         -7.36970972e-12,2.93050962e-01,3.27559129e-04,-1.34436440e-04,
+                                                         -1.25241080e-14,-1.63571438e-01,1.73528871e-11,-2.25564252e-04,
+                                                         -1.13870293e-13,-2.19919116e-01,3.50275103e-11,-1.70394364e-04,
+                                                         -7.37516719e-14,5.31533821e-02,-3.00539152e-11,-1.87271304e-04,
+                                                         -1.77364016e-13,-4.35910260e-02,2.05732669e-11,-9.99991818e-05,
+                                                         2.43203358e-14,-2.06514224e-02,-4.04271862e-11,-2.48697837e-05,
+                                                         -1.24532779e-13,-1.21789120e-02,-2.62106858e-11,1.30298805e-05,
+                                                         5.35540369e-14,7.51231714e-05,-5.99142964e-12,1.01050849e-05,
+                                                         -1.19756743e-14,3.40971109e-03,-9.37127307e-14,9.57604569e-01,
+                                                         1.11957355e-12,-7.18632262e-05,5.81332190e-06,-2.55611639e-01,
+                                                         -1.09486395e-13,-1.15004488e-11,3.77841975e-14,-1.85682978e-11,
+                                                         7.14887335e-01,-3.69828770e-04,-3.92353412e-14,-7.86532109e-12,
+                                                         2.91993706e-14,-1.10741047e+00,9.56204055e-12,-6.29518366e-01,
+                                                         1.40514777e-04,4.50561969e-04,-7.34234334e-16,2.18187559e-01,
+                                                         2.61059172e-12,3.39071399e-04,1.05807592e-14,-5.35355624e-02,
+                                                         -2.48892717e-11,-2.48769788e-04,-1.66931866e-13,9.26838885e-02,
+                                                         -4.56410041e-11,-4.06999954e-05,-9.07165396e-14,-1.28950935e-02,
+                                                         -4.83973899e-11,-3.79294387e-05,1.70990967e-13,-1.11876117e-02,
+                                                         -6.96492243e-12,4.73699810e-05,-1.10341594e-14,-3.85886935e-03,
+                                                         4.51245247e-12,1.92912285e-05,-5.49754581e-14,-1.77457465e-03,
+                                                         1.27154635e-11,2.61933727e-06,3.69624291e-14,-1.59204845e-03]))
+
+    i_s = []
+    for i in range(number_of_modes):
+        print(i)
+        i_s.append(i)
+        print("correct:", correct_coeffs[i])
+        print("calc:", coeffs[i])
+        print("quot:", correct_coeffs[i]/coeffs[i])
+
+    fig = figure.Figure()
+    ax = fig.subplots(1, 3)
+    ax[0].set_yscale("log")
+    ax[0].plot(i_s, abs(correct_coeffs), "o")
+    ax[0].plot(i_s, abs(coeffs), "x")
+    ax[1].set_yscale("symlog")
+    ax[1].plot(i_s, (correct_coeffs.real), "o")
+    ax[1].plot(i_s, (coeffs.real), "x")
+    ax[2].set_yscale("symlog")
+    ax[2].plot(i_s, (correct_coeffs.imag), "o")
+    ax[2].plot(i_s, (coeffs.imag), "x")
+    fig.savefig("plots/coeff_plot.pdf")
+
+    # raise Exception("break")
 
     def run_case(coeffs_):
 
