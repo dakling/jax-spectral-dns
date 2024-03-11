@@ -494,12 +494,12 @@ def run_pseudo_2d_perturbation(
     Re = float(Re)
     alpha = float(alpha)
     end_time = float(end_time)
-    # Nx = int(Nx)
-    # Ny = int(Ny)
-    # Nz = int(Nz)
-    Nx = float(Nx)
-    Ny = float(Ny)
-    Nz = float(Nz)
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    # Nx = float(Nx)
+    # Ny = float(Ny)
+    # Nz = float(Nz)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
 
@@ -536,7 +536,7 @@ def run_pseudo_2d_perturbation(
 
     if type(v0) == NoneType:
         # U = lsc.velocity_field(nse.get_physical_domain()).normalize()
-        U = lsc.velocity_field(nse.get_physical_domain())
+        U = lsc.velocity_field(nse.get_physical_domain(), save=save)
     else:
         # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
@@ -544,7 +544,7 @@ def run_pseudo_2d_perturbation(
 
 
     if rotated:
-        U_ = lsc.velocity_field(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6), aliasing=aliasing))
+        U_ = lsc.velocity_field(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6), aliasing=aliasing), save=save)
         U = VectorField([PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[2].data, 0, 2), 0, 1)),
                          PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[1].data, 0, 2), 0, 1)),
                          PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[0].data, 0, 2), 0, 1))
@@ -594,7 +594,10 @@ def run_pseudo_2d_perturbation(
             vort[j].time_step = i
             vel[j].name = "velocity_" + "xyz"[j]
             vort[j].name = "vorticity_" + "xyz"[j]
-        vel[0].plot_3d(0)
+        if rotated:
+            vel[2].plot_3d(0)
+        else:
+            vel[0].plot_3d(2)
         vel_pert_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_pert_energy)
