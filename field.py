@@ -1279,7 +1279,7 @@ class PhysicalField(Field):
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
-                    shape, periodic_directions, scale_factors=scale_factors
+                    shape, periodic_directions, scale_factors=scale_factors, aliasing=self.get_domain().aliasing
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
                     int.data, indices=N - 1, axis=direction
@@ -1312,7 +1312,7 @@ class PhysicalField(Field):
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
-                    shape, periodic_directions, scale_factors=scale_factors
+                    shape, periodic_directions, scale_factors=scale_factors, aliasing=self.get_domain().aliasing
                 )
                 field = (
                     self.physical_domain.scale_factors[direction]

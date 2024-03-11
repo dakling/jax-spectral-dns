@@ -488,14 +488,18 @@ def run_pseudo_2d_perturbation(
         plot=True,
         save=True,
         v0=None,
+        aliasing=1.0,
         rotated=False
 ):
     Re = float(Re)
     alpha = float(alpha)
     end_time = float(end_time)
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
+    # Nx = int(Nx)
+    # Ny = int(Ny)
+    # Nz = int(Nz)
+    Nx = float(Nx)
+    Ny = float(Ny)
+    Nz = float(Nz)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
 
@@ -509,6 +513,7 @@ def run_pseudo_2d_perturbation(
             end_time=end_time,
             perturbation_factor=0.0,
             scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
+            aliasing=aliasing,
             rotated=False
         )
     else:
@@ -521,6 +526,7 @@ def run_pseudo_2d_perturbation(
             end_time=end_time,
             perturbation_factor=0.0,
             scale_factors=(1e-6, 1.0, 1 * (2 * jnp.pi / alpha)),
+            aliasing=aliasing,
             rotated=True
         )
 
@@ -538,7 +544,7 @@ def run_pseudo_2d_perturbation(
 
 
     if rotated:
-        U_ = lsc.velocity_field(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6)))
+        U_ = lsc.velocity_field(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6), aliasing=aliasing))
         U = VectorField([PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[2].data, 0, 2), 0, 1)),
                          PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[1].data, 0, 2), 0, 1)),
                          PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[0].data, 0, 2), 0, 1))

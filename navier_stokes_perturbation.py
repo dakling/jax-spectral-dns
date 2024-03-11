@@ -206,12 +206,13 @@ def solve_navier_stokes_perturbation(
         scale_factors=(1.87, 1.0, 0.93),
         dt=1e-2,
         u_max_over_u_tau=1.0,
+        aliasing=1.0,
         rotated=False
 ):
     Ny = Ny
     Nz = Nz or Nx + 4
 
-    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
 
     vel_x_fn = lambda X: (
         0.1

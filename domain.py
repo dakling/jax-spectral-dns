@@ -28,8 +28,7 @@ def get_cheb_grid(N, scale_factor=1.0):
     assert (
         scale_factor == 1.0
     ), "different scaling of Chebyshev direction not implemented yet."
-    # n = int(N * self.aliasing)
-    n = N
+    n = int(N)
     return np.array(
         [np.cos(np.pi / (n - 1) * i) for i in np.arange(n)]
     )  # gauss-lobatto points with endpoints
@@ -38,12 +37,13 @@ def get_cheb_grid(N, scale_factor=1.0):
 def get_fourier_grid(N, scale_factor=2 * np.pi, aliasing=1.0):
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
-    if N % 2 != 0:
+    n = int(N * aliasing)
+    if n % 2 != 0:
         print(
             "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
         )
-        N += 1
-    return np.linspace(start=0.0, stop=scale_factor, num=int(N * aliasing + 1))[:-1]
+        n += 1
+    return np.linspace(start=0.0, stop=scale_factor, num=int(n + 1))[:-1]
 
 
 def assemble_cheb_diff_mat(xs, order=1):
@@ -57,9 +57,10 @@ def assemble_cheb_diff_mat(xs, order=1):
     return np.linalg.matrix_power(D_ - np.diag(sum(np.transpose(D_))), order)
 
 
-def assemble_fourier_diff_mat(n, order=1):
+def assemble_fourier_diff_mat(N, order=1, aliasing=1.0):
     """Assemble a 1D Fourier differentiation matrix in direction i with
     differentiation order order."""
+    n = int(N * aliasing)
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
     h = 2 * np.pi / n
@@ -118,10 +119,10 @@ class Domain(ABC):
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
                 grid.append(
-                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing)
+                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=aliasing)
                 )
                 diff_mats.append(
-                    assemble_fourier_diff_mat(n=shape[dim]*aliasing, order=1)
+                    assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=aliasing)
                     * (2 * np.pi)
                     / scale_factors_[dim]
                 )
