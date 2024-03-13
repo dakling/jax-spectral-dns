@@ -1131,27 +1131,29 @@ class TestProject(unittest.TestCase):
 
     def test_2d_growth_rates_quantitatively(self):
 
-        def run_re(Re, rotated=False):
+        def run_re(Re, rotated=False, use_antialiasing=True):
+            if use_antialiasing:
+                N = 4
+                aliasing = 3/2
+            else:
+                N = 6
+                aliasing = 1
             if rotated:
                 return run_pseudo_2d_perturbation(
-                    Re=Re, end_time=1e0, Nx=2, Ny=64, Nz=6, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=1.0
-                    # Re=Re, end_time=1e0, Nx=6, Ny=64, Nz=6, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=1.0
-                    # Re=Re, end_time=1e0, Nx=4, Ny=64, Nz=4, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=3/2
+                    Re=Re, end_time=1e0, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=aliasing
                 )
             else:
                 return run_pseudo_2d_perturbation(
-                    Re=Re, end_time=1e0, Nx=6, Ny=64, Nz=2, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=1.0
-                    # Re=Re, end_time=1e0, Nx=6, Ny=64, Nz=6, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=1.0
-                    # Re=Re, end_time=1e0, Nx=4, Ny=64, Nz=4, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=3/2
+                    Re=Re, end_time=1e0, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=aliasing
                 )
 
 
-        def run(rotated=False):
+        def run(rotated=False, use_antialiasing=False):
             ts = []
             energy = []
             energy_ana = []
             for Re in [5500, 5772.22, 6000]:
-                out = run_re(Re, rotated)
+                out = run_re(Re, rotated, use_antialiasing)
                 ts.append(out[-2])
                 energy.append(out[0])
                 energy_ana.append(out[3])
@@ -1168,7 +1170,7 @@ class TestProject(unittest.TestCase):
             print("difference: ", abs(growth_rate_ana - growth_rate))
             rel_error_5500 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
             print("relative error: ", rel_error_5500)
-            assert rel_error_5500 < 1e-2
+            assert rel_error_5500 < 1e-3
 
             print("Re = 5772.22:")
             growth_rate = (energy[1][-1] - energy[1][start_index]) / (time * energy_ana[1][start_index])
@@ -1178,7 +1180,8 @@ class TestProject(unittest.TestCase):
             print("difference: ", abs(growth_rate_ana - growth_rate))
             rel_error_5772 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
             print("relative error: ", rel_error_5772)
-            assert rel_error_5772 < 3 # (this can be quite large as the denominator is almost zero)
+            assert rel_error_5772 < 2 # (this can be quite large as the denominator is almost zero)
+            assert abs(growth_rate) < 2e-6
 
             print("Re = 6000:")
             growth_rate = (energy[2][-1] - energy[2][start_index]) / (time * energy_ana[2][start_index])
@@ -1188,7 +1191,7 @@ class TestProject(unittest.TestCase):
             print("difference: ", abs(growth_rate_ana - growth_rate))
             rel_error_6000 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
             print("relative error: ", rel_error_6000)
-            assert rel_error_6000 < 1e-2
+            assert rel_error_6000 < 1e-3
 
 
 
@@ -1207,11 +1210,12 @@ class TestProject(unittest.TestCase):
             )
 
         def main():
-            for rotated in [False, True]:
-                print("testing growth rates in " + ("rotated" if rotated else "normal") + " domain")
-                ts, energy, energy_ana = run(rotated)
-                plot(ts, energy, energy_ana)
-                calculate_growth_rates(ts, energy, energy_ana)
+            for use_antialiasing in [False, True]:
+                for rotated in [False, True]:
+                    print("testing growth rates in " + ("rotated" if rotated else "normal") + " domain " + ("with" if use_antialiasing else "without") + " antialiasing")
+                    ts, energy, energy_ana = run(rotated)
+                    plot(ts, energy, energy_ana)
+                    calculate_growth_rates(ts, energy, energy_ana)
 
         main()
 
