@@ -116,7 +116,7 @@ class NavierStokesVelVort(Equation):
                 Re_tau = params["Re"] / u_max_over_u_tau
             except KeyError:
                 raise Exception("Either Re or Re_tau has to be given as a parameter.")
-        self.nonlinear_update_fn = lambda vel: update_nonlinear_terms_high_performance(self.get_physical_domain, self.get_fourier_domain, vel)
+        self.nonlinear_update_fn = lambda vel: update_nonlinear_terms_high_performance(self.get_physical_domain(), self.get_domain(), vel)
         # if (
         #     self.get_physical_domain().number_of_cells(0)
         #     * self.get_physical_domain().number_of_cells(2)
