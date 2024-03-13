@@ -241,8 +241,7 @@ def run_pseudo_2d():
         scale_factors=(4 * (2 * jnp.pi / alpha), 1.0, 1.0),
     )
 
-    u = lsc.velocity_field(nse.get_physical_domain()
-)
+    u = lsc.velocity_field_single_mode(nse.get_physical_domain())
     vel_x_hat = nse.get_initial_field("velocity_hat")
 
     eps = 5e-3
@@ -536,8 +535,7 @@ def run_pseudo_2d_perturbation(
     mode = 10
 
     if type(v0) == NoneType:
-        # U = lsc.velocity_field(nse.get_physical_domain()).normalize()
-        U = lsc.velocity_field(nse.get_physical_domain(), mode=mode, save=save)
+        U = lsc.velocity_field_single_mode(nse.get_physical_domain(), mode=mode, save=save)
     else:
         # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
@@ -545,7 +543,7 @@ def run_pseudo_2d_perturbation(
 
 
     if rotated:
-        U_ = lsc.velocity_field(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6), aliasing=aliasing), save=save)
+        U_ = lsc.velocity_field_single_mode(PhysicalDomain.create((Nz, Ny, Nx), (True, False, True), scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6), aliasing=aliasing), save=save)
         U = VectorField([PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[2].data, 0, 2), 0, 1)),
                          PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[1].data, 0, 2), 0, 1)),
                          PhysicalField(nse.get_physical_domain(), jnp.moveaxis(jnp.moveaxis(U_[0].data, 0, 2), 0, 1))
@@ -656,7 +654,7 @@ def run_jimenez_1990(start_time=0):
 
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
-        vel_pert = lsc.velocity_field(nse.get_physical_domain())
+        vel_pert = lsc.velocity_field_single_mode(nse.get_physical_domain())
         vort_pert = vel_pert.curl()
         # eps = 1e0 / jnp.sqrt(vort_pert.energy())
         eps = 1e-2 / jnp.sqrt(vel_pert.energy())
@@ -919,7 +917,7 @@ def run_optimization_pseudo_2d_perturbation():
 
     dom = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
-    v0_0 = lsc.velocity_field(dom, 0)
+    v0_0 = lsc.velocity_field_single_mode(dom, 0)
 
 
     v0s = [[v0_0[i].field for i in range(3)]]

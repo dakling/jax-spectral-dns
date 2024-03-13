@@ -236,12 +236,26 @@ class LinearStabilityCalculation:
         )
         return self.eigenvalues, self.eigenvectors
 
-    def velocity_field(
+
+    def velocity_field_single_mode(
             self,
             domain,
             mode=0,
             factor=1.0,
-            evec=None,
+            recompute_partial=False,
+            recompute_full=False,
+            save=True,
+    ):
+        if recompute_full or type(self.eigenvalues) == NoneType:
+            print("calculating eigenvalues")
+            self.calculate_eigenvalues()
+        return self.velocity_field(domain, self.eigenvectors[mode], factor, recompute_partial, recompute_full, save)
+
+    def velocity_field(
+            self,
+            domain,
+            evec,
+            factor=1.0,
             recompute_partial=False,
             recompute_full=False,
             save=True,
@@ -271,9 +285,6 @@ class LinearStabilityCalculation:
             if recompute_full or type(self.eigenvalues) == NoneType:
                 print("calculating eigenvalues")
                 self.calculate_eigenvalues()
-
-            if type(evec) == NoneType:
-                evec = self.eigenvectors[mode]
 
             u_vec, v_vec, w_vec, _ = jnp.split(evec, 4)
 
@@ -402,7 +413,7 @@ class LinearStabilityCalculation:
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print("Fields not found, performing eigenvalue computation.")
-                self.velocity_field(domain, mode, save=False)
+                self.velocity_field(domain, self.eigenvector[mode], save=False)
         try:
             self.eigenvalues = np.load(
                 "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
@@ -570,7 +581,7 @@ class LinearStabilityCalculation:
         return S[0] ** 2
 
     def calculate_transient_growth_initial_condition_from_coefficients(
-        self, domain, coeffs, save=False, recompute=True
+        self, domain, coeffs, recompute=True
     ):
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for velocity fields and eigenvalues/-vectors,
@@ -578,46 +589,14 @@ class LinearStabilityCalculation:
         fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
         recomputation of eigenvalues/eigenvectors as well as velocity fields."""
 
+        if recompute or type(self.eigenvectors) == NoneType:
+            self.calculate_eigenvalues()
 
         factors = coeffs
-        u_0 = self.velocity_field(
-            domain,
-            0,
-            save=save,
-            recompute_full=recompute,
-            recompute_partial=True,
-            factor=factors[0],
-        )
-        u = u_0
 
-
-
-        i = 1
-        number_of_modes = len(coeffs)
-        for mode in range(1, number_of_modes):
-            factor = factors[mode]
-            # if abs(factor) > 1e-8:
-            if True:
-                i += 1
-                # print("mode", mode, "of", number_of_modes, "factor:", factor)
-                print("mode", mode, "of", number_of_modes)
-                u_inc = self.velocity_field(
-                    domain,
-                    mode,
-                    save=save,
-                    recompute_full=False,  # no need to recompute eigenvalues and eigenvectors
-                    recompute_partial=True,
-                    factor=factors[mode],
-                )
-                u += u_inc
-
-            else:
-                print("mode ", mode, " of ", number_of_modes, "(negligble, skipping)")
-
-        print("modes used:", i)
-        # print("energy of initial field:", u.energy())
-        # print("expected energy growth: ", self.S[0]**2)
-
+        number_of_modes = len(factors)
+        combined_ev = (np.array(self.eigenvectors[:number_of_modes])).T @ factors
+        u = self.velocity_field(domain, combined_ev)
 
         return u
 
@@ -628,7 +607,6 @@ class LinearStabilityCalculation:
         number_of_modes,
         recompute_partial=False,
         recompute_full=False,
-        save_modes=True,
         save_final=False,
     ):
         """Calcluate the initial condition that achieves maximum growth at time
@@ -665,12 +643,8 @@ class LinearStabilityCalculation:
                     domain, T, number_of_modes, save=True, recompute=recompute_full
                 )
 
-            print("expected energy growth: ", self.S[0] ** 2)
 
-            # TODO use calculate_transient_growth_initial_condition_from_coefficients
-
-            combined_ev = (np.array(self.eigenvectors[:number_of_modes])).T @ factors
-            u = self.velocity_field(domain, None, 1.0, combined_ev)
+            u = self.calculate_transient_growth_initial_condition_from_coefficients(domain, factors, recompute_full)
 
             if save_final:
                 for i in range(len(u)):
