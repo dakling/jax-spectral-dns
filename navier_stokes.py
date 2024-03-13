@@ -1120,8 +1120,7 @@ class NavierStokesVelVort(Equation):
         u0 = self.get_latest_field("velocity_hat").get_data()
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
-        # number_of_inner_steps = int(np.sqrt(number_of_time_steps))
-        number_of_inner_steps = 1
+        number_of_inner_steps = int(np.sqrt(number_of_time_steps))
         number_of_outer_steps = number_of_time_steps // number_of_inner_steps
         if self.write_intermediate_output:
             u_final, trajectory = jax.lax.scan(

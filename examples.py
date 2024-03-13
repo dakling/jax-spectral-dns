@@ -1259,11 +1259,12 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
                 "rh93_coeffs.csv", delimiter=","
             ).T
             ax[0].plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "o")
-        ax[0].plot(i_s, abs(coeffs), "x")
+        if file is None:
+            ax[0].plot(i_s, abs(coeffs), "x")
+            ax[1].plot(i_s, (coeffs.real), "x")
+            ax[2].plot(i_s, (coeffs.imag), "x")
         ax[0].plot(i_s, abs(coeffs_new), ".")
-        ax[1].plot(i_s, (coeffs.real), "x")
         ax[1].plot(i_s, (coeffs_new.real), ".")
-        ax[2].plot(i_s, (coeffs.imag), "x")
         ax[2].plot(i_s, (coeffs_new.imag), ".")
         if abs(Re - 600) < 1e-3:
             ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
@@ -1669,7 +1670,7 @@ def run_ld_2020(turb=True, Re_tau=180):
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i)
         v0_new.plot_3d(2)
-        v0_new[0].plot_center(1, v0s[0][0])
+        v0_new[0].plot_center(1, FourierField(domain, v0s[0][0]).no_hat())
         v0_new.save_to_file("vel_0_" + str(i))
         corr = VectorField([FourierField(domain, corr[j]).no_hat() for j in range(3)])
         corr.set_name("corr")
