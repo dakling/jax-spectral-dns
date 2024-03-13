@@ -246,21 +246,6 @@ class LinearStabilityCalculation:
             recompute_full=False,
             save=True,
     ):
-        if recompute_full or type(self.eigenvalues) == NoneType:
-            print("calculating eigenvalues")
-            self.calculate_eigenvalues()
-        return self.velocity_field(domain, self.eigenvectors[mode], factor, recompute_partial, recompute_full, save)
-
-    def velocity_field(
-            self,
-            domain,
-            evec,
-            factor=1.0,
-            recompute_partial=False,
-            recompute_full=False,
-            save=True,
-    ):
-        assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
         recompute_partial = recompute_partial or recompute_full
         try:
             if recompute_partial == False:
@@ -279,118 +264,95 @@ class LinearStabilityCalculation:
                     self.make_field_file_name_mode(domain, "w", mode),
                     name="velocity_pert_z",
                 )
+                u = VectorField([u_field, v_field, w_field])
             else:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
             if recompute_full or type(self.eigenvalues) == NoneType:
                 print("calculating eigenvalues")
                 self.calculate_eigenvalues()
-
-            u_vec, v_vec, w_vec, _ = jnp.split(evec, 4)
-
-            N_domain = domain.number_of_cells(1)
-            ys = domain.grid[1]
-
-            def to_3d_field(eigenvector, component=0):
-                phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.complex64)
-                for i in range(N_domain):
-                    for k in range(self.n):
-                        if self.symm:
-                            # phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
-                            phi_mat = phi_mat.at[i, k].set(
-                                [phi_a, phi_s, phi_a][component](k, 0, ys[i])
-                            )
-                        else:
-                            phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
-                            # phi_mat[i, k] = phi(k, 0, ys[i])
-                out = (
-                    factor
-                    * jnp.einsum(
-                        "ij,k->ijk",
-                        jnp.einsum(
-                            "i,j->ij",
-                            jnp.exp(
-                                # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
-                                1j
-                                * (self.alpha * domain.grid[0])
-                            ),
-                            phi_mat @ eigenvector,
-                        ),
-                        jnp.exp(
-                            1j * (self.beta * domain.grid[2]),
-                        ),
-                    )
-                ).real
-
-                # if abs(self.beta) < 1e-25:
-                    # print("testing against old implementation")
-                    # out_legacy = (factor * jnp.outer(
-                    #             jnp.exp(
-                    #                 # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
-                    #                 1j
-                    #                 * (self.alpha * domain.grid[0])
-                    #             ),
-                    #             phi_mat @ eigenvector,
-                    #         )
-                    # ).real
-                    # out_legacy = jnp.tile(out_legacy, (len(domain.grid[2]), 1, 1))
-                    # out_legacy = jnp.moveaxis(out_legacy, 0, -1)
-                    # assert (out == out_legacy).all()
-                return out
-
-            print("calculating velocity perturbations in 3D")
-            u_field = PhysicalField(
-                domain, to_3d_field(u_vec, component=0), name="velocity_pert_x"
-            )
-            v_field = PhysicalField(
-                domain, to_3d_field(v_vec, component=1), name="velocity_pert_y"
-            )
-            w_field = PhysicalField(
-                domain, to_3d_field(w_vec, component=2), name="velocity_pert_z"
-            )
-            print("done calculating velocity perturbations in 3D")
+            u = self.velocity_field(domain, self.eigenvectors[mode], factor)
 
             if save:
-                u_field.save_to_file(self.make_field_file_name_mode(domain, "u", mode))
-                v_field.save_to_file(self.make_field_file_name_mode(domain, "v", mode))
-                w_field.save_to_file(self.make_field_file_name_mode(domain, "w", mode))
+                u[0].save_to_file(self.make_field_file_name_mode(domain, "u", mode))
+                u[1].save_to_file(self.make_field_file_name_mode(domain, "v", mode))
+                u[2].save_to_file(self.make_field_file_name_mode(domain, "w", mode))
+        return u
 
-        self.velocity_field_ = VectorField([u_field, v_field, w_field])
-        return self.velocity_field_
-
-    def velocity_field_y_slice(self, domain, mode=0, factor=1.0, recompute_full=False):
+    def velocity_field(
+            self,
+            domain,
+            evec,
+            factor=1.0
+    ):
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
-        if recompute_full or type(self.eigenvalues) == NoneType:
-            print("calculating eigenvalues")
-            self.calculate_eigenvalues()
 
-        evec = self.eigenvectors[mode]
-
-        u_vec, v_vec, w_vec, _ = np.split(evec, 4)
+        u_vec, v_vec, w_vec, _ = jnp.split(evec, 4)
 
         N_domain = domain.number_of_cells(1)
         ys = domain.grid[1]
 
-        def to_slice(eigenvector, component=0):
-            if abs(self.beta) > 1e-25:
-                raise Exception("Spanwise dependency not implemented yet.")
-            phi_mat = np.zeros((N_domain, self.n), dtype=np.complex64)
+        def to_3d_field(eigenvector, component=0):
+            phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.complex64)
             for i in range(N_domain):
                 for k in range(self.n):
                     if self.symm:
-                        phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                        # phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                        phi_mat = phi_mat.at[i, k].set(
+                            [phi_a, phi_s, phi_a][component](k, 0, ys[i])
+                        )
                     else:
-                        phi_mat[i, k] = phi(k, 0, ys[i])
-            out = factor * phi_mat @ eigenvector
-            return jnp.array(out.tolist())
+                        phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+                        # phi_mat[i, k] = phi(k, 0, ys[i])
+            out = (
+                factor
+                * jnp.einsum(
+                    "ij,k->ijk",
+                    jnp.einsum(
+                        "i,j->ij",
+                        jnp.exp(
+                            # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+                            1j
+                            * (self.alpha * domain.grid[0])
+                        ),
+                        phi_mat @ eigenvector,
+                    ),
+                    jnp.exp(
+                        1j * (self.beta * domain.grid[2]),
+                    ),
+                )
+            ).real
+
+            # if abs(self.beta) < 1e-25:
+                # print("testing against old implementation")
+                # out_legacy = (factor * jnp.outer(
+                #             jnp.exp(
+                #                 # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
+                #                 1j
+                #                 * (self.alpha * domain.grid[0])
+                #             ),
+                #             phi_mat @ eigenvector,
+                #         )
+                # ).real
+                # out_legacy = jnp.tile(out_legacy, (len(domain.grid[2]), 1, 1))
+                # out_legacy = jnp.moveaxis(out_legacy, 0, -1)
+                # assert (out == out_legacy).all()
+            return out
 
         print("calculating velocity perturbations in 3D")
-        u_slice = to_slice(u_vec, component=0)
-        v_slice = to_slice(v_vec, component=1)
-        w_slice = to_slice(w_vec, component=2)
+        u_field = PhysicalField(
+            domain, to_3d_field(u_vec, component=0), name="velocity_pert_x"
+        )
+        v_field = PhysicalField(
+            domain, to_3d_field(v_vec, component=1), name="velocity_pert_y"
+        )
+        w_field = PhysicalField(
+            domain, to_3d_field(w_vec, component=2), name="velocity_pert_z"
+        )
         print("done calculating velocity perturbations in 3D")
 
-        return (u_slice, v_slice, w_slice)
+        self.velocity_field_ = VectorField([u_field, v_field, w_field])
+        return self.velocity_field_
 
     def energy_over_time(self, domain, mode=0, eps=1.0):
         if type(self.velocity_field_) == NoneType:

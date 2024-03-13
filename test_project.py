@@ -1052,7 +1052,7 @@ class TestProject(unittest.TestCase):
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=n)
         evs, _ = lsc.calculate_eigenvalues()
         # evs, evecs = lsc.calculate_eigenvalues()
-        # print(evs[0])
+        print(evs[0])
         # print(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 

@@ -532,10 +532,9 @@ def run_pseudo_2d_perturbation(
 
     nse.set_linearize(linearize)
     # nse.initialize()
-    mode = 10
 
     if type(v0) == NoneType:
-        U = lsc.velocity_field_single_mode(nse.get_physical_domain(), mode=mode, save=save)
+        U = lsc.velocity_field_single_mode(nse.get_physical_domain(), save=save)
     else:
         # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
@@ -553,7 +552,7 @@ def run_pseudo_2d_perturbation(
     nse.init_velocity(U_hat * eps)
 
 
-    energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), mode=mode, eps=eps)
+    energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), eps=eps)
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
@@ -1159,7 +1158,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     ax[2].set_yscale("symlog")
     ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
     ax[2].plot(i_s, (coeffs.imag), "x")
-    fig.savefig("plots/coeff_plot2.pdf")
+    fig.savefig("plots/coeff_plot.pdf")
 
     # raise Exception("break")
 
@@ -1169,7 +1168,6 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
             domain,
             coeffs_,
-            save=False,
             recompute=False
         )
         eps = 1e-5
@@ -1247,18 +1245,21 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         print(coeff_array)
         n_iter += 1
 
+        fig = figure.Figure()
+        ax = fig.subplots(1, 3)
         ax[0].set_yscale("log")
-        ax[0].plot(n, np.array(coeffs) / coeffs[0], "o")
-        # ax[0].plot(
-        #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
-        # )
-        ax[1].set_ylim([1e-4, 1e4])
-        ax[1].set_yscale("log")
-        ax[1].plot(n, np.array(coeffs) / coeffs[0], "o")
-        # ax[1].plot(
-        #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
-        # )
-        fig.savefig("plots/coeffs.pdf")
+        ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
+        ax[0].plot(i_s, abs(coeffs), "x")
+        ax[0].plot(i_s, abs(coeff_array), ".")
+        ax[1].set_yscale("symlog")
+        ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
+        ax[1].plot(i_s, (coeffs.real), "x")
+        ax[1].plot(i_s, (coeff_array.real), ".")
+        ax[2].set_yscale("symlog")
+        ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
+        ax[2].plot(i_s, (coeffs.imag), "x")
+        ax[2].plot(i_s, (coeff_array.imag), ".")
+        fig.savefig("plots/coeff_plot.pdf")
 
     tol = 1e-8
 
