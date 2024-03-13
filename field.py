@@ -518,8 +518,8 @@ class VectorField:
             xi = np.linspace(x[0], x[-1], N)
             yi = np.linspace(y[0], y[-1], N)
             N_c = self.domain.number_of_cells(normal_direction) // 2
-            U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
-            V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
+            U = self[directions[0]].data.take(indices=N_c, axis=normal_direction)
+            V = self[directions[1]].data.take(indices=N_c, axis=normal_direction)
             interp_u = RegularGridInterpolator((x, y), U, method="cubic")
             interp_v = RegularGridInterpolator((x, y), V, method="cubic")
             Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
@@ -556,8 +556,8 @@ class VectorField:
             xi = np.linspace(x[0], x[-1], N)
             yi = np.linspace(y[0], y[-1], N)
             N_c = self.domain.number_of_cells(normal_direction) // 2
-            U = self[directions[0]].field.take(indices=N_c, axis=normal_direction)
-            V = self[directions[1]].field.take(indices=N_c, axis=normal_direction)
+            U = self[directions[0]].data.take(indices=N_c, axis=normal_direction)
+            V = self[directions[1]].data.take(indices=N_c, axis=normal_direction)
             interp_u = RegularGridInterpolator((x, y), U, method="cubic")
             interp_v = RegularGridInterpolator((x, y), V, method="cubic")
             Ui = np.array([[interp_u([[x_, y_]])[0] for x_ in xi] for y_ in yi])
@@ -822,7 +822,7 @@ class PhysicalField(Field):
                 for other_field in other_fields:
                     ax.plot(
                         self.physical_domain.grid[dimension],
-                        other_field.field,
+                        other_field.data,
                         "--",
                         label=other_field.name,
                     )
@@ -858,7 +858,7 @@ class PhysicalField(Field):
                 for other_field in other_fields:
                     ax.plot(
                         self.physical_domain.grid[dimension],
-                        other_field.field.take(indices=N_c, axis=other_dim),
+                        other_field.data.take(indices=N_c, axis=other_dim),
                         "--",
                         label=other_field.name,
                     )
@@ -984,14 +984,14 @@ class PhysicalField(Field):
                     for other_field in other_fields:
                         ax[dimension].plot(
                             self.physical_domain.grid[dimension],
-                            other_field.field.take(indices=N_c, axis=other_dim),
+                            other_field.data.take(indices=N_c, axis=other_dim),
                             "--",
                             label=other_field.name,
                         )
                         ax3d.plot_surface(
                             self.physical_domain.mgrid[0],
                             (self.physical_domain.mgrid[1]),
-                            other_field.field,
+                            other_field.data,
                         )
                     fig.legend()
                     fig.savefig(
@@ -1029,7 +1029,7 @@ class PhysicalField(Field):
                     for other_field in other_fields:
                         ax[dimension].plot(
                             self.physical_domain.grid[dimension],
-                            other_field.field.take(
+                            other_field.data.take(
                                 indices=N_c[1], axis=other_dim[1]
                             ).take(indices=N_c[0], axis=other_dim[0]),
                             "--",

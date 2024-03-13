@@ -2,7 +2,9 @@
 
 import numpy as np
 import jax.numpy as jnp
-from numpy.linalg import svd
+# from numpy.linalg import eig, svd
+# from scipy.linalg import cholesky
+from numpy.linalg import  svd
 from scipy.linalg import eig, cholesky
 from scipy.sparse.linalg import eigs
 from scipy.integrate import quad, fixed_quad, simpson, quadrature
@@ -183,10 +185,13 @@ class LinearStabilityCalculation:
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
 
-        # A = 1j * A
-        self.A = A
-        self.B = B
-        return (A, B)
+        # A_ = 1j * A
+        A_ = A
+        # B_ = -1j * B
+        B_ = B
+        self.A = A_
+        self.B = B_
+        return (A_, B_)
 
     def read_mat(self, file, key):
         return scipy.io.loadmat(file)[key]
@@ -197,6 +202,9 @@ class LinearStabilityCalculation:
                 self.assemble_matrix_fast()
         except ValueError:
             pass
+        # omega = 1
+        # eigvals_, eigvecs = eig(np.linalg.inv(self.B + omega * self.A) @ self.A)
+        # eigvals = np.array(list(map(lambda x: x / (1 - omega * x), eigvals_)))
         eigvals, eigvecs = eig(self.A, self.B)
 
         # scale any spurious eigenvalues out of the picture
@@ -210,10 +218,14 @@ class LinearStabilityCalculation:
             if eigvals[j].real <= 1:
                 clean_eigvals.append(eigvals[j])
                 clean_eigvecs.append(eigvecs[:, j])
+            # if eigvals[j].imag <= 1:
+            #     clean_eigvals.append(eigvals[j])
+            #     clean_eigvecs.append(eigvecs[:, j])
 
         # sort eigenvals
         eevs = [(clean_eigvals[i], clean_eigvecs[i]) for i in range(len(clean_eigvals))]
         eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
+        # eevs = sorted(eevs, reverse=True, key=lambda x: x[0].imag)
         self.eigenvalues = np.array([eev[0] for eev in eevs])
         self.eigenvectors = [eev[1] for eev in eevs]
         self.eigenvalues.dump(
@@ -403,11 +415,13 @@ class LinearStabilityCalculation:
                 for d in domain.all_dimensions():
                     energy += (
                         self.velocity_field_[d]
+                        # * (jnp.exp((-1j * self.eigenvalues[mode]).real * t))
                         * (jnp.exp(self.eigenvalues[mode].real * t))
                     ).energy()
             else:
                 energy = (
                     self.velocity_field_[dim]
+                    # * (jnp.exp((-1j * self.eigenvalues[mode]).real * t))
                     * (jnp.exp(self.eigenvalues[mode].real * t))
                 ).energy()
             return eps**2 * energy
@@ -434,6 +448,13 @@ class LinearStabilityCalculation:
                 self.calculate_eigenvalues()
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
+
+        fig_eig, ax_eig = plt.subplots(1, 1)
+        ax_eig.plot(-self.eigenvalues.imag, self.eigenvalues.real, "k.", alpha=0.4)
+        # ax_eig.plot(self.eigenvalues.real, self.eigenvalues.imag, "k.", alpha=0.4)
+        ax_eig.set_xlim([0.2, 1.0])
+        ax_eig.set_ylim([-1.0, 0.0])
+        fig_eig.savefig("plots/eigenvalues.pdf")
         n = self.n
 
         def get_integral_coefficient(p, q):
@@ -465,11 +486,11 @@ class LinearStabilityCalculation:
             for q in range(p, n):
                 if self.symm:
                     integ_s[p, q], integ_a[p, q] = get_integral_coefficient(p, q)
-                    integ_s[q, p] = integ_s[p, q]  # not needed right?
-                    integ_a[q, p] = integ_a[p, q]  # not needed right?
+                    integ_s[q, p] = integ_s[p, q]
+                    integ_a[q, p] = integ_a[p, q]
                 else:
                     integ[p, q] = get_integral_coefficient(p, q)
-                    integ[q, p] = integ[p, q]  # not needed right?
+                    integ[q, p] = integ[p, q]
         C = np.zeros([number_of_modes, number_of_modes], dtype=complex)
         for j in range(number_of_modes):
             for k in range(j, number_of_modes):
@@ -491,30 +512,54 @@ class LinearStabilityCalculation:
                                     * integ[p, q]
                                 )
                 C[k, j] = np.conjugate(C[j, k])
-            C[j, j] = C[
-                j, j
-            ].real  # just elminates O(10^-16) complex parts which bothers `chol'
-        F = cholesky(C)
+            # elminate O(10^-16) complex parts which bothers `chol'
+            C[j, j] = C[j, j].real
+        F = cholesky(C, lower=False)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         # Sigma = np.diag([np.exp(-1j * evs[i] * T) for i in range(number_of_modes)])
         mat = F @ Sigma @ np.linalg.inv(F)
+        mat_h = np.conjugate(mat.T)
+        evs_, evecs_ = eig(mat_h @ mat)
+        evs_abs = np.array(list(map( lambda x: abs(x), evs_ )))
+        # print(max(evs_abs))
+        # print(np.argmax(evs_abs))
+        # print(evecs_[:, np.argmax(evs_abs)])
         U, S, Vh = svd(mat, compute_uv=True)
         V = Vh.conj().T
+        V[:, 0] = evecs_[:, np.argmax(evs_abs)]
+        # print("difference:")
+        # print(jnp.linalg.norm(V[:, 0] - evecs_[:, np.argmax(evs_abs)]))
+        def energy_norm(ev_1, ev_2):
+            ev_1 = np.atleast_2d(ev_1).T
+            ev_2 = np.atleast_2d(ev_2).T
+            Z = np.zeros(integ.shape)
+            M = np.block([[integ, Z, Z, Z], [Z, integ, Z, Z], [Z, Z, integ, Z], [Z, Z, Z, Z], ])
+            return np.conjugate(ev_1.T) @ M @ ev_2
+        coeffs = V[:, 0]
+        print("energy_norm")
+        print(energy_norm(coeffs, coeffs))
+        print(energy_norm(U[:, 0], U[:, 0]))
+        # for i, _ in enumerate(coeffs):
+        #     coeffs[i] /= np.sqrt(energy_norm(evecs[i], evecs[i]))
+        print("energy_norm after")
+        print(energy_norm(coeffs, coeffs))
+        # print(energy_norm(evecs[0], evecs[0]))
+        # print(energy_norm(evecs[0], evecs[1]))
+        # print(energy_norm(evecs[1], evecs[1]))
+        # raise Exception("break")
+        # V = Vh
+        # V = np.conjugate(Vh.T)
+        # V = np.conjugate(Vh)
+        # V = Vh
         if save:
             self.S = S
             self.U = U
             self.V = V
 
-        fig_eig, ax_eig = plt.subplots(1, 1)
-        # ax_eig.plot(-self.eigenvalues.imag, self.eigenvalues.real, "k.", alpha=0.4)
-        ax_eig.plot(self.eigenvalues.real, self.eigenvalues.imag, "k.", alpha=0.4)
-        ax_eig.set_xlim([0.2, 1.0])
-        ax_eig.set_ylim([-1.0, 0.0])
-        fig_eig.savefig("plots/eigenvalues.pdf")
         print("expected growth")
         print(S[0]**2)
 
-        return (S, V)
+        return (S, coeffs)
 
     def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
         S, _ = self.calculate_transient_growth_svd(
@@ -614,15 +659,12 @@ class LinearStabilityCalculation:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
             if recompute_full or type(self.V) == NoneType:
-                self.S, self.V = self.calculate_transient_growth_svd(
+                self.S, factors = self.calculate_transient_growth_svd(
                     domain, T, number_of_modes, save=True, recompute=recompute_full
                 )
-            U = self.U
-            V = self.V
 
             print("expected energy growth: ", self.S[0] ** 2)
 
-            factors = V[:, 0]
             # TODO use calculate_transient_growth_initial_condition_from_coefficients
 
             # final_factors = U[:,0] * self.S[0]
@@ -672,8 +714,8 @@ class LinearStabilityCalculation:
             ax_eig.plot([-self.eigenvalues[0].imag], [self.eigenvalues[0].real], "ko")
 
             n = [0]
-            energy = abs(u_0.energy() / factors[0] ** 2)
-            ys = [abs(factors[0] * energy)]
+            energy = abs(u_0.energy())
+            ys = [abs(factors[0])]
             i = 1
             index = 1
             for mode in range(1, number_of_modes):
@@ -701,7 +743,7 @@ class LinearStabilityCalculation:
                     # u_slice += u_slice_inc
                     # v_slice += v_slice_inc
                     # w_slice += w_slice_inc
-                    energy = abs(u_inc.energy() / factors[mode] ** 2)
+                    energy = abs(u_inc.energy())
                     print("energy:", energy)
 
                     # u_final_inc = self.velocity_field(
@@ -723,11 +765,13 @@ class LinearStabilityCalculation:
                     # n.append(mode)
                     n.append(index)
                     index += 1
-                    ys.append(abs(factors[mode] * energy))
+                    ys.append(abs(factors[mode]))
 
                     ax_eig.plot(
-                        [-self.eigenvalues[mode].imag],
+                        # [-self.eigenvalues[mode].imag],
+                        # [self.eigenvalues[mode].real],
                         [self.eigenvalues[mode].real],
+                        [self.eigenvalues[mode].imag],
                         "ko",
                     )
                 else:
@@ -735,8 +779,8 @@ class LinearStabilityCalculation:
                         "mode ", mode, " of ", number_of_modes, "(negligble, skipping)"
                     )
                     ax_eig.plot(
-                        [-self.eigenvalues[mode].imag],
                         [self.eigenvalues[mode].real],
+                        [self.eigenvalues[mode].imag],
                         "rx",
                     )
 
@@ -754,7 +798,7 @@ class LinearStabilityCalculation:
                     ax[0].set_yscale("log")
                     ax[0].plot(n, np.array(ys) / ys[0], "o")
                     ax[0].plot(
-                        rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
+                        rh_93_coeffs[0] - 1, rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
                     )
                     # ax[0][0].plot(n, v_mat, "x")
                     # ax[0][0].plot(n, v_mat_full, ".")
@@ -763,14 +807,13 @@ class LinearStabilityCalculation:
                     ax[1].set_yscale("log")
                     ax[1].plot(n, np.array(ys) / ys[0], "o")
                     ax[1].plot(
-                        rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
+                        rh_93_coeffs[0] - 1, rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
                     )
                     fig.savefig("plots/coeffs.pdf")
                 except Exception:
                     raise Exception()
 
             print("modes used:", i)
-            print("energy of initial field:", u.energy())
             # print("energy of final field:", u_final.energy())
             # print("gain:", u_final.energy() / u.energy())
 

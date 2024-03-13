@@ -1116,6 +1116,7 @@ class NavierStokesVelVort(Equation):
         def step_fn(u0, _):
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn), u0, xs=None, length=number_of_inner_steps
+                # inner_step_fn, u0, xs=None, length=number_of_inner_steps
             )
             return out, out
 
@@ -1155,6 +1156,12 @@ class NavierStokesVelVort(Equation):
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
             return (velocity_final, len(ts))
+
+    def post_process(self):
+        if type(self.post_process_fn) != NoneType:
+            assert self.post_process_fn is not None
+            for i in range(len(self.get_field("velocity_hat"))):
+                self.post_process_fn(self, i)
 
 
 def solve_navier_stokes_laminar(

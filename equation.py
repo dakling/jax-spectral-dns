@@ -32,6 +32,7 @@ class Equation:
         self.time = 0.0
         self.before_time_step_fn = None
         self.after_time_step_fn = None
+        self.post_process_fn = None
         try:
             self.end_time = params["end_time"]
         except KeyError:
@@ -163,6 +164,10 @@ class Equation:
     def after_time_step(self):
         if type(self.after_time_step_fn) != NoneType:
             self.after_time_step_fn(self)
+
+    def post_process(self):
+        if type(self.post_process_fn) != NoneType:
+            raise NotImplementedError()
 
     def prepare(self):
         pass

@@ -480,9 +480,9 @@ def run_pseudo_2d_perturbation(
         alpha=1.02056,
         end_time=1.0,
         dt=1e-2,
-        Nx=64,
+        Nx=4,
         Ny=96,
-        Nz=24,
+        Nz=2,
         eps=1e-0,
         linearize=True,
         plot=True,
@@ -533,10 +533,11 @@ def run_pseudo_2d_perturbation(
 
     nse.set_linearize(linearize)
     # nse.initialize()
+    mode = 10
 
     if type(v0) == NoneType:
         # U = lsc.velocity_field(nse.get_physical_domain()).normalize()
-        U = lsc.velocity_field(nse.get_physical_domain(), save=save)
+        U = lsc.velocity_field(nse.get_physical_domain(), mode=mode, save=save)
     else:
         # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
@@ -554,7 +555,7 @@ def run_pseudo_2d_perturbation(
     nse.init_velocity(U_hat * eps)
 
 
-    energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), eps=eps)
+    energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), mode=mode, eps=eps)
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
@@ -612,6 +613,13 @@ def run_pseudo_2d_perturbation(
     # vel_pert_old = nse.get_field("velocity_hat", nse.time_step - 3).no_hat()
     vel_pert_energy = vel_pert.energy()
     # vel_pert_energy_old = vel_pert_old.energy()
+
+    fig = figure.Figure()
+    ax = fig.subplots(1, 1)
+    ax.plot(ts, energy_t, ".")
+    ax.plot(ts, energy_t_ana, "-")
+    fig.savefig("plots/energy_t.pdf")
+
     return (
         energy_t,
         energy_x_t,
@@ -743,15 +751,11 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     eps = 1e-5
 
 
-    Nx = 4
-    Ny = 50
-    Nz = 4
+    Nx = 6
+    Ny = 90
+    Nz = 2
     end_time = 1.01 * T
-    # number_of_modes = 4*Ny
-    # number_of_modes = 100
     number_of_modes = 50
-
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
     nse = solve_navier_stokes_perturbation(
         Re=Re,
@@ -761,11 +765,15 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         end_time=end_time,
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
+        dt=1e-2,
+        aliasing=1.0
     )
-    nse.max_dt = 0.01
+    nse.initialize()
 
     # nse.set_linearize(False)
     nse.set_linearize(True)
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
     U = lsc.calculate_transient_growth_initial_condition(
         nse.get_physical_domain(),
@@ -795,111 +803,79 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     )
     print("expecting max growth of ", e_max)
 
-    plot_interval = 10
-
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
     vel_pert_0 = vel_pert[1]
     vel_pert_0.name = "veloctity_y_0"
     ts = []
     energy_t = []
-    energy_x_t = []
-    energy_y_t = []
-    energy_t_norm = []
-    energy_x_t_norm = []
-    energy_y_t_norm = []
     rh_93_data = np.genfromtxt(
         "rh93_transient_growth.csv", delimiter=","
     ).T  # TODO get rid of this at some point
-    # energy_max = []
-    # energy_0_norm = vel_pert.energy_norm(1)
-    # print("inital perturbation energy norm: ", energy_0_norm)
-    energy_0 = vel_pert.energy()
-    print("inital perturbation energy: ", energy_0)
 
-    def before_time_step(nse):
-        i = nse.time_step
-        if i % plot_interval == 0:
-            # vel_hat = nse.get_field("velocity_hat", i)
-            vel_hat = nse.get_latest_field("velocity_hat")
-            vel = vel_hat.no_hat()
-            vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
+    def post_process(nse, i):
+        n_steps = len(nse.get_field("velocity_hat"))
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+        time = (i / (n_steps - 1)) * end_time
 
-            vel_pert.plot_streamlines(2)
-            vort = vel.curl()
-            for j in range(3):
-                vel[j].time_step = i
-                vort[j].time_step = i
-                vel[j].name = "velocity_" + "xyz"[j]
-                vort[j].name = "vorticity_" + "xyz"[j]
-                vel[j].plot_3d()
-                vel[j].plot_3d(2)
-                vort[j].plot_3d(2)
-                vel[j].plot_center(0)
-                vel[j].plot_center(1)
-            vel_pert_energy = vel_pert.energy()
-            # vel_pert_energy_old = vel_pert_old.energy()
-            # vel_pert_energy_norm = vel_pert.energy_norm(1)
-            print("\n\n")
-            print(
-                "velocity perturbation energy change: ",
-                vel_pert_energy - energy0,
-            )
-            # print(
-            #     "velocity perturbation energy x change: ",
-            #     vel_pert[0].energy() - vel_pert_old[0].energy(),
-            # )
-            # print(
-            #     "velocity perturbation energy y change: ",
-            #     vel_pert[1].energy() - vel_pert_old[1].energy(),
-            # )
-            # print(
-            #     "velocity perturbation energy z change: ",
-            #     vel_pert[2].energy() - vel_pert_old[2].energy(),
-            # )
-            print("")
-            ts.append(nse.time)
-            energy_t.append(vel_pert_energy / energy_0)
-            energy_x_t.append(vel_pert[0].energy() / energy_0)
-            energy_y_t.append(vel_pert[1].energy() / energy_0)
-            # energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
-            # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.get_physical_domain(), nse.time, number_of_modes))
+        vel.plot_streamlines(2)
+        # vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vel.plot_3d(2)
+        vel[0].plot_center(0)
+        vel[0].plot_center(1)
+        vel_energy = vel.energy()
+        ts.append(time)
+        energy_t.append(vel_energy)
+        # energy_x_t.append(vel_pert[0].energy() / energy_0)
+        # energy_y_t.append(vel_pert[1].energy() / energy_0)
+        # energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
+        # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.get_physical_domain(), nse.time, number_of_modes))
 
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            ax.plot(ts, energy_t, ".", label="growth (DNS)")
-            # ax.plot(ts, energy_t_norm, ".", label="growth of energy norm (DNS)")
-            # ax.plot(ts, energy_max, ".", label="max growth (theory)")
-            ax.plot(
-                rh_93_data[0],
-                rh_93_data[1],
-                "--",
-                label="growth (Reddy/Henningson 1993)",
-            )
-            ax.set_xlim([0, nse.time * 1.2])
-            ax.set_ylim([0, e_max * 1.2])
-            fig.legend()
-            fig.savefig("plots/energy_t.pdf")
 
-            fig_x = figure.Figure()
-            ax_x = fig_x.subplots(1, 1)
-            ax_x.plot(ts, energy_x_t, ".", label="growth")
-            fig_x.legend()
-            fig_x.savefig("plots/energy_x_t.pdf")
+        # for i in range(3):
+        #     vel[i].save_to_file(str(nse.time_step))
 
-            fig_y = figure.Figure()
-            ax_y = fig_y.subplots(1, 1)
-            ax_y.plot(ts, energy_y_t, ".", label="growth")
-            fig_y.legend()
-            fig_y.savefig("plots/energy_y_t.pdf")
-
-            for i in range(3):
-                vel[i].save_to_file(str(nse.time_step))
-
-    nse.before_time_step_fn = before_time_step
+    # nse.before_time_step_fn = lambda nse: post_process(nse, nse.time_step)
+    nse.before_time_step_fn = None
     nse.after_time_step_fn = None
+    nse.post_process_fn = post_process
 
+    nse.activate_jit()
+    nse.write_intermediate_output = True
     nse.solve()
+    nse.deactivate_jit()
+    nse.post_process()
+
+    energy_t = np.array(energy_t)
+    fig = figure.Figure()
+    ax = fig.subplots(1, 1)
+    ax.plot(ts, energy_t/energy_t[0], ".", label="growth (DNS)")
+    ax.plot(
+        rh_93_data[0],
+        rh_93_data[1],
+        "--",
+        label="growth (Reddy/Henningson 1993)",
+    )
+    # ax.set_xlim([0, end_time * 1.2])
+    # ax.set_ylim([0, e_max * 1.2])
+    fig.legend()
+    fig.savefig("plots/energy_t.pdf")
+
+    # fig_x = figure.Figure()
+    # ax_x = fig_x.subplots(1, 1)
+    # ax_x.plot(ts, energy_x_t, ".", label="growth")
+    # fig_x.legend()
+    # fig_x.savefig("plots/energy_x_t.pdf")
+
+    # fig_y = figure.Figure()
+    # ax_y = fig_y.subplots(1, 1)
+    # ax_y.plot(ts, energy_y_t, ".", label="growth")
+    # fig_y.legend()
+    # fig_y.savefig("plots/energy_y_t.pdf")
+    print("final energy gain:", energy_t[-1]/energy_t[0])
+    print("expected final energy gain:", e_max)
 
 
 def run_optimization_pseudo_2d_perturbation():
@@ -1111,7 +1087,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
 
     Equation.initialize()
     Nx = 4
-    Ny = 90
+    Ny = 50
     Nz = 2
     end_time = T
     number_of_modes = 50
@@ -1131,8 +1107,8 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         return jnp.block([c.real, c.imag])
 
     if file is None:
-        S, V = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
-        coeffs = V[:, 0]
+        S, coeffs = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
+        # coeffs = V[:, 0]
         energy_gain_svd = S[0]**2
         print("excpected energy gain:", energy_gain_svd)
     else:
@@ -1177,15 +1153,15 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     fig = figure.Figure()
     ax = fig.subplots(1, 3)
     ax[0].set_yscale("log")
-    ax[0].plot(i_s, abs(correct_coeffs), "o")
+    ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
     ax[0].plot(i_s, abs(coeffs), "x")
     ax[1].set_yscale("symlog")
-    ax[1].plot(i_s, (correct_coeffs.real), "o")
+    ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
     ax[1].plot(i_s, (coeffs.real), "x")
     ax[2].set_yscale("symlog")
-    ax[2].plot(i_s, (correct_coeffs.imag), "o")
+    ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
     ax[2].plot(i_s, (coeffs.imag), "x")
-    fig.savefig("plots/coeff_plot.pdf")
+    fig.savefig("plots/coeff_plot2.pdf")
 
     # raise Exception("break")
 
@@ -1332,7 +1308,7 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
     scale_factors=(1.87, 1.0, 0.93)
 
     # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=1)
     def run_case(coeffs_):
 
         start_time = time.time()
@@ -1342,7 +1318,7 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
         U_norm = U * eps_
         # U_norm.update_boundary_conditions()
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain, dt=1e-2)
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1459,8 +1435,7 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     U_.plot_vectors(2)
 
     plot_interval = 5
-    def before_time_step(nse):
-        i = nse.time_step
+    def post_process(nse, i):
         if i % plot_interval == 0:
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
