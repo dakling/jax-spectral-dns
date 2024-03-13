@@ -669,7 +669,7 @@ class LinearStabilityCalculation:
 
             # TODO use calculate_transient_growth_initial_condition_from_coefficients
 
-            combined_ev = (np.array(self.eigenvectors)).T @ factors
+            combined_ev = (np.array(self.eigenvectors[:number_of_modes])).T @ factors
             u = self.velocity_field(domain, None, 1.0, combined_ev)
 
             if save_final:
