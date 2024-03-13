@@ -32,54 +32,54 @@ from field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from equation import Equation
 
 
-@partial(jax.jit, static_argnums=(0,))
+@partial(jax.jit, static_argnums=(0,1))
 # @partial(jax.checkpoint, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
-    domain, vel_hat_new, vel_base_hat, linearize=False
+        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize=False
 ):
     vel_new = jnp.array(
         [
             # domain.no_hat(vel_hat_new.at[i].get())
-            domain.no_hat(vel_hat_new[i,...])
-            for i in domain.all_dimensions()
+            fourier_domain.no_hat(vel_hat_new[i,...])
+            for i in physical_domain.all_dimensions()
         ]
     )
-    vort_new = domain.curl(vel_new)
+    vort_new = physical_domain.curl(vel_new)
 
     vel_new_sq = 0
-    for j in domain.all_dimensions():
+    for j in physical_domain.all_dimensions():
         vel_new_sq += vel_new[j,...] * vel_new[j,...]
     vel_new_sq_nabla = []
-    for i in domain.all_dimensions():
-        vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
+    for i in physical_domain.all_dimensions():
+        vel_new_sq_nabla.append(physical_domain.diff(vel_new_sq, i))
 
     # hel_new_ = domain.cross_product(vel_new, vort_new)
     # conv_ns_new_ = -jnp.array(hel_new_) + 1 / 2 * jnp.array(vel_new_sq_nabla)
-    hel_new_ = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
+    hel_new_ = jnp.array(physical_domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
         vel_new_sq_nabla
     )
 
     # a-term
     vel_base = jnp.array(
         [
-            domain.no_hat(vel_base_hat.at[i].get())
-            for i in jnp.arange(domain.number_of_dimensions)
+            fourier_domain.no_hat(vel_base_hat.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
     vel_new_sq_a = 0
-    for j in domain.all_dimensions():
+    for j in physical_domain.all_dimensions():
         vel_new_sq_a += vel_new[j] * vel_base[j]
     vel_new_sq_nabla_a = []
-    for i in domain.all_dimensions():
-        vel_new_sq_nabla_a.append(domain.diff(vel_new_sq_a, i))
-    hel_new_a = jnp.array(domain.cross_product(vel_base, vort_new)) - 1 / 2 * jnp.array(
+    for i in physical_domain.all_dimensions():
+        vel_new_sq_nabla_a.append(physical_domain.diff(vel_new_sq_a, i))
+    hel_new_a = jnp.array(physical_domain.cross_product(vel_base, vort_new)) - 1 / 2 * jnp.array(
         vel_new_sq_nabla_a
     )
 
     # b-term
-    vort_base = domain.curl(vel_base)
+    vort_base = physical_domain.curl(vel_base)
     vel_new_sq_nabla_b = vel_new_sq_nabla_a
-    hel_new_b = jnp.array(domain.cross_product(vel_new, vort_base)) - 1 / 2 * jnp.array(
+    hel_new_b = jnp.array(physical_domain.cross_product(vel_new, vort_base)) - 1 / 2 * jnp.array(
         vel_new_sq_nabla_b
     )
 
@@ -88,17 +88,17 @@ def update_nonlinear_terms_high_performance_perturbation(
     conv_ns_new = -hel_new
 
     h_v_new = (
-        -domain.diff(domain.diff(hel_new[0], 0) + domain.diff(hel_new[2], 2), 1)
-        + domain.diff(hel_new[1], 0, 2)
-        + domain.diff(hel_new[1], 2, 2)
+        -physical_domain.diff(physical_domain.diff(hel_new[0], 0) + physical_domain.diff(hel_new[2], 2), 1)
+        + physical_domain.diff(hel_new[1], 0, 2)
+        + physical_domain.diff(hel_new[1], 2, 2)
     )
-    h_g_new = domain.diff(hel_new[0], 2) - domain.diff(hel_new[2], 0)
+    h_g_new = physical_domain.diff(hel_new[0], 2) - physical_domain.diff(hel_new[2], 0)
 
-    h_v_hat_new = domain.field_hat(h_v_new)
-    h_g_hat_new = domain.field_hat(h_g_new)
-    vort_hat_new = [domain.field_hat(vort_new[i]) for i in domain.all_dimensions()]
+    h_v_hat_new = physical_domain.field_hat(h_v_new)
+    h_g_hat_new = physical_domain.field_hat(h_g_new)
+    vort_hat_new = [physical_domain.field_hat(vort_new[i]) for i in physical_domain.all_dimensions()]
     conv_ns_hat_new = [
-        domain.field_hat(conv_ns_new[i]) for i in domain.all_dimensions()
+        physical_domain.field_hat(conv_ns_new[i]) for i in physical_domain.all_dimensions()
     ]
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
@@ -158,8 +158,9 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         self.linearize = lin
         velocity_base_hat = self.get_latest_field("velocity_base_hat")
         self.nonlinear_update_fn = (
-            lambda dom, vel: update_nonlinear_terms_high_performance_perturbation(
-                dom,
+            lambda vel: update_nonlinear_terms_high_performance_perturbation(
+                self.get_physical_domain(),
+                self.get_domain(),
                 vel,
                 jnp.array(
                     [

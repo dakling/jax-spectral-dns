@@ -1541,7 +1541,7 @@ class FourierField(Field):
         return out_fourier
 
     def no_hat(self):
-        out = self.physical_domain.no_hat(self.data)
+        out = self.fourier_domain.no_hat(self.data)
         out_field = PhysicalField(
             self.physical_domain, out, name=(self.name).replace("_hat", "")
         )

@@ -375,89 +375,6 @@ class Domain(ABC):
             )
         return field
 
-    def solve_poisson_fourier_field_slice(self, field, mat, k1, k2):
-        """Solve the poisson equation with field as the right-hand side for a
-        one-dimensional slice at the wavenumbers k1 and k2. Use the provided
-        differentiation matrix mat."""
-        if type(k1) == NoneType and type(k2) == NoneType:
-            mat_inv = mat[:, :]
-        else:
-            mat_inv = mat[k1, k2, :, :]
-        rhs_hat = field
-        out_field = mat_inv @ rhs_hat
-        return out_field
-
-    def update_boundary_conditions_fourier_field_slice(
-        self, field, non_periodic_direction
-    ):
-        """Set the boundary conditions for a one-dimensional slice of a field
-        along the non_periodic_direction. This assumes homogeneous dirichlet
-        conditions in all non-periodic directions"""
-        out_field = jnp.take(
-            field,
-            jnp.arange(self.number_of_cells(non_periodic_direction))[1:-1],
-            axis=0,
-        )
-        out_field = jnp.pad(
-            out_field,
-            [(1, 1)],
-            mode="constant",
-            constant_values=0.0,
-        )
-        return out_field
-
-    def no_hat(self, field):
-        """Compute the inverse Fourier transform of field."""
-        scaling_factor = 1.0
-        for i in self.all_periodic_dimensions():
-            scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
-
-        Ns = [
-            int(self.number_of_cells(i) * 1 / self.aliasing)
-            for i in self.all_dimensions()
-        ]
-        ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
-        for i in self.all_periodic_dimensions():
-            field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
-            field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
-            zeros_shape = [
-                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
-                for dim in self.all_dimensions()
-            ]
-            extra_zeros = jnp.zeros(zeros_shape)
-            field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
-
-        out = jnp.fft.ifftn(
-            field,
-            axes=self.all_periodic_dimensions(),
-            norm="ortho",
-        ).real / (1 / scaling_factor)
-        return out
-
-    def field_hat(self, field):
-        """Compute the Fourier transform of field."""
-        scaling_factor = 1.0
-        for i in self.all_periodic_dimensions():
-            scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
-
-        Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
-        ks = [
-            int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
-            for i in self.all_dimensions()
-        ]
-
-        out = (
-            jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho")
-            / scaling_factor
-        )
-
-        for i in self.all_periodic_dimensions():
-            out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
-            out_2 = out.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
-            out = jnp.concatenate([out_1, out_2], axis=i)
-
-        return out
-
     # @partial(jax.jit, static_argnums=(0))
     def curl(self, field):
         """Compute the curl of field."""
@@ -505,6 +422,31 @@ class PhysicalDomain(Domain):
         directions and return the resulting domain."""
 
         return FourierDomain.FromPhysicalDomain(self)
+
+    def field_hat(self, field):
+        """Compute the Fourier transform of field."""
+        scaling_factor = 1.0
+        for i in self.all_periodic_dimensions():
+            scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
+
+        Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
+        ks = [
+            int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
+            for i in self.all_dimensions()
+        ]
+
+        out = (
+            jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho")
+            / scaling_factor
+        )
+
+        for i in self.all_periodic_dimensions():
+            out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
+            out_2 = out.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
+            out = jnp.concatenate([out_1, out_2], axis=i)
+
+        return out
+
 
 
 @dataclasses.dataclass(frozen=True, init=False)
@@ -609,3 +551,64 @@ class FourierDomain(Domain):
         else:
             f_diff = physical_domain.diff(field, direction, order)
         return f_diff
+
+    def solve_poisson_fourier_field_slice(self, field, mat, k1, k2):
+        """Solve the poisson equation with field as the right-hand side for a
+        one-dimensional slice at the wavenumbers k1 and k2. Use the provided
+        differentiation matrix mat."""
+        if type(k1) == NoneType and type(k2) == NoneType:
+            mat_inv = mat[:, :]
+        else:
+            mat_inv = mat[k1, k2, :, :]
+        rhs_hat = field
+        out_field = mat_inv @ rhs_hat
+        return out_field
+
+    def update_boundary_conditions_fourier_field_slice(
+        self, field, non_periodic_direction
+    ):
+        """Set the boundary conditions for a one-dimensional slice of a field
+        along the non_periodic_direction. This assumes homogeneous dirichlet
+        conditions in all non-periodic directions"""
+        out_field = jnp.take(
+            field,
+            jnp.arange(self.number_of_cells(non_periodic_direction))[1:-1],
+            axis=0,
+        )
+        out_field = jnp.pad(
+            out_field,
+            [(1, 1)],
+            mode="constant",
+            constant_values=0.0,
+        )
+        return out_field
+
+    def no_hat(self, field):
+        """Compute the inverse Fourier transform of field."""
+        scaling_factor = 1.0
+        for i in self.all_periodic_dimensions():
+            scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
+
+        Ns = [
+            # int(self.number_of_cells(i) * 1 / self.aliasing)
+            int(self.number_of_cells(i))
+            for i in self.all_dimensions()
+        ]
+        ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
+        for i in self.all_periodic_dimensions():
+            field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
+            field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
+            zeros_shape = [
+                # field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                for dim in self.all_dimensions()
+            ]
+            extra_zeros = jnp.zeros(zeros_shape)
+            field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
+
+        out = jnp.fft.ifftn(
+            field,
+            axes=self.all_periodic_dimensions(),
+            norm="ortho",
+        ).real / (1 / scaling_factor)
+        return out

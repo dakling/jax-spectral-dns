@@ -41,43 +41,43 @@ from fixed_parameters import NavierStokesVelVortFixedParameters
 from linear_stability_calculation import LinearStabilityCalculation
 
 
-def update_nonlinear_terms_high_performance(domain, vel_hat_new):
+def update_nonlinear_terms_high_performance(physical_domain, fourier_domain, vel_hat_new):
     vel_new = jnp.array(
         [
-            domain.no_hat(vel_hat_new.at[i, ...].get())
-            for i in jnp.arange(domain.number_of_dimensions)
+            fourier_domain.no_hat(vel_hat_new.at[i, ...].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
-    vort_new = domain.curl(vel_new)
+    vort_new = physical_domain.curl(vel_new)
 
     vel_new_sq = 0
-    for j in domain.all_dimensions():
+    for j in physical_domain.all_dimensions():
         vel_new_sq += vel_new[j] * vel_new[j]
     vel_new_sq_nabla = []
-    for i in domain.all_dimensions():
-        vel_new_sq_nabla.append(domain.diff(vel_new_sq, i))
+    for i in physical_domain.all_dimensions():
+        vel_new_sq_nabla.append(physical_domain.diff(vel_new_sq, i))
 
-    hel_new = jnp.array(domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
+    hel_new = jnp.array(physical_domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
         vel_new_sq_nabla
     )
 
     conv_ns_new = -hel_new
 
     h_v_new = (
-        -domain.diff(
-            domain.diff(hel_new[0, ...], 0) + domain.diff(hel_new[2, ...], 2), 1
+        -physical_domain.diff(
+            physical_domain.diff(hel_new[0, ...], 0) + physical_domain.diff(hel_new[2, ...], 2), 1
         )
-        + domain.diff(hel_new[1, ...], 0, 2)
-        + domain.diff(hel_new[1, ...], 2, 2)
+        + physical_domain.diff(hel_new[1, ...], 0, 2)
+        + physical_domain.diff(hel_new[1, ...], 2, 2)
     )
 
-    h_g_new = domain.diff(hel_new[0, ...], 2) - domain.diff(hel_new[2, ...], 0)
+    h_g_new = physical_domain.diff(hel_new[0, ...], 2) - physical_domain.diff(hel_new[2, ...], 0)
 
-    h_v_hat_new = domain.field_hat(h_v_new)
-    h_g_hat_new = domain.field_hat(h_g_new)
-    vort_hat_new = [domain.field_hat(vort_new[i, ...]) for i in domain.all_dimensions()]
+    h_v_hat_new = physical_domain.field_hat(h_v_new)
+    h_g_hat_new = physical_domain.field_hat(h_g_new)
+    vort_hat_new = [physical_domain.field_hat(vort_new[i, ...]) for i in physical_domain.all_dimensions()]
     conv_ns_hat_new = [
-        domain.field_hat(conv_ns_new[i, ...]) for i in domain.all_dimensions()
+        physical_domain.field_hat(conv_ns_new[i, ...]) for i in physical_domain.all_dimensions()
     ]
 
     return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
@@ -116,7 +116,7 @@ class NavierStokesVelVort(Equation):
                 Re_tau = params["Re"] / u_max_over_u_tau
             except KeyError:
                 raise Exception("Either Re or Re_tau has to be given as a parameter.")
-        self.nonlinear_update_fn = update_nonlinear_terms_high_performance
+        self.nonlinear_update_fn = lambda vel: update_nonlinear_terms_high_performance(self.get_physical_domain, self.get_fourier_domain, vel)
         # if (
         #     self.get_physical_domain().number_of_cells(0)
         #     * self.get_physical_domain().number_of_cells(2)
@@ -243,7 +243,6 @@ class NavierStokesVelVort(Equation):
             vort_hat,
             conv_ns_hat,
         ) = self.nonlinear_update_fn(
-            self.get_physical_domain(),
             # velocity_field_
             jnp.array(
                 [
@@ -673,7 +672,7 @@ class NavierStokesVelVort(Equation):
                 h_g_hat,
                 vort_hat,
                 conv_ns_hat,
-            ) = self.nonlinear_update_fn(self.get_physical_domain(), vel_hat_data)
+            ) = self.nonlinear_update_fn(vel_hat_data)
 
             if type(h_v_hat_old) == NoneType:
                 h_v_hat_old = h_v_hat
@@ -819,7 +818,6 @@ class NavierStokesVelVort(Equation):
 
             vel_new_hat_field = jnp.array(
                 [
-                    # self.get_physical_domain().update_boundary_conditions(
                     self.get_domain().update_boundary_conditions(
                         vel_new_hat_field[i]
                     )

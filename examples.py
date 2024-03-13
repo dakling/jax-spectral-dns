@@ -1111,7 +1111,6 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     else:
         coeff_array = np.load(file, allow_pickle=True)
         coeffs = coeffs_to_complex_coeffs(jnp.array(coeff_array.tolist()))
-    # coeffs = jnp.array([1.0+3.0j, 6.0+7.0j, 5.0+8.0j])
 
     correct_coeffs = coeffs_to_complex_coeffs(jnp.array([4.34764619e-14,1.32303681e-02,3.92520959e-11,-9.04709746e-05,
                                                          2.15886763e-04,-1.02942018e-02,-1.09454748e-13,7.30117704e-13,
@@ -1139,25 +1138,28 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
                                                          4.51245247e-12,1.92912285e-05,-5.49754581e-14,-1.77457465e-03,
                                                          1.27154635e-11,2.61933727e-06,3.69624291e-14,-1.59204845e-03]))
 
-    i_s = []
-    for i in range(number_of_modes):
-        print(i)
-        i_s.append(i)
-        print("correct:", correct_coeffs[i])
-        print("calc:", coeffs[i])
-        print("quot:", correct_coeffs[i]/coeffs[i])
+    i_s = np.arange(number_of_modes)
+
 
     fig = figure.Figure()
     ax = fig.subplots(1, 3)
+
     ax[0].set_yscale("log")
-    ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
-    ax[0].plot(i_s, abs(coeffs), "x")
     ax[1].set_yscale("symlog")
-    ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
-    ax[1].plot(i_s, (coeffs.real), "x")
     ax[2].set_yscale("symlog")
-    ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
+    if abs(Re - 3000) < 1e-3:
+        rh_93_coeffs = np.genfromtxt(
+            "rh93_coeffs.csv", delimiter=","
+        ).T
+        ax[0].plot(rh_93_coeffs[0], abs(rh_93_coeffs[1]), "o")
+    ax[0].plot(i_s, abs(coeffs), "x")
+    ax[1].plot(i_s, (coeffs.real), "x")
     ax[2].plot(i_s, (coeffs.imag), "x")
+
+    if abs(Re - 600) < 1e-3:
+        ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
+        ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
+        ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
     fig.savefig("plots/coeff_plot.pdf")
 
     # raise Exception("break")
@@ -1193,9 +1195,11 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         gain = vel.energy() / vel_0.energy()
         # return gain
         # print("gain:", gain)
+        print("\n\n")
         jax.debug.print("gain: {}", gain)
         if energy_gain_svd is not None:
             print("expected gain:", energy_gain_svd)
+        print("\n\n")
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     # coeffs_list = [coeffs]
@@ -1236,52 +1240,46 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
     import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(1, 2)
 
     def callback(intermediate_result=None):
         global n_iter
         coeff_array = np.array(intermediate_result.x.tolist())
         coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
+        coeffs_new = coeffs_to_complex_coeffs(coeff_array)
         print(coeff_array)
         n_iter += 1
 
         fig = figure.Figure()
         ax = fig.subplots(1, 3)
         ax[0].set_yscale("log")
-        ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
         ax[0].plot(i_s, abs(coeffs), "x")
-        ax[0].plot(i_s, abs(coeff_array), ".")
+        ax[0].plot(i_s, abs(coeffs_new), ".")
         ax[1].set_yscale("symlog")
-        ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
         ax[1].plot(i_s, (coeffs.real), "x")
-        ax[1].plot(i_s, (coeff_array.real), ".")
+        ax[1].plot(i_s, (coeffs_new.real), ".")
         ax[2].set_yscale("symlog")
-        ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
         ax[2].plot(i_s, (coeffs.imag), "x")
-        ax[2].plot(i_s, (coeff_array.imag), ".")
+        ax[2].plot(i_s, (coeffs_new.imag), ".")
+        if abs(Re - 600) < 1e-3:
+            ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
+            ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
+            ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
+        if abs(Re - 3000) < 1e-3:
+            rh_93_coeffs = np.genfromtxt(
+                "rh93_coeffs.csv", delimiter=","
+            )
+            ax[0].plot(rh_93_coeffs[0], abs(rh_93_coeffs[1]), "o")
         fig.savefig("plots/coeff_plot.pdf")
 
     tol = 1e-8
 
     n = np.arange(len(coeffs))
 
-    ax[0].set_yscale("log")
-    ax[0].plot(n, np.array(coeffs) / coeffs[0], "o")
-    # ax[0].plot(
-    #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
-    # )
-    ax[1].set_ylim([1e-4, 1e4])
-    ax[1].set_yscale("log")
-    ax[1].plot(n, np.array(coeffs) / coeffs[0], "o")
-    # ax[1].plot(
-    #     rh_93_coeffs[0], rh_93_coeffs[1] / rh_93_coeffs[1][0], "x"
-    # )
     print(coeffs)
     print(complex_coeffs_to_coeffs(coeffs))
     print(coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs)))
     print(jnp.linalg.norm(coeffs - coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs))))
     assert jnp.linalg.norm(coeffs - coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs))) < 1e-30
-    fig.savefig("plots/coeffs.pdf")
     res = sciopt.minimize(
         fun=jax.value_and_grad(lambda c: run_case(coeffs_to_complex_coeffs(c))),
         x0=complex_coeffs_to_coeffs(coeffs),
@@ -1570,9 +1568,12 @@ def run_ld_2020(turb=True, Re_tau=180):
     Nx = 48
     Ny = 80
     Nz = 32
+    aliasing = 3/2
+    Nx = int(Nx * ((3/2) / aliasing))
+    Nz = int(Nz * ((3/2) / aliasing))
     # end_time = 0.7 # in ld2020 units
     end_time = 0.02 # in ld2020 units
-    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93), aliasing=aliasing)
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
     def get_vel_field(domain, cheb_coeffs):
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
