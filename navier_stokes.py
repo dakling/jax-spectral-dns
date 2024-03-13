@@ -695,7 +695,6 @@ class NavierStokesVelVort(Equation):
 
             # @partial(jax.jit, static_argnums=(0, 1, 2))
             # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,1,2))
-            # TODO can I include the rk matrices in the map?
             def get_new_vel_field_map(
                 Nx,
                 Ny,
@@ -1121,7 +1120,8 @@ class NavierStokesVelVort(Equation):
         u0 = self.get_latest_field("velocity_hat").get_data()
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
-        number_of_inner_steps = int(np.sqrt(number_of_time_steps))
+        # number_of_inner_steps = int(np.sqrt(number_of_time_steps))
+        number_of_inner_steps = 1
         number_of_outer_steps = number_of_time_steps // number_of_inner_steps
         if self.write_intermediate_output:
             u_final, trajectory = jax.lax.scan(

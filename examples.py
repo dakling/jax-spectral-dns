@@ -1151,7 +1151,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         rh_93_coeffs = np.genfromtxt(
             "rh93_coeffs.csv", delimiter=","
         ).T
-        ax[0].plot(rh_93_coeffs[0], abs(rh_93_coeffs[1]), "o")
+        ax[0].plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "o")
     ax[0].plot(i_s, abs(coeffs), "x")
     ax[1].plot(i_s, (coeffs.real), "x")
     ax[2].plot(i_s, (coeffs.imag), "x")
@@ -1252,23 +1252,23 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         fig = figure.Figure()
         ax = fig.subplots(1, 3)
         ax[0].set_yscale("log")
+        ax[1].set_yscale("symlog")
+        ax[2].set_yscale("symlog")
+        if abs(Re - 3000) < 1e-3:
+            rh_93_coeffs = np.genfromtxt(
+                "rh93_coeffs.csv", delimiter=","
+            ).T
+            ax[0].plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "o")
         ax[0].plot(i_s, abs(coeffs), "x")
         ax[0].plot(i_s, abs(coeffs_new), ".")
-        ax[1].set_yscale("symlog")
         ax[1].plot(i_s, (coeffs.real), "x")
         ax[1].plot(i_s, (coeffs_new.real), ".")
-        ax[2].set_yscale("symlog")
         ax[2].plot(i_s, (coeffs.imag), "x")
         ax[2].plot(i_s, (coeffs_new.imag), ".")
         if abs(Re - 600) < 1e-3:
             ax[0].plot(i_s[:50], abs(correct_coeffs), "o")
             ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
             ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
-        if abs(Re - 3000) < 1e-3:
-            rh_93_coeffs = np.genfromtxt(
-                "rh93_coeffs.csv", delimiter=","
-            )
-            ax[0].plot(rh_93_coeffs[0], abs(rh_93_coeffs[1]), "o")
         fig.savefig("plots/coeff_plot.pdf")
 
     tol = 1e-8
@@ -1569,6 +1569,7 @@ def run_ld_2020(turb=True, Re_tau=180):
     Ny = 80
     Nz = 32
     aliasing = 3/2
+    # aliasing = 1
     Nx = int(Nx * ((3/2) / aliasing))
     Nz = int(Nz * ((3/2) / aliasing))
     # end_time = 0.7 # in ld2020 units
@@ -1581,7 +1582,8 @@ def run_ld_2020(turb=True, Re_tau=180):
             for j in range(len(cheb_coeffs)):
                 U_mat[i, j] = cheb(j, 0, domain.grid[1][i])
         U_y_slice = U_mat @ cheb_coeffs
-        u_data = np.moveaxis(np.tile(np.tile(U_y_slice, reps=(Nz, 1)), reps=(Nx, 1, 1)), 1, 2)
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2)
         vel_base = VectorField([PhysicalField(domain, jnp.asarray(u_data)),
                                 PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
                                 PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
@@ -1615,7 +1617,7 @@ def run_ld_2020(turb=True, Re_tau=180):
     energy_0 = 1e-6
 
     def run_case(vel_data):
-        domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
+        domain_ = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93), aliasing=aliasing)
         vel_hat = VectorField([FourierField(domain_, vel_data[0]),
                                FourierField(domain_, vel_data[1]),
                                FourierField(domain_, vel_data[2])])
@@ -1641,15 +1643,15 @@ def run_ld_2020(turb=True, Re_tau=180):
         return gain, nse
 
     v0s = [vel_hat.get_data()]
-    gain, nse = run_case(v0s[-1])
-    nse.initialize()
-    print("gain:", gain)
-    for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
-        vel = vel_hat.no_hat()
-        vel.set_name("velocity")
-        vel.set_time_step(i)
-        vel.plot_3d(2)
-    raise Exception("done")
+    # gain, nse = run_case(v0s[-1])
+    # nse.initialize()
+    # print("gain:", gain)
+    # for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
+    #     vel = vel_hat.no_hat()
+    #     vel.set_name("velocity")
+    #     vel.set_time_step(i)
+    #     vel.plot_3d(2)
+    # raise Exception("done")
     step_size = 1e-2
     for i in jnp.arange(100):
         start_time = time.time()

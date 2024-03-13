@@ -133,24 +133,6 @@ class Field(ABC):
             ]
         )
 
-    def update_boundary_conditions(self):
-        """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
-        for dim in self.all_nonperiodic_dimensions():
-            self.data = jnp.take(
-                self.data,
-                jnp.arange(self.physical_domain.number_of_cells(dim))[1:-1],
-                axis=dim,
-            )
-            self.data = jnp.pad(
-                self.data,
-                [
-                    (0, 0) if self.physical_domain.periodic_directions[d] else (1, 1)
-                    for d in self.all_dimensions()
-                ],
-                mode="constant",
-                constant_values=0.0,
-            )
-
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
         return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
 
@@ -781,6 +763,24 @@ class PhysicalField(Field):
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return energy.volume_integral() / domain_volume
+
+    def update_boundary_conditions(self):
+        """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
+        for dim in self.all_nonperiodic_dimensions():
+            self.data = jnp.take(
+                self.data,
+                jnp.arange(self.physical_domain.number_of_cells(dim))[1:-1],
+                axis=dim,
+            )
+            self.data = jnp.pad(
+                self.data,
+                [
+                    (0, 0) if self.physical_domain.periodic_directions[d] else (1, 1)
+                    for d in self.all_dimensions()
+                ],
+                mode="constant",
+                constant_values=0.0,
+            )
 
     def eval(self, X):
         """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""

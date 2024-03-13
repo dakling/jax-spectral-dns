@@ -194,9 +194,13 @@ class Equation:
             start_time = time.time()
             _, number_of_time_steps = self.solve_scan()
             print(
-                "Took on average "
+                "Took "
+                + str((time.time() - start_time))
+                + " seconds for "
+                + str(number_of_time_steps)
+                + " time steps, or "
                 + str((time.time() - start_time) / number_of_time_steps)
-                + " seconds per time step"
+                + "seconds per time step."
             )
             self.deactivate_jit()
 
