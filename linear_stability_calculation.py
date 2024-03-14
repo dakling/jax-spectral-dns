@@ -293,7 +293,7 @@ class LinearStabilityCalculation:
         ys = domain.grid[1]
 
         def to_3d_field(eigenvector, component=0):
-            phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.complex64)
+            phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
             for i in range(N_domain):
                 for k in range(self.n):
                     if self.symm:
@@ -437,21 +437,11 @@ class LinearStabilityCalculation:
             f_s = lambda y: phi_s(p, 0, y) * phi_s(q, 0, y)
             f_a = lambda y: phi_a(p, 0, y) * phi_a(q, 0, y)
             if self.symm:
-                # out_s, _ = fixed_quad(f_s, -1, 1, n=2)
-                # out_a, _ = fixed_quad(f_a, -1, 1, n=2)
-                # out_s, _ = quad(f_s, -1, 1, limit=100)
-                # out_a, _ = quad(f_a, -1, 1, limit=100)
-                xs = self.ys
-                fs_s = list(map(f_s, xs))
-                fa_s = list(map(f_a, xs))
-                out_s = simpson(fs_s, x=xs)
-                out_a = simpson(fa_s, x=xs)
+                out_s, _ = quad(f_s, -1, 1, limit=100)
+                out_a, _ = quad(f_a, -1, 1, limit=100)
                 return (out_s, out_a)
             else:
-                # out_quad, _ = quad(f, -1, 1, limit=100)
-                xs = self.ys
-                fs = np.fromiter(map(f, xs), dtype=np.float64)
-                out = -simpson(fs, x=xs)
+                out, _ = quad(f, -1, 1, limit=100)
                 return out
 
         integ = np.zeros([n, n])
@@ -510,7 +500,8 @@ class LinearStabilityCalculation:
             Z = np.zeros(integ.shape)
             M = np.block([[integ, Z, Z, Z], [Z, integ, Z, Z], [Z, Z, integ, Z], [Z, Z, Z, Z], ])
             return np.conjugate(ev_1.T) @ M @ ev_2
-        coeffs = V[:, 0]
+        # coeffs = V[:, 0]
+        coeffs = np.linalg.inv(F) @ V[:, 0]
         # print("energy_norm")
         # print(energy_norm(coeffs, coeffs))
         # print(energy_norm(U[:, 0], U[:, 0]))

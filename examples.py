@@ -1241,7 +1241,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
             ax2.set_yscale("log")
             ax2.plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "k.", label="rh93")
 
-            cut_off = 1e-3
+            cut_off = min(rh_93_coeffs[1])
             coeffs_orig_filtered = coeffs_orig[abs(coeffs_orig) >= cut_off]
             coeffs_new_filtered = coeffs_new[abs(coeffs_new) >= cut_off]
             i_s_1 = np.arange(len(coeffs_orig_filtered))
