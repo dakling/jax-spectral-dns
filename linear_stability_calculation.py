@@ -323,23 +323,8 @@ class LinearStabilityCalculation:
                 )
             ).real
 
-            # if abs(self.beta) < 1e-25:
-                # print("testing against old implementation")
-                # out_legacy = (factor * jnp.outer(
-                #             jnp.exp(
-                #                 # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
-                #                 1j
-                #                 * (self.alpha * domain.grid[0])
-                #             ),
-                #             phi_mat @ eigenvector,
-                #         )
-                # ).real
-                # out_legacy = jnp.tile(out_legacy, (len(domain.grid[2]), 1, 1))
-                # out_legacy = jnp.moveaxis(out_legacy, 0, -1)
-                # assert (out == out_legacy).all()
             return out
 
-        print("calculating velocity perturbations in 3D")
         u_field = PhysicalField(
             domain, to_3d_field(u_vec, component=0), name="velocity_pert_x"
         )
@@ -349,7 +334,6 @@ class LinearStabilityCalculation:
         w_field = PhysicalField(
             domain, to_3d_field(w_vec, component=2), name="velocity_pert_z"
         )
-        print("done calculating velocity perturbations in 3D")
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return self.velocity_field_
@@ -486,44 +470,14 @@ class LinearStabilityCalculation:
         mat_h = np.conjugate(mat.T)
         evs_, evecs_ = eig(mat_h @ mat)
         evs_abs = np.array(list(map( lambda x: abs(x), evs_ )))
-        # print(max(evs_abs))
-        # print(np.argmax(evs_abs))
-        # print(evecs_[:, np.argmax(evs_abs)])
         U, S, Vh = svd(mat, compute_uv=True)
         V = Vh.conj().T
-        V[:, 0] = evecs_[:, np.argmax(evs_abs)]
-        # print("difference:")
-        # print(jnp.linalg.norm(V[:, 0] - evecs_[:, np.argmax(evs_abs)]))
-        def energy_norm(ev_1, ev_2):
-            ev_1 = np.atleast_2d(ev_1).T
-            ev_2 = np.atleast_2d(ev_2).T
-            Z = np.zeros(integ.shape)
-            M = np.block([[integ, Z, Z, Z], [Z, integ, Z, Z], [Z, Z, integ, Z], [Z, Z, Z, Z], ])
-            return np.conjugate(ev_1.T) @ M @ ev_2
-        # coeffs = V[:, 0]
+        # V[:, 0] = evecs_[:, np.argmax(evs_abs)]
         coeffs = np.linalg.inv(F) @ V[:, 0]
-        # print("energy_norm")
-        # print(energy_norm(coeffs, coeffs))
-        # print(energy_norm(U[:, 0], U[:, 0]))
-        # for i, _ in enumerate(coeffs):
-        #     coeffs[i] /= np.sqrt(energy_norm(evecs[i], evecs[i]))
-        # print("energy_norm after")
-        # print(energy_norm(coeffs, coeffs))
-        # print(energy_norm(evecs[0], evecs[0]))
-        # print(energy_norm(evecs[0], evecs[1]))
-        # print(energy_norm(evecs[1], evecs[1]))
-        # raise Exception("break")
-        # V = Vh
-        # V = np.conjugate(Vh.T)
-        # V = np.conjugate(Vh)
-        # V = Vh
         if save:
             self.S = S
             self.U = U
             self.V = V
-
-        print("expected growth")
-        print(S[0]**2)
 
         return (S, coeffs)
 

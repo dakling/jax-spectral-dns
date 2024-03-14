@@ -738,10 +738,8 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 
-def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
+def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
 
-    # print("CPU?", jax.devices()[0].platform == "cpu")
-    # print("GPU?", jax.devices()[0].platform == "gpu")
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
     T = float(T)
@@ -750,12 +748,11 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
     eps = 1e-5
 
-
-    Nx = 10
-    Ny = 90
-    Nz = 6
+    Nx = 8
+    Ny = 64
+    Nz = 4
     end_time = 1.01 * T
-    number_of_modes = 80
+    number_of_modes = 60
 
     nse = solve_navier_stokes_perturbation(
         Re=Re,
@@ -766,7 +763,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
         dt=1e-2,
-        aliasing=1.0
+        aliasing=3/2
     )
     nse.initialize()
 
@@ -783,30 +780,24 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         save_final=True,
     )
 
-    # U.plot_streamlines(2)
-    # U[0].plot_3d(2)
-    # U[1].plot_3d(2)
-
     U_hat = U.hat()
     eps_ = eps / jnp.sqrt(U.energy())
-    print("U energy norm: ", jnp.sqrt(U.energy()))
-    # print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
 
     nse.init_velocity(U_hat * eps_)
 
     e_max = lsc.calculate_transient_growth_max_energy(
         nse.get_physical_domain(), T, number_of_modes
     )
-    print("expecting max growth of ", e_max)
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
     vel_pert_0 = vel_pert[1]
     vel_pert_0.name = "veloctity_y_0"
     ts = []
     energy_t = []
-    rh_93_data = np.genfromtxt(
-        "rh93_transient_growth.csv", delimiter=","
-    ).T  # TODO get rid of this at some point
+    if plot and abs(Re - 3000) < 1e-3:
+        rh_93_data = np.genfromtxt(
+            "rh93_transient_growth.csv", delimiter=","
+        ).T  # TODO get rid of this at some point
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
@@ -814,24 +805,17 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         vel = vel_hat.no_hat()
         time = (i / (n_steps - 1)) * end_time
 
-        vel.plot_streamlines(2)
-        # vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vel.plot_3d(2)
-        vel[0].plot_center(0)
-        vel[0].plot_center(1)
+        if plot:
+            vel.plot_streamlines(2)
+            # vort = vel.curl()
+            vel.set_time_step(i)
+            vel.set_name("velocity")
+            vel.plot_3d(2)
+            vel[0].plot_center(0)
+            vel[0].plot_center(1)
         vel_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_energy)
-        # energy_x_t.append(vel_pert[0].energy() / energy_0)
-        # energy_y_t.append(vel_pert[1].energy() / energy_0)
-        # energy_t_norm.append(vel_pert_energy_norm / energy_0_norm)
-        # energy_max.append(lsc.calculate_transient_growth_max_energy(nse.get_physical_domain(), nse.time, number_of_modes))
-
-
-        # for i in range(3):
-        #     vel[i].save_to_file(str(nse.time_step))
 
     # nse.before_time_step_fn = lambda nse: post_process(nse, nse.time_step)
     nse.before_time_step_fn = None
@@ -839,39 +823,31 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
     nse.post_process_fn = post_process
 
     nse.activate_jit()
-    nse.write_intermediate_output = True
+    nse.write_intermediate_output = plot
     nse.solve()
     nse.deactivate_jit()
     nse.post_process()
 
     energy_t = np.array(energy_t)
-    fig = figure.Figure()
-    ax = fig.subplots(1, 1)
-    ax.plot(ts, energy_t/energy_t[0], ".", label="growth (DNS)")
-    ax.plot(
-        rh_93_data[0],
-        rh_93_data[1],
-        "--",
-        label="growth (Reddy/Henningson 1993)",
-    )
-    # ax.set_xlim([0, end_time * 1.2])
-    # ax.set_ylim([0, e_max * 1.2])
-    fig.legend()
-    fig.savefig("plots/energy_t.pdf")
+    if plot:
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ax.plot(ts, energy_t/energy_t[0], ".", label="growth (DNS)")
+        if abs(Re - 3000) < 1e-3:
+            ax.plot(
+                rh_93_data[0],
+                rh_93_data[1],
+                "--",
+                label="growth (Reddy/Henningson 1993)",
+            )
+        fig.legend()
+        fig.savefig("plots/energy_t.pdf")
 
-    # fig_x = figure.Figure()
-    # ax_x = fig_x.subplots(1, 1)
-    # ax_x.plot(ts, energy_x_t, ".", label="growth")
-    # fig_x.legend()
-    # fig_x.savefig("plots/energy_x_t.pdf")
-
-    # fig_y = figure.Figure()
-    # ax_y = fig_y.subplots(1, 1)
-    # ax_y.plot(ts, energy_y_t, ".", label="growth")
-    # fig_y.legend()
-    # fig_y.savefig("plots/energy_y_t.pdf")
-    print("final energy gain:", energy_t[-1]/energy_t[0])
+    gain = energy_t[-1]/energy_t[0]
+    print("final energy gain:", gain)
     print("expected final energy gain:", e_max)
+
+    return (gain, e_max)
 
 
 def run_optimization_pseudo_2d_perturbation():
@@ -1083,10 +1059,10 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
 
     Equation.initialize()
     Nx = 8
-    Ny = 80
+    Ny = 50
     Nz = 4
     end_time = T
-    number_of_modes = 120
+    number_of_modes = 80
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3/2
 

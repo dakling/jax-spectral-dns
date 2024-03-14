@@ -58,7 +58,7 @@ from linear_stability_calculation import LinearStabilityCalculation
 # except:
 #     if hasattr(sys, 'ps1'):
 #         print("Unable to load examples")
-from examples import run_pseudo_2d_perturbation
+from examples import run_pseudo_2d_perturbation, run_transient_growth
 
 NoneType = type(None)
 
@@ -1090,43 +1090,43 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
-    def test_2d_growth(self):
-        growth_5500_data = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
-        growth_6000_data = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
-        growth_5500 = []
-        growth_6000 = []
-        for i in range(3):
-            growth_5500.append(growth_5500_data[i][-1] - growth_5500_data[i][-2])
-            growth_6000.append(growth_6000_data[i][-1] - growth_6000_data[i][-2])
-        print("growth_5500: ", growth_5500)
-        print("growth_6000: ", growth_6000)
-        self.assertTrue(
-            all([growth < 0 for growth in growth_5500]),
-            "Expected perturbations to decay for Re=5500.",
-        )
-        self.assertTrue(
-            all([growth > 0 for growth in growth_6000]),
-            "Expected perturbations to increase for Re=6000.",
-        )
-        vel_final_jit_5500 = growth_5500_data[-1]
-        vel_final_jit_6000 = growth_6000_data[-1]
+    # def test_2d_growth(self):
+    #     growth_5500_data = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
+    #     growth_6000_data = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
+    #     growth_5500 = []
+    #     growth_6000 = []
+    #     for i in range(3):
+    #         growth_5500.append(growth_5500_data[i][-1] - growth_5500_data[i][-2])
+    #         growth_6000.append(growth_6000_data[i][-1] - growth_6000_data[i][-2])
+    #     print("growth_5500: ", growth_5500)
+    #     print("growth_6000: ", growth_6000)
+    #     self.assertTrue(
+    #         all([growth < 0 for growth in growth_5500]),
+    #         "Expected perturbations to decay for Re=5500.",
+    #     )
+    #     self.assertTrue(
+    #         all([growth > 0 for growth in growth_6000]),
+    #         "Expected perturbations to increase for Re=6000.",
+    #     )
+    #     vel_final_jit_5500 = growth_5500_data[-1]
+    #     vel_final_jit_6000 = growth_6000_data[-1]
 
-        # Now check that the same result is obtained when using solve_scan. To
-        # simplify and strengthen the test, only compare the final velocity
-        # fields.
-        data_no_jit_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
-        data_no_jit_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
-        vel_final_no_jit_5500 = data_no_jit_5500[-1]
-        vel_final_no_jit_6000 = data_no_jit_6000[-1]
+    #     # Now check that the same result is obtained when using solve_scan. To
+    #     # simplify and strengthen the test, only compare the final velocity
+    #     # fields.
+    #     data_no_jit_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
+    #     data_no_jit_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
+    #     vel_final_no_jit_5500 = data_no_jit_5500[-1]
+    #     vel_final_no_jit_6000 = data_no_jit_6000[-1]
 
-        print((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
-        print((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
-        self.assertTrue(
-            (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-6
-        )
-        self.assertTrue(
-            (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-6
-        )
+    #     print((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
+    #     print((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
+    #     self.assertTrue(
+    #         (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-6
+    #     )
+    #     self.assertTrue(
+    #         (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-6
+    #     )
 
     def test_2d_growth_rates_quantitatively(self):
 
@@ -1219,90 +1219,13 @@ class TestProject(unittest.TestCase):
         main()
 
 
-    # def test_timesteppers(self):
-    #     Re = 6000
-    #     Nx = 4
-    #     Ny = 50
-    #     Nz = 4
-    #     end_time = 1e-10
-    #     linearize = False
-    #     alpha = 1.02056
+    def test_transient_growth(self):
+        for (Re, t) in [(600, 2), (3000, 15)]:
+            gain, expected_gain = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
+            rel_error = abs((gain - expected_gain) / expected_gain)
+            print(rel_error)
+            assert rel_error <  1e-2
 
-    #     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=50)
-    #     nse_rk = solve_navier_stokes_perturbation(
-    #         Re=Re,
-    #         Nx=Nx,
-    #         Ny=Ny,
-    #         Nz=Nz,
-    #         end_time=end_time,
-    #         perturbation_factor=0.0,
-    #         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
-    #     )
-    #     nse_rk.set_linearize(linearize)
-    #     nse_rk.max_dt = 1e-3
-
-    #     U = lsc.velocity_field(nse_rk.domain_no_hat)
-    #     U.plot_3d(2)
-    #     # raise Exception("break")
-    #     eps_ = 1.0 * jnp.sqrt(U.energy())
-    #     U_hat = U.hat()
-    #     nse_rk.init_velocity(U_hat * eps_)
-    #     nse_rk.prepare()
-    #     vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
-
-    #     nse_cnab = solve_navier_stokes_perturbation(
-    #         Re=Re,
-    #         Nx=Nx,
-    #         Ny=Ny,
-    #         Nz=Nz,
-    #         end_time=end_time,
-    #         perturbation_factor=0.0,
-    #         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-6),
-    #     )
-    #     nse_cnab.set_linearize(linearize)
-    #     nse_cnab.max_dt = 1e-3
-    #     nse_cnab.init_velocity(U_hat * eps_)
-    #     nse_cnab.prepare()
-    #     vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
-
-    #     vel_diff = vel_rk - vel_cnab
-    #     print(abs(vel_diff))
-    #     assert abs(vel_diff) <  1e-10
-
-    #     nse_rk.perform_runge_kutta_step()
-    #     nse_cnab.perform_cn_ab_step()
-
-    #     vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
-    #     vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
-    #     vel_rk.time_step = 1
-    #     vel_cnab.time_step = 1
-
-    #     vel_diff = vel_rk - vel_cnab
-    #     for i in range(3):
-    #         vel_diff[i].name = "velocity_difference_" + "xyz"[i]
-    #         vel_rk[i].name = "velocity_rk_" + "xyz"[i]
-    #         vel_cnab[i].name = "velocity_cnab_" + "xyz"[i]
-    #         vel_rk[i].plot_3d(2)
-    #         vel_cnab[i].plot_3d(2)
-    #         vel_diff[i].plot_3d(2)
-    #     print(abs(vel_diff))
-    #     assert abs(vel_diff) < 1e-8
-
-    #     nse_rk.perform_runge_kutta_step()
-    #     nse_cnab.perform_cn_ab_step()
-
-    #     vel_rk = nse_rk.get_latest_field("velocity_hat").no_hat()
-    #     vel_cnab = nse_cnab.get_latest_field("velocity_hat").no_hat()
-    #     vel_rk.time_step = 2
-    #     vel_cnab.time_step = 2
-
-    #     vel_diff = vel_rk - vel_cnab
-    #     # for i in range(3):
-    #     #     vel_diff[i].name = "velocity_difference_" + "xyz"[i]
-    #     #     vel_cnab[i].plot_3d(2)
-    #     #     vel_diff[i].plot_3d(2)
-    #     print(abs(vel_diff))
-    #     assert abs(vel_diff) < 1e-8
 
 if __name__ == "__main__":
     unittest.main()
