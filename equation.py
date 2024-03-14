@@ -16,10 +16,23 @@ from fixed_parameters import FixedParameters
 
 NoneType = type(None)
 
+def print_verb(*str, verbosity_level:int=1, debug:bool=False):
+    if Equation.verbosity_level >= verbosity_level:
+        if debug:
+            jax.debug.print("{x}", x=' '.join(str))
+        else:
+            print(*str)
 
 class Equation:
     name = "equation"
     write_intermediate_output = False
+
+    # verbosity_level:
+    # 0: no output
+    # 1: mostly output from examples.py informing the user about what is being done
+    # 2: additional helpful output from the solver
+    # 3: even more additional output from the solver that is usually nonessential
+    verbosity_level:int = 1
 
     def __init__(self, domain, *fields, **params):
         try:
@@ -190,17 +203,19 @@ class Equation:
                   "calculation finishes. To disable "\
                   "high-performance mode, use the deactivate_jit()-method of the "\
                   "Equation class."
-            print(msg)
+
+            print_verb(msg, verbosity_level=2)
             start_time = time.time()
             _, number_of_time_steps = self.solve_scan()
-            print(
+            print_verb(
                 "Took "
                 + str((time.time() - start_time))
                 + " seconds for "
                 + str(number_of_time_steps)
                 + " time steps, or "
                 + str((time.time() - start_time) / number_of_time_steps)
-                + " seconds per time step."
+                + " seconds per time step.",
+                verbosity_level=1
             )
             self.deactivate_jit()
 

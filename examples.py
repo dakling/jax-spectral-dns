@@ -16,50 +16,12 @@ from functools import partial
 import typing
 import time
 
-# from importlib import reload
-import sys
-
 from cheb import cheb
-# try:
-#     reload(sys.modules["domain"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load Domain")
 from domain import PhysicalDomain
-
-# try:
-#     reload(sys.modules["field"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load Field")
 from field import FourierField, PhysicalField, FourierFieldSlice, VectorField
-
-# try:
-#     reload(sys.modules["equation"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load Equation")
-from equation import Equation
-
-# try:
-#     reload(sys.modules["navier_stokes"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load Navier Stokes")
+from equation import Equation, print_verb
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
-
-# try:
-#     reload(sys.modules["navier_stokes_perturbation"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load navier-stokes-perturbation")
 from navier_stokes_perturbation import NavierStokesVelVortPerturbation, solve_navier_stokes_perturbation
-
-# try:
-#     reload(sys.modules["linear_stability_calculation"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
 
 NoneType = type(None)
@@ -101,8 +63,8 @@ def run_optimization():
         corr_field = PhysicalField(nse.get_physical_domain()
 , corr, name="correction")
         corr_field.update_boundary_conditions()
-        print("gain: " + str(gain))
-        print("corr (abs): " + str(abs(corr_field)))
+        print_verb("gain: " + str(gain))
+        print_verb("corr (abs): " + str(abs(corr_field)))
         v0s.append(v0s[-1] + eps * corr_field.data)
         v0_new = PhysicalField(nse.get_physical_domain()
 , v0s[-1])
@@ -261,7 +223,7 @@ def run_pseudo_2d():
         nse.get_physical_domain()
 
     )[0](t, 1)
-    print("eigenvalue: ", ev)
+    print_verb("eigenvalue: ", ev)
     plot_interval = 10
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
@@ -281,7 +243,7 @@ def run_pseudo_2d():
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             vel_x_max = vel[0].max()
-            print("vel_x_max: ", vel_x_max)
+            print_verb("vel_x_max: ", vel_x_max)
             vel_x_fn_ana = (
                 lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             )
@@ -327,36 +289,36 @@ def run_pseudo_2d():
                 # vel_pert[j].plot_center(0)
                 # vel_pert[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
-            print(
+            print_verb(
                 "analytical velocity perturbation energy: ",
                 energy_over_time_fn(nse.time),
             )
-            print("velocity perturbation energy: ", vel_pert_energy)
-            print("velocity perturbation energy x: ", vel_pert[0].energy())
-            print(
+            print_verb("velocity perturbation energy: ", vel_pert_energy)
+            print_verb("velocity perturbation energy x: ", vel_pert[0].energy())
+            print_verb(
                 "analytical velocity perturbation energy x: ",
                 energy_x_over_time_fn(nse.time),
             )
-            print("velocity perturbation energy y: ", vel_pert[1].energy())
-            print(
+            print_verb("velocity perturbation energy y: ", vel_pert[1].energy())
+            print_verb(
                 "analytical velocity perturbation energy y: ",
                 energy_y_over_time_fn(nse.time),
             )
-            print("velocity perturbation energy z: ", vel_pert[1].energy())
+            print_verb("velocity perturbation energy z: ", vel_pert[1].energy())
             # vel_pert_energy_old = vel_pert_old.energy()
-            # print(
+            # print_verb(
             #     "velocity perturbation energy change: ",
             #     vel_pert_energy - vel_pert_energy_old,
             # )
-            # print(
+            # print_verb(
             #     "velocity perturbation energy x change: ",
             #     vel_pert[0].energy() - vel_pert_old[0].energy(),
             # )
-            # print(
+            # print_verb(
             #     "velocity perturbation energy y change: ",
             #     vel_pert[1].energy() - vel_pert_old[1].energy(),
             # )
-            # print(
+            # print_verb(
             #     "velocity perturbation energy z change: ",
             #     vel_pert[2].energy() - vel_pert_old[2].energy(),
             # )
@@ -468,8 +430,8 @@ def run_dummy_velocity_field():
             for j in range(3):
                 vel_pert_energy += vel_pert[j].energy()
                 vel_pert_abs += abs(vel_pert[j])
-            print("velocity perturbation energy: ", vel_pert_energy)
-            print("velocity perturbation abs: ", vel_pert_abs)
+            print_verb("velocity perturbation energy: ", vel_pert_energy)
+            print_verb("velocity perturbation abs: ", vel_pert_abs)
 
     nse.after_time_step_fn = after_time_step
     # nse.after_time_step_fn = None
@@ -542,7 +504,7 @@ def run_pseudo_2d_perturbation(
     else:
         # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField([PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)])
-        print(U[0].energy())
+        print_verb(U[0].energy())
 
 
     if rotated:
@@ -847,8 +809,8 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
         fig.savefig("plots/energy_t.pdf")
 
     gain = energy_t[-1]/energy_t[0]
-    print("final energy gain:", gain)
-    print("expected final energy gain:", e_max)
+    print_verb("final energy gain:", gain)
+    print_verb("expected final energy gain:", e_max)
 
     return (gain, e_max, ts, energy_t)
 
@@ -875,7 +837,7 @@ def run_transient_growth_time_study():
     energy_t_list = []
     T_list = np.arange(5, 41, 5)
     for T in np.flip(T_list):
-        print("running transient growth calculation for time horizon of " + str(T) + " time units")
+        print_verb("running transient growth calculation for time horizon of " + str(T) + " time units")
         _, _, ts, energy_t = run_transient_growth(Re, T, 1, 0, True)
 
         ts_list.append(ts)
@@ -971,17 +933,17 @@ def run_optimization_pseudo_2d_perturbation():
         # corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
         # corr_field.plot_3d(2)
         # corr_field.update_boundary_conditions()
-        print("gain: " + str(gain))
-        # print("corr (abs): " + str(abs(corr_field)))
+        print_verb("gain: " + str(gain))
+        # print_verb("corr (abs): " + str(abs(corr_field)))
         sq_grad_sums += corr_arr**2.0
         # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
         # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
         eps = step_size
 
-        # print("eps")
-        # print(eps)
-        # print("sq_grad_sums")
-        # print(sq_grad_sums)
+        # print_verb("eps")
+        # print_verb(eps)
+        # print_verb("sq_grad_sums")
+        # print_verb(sq_grad_sums)
         v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
         v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
         v0_new.set_name("vel_0_" + str(i))
@@ -1058,17 +1020,17 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     for i in range(number_of_steps):
         negative_gain, corr = jax.value_and_grad(run_case)(v0)
         gain = - negative_gain
-        print("\n\n")
-        print("gain: " + str(gain))
+        print_verb("\n\n")
+        print_verb("gain: " + str(gain))
         if old_gain:
-            print("gain change: " + str(gain - old_gain))
-        print("\n\n")
+            print_verb("gain change: " + str(gain - old_gain))
+        print_verb("\n\n")
         old_gain = gain
 
         updates, opt_state = solver.update(corr, opt_state, v0)
         v0 = optax.apply_updates(v0, updates)
-        print("v0 magnitudes:", jnp.linalg.norm(v0))
-        print("gradient magnitudes:", jnp.linalg.norm(corr))
+        print_verb("v0 magnitudes:", jnp.linalg.norm(v0))
+        print_verb("gradient magnitudes:", jnp.linalg.norm(corr))
         v0_new = VectorField([FourierField(domain, v0[j]) for j in range(3)]).no_hat()
         v0_new.set_name("vel_0_" + str(i))
         v0_new.plot_3d(2)
@@ -1122,7 +1084,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     #     gain, corr = jax.value_and_grad(run_case)(v0s[-1])
     #     corr_arr = jnp.array(corr)
     #     corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
-    #     print("gain: " + str(gain))
+    #     print_verb("gain: " + str(gain))
     #     eps = step_size
 
     #     # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
@@ -1162,7 +1124,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
 
     S, coeffs_orig = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
     energy_gain_svd = S[0]**2
-    print("excpected energy gain:", energy_gain_svd)
+    print_verb("excpected energy gain:", energy_gain_svd)
     if file is not None:
         coeff_array = np.load(file, allow_pickle=True)
         coeffs = coeffs_to_complex_coeffs(jnp.array(coeff_array.tolist()))
@@ -1218,7 +1180,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         nse.activate_jit()
-        print("preparation took", time.time() - start_time, "seconds")
+        print_verb("preparation took", time.time() - start_time, "seconds")
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
@@ -1227,30 +1189,30 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
 
         gain = vel.energy() / vel_0.energy()
         # return gain
-        # print("gain:", gain)
-        print("\n\n")
-        jax.debug.print("gain: {}", gain)
+        # print_verb("gain:", gain)
+        print_verb("\n\n")
+        print_verb("gain:", gain, debug=True)
         if energy_gain_svd is not None:
-            print("expected gain:", energy_gain_svd)
-        print("\n\n")
+            print_verb("expected gain:", energy_gain_svd)
+        print_verb("\n\n")
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     # coeffs_list = [coeffs]
     # step_size = 5e-1
-    # print(coeffs_list[-1])
+    # print_verb(coeffs_list[-1])
     # number_of_steps = 1000
     # for i in range(number_of_steps):
     #     start_time = time.time()
     #     gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
     #     corr_arr = jnp.array(corr)
-    #     print("gain: " + str(-gain))
+    #     print_verb("gain: " + str(-gain))
     #     if energy_gain_svd is not None:
-    #         print("expected gain:", energy_gain_svd)
-    #     print("whole iteration took", time.time() - start_time, "seconds")
+    #         print_verb("expected gain:", energy_gain_svd)
+    #     print_verb("whole iteration took", time.time() - start_time, "seconds")
     #     eps = step_size
 
     #     coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
-    #     print(coeffs_list[-1])
+    #     print_verb(coeffs_list[-1])
     #     # coeff_array = np.array(coeffs_list[-1].tolist())
     #     # coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
@@ -1260,15 +1222,15 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     # # solver = optax.adam(learning_rate=learning_rate) # minimizer
     # opt_state = solver.init(coeffs)
     # number_of_steps = 1000
-    # print(coeffs)
+    # print_verb(coeffs)
     # for i in range(number_of_steps):
     #     gain, corr = jax.value_and_grad(run_case)(coeffs)
-    #     print("gain: " + str(-gain))
+    #     print_verb("gain: " + str(-gain))
 
     #     updates, opt_state = solver.update(corr, opt_state, coeffs)
     #     coeffs = optax.apply_updates(coeffs, updates)
-    #     print("coeffs:", coeffs)
-    #     print("gradient magnitudes:", jnp.linalg.norm(corr))
+    #     print_verb("coeffs:", coeffs)
+    #     print_verb("gradient magnitudes:", jnp.linalg.norm(corr))
     #     coeff_array = np.array(coeffs.tolist())
     #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
 
@@ -1317,14 +1279,14 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     def callback(intermediate_result=None):
         global n_iter
         coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
-        print(coeff_array)
+        print_verb(coeff_array)
         n_iter += 1
         coeffs_new = coeffs_to_complex_coeffs(np.array(intermediate_result.x.tolist()))
         plot(coeffs_new)
 
     tol = 1e-8
 
-    print(coeffs)
+    print_verb(coeffs)
     plot(coeffs)
     assert jnp.linalg.norm(coeffs - coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs))) < 1e-30
     res = sciopt.minimize(
@@ -1336,7 +1298,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         tol=tol,
         callback=callback
     )
-    print(res)
+    print_verb(res)
 
 def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alpha=1.0, beta=0.0, file=None):
     Re = float(Re)
@@ -1370,7 +1332,7 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         nse.activate_jit()
-        print("preparation took", time.time() - start_time, "seconds")
+        print_verb("preparation took", time.time() - start_time, "seconds")
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
@@ -1379,25 +1341,25 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
 
         gain = vel.energy() / vel_0.energy()
         # return gain
-        # print("gain:", gain)
-        jax.debug.print("gain: {}", gain)
+        # print_verb("gain:", gain)
+        print_verb("gain: ", gain, debug=True)
         return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     coeffs = jnp.array([1.0,2.0,3.0])
     coeffs_list = [coeffs]
     step_size = 5e-1
-    print(coeffs_list[-1])
+    print_verb(coeffs_list[-1])
     number_of_steps = 2
     for i in range(number_of_steps):
         start_time = time.time()
         gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
         corr_arr = jnp.array(corr)
-        print("gain: " + str(-gain))
-        print("whole iteration took", time.time() - start_time, "seconds")
+        print_verb("gain: " + str(-gain))
+        print_verb("whole iteration took", time.time() - start_time, "seconds")
         eps = step_size
 
         coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
-        print(coeffs_list[-1])
+        print_verb(coeffs_list[-1])
 
 
 
@@ -1456,20 +1418,20 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 
     eps_ = eps / jnp.sqrt(U.energy())
     U_hat = U.hat() * eps_
-    print("U energy norm: ", jnp.sqrt(U.energy()))
-    # print("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
+    print_verb("U energy norm: ", jnp.sqrt(U.energy()))
+    # print_verb("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
 
     nse.init_velocity(U_hat)
 
     U_ = U * eps_
     energy0 = U_.energy()
-    print("U energy norm (normalized): ", energy0)
+    print_verb("U energy norm (normalized): ", energy0)
     # U_ = U
     for i in range(3):
         U_[i].name = "uvw"[i]
         # U_hat[i].name = "uvw"[i]
         U_[i].save_to_file("uvw"[i])
-        # print(i, U_[i])
+        # print_verb(i, U_[i])
         # U_hat[i].save_to_file("uvw"[i])
     # U_.plot_streamlines(2)
     U_[0].plot_3d(2)
@@ -1499,28 +1461,28 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
             vel_pert_energy = vel_pert.energy()
             # vel_pert_energy_old = vel_pert_old.energy()
             vel_pert_energy_norm = vel_pert.energy_norm(1)
-            print("\n\n")
-            print(
+            print_verb("\n\n")
+            print_verb(
                 "velocity perturbation energy: ",
                 vel_pert_energy,
             )
-            print(
+            print_verb(
                 "velocity perturbation relative change: ",
                 vel_pert_energy / energy0,
             )
-            print(
+            print_verb(
                 "velocity perturbation energy change: ",
                 vel_pert_energy - energy0,
             )
-            # print(
+            # print_verb(
             #     "velocity perturbation energy x change: ",
             #     vel_pert[0].energy() - vel_pert_old[0].energy(),
             # )
-            # print(
+            # print_verb(
             #     "velocity perturbation energy y change: ",
             #     vel_pert[1].energy() - vel_pert_old[1].energy(),
             # )
-            # print(
+            # print_verb(
             #     "velocity perturbation energy z change: ",
             #     vel_pert[2].energy() - vel_pert_old[2].energy(),
             # )
@@ -1534,7 +1496,7 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         U_[i].name = "uvw"[i]
         # U_hat[i].name = "uvw"[i]
         U_[i].save_to_file("uvw"[i] + "_final")
-        # print(i, U_[i])
+        # print_verb(i, U_[i])
         # U_hat[i].save_to_file("uvw"[i])
 
 
@@ -1566,7 +1528,7 @@ def run_get_mean_profile(Re=2000):
     # fit_fn = lambda y, k, n: vel_base_max * (((1 - y**2)**(1/n) + (1 - y**1.1)**(1/k)) / 2)
     # fit_fn_jac = jax.jacrev(fit_fn)
     # out = sciopt.curve_fit(lambda y, m, n: vel_base_max * (1 - y**m)**(1/n), domain.grid[1], U_y_slice, p0=(2.0, 1.0), maxfev=60000)
-    # print(out)
+    # print_verb(out)
     # vel_base_fit, _ = get_vel_field(domain, avg_vel_coeffs[:16])
     # vel_base_fit = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2] + fit_fn(X[1], out[0], out[1])),
     #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
@@ -1637,13 +1599,13 @@ def run_ld_2020(turb=True, Re_tau=180):
         return vel_base, U_y_slice
 
     if turb:
-        print("using turbulent base profile")
+        print_verb("using turbulent base profile")
         vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
         vel_base, max = vel_base.normalize_by_max_value()
         vel_base.set_name("velocity_base")
         u_max_over_u_tau = max[0]
     else:
-        print("using laminar base profile")
+        print_verb("using laminar base profile")
         vel_base = VectorField([PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1]**2) + 0*X[2]),
                                     PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2]),
                                     PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1]**2)  + 0*X[2])])
@@ -1675,9 +1637,9 @@ def run_ld_2020(turb=True, Re_tau=180):
         vel_hat = vel_pert.hat()
         vel_hat.set_name("velocity_hat")
         energy_0_ = vel_hat.no_hat().energy()
-        jax.debug.print("initial energy: {x}", x=energy_0_)
+        print_verb("initial energy:", energy_0_, debug=True)
         nse = NavierStokesVelVortPerturbation(vel_hat, Re_tau=Re, velocity_base_hat=vel_base.hat(), dt=1e-2)
-        # jax.debug.print("recommended time step: {x}", x=nse.get_time_step())
+        # print_verb("recommended time step:", nse.get_time_step(), debug=True)
         nse.activate_jit()
         # nse.write_intermediate_output = False
         nse.write_intermediate_output = True
@@ -1686,26 +1648,17 @@ def run_ld_2020(turb=True, Re_tau=180):
         nse.solve()
         vel_final = nse.get_latest_field("velocity_hat").no_hat()
         gain = vel_final.energy() / energy_0_
-        jax.debug.print("gain: {x}", x=gain)
+        print_verb("gain:", gain, debug=True)
         return gain, nse
 
     v0s = [vel_hat.get_data()]
-    # gain, nse = run_case(v0s[-1])
-    # nse.initialize()
-    # print("gain:", gain)
-    # for i, vel_hat in enumerate(nse.get_field("velocity_hat")):
-    #     vel = vel_hat.no_hat()
-    #     vel.set_name("velocity")
-    #     vel.set_time_step(i)
-    #     vel.plot_3d(2)
-    # raise Exception("done")
     step_size = 1e-2
     for i in jnp.arange(100):
         start_time = time.time()
         (gain, nse), corr = jax.value_and_grad(run_case, has_aux=True)(v0s[-1])
         corr_arr = jnp.array(corr)
         corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
-        print("gain: " + str(gain))
+        print_verb("gain: " + str(gain))
         eps = step_size
 
         # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
@@ -1724,10 +1677,10 @@ def run_ld_2020(turb=True, Re_tau=180):
         corr.plot_3d(2)
 
     #     # nse.initialize()
-    #     print("gain:", gain)
+    #     print_verb("gain:", gain)
     #     # for j, vel_hat in enumerate(nse.get_field("velocity_hat")):
     #     #     vel = vel_hat.no_hat()
     #     #     vel.set_name("velocity_" + str(i))
     #     #     vel.set_time_step(j)
     #     #     vel.plot_3d(2)
-    #     print("Iteration took", time.time() - start_time, "seconds")
+    #     print_verb("Iteration took", time.time() - start_time, "seconds")

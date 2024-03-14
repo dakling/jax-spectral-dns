@@ -3,7 +3,6 @@
 NoneType = type(None)
 from operator import rshift
 import jax
-from jax._src.numpy.util import _rank_promotion_warning_or_error
 import jax.numpy as jnp
 import numpy as np
 from functools import partial, reduce
@@ -30,7 +29,7 @@ from field import Field, PhysicalField, VectorField, FourierField, FourierFieldS
 # except:
 #     if hasattr(sys, "ps1"):
 #         pass
-from equation import Equation
+from equation import Equation, print_verb
 
 # try:
 #     reload(sys.modules["linear_stability_calculation"])
@@ -163,7 +162,7 @@ class NavierStokesVelVort(Equation):
             u_max_over_u_tau,
         )
         self.update_flow_rate()
-        print("calculated flow rate: ", self.flow_rate)
+        print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
     @classmethod
     def FromVelocityField(cls, velocity_field, Re=1.8e2, end_time=1e0, **params):
@@ -1171,20 +1170,21 @@ class NavierStokesVelVort(Equation):
         # TODO would this be better?
         # number_of_outer_steps = max_factor(number_of_time_steps)
         # number_of_inner_steps = number_of_time_steps // number_of_outer_steps
-        print(
+        print_verb(
             "Dividing "
             + str(number_of_time_steps)
             + " time steps into "
             + str(number_of_inner_steps)
             + " inner steps and "
             + str(number_of_outer_steps)
-            + " outer steps."
+            + " outer steps.",
+            verbosity_level=2
         )
         if (
             abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
             > number_of_outer_steps
         ):
-            print(
+            print_verb(
                 "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
             )
         assert (
