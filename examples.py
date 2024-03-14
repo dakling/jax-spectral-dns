@@ -870,7 +870,7 @@ def run_transient_growth_time_study():
         label="max gain (Reddy/Henningson 1993)",
     )
     fig.legend()
-    fig.savefig("plots/energy_t.pdf")
+    fig.savefig("plots/energy_t_intermediate.pdf")
     ts_list = []
     energy_t_list = []
     T_list = np.arange(5, 41, 5)
@@ -915,7 +915,7 @@ def run_transient_growth_time_study():
         "b--",
     )
     fig_final.legend()
-    fig_final.savefig("plots/energy_t.pdf")
+    fig_final.savefig("plots/energy_t_final.pdf")
 
 
 def run_optimization_pseudo_2d_perturbation():
