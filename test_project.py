@@ -1131,6 +1131,7 @@ class TestProject(unittest.TestCase):
     def test_2d_growth_rates_quantitatively(self):
 
         def run_re(Re, rotated=False, use_antialiasing=True):
+            end_time = 6e-1
             if use_antialiasing:
                 N = 4
                 aliasing = 3/2
@@ -1139,11 +1140,11 @@ class TestProject(unittest.TestCase):
                 aliasing = 1
             if rotated:
                 return run_pseudo_2d_perturbation(
-                    Re=Re, end_time=1e0, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=aliasing
+                    Re=Re, end_time=end_time, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=aliasing
                 )
             else:
                 return run_pseudo_2d_perturbation(
-                    Re=Re, end_time=1e0, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=aliasing
+                    Re=Re, end_time=end_time, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=aliasing
                 )
 
 
@@ -1221,10 +1222,10 @@ class TestProject(unittest.TestCase):
 
     def test_transient_growth(self):
         for (Re, t) in [(600, 2), (3000, 15)]:
-            gain, expected_gain = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
+            gain, expected_gain, _, _ = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
             rel_error = abs((gain - expected_gain) / expected_gain)
-            print(rel_error)
-            assert rel_error <  1e-2
+            # print(rel_error)
+            assert rel_error <  5e-5
 
 
 if __name__ == "__main__":

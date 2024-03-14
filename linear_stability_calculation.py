@@ -2,46 +2,15 @@
 
 import numpy as np
 import jax.numpy as jnp
-# from numpy.linalg import eig, svd
-# from scipy.linalg import cholesky
 from numpy.linalg import  svd
 from scipy.linalg import eig, cholesky
-from scipy.sparse.linalg import eigs
-from scipy.integrate import quad, fixed_quad, simpson, quadrature
+from scipy.integrate import quad
 import scipy
-import matplotlib.pyplot as plt
 import timeit
 
-# from importlib import reload
-import sys
-
-# try:
-#     reload(sys.modules["cheb"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
 from cheb import cheb, phi, phi_s, phi_a, phi_pressure
-
-# try:
-#     reload(sys.modules["domain"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
 from domain import PhysicalDomain
-
-# try:
-#     reload(sys.modules["field"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
 from field import PhysicalField, VectorField
-
-# try:
-#     reload(sys.modules["equation"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
-from equation import Equation
 
 NoneType = type(None)
 
@@ -51,7 +20,6 @@ class LinearStabilityCalculation:
         self.Re = Re
         self.alpha = alpha
         self.beta = beta
-        # self.n = int(n * PhysicalDomain.aliasing)  # chebychev resolution
         self.n = n  # chebychev resolution
 
         self.A = None
@@ -62,7 +30,6 @@ class LinearStabilityCalculation:
         self.C = None
         self.growth = []
 
-        # self.ys = [np.cos(np.pi * (2*(i+1)-1) / (2*self.n)) for i in range(self.n)] # gauss-lobatto points (SH2001, p. 488)
         domain = PhysicalDomain.create((n,), (False,))
         self.ys = domain.grid[0]
 
@@ -185,13 +152,9 @@ class LinearStabilityCalculation:
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
 
-        # A_ = 1j * A
-        A_ = A
-        # B_ = -1j * B
-        B_ = B
-        self.A = A_
-        self.B = B_
-        return (A_, B_)
+        self.A = A
+        self.B = B
+        return (A, B)
 
     def read_mat(self, file, key):
         return scipy.io.loadmat(file)[key]
@@ -202,30 +165,18 @@ class LinearStabilityCalculation:
                 self.assemble_matrix_fast()
         except ValueError:
             pass
-        # omega = 1
-        # eigvals_, eigvecs = eig(np.linalg.inv(self.B + omega * self.A) @ self.A)
-        # eigvals = np.array(list(map(lambda x: x / (1 - omega * x), eigvals_)))
         eigvals, eigvecs = eig(self.A, self.B)
 
-        # scale any spurious eigenvalues out of the picture
-        # TODO cleaner to remove them? looking at further analysis
         clean_eigvals = []
         clean_eigvecs = []
         for j in range(len(eigvals)):
-            # if eigvals[j].real > 1:
-            #     eigvals[j] = -1e12
-            #     eigvecs[j] = np.zeros_like(eigvecs[j])
             if eigvals[j].real <= 1:
                 clean_eigvals.append(eigvals[j])
                 clean_eigvecs.append(eigvecs[:, j])
-            # if eigvals[j].imag <= 1:
-            #     clean_eigvals.append(eigvals[j])
-            #     clean_eigvecs.append(eigvecs[:, j])
 
         # sort eigenvals
         eevs = [(clean_eigvals[i], clean_eigvecs[i]) for i in range(len(clean_eigvals))]
         eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
-        # eevs = sorted(eevs, reverse=True, key=lambda x: x[0].imag)
         self.eigenvalues = np.array([eev[0] for eev in eevs])
         self.eigenvectors = [eev[1] for eev in eevs]
         self.eigenvalues.dump(
@@ -297,13 +248,11 @@ class LinearStabilityCalculation:
             for i in range(N_domain):
                 for k in range(self.n):
                     if self.symm:
-                        # phi_mat[i, k] = [phi_a, phi_s, phi_a][component](k, 0, ys[i])
                         phi_mat = phi_mat.at[i, k].set(
                             [phi_a, phi_s, phi_a][component](k, 0, ys[i])
                         )
                     else:
                         phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
-                        # phi_mat[i, k] = phi(k, 0, ys[i])
             out = (
                 factor
                 * jnp.einsum(
@@ -311,7 +260,6 @@ class LinearStabilityCalculation:
                     jnp.einsum(
                         "i,j->ij",
                         jnp.exp(
-                            # 1j * self.alpha * domain.grid[0] + self.eigenvalues[mode] * time
                             1j
                             * (self.alpha * domain.grid[0])
                         ),
@@ -374,13 +322,11 @@ class LinearStabilityCalculation:
                 for d in domain.all_dimensions():
                     energy += (
                         self.velocity_field_[d]
-                        # * (jnp.exp((-1j * self.eigenvalues[mode]).real * t))
                         * (jnp.exp(self.eigenvalues[mode].real * t))
                     ).energy()
             else:
                 energy = (
                     self.velocity_field_[dim]
-                    # * (jnp.exp((-1j * self.eigenvalues[mode]).real * t))
                     * (jnp.exp(self.eigenvalues[mode].real * t))
                 ).energy()
             return eps**2 * energy
@@ -408,12 +354,6 @@ class LinearStabilityCalculation:
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
 
-        fig_eig, ax_eig = plt.subplots(1, 1)
-        ax_eig.plot(-self.eigenvalues.imag, self.eigenvalues.real, "k.", alpha=0.4)
-        # ax_eig.plot(self.eigenvalues.real, self.eigenvalues.imag, "k.", alpha=0.4)
-        ax_eig.set_xlim([0.2, 1.0])
-        ax_eig.set_ylim([-1.0, 0.0])
-        fig_eig.savefig("plots/eigenvalues.pdf")
         n = self.n
 
         def get_integral_coefficient(p, q):
@@ -464,16 +404,12 @@ class LinearStabilityCalculation:
             # elminate O(10^-16) complex parts which bothers `chol'
             C[j, j] = C[j, j].real
         F = cholesky(C, lower=False)
+        F_inv = np.linalg.inv(F)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
-        # Sigma = np.diag([np.exp(-1j * evs[i] * T) for i in range(number_of_modes)])
-        mat = F @ Sigma @ np.linalg.inv(F)
-        mat_h = np.conjugate(mat.T)
-        evs_, evecs_ = eig(mat_h @ mat)
-        evs_abs = np.array(list(map( lambda x: abs(x), evs_ )))
+        mat = F @ Sigma @ F_inv
         U, S, Vh = svd(mat, compute_uv=True)
         V = Vh.conj().T
-        # V[:, 0] = evecs_[:, np.argmax(evs_abs)]
-        coeffs = np.linalg.inv(F) @ V[:, 0]
+        coeffs = F_inv @ V[:, 0]
         if save:
             self.S = S
             self.U = U

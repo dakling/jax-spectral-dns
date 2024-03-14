@@ -3,7 +3,10 @@
 import jax
 # import jax.scipy.optimize as jaxopt
 # import jaxopt
-# import optax
+try:
+    import optax
+except ModuleNotFoundError:
+    print("optax not found")
 import scipy.optimize as sciopt
 import jax.numpy as jnp
 import numpy as np
@@ -751,7 +754,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
     Nx = 8
     Ny = 64
     Nz = 4
-    end_time = 1.01 * T
+    end_time = T
     number_of_modes = 60
 
     nse = solve_navier_stokes_perturbation(
@@ -765,7 +768,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
         dt=1e-2,
         aliasing=3/2
     )
-    nse.initialize()
+    # nse.initialize()
 
     # nse.set_linearize(False)
     nse.set_linearize(True)
@@ -847,7 +850,72 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
     print("final energy gain:", gain)
     print("expected final energy gain:", e_max)
 
-    return (gain, e_max)
+    return (gain, e_max, ts, energy_t)
+
+def run_transient_growth_time_study():
+    Re = 3000
+
+    rh_93_data = np.genfromtxt(
+        "rh93_transient_growth.csv", delimiter=","
+    ).T
+
+    fig = figure.Figure()
+    ax = fig.subplots(1, 1)
+    ax.set_xlabel("T")
+    ax.set_ylabel("G")
+    ax.plot(
+        rh_93_data[0],
+        rh_93_data[1],
+        "b--",
+        label="max gain (Reddy/Henningson 1993)",
+    )
+    fig.legend()
+    fig.savefig("plots/energy_t.pdf")
+    ts_list = []
+    energy_t_list = []
+    T_list = np.arange(5, 41, 5)
+    for T in np.flip(T_list):
+        print("running transient growth calculation for time horizon of " + str(T) + " time units")
+        _, _, ts, energy_t = run_transient_growth(Re, T, 1, 0, True)
+
+        ts_list.append(ts)
+        energy_t_list.append(energy_t)
+        ax.plot(ts, energy_t/energy_t[0], ".", label="gain (T = " + str(T) + ")")
+        ax.plot(
+            rh_93_data[0],
+            rh_93_data[1],
+            "b--",
+        )
+        fig.legend()
+        fig.savefig("plots/energy_t_intermediate.pdf")
+
+    ts_list.reverse()
+    energy_t_list.reverse()
+
+    # make a nice final figure
+    fig_final = figure.Figure()
+    ax_final = fig_final.subplots(1, 1)
+    ax_final.set_xlabel("T")
+    ax_final.set_ylabel("G")
+    ax_final.plot(
+        rh_93_data[0],
+        rh_93_data[1],
+        "b--",
+        label="max gain (Reddy/Henningson 1993)",
+    )
+    for i in range(len(T_list)):
+        T = T_list[i]
+        ts = ts_list[i]
+        energy_t = energy_t_list[i]
+        ax_final.plot(ts, energy_t/energy_t[0], ".", label="gain (T = " + str(T) + ")")
+
+    ax_final.plot(
+        rh_93_data[0],
+        rh_93_data[1],
+        "b--",
+    )
+    fig_final.legend()
+    fig_final.savefig("plots/energy_t.pdf")
 
 
 def run_optimization_pseudo_2d_perturbation():
@@ -928,52 +996,37 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 2
+    Nx = 8
     Ny = 50
-    Nz = 2
+    Nz = 4
     # Nx = 48
     # Ny = 64
     # Nz = 12
     end_time = T
-    # number_of_modes = 100
-    number_of_modes = 50
+    number_of_modes = 20 # deliberately low value so that there is room for improvement
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
+    aliasing = 3/2
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-    # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
 
     v0_0 = lsc.calculate_transient_growth_initial_condition(
         domain,
         T,
         number_of_modes,
-        # recompute_full=False,
         recompute_full=True,
-        # recompute_partial=False,
-        recompute_partial=True,
-        save_modes=False,
-        save_final=True,
+        save_final=False,
     )
-    # v0_0 = VectorField([PhysicalField.FromFunc(domain, lambda X: -0.1 * (1 - X[1]**2) + 0*X[2]),
-    #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    #                     PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    #                     ])
-    eps = 1e-5
-    eps_ = eps / v0_0.energy()
-    v0_0_norm = v0_0 * eps_
+    v0_0_hat = v0_0.hat()
 
-    # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots)
     def run_case(v0):
 
-        # v0_ = v0.reshape((3, Nx, Ny, Nz))
-        # U = VectorField([PhysicalField(domain, v0_[i,...]) for i in range(3)])
-        # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-        U = VectorField([PhysicalField(domain, v0[i]) for i in range(3)])
-        eps = 1e-5
-        eps_ = eps / U.energy()
-        U_norm = U * eps_
-        U_norm.update_boundary_conditions() # TODO possible even enfore bcs for derivatives
+        U_hat = VectorField([FourierField(domain, v0[i]) for i in range(3)])
+        eps = 1e-6
+        U = U_hat.no_hat()
+        U_norm = U.normalize_by_energy()
+        U_norm.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U_norm *= eps
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
         nse.end_time = end_time
@@ -982,6 +1035,7 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.activate_jit()
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
@@ -989,8 +1043,36 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         nse.after_time_step_fn = None
 
         gain = vel.energy() / vel_0.energy()
-        return gain
-        # return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
+        negative_gain = -gain
+        # return gain
+        return negative_gain # (TODO would returning 1/gain lead to a better minimization problem?)
+
+    v0 = v0_0_hat.get_data()
+    learning_rate = 1e4
+    solver = optax.adagrad(learning_rate=learning_rate) # minimizer
+    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    # solver = optax.adam(learning_rate=learning_rate) # minimizer
+    opt_state = solver.init(v0)
+    number_of_steps = 10
+    old_gain = None
+    for i in range(number_of_steps):
+        negative_gain, corr = jax.value_and_grad(run_case)(v0)
+        gain = - negative_gain
+        print("\n\n")
+        print("gain: " + str(gain))
+        if old_gain:
+            print("gain change: " + str(gain - old_gain))
+        print("\n\n")
+        old_gain = gain
+
+        updates, opt_state = solver.update(corr, opt_state, v0)
+        v0 = optax.apply_updates(v0, updates)
+        print("v0 magnitudes:", jnp.linalg.norm(v0))
+        print("gradient magnitudes:", jnp.linalg.norm(corr))
+        v0_new = VectorField([FourierField(domain, v0[j]) for j in range(3)]).no_hat()
+        v0_new.set_name("vel_0_" + str(i))
+        v0_new.plot_3d(2)
+        v0_new.save_to_file("vel_0_" + str(i))
 
     # res = jaxopt.minimize(
     #     fun=run_case,
@@ -1034,21 +1116,21 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
     # vel_opt = VectorField([PhysicalField(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
     # vel_opt.plot_3d(2)
 
-    v0s = [[v0_0_norm[i].data for i in range(3)]]
-    step_size = 1e-2
-    for i in jnp.arange(10):
-        gain, corr = jax.value_and_grad(run_case)(v0s[-1])
-        corr_arr = jnp.array(corr)
-        corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
-        print("gain: " + str(gain))
-        eps = step_size
+    # v0s = [[v0_0_norm[i].data for i in range(3)]]
+    # step_size = 1e-2
+    # for i in jnp.arange(10):
+    #     gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+    #     corr_arr = jnp.array(corr)
+    #     corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
+    #     print("gain: " + str(gain))
+    #     eps = step_size
 
-        # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
-        v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
-        v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, v0s[-1][j]) for j in range(3)])
-        v0_new.set_name("vel_0_" + str(i))
-        v0_new.plot_3d(2)
-        v0_new.save_to_file("vel_0_" + str(i))
+    #     # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+    #     v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
+    #     v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, v0s[-1][j]) for j in range(3)])
+    #     v0_new.set_name("vel_0_" + str(i))
+    #     v0_new.plot_3d(2)
+    #     v0_new.save_to_file("vel_0_" + str(i))
 
 
 def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, beta=0.0, file=None):

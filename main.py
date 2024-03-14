@@ -57,7 +57,7 @@ def main():
     # tp.test_perturbation_laminar()
     # tp.test_2d_growth()
     # tp.test_linear_stability()
-    # tp.test_2d_growth_rates_quantitatively()
+    tp.test_2d_growth_rates_quantitatively()
     # tp.test_linear_stability()
     tp.test_transient_growth()
     raise Exception("break")
