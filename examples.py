@@ -488,7 +488,8 @@ def run_pseudo_2d_perturbation(
         save=True,
         v0=None,
         aliasing=1.0,
-        rotated=False
+        rotated=False,
+        jit=True
 ):
     Re = float(Re)
     alpha = float(alpha)
@@ -576,7 +577,10 @@ def run_pseudo_2d_perturbation(
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    nse.activate_jit()
+    if jit:
+        nse.activate_jit()
+    else:
+        nse.deactivate_jit()
     nse.write_intermediate_output = plot
     nse.solve()
     nse.deactivate_jit()
@@ -599,8 +603,7 @@ def run_pseudo_2d_perturbation(
         vel_pert_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_pert_energy)
-        # energy_x_t.append(vel[0].energy())
-        energy_x_t.append(vel[2].energy())
+        energy_x_t.append(vel[0].energy())
         energy_y_t.append(vel[1].energy())
         energy_t_ana.append(energy_over_time_fn(time))
         energy_x_t_ana.append(energy_over_time_fn(time, 0))
@@ -1079,17 +1082,17 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 6
-    Ny = 50
+    Nx = 8
+    Ny = 80
     Nz = 4
     end_time = T
-    number_of_modes = 50
+    number_of_modes = 120
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    aliasing = 1.0
+    aliasing = 3/2
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing )
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
     energy_gain_svd = None
 
     def coeffs_to_complex_coeffs(c):
@@ -1233,6 +1236,20 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
                 "rh93_coeffs.csv", delimiter=","
             ).T
             ax[0].plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "k.", label="rh93")
+            fig2 = figure.Figure()
+            ax2 = fig2.subplots(1, 1)
+            ax2.set_yscale("log")
+            ax2.plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "k.", label="rh93")
+
+            cut_off = 1e-3
+            coeffs_orig_filtered = coeffs_orig[abs(coeffs_orig) >= cut_off]
+            coeffs_new_filtered = coeffs_new[abs(coeffs_new) >= cut_off]
+            i_s_1 = np.arange(len(coeffs_orig_filtered))
+            i_s_2 = np.arange(len(coeffs_new_filtered))
+            ax2.plot(i_s_1, abs(coeffs_orig_filtered), "x", label="initial")
+            ax2.plot(i_s_2, abs(coeffs_new_filtered), ".", label="current")
+            fig2.legend()
+            fig2.savefig("plots/coeff_plot_rh.pdf")
         ax[0].plot(i_s, abs(coeffs_new), ".", label="current")
         ax[1].plot(i_s, (coeffs_new.real), ".")
         ax[2].plot(i_s, (coeffs_new.imag), ".")
