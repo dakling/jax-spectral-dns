@@ -748,7 +748,7 @@ class NavierStokesVelVort(Equation):
                             v_2_new_field,
                             _,
                         ) = perform_single_rk_step_for_single_wavenumber(step)(
-                            [kx.astype(int), kz.astype(int)], *fields_1d
+                            [kx.real.astype(int), kz.real.astype(int)], *fields_1d
                         )
                         return [v_0_new_field, v_1_hat_new, v_2_new_field]
 
