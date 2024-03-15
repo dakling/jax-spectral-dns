@@ -47,10 +47,21 @@ $\text{Re}=5772.22$ and $\text{Re}=6000$ with $\alpha=1.02056$. A plot of the gr
 This test checks the growth rates of the optimal transient growth initial
 condition according to linear stability analysis for $\text{Re}=600$ and $T=2$ as well as
 for $\text{Re}=3000$ and $T=15$. In both cases, $\alpha=1$ and $\beta=0$.
-
-Below, a video of the Re=3000 case is shown. In both cases, the growth rates of
+In both cases, the growth rates of
 the DNS (using a linearized operator) match very closely with the expected results.
 
+This image shows a time study, where simulations with optimal initial conditions
+for different time horizons are run and compared with the data taken from Reddy
+& Henningson (1993).
 ![Growth rates for different times]( ./img/energy_t_final.png )
+
+Below, a video of the Re=3000 case with the optimal initial condition for $T=15$
+is shown. Since it is run for 40 time units and uses a linearized operator, the
+energy decay after $T=15$ is also visible.
+![Growth rates for different times]( ./img/energy_t.png )
 ![Maximum growth]( ./img/Re_3000_transient_growth.gif )
 
+<!-- If the same setup is used with the full nonlinear operator, it is clear that the -->
+<!-- flow becomes turbulent. -->
+<!-- ![Growth rates for different times]( ./img/energy_t_nonlinear.png ) -->
+<!-- ![Maximum growth]( ./img/Re_3000_transient_growth_nonlinear.gif ) -->

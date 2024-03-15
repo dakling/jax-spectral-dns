@@ -459,6 +459,7 @@ def run_pseudo_2d_perturbation(
     Re = float(Re)
     alpha = float(alpha)
     end_time = float(end_time)
+    dt = float(dt)
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
@@ -704,20 +705,25 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 
-def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
+def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_time=None, eps=1e-5, linearize=True, plot=True):
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
     beta = float(beta)
+    if type(linearize) == str:
+        linearize = linearize == 'True'
 
-    eps = 1e-5
+    eps = float(eps)
 
-    Nx = 8
-    Ny = 64
-    Nz = 4
-    end_time = T
+    Nx = 64
+    Ny = 90
+    Nz = 64
+    if end_time is None:
+        end_time = T
+    else:
+        end_time = float(end_time)
     number_of_modes = 60
 
     nse = solve_navier_stokes_perturbation(
@@ -733,8 +739,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
     )
     # nse.initialize()
 
-    # nse.set_linearize(False)
-    nse.set_linearize(True)
+    nse.set_linearize(linearize)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
@@ -955,14 +960,14 @@ def run_optimization_pseudo_2d_perturbation():
 
 n_iter = 0
 
-def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
+def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 8
+    Nx = 4
     Ny = 50
     Nz = 4
     # Nx = 48
@@ -983,16 +988,34 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         recompute_full=True,
         save_final=False,
     )
-    v0_0_hat = v0_0.hat()
+    e_0 = 1e-6
+    v0_0_norm = v0_0.normalize_by_energy()
+    v0_0_norm *= e_0
+    v0_0_hat = v0_0_norm.hat()
 
-    def run_case(v0):
+    def post_process(nse, i):
+        n_steps = len(nse.get_field("velocity_hat"))
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+    def run_case(v0, out=False):
 
         U_hat = VectorField([FourierField(domain, v0[i]) for i in range(3)])
-        eps = 1e-6
         U = U_hat.no_hat()
         U_norm = U.normalize_by_energy()
         U_norm.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
-        U_norm *= eps
+        U_norm *= e_0
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
         nse.end_time = end_time
@@ -1002,11 +1025,18 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         nse.activate_jit()
+        if out:
+            nse.write_intermediate_output = True
+            nse.post_process_fn = post_process
+        else:
+            nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
         nse.before_time_step_fn = None
         nse.after_time_step_fn = None
+        if out:
+            nse.post_process()
 
         gain = vel.energy() / vel_0.energy()
         negative_gain = -gain
@@ -1014,14 +1044,22 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         return negative_gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
     v0 = v0_0_hat.get_data()
-    learning_rate = 1e4
-    solver = optax.adagrad(learning_rate=learning_rate) # minimizer
-    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    v0_norm = jnp.linalg.norm(v0)
+    print_verb("v0_norm:", jnp.linalg.norm(v0))
+    learning_rate = v0_norm * 9e-2
+    # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
+    solver = optax.adabelief(learning_rate=learning_rate) # minimizer
     # solver = optax.adam(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(v0)
     number_of_steps = 10
     old_gain = None
+
+    v0_new = VectorField([FourierField(domain, v0[j]) for j in range(3)]).no_hat()
+    v0_new.set_name("vel_0_" + str(0))
+    v0_new.plot_3d(2)
+    v0_new.save_to_file("vel_0_" + str(0))
     for i in range(number_of_steps):
+        start_time = time.time()
         negative_gain, corr = jax.value_and_grad(run_case)(v0)
         gain = - negative_gain
         print_verb("\n\n")
@@ -1036,9 +1074,13 @@ def run_optimization_transient_growth(Re=3000.0, T=0.1, alpha=1.0, beta=0.0):
         print_verb("v0 magnitudes:", jnp.linalg.norm(v0))
         print_verb("gradient magnitudes:", jnp.linalg.norm(corr))
         v0_new = VectorField([FourierField(domain, v0[j]) for j in range(3)]).no_hat()
-        v0_new.set_name("vel_0_" + str(i))
+        v0_new.set_name("vel_0_" + str(i+1))
         v0_new.plot_3d(2)
-        v0_new.save_to_file("vel_0_" + str(i))
+        v0_new.save_to_file("vel_0_" + str(i+1))
+        print_verb("iteration took", time.time() - start_time, "seconds")
+
+    run_case(v0, True)
+
 
     # res = jaxopt.minimize(
     #     fun=run_case,

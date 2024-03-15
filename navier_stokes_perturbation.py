@@ -53,8 +53,6 @@ def update_nonlinear_terms_high_performance_perturbation(
     for i in physical_domain.all_dimensions():
         vel_new_sq_nabla.append(physical_domain.diff(vel_new_sq, i))
 
-    # hel_new_ = domain.cross_product(vel_new, vort_new)
-    # conv_ns_new_ = -jnp.array(hel_new_) + 1 / 2 * jnp.array(vel_new_sq_nabla)
     hel_new_ = jnp.array(physical_domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
         vel_new_sq_nabla
     )
