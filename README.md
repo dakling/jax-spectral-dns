@@ -32,12 +32,24 @@ quantitative tests.
 
 ## Example outputs
 
-### run_jimenez_1990
+### Validation cases:
 
-Result of the function `run_jimenez_1990` in `examples.py`, which reproduces the
-case documented in Figure 1 of "Transition to turbulence in two-dimensional
-Poiseuille flow" by Javier Jimenez (1990, Journal of Fluid Mechanics, vol 218,
-pp 265-297)
+#### test_growth_rates_quantitatively
 
-![Re 5000]( ./img/Re_5000_jimenez_1990.gif )
+This test checks the growth rates of the most unstable modes for Re=5500,
+Re=5772.22 and Re=6000 with $'\alpha=1.02056'$. A plot of the growth rates and a video for Re=6000 are shown below.
+
+![Growth rates]( ./img/energy_growth_rates.png )
+![Growth at Re=6000]( ./img/Re_6000_growth.gif )
+
+#### test_transient_growth
+
+This test checks the growth rates of the optimal transient growth initial
+condition according to linear stability analysis for Re=600 and T=2 as well as
+for Re=3000 and $'T=15'$. In both cases, $'\alpha=1'$ and $'\beta=0'$.
+
+Below, a video of the Re=3000 case is shown. In both cases, the growth rates of
+the DNS (using a linearized operator) match very closely with the expected results.
+
+![Growth rates]( ./img/Re_3000_transient_growth.gif )
 

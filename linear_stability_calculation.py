@@ -221,7 +221,7 @@ class LinearStabilityCalculation:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
             if recompute_full or type(self.eigenvalues) == NoneType:
-                print_verb("calculating eigenvalues", verb=2)
+                print_verb("calculating eigenvalues", verbosity_level=2)
                 self.calculate_eigenvalues()
             u = self.velocity_field(domain, self.eigenvectors[mode], factor)
 
@@ -307,7 +307,7 @@ class LinearStabilityCalculation:
                 )
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
-                print_verb("Fields not found, performing eigenvalue computation.", verb=2)
+                print_verb("Fields not found, performing eigenvalue computation.", verbosity_level=2)
                 self.velocity_field(domain, self.eigenvector[mode], save=False)
         try:
             self.eigenvalues = np.load(
@@ -498,27 +498,27 @@ class LinearStabilityCalculation:
         return u
 
     def print_welcome(self):
-        print_verb("starting linear stability calculation", verb=2)
+        print_verb("starting linear stability calculation", verbosity_level=2)
 
     def post_process(self):
         pass
 
     def perform_calculation(self):
         self.print_welcome()
-        print_verb("Loading DNS data", verb=2)
+        print_verb("Loading DNS data", verbosity_level=2)
         t0 = timeit.default_timer()
         # self.load_dns_data()
         t1 = timeit.default_timer()
-        print_verb("(took " + str(t1 - t0) + " seconds)", verb=2)
-        print_verb("Performing matrix assembly (matrices A and B)", verb=2)
+        print_verb("(took " + str(t1 - t0) + " seconds)", verbosity_level=2)
+        print_verb("Performing matrix assembly (matrices A and B)", verbosity_level=2)
         self.assemble_matrix_fast()
         t2 = timeit.default_timer()
-        print_verb("(took " + str(t2 - t1) + " seconds)", verb=2)
-        print_verb("Calculating eigenvalues and -vectors", verb=2)
+        print_verb("(took " + str(t2 - t1) + " seconds)", verbosity_level=2)
+        print_verb("Calculating eigenvalues and -vectors", verbosity_level=2)
         self.calculate_eigenvalues()
         t3 = timeit.default_timer()
-        print_verb("(took " + str(t3 - t2) + " seconds)", verb=2)
+        print_verb("(took " + str(t3 - t2) + " seconds)", verbosity_level=2)
         t4 = timeit.default_timer()
-        print_verb("(took " + str(t4 - t3) + " seconds)", verb=2)
+        print_verb("(took " + str(t4 - t3) + " seconds)", verbosity_level=2)
         self.post_process()
-        print_verb("Done", verb=2)
+        print_verb("Done", verbosity_level=2)

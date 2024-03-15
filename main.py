@@ -3,7 +3,7 @@
 import jax
 import warnings
 warnings.filterwarnings('error')
-import jax.profiler
+# import jax.profiler
 
 jax.config.update("jax_enable_x64", True)
 import os
@@ -54,9 +54,9 @@ def main():
     # run tests
     tp = TestProject()
     # these tests should work before pushing to develop
-    tp.test_navier_stokes_laminar()
+    # tp.test_navier_stokes_laminar()
     tp.test_2d_growth_rates_quantitatively()
-    tp.test_transient_growth()
+    # tp.test_transient_growth()
     # tests down here are less critical and should only be tested in the merge pipeline
     # tp.test_perturbation_laminar()
     # tp.test_2d_growth()
@@ -72,4 +72,4 @@ if __name__ == '__main__':
         args = sys.argv[2:]
         globals()[sys.argv[1]](*args)
 
-jax.profiler.save_device_memory_profile("memory.prof")
+# jax.profiler.save_device_memory_profile("memory.prof")

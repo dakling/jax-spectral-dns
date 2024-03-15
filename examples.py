@@ -556,15 +556,16 @@ def run_pseudo_2d_perturbation(
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
         vort = vel.curl()
-        for j in range(3):
-            vel[j].time_step = i
-            vort[j].time_step = i
-            vel[j].name = "velocity_" + "xyz"[j]
-            vort[j].name = "vorticity_" + "xyz"[j]
+        vel.set_time_step(i)
+        vort.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_name("vorticity")
         if rotated:
             vel[2].plot_3d(0)
         else:
             vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vort[2].plot_3d(2)
         vel_pert_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_pert_energy)
@@ -771,13 +772,16 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, plot=True):
         time = (i / (n_steps - 1)) * end_time
 
         if plot:
-            vel.plot_streamlines(2)
-            # vort = vel.curl()
+            vort = vel.curl()
             vel.set_time_step(i)
             vel.set_name("velocity")
-            vel.plot_3d(2)
-            vel[0].plot_center(0)
-            vel[0].plot_center(1)
+            vort.set_time_step(i)
+            vort.set_name("vorticity")
+            vel[0].plot_3d(2)
+            vel[1].plot_3d(2)
+            vort[2].plot_3d(2)
+            vel.plot_streamlines(2)
+            vel[0].plot_isolines(2)
         vel_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_energy)

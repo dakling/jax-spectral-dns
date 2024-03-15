@@ -6,58 +6,14 @@ import jax.numpy as jnp
 import numpy as np
 import matplotlib.figure as figure
 
-# from importlib import reload
-import sys
-
 jax.config.update("jax_enable_x64", True)
 
-# try:
-#     reload(sys.modules["domain"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load Domain")
 from domain import PhysicalDomain
-
-# try:
-#     reload(sys.modules["field"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load Field")
 from field import Field, PhysicalField, FourierFieldSlice, VectorField
-
-# try:
-#     reload(sys.modules["equation"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load equation")
-from equation import Equation
-
-# try:
-#     reload(sys.modules["navier_stokes"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load Navier Stokes")
+from equation import Equation, print_verb
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
-
-# try:
-#     reload(sys.modules["navier_stokes_perturbation"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load navier-stokes-perturbation")
 from navier_stokes_perturbation import solve_navier_stokes_perturbation
-
-# try:
-#     reload(sys.modules["linear_stability_calculation"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load linear stability")
 from linear_stability_calculation import LinearStabilityCalculation
-
-# try:
-#     reload(sys.modules["examples"])
-# except:
-#     if hasattr(sys, 'ps1'):
-#         print("Unable to load examples")
 from examples import run_pseudo_2d_perturbation, run_transient_growth
 
 NoneType = type(None)
@@ -1212,7 +1168,7 @@ class TestProject(unittest.TestCase):
         def main():
             for use_antialiasing in [False, True]:
                 for rotated in [False, True]:
-                    print("testing growth rates in " + ("rotated" if rotated else "normal") + " domain " + ("with" if use_antialiasing else "without") + " antialiasing")
+                    print_verb("testing growth rates in " + ("rotated" if rotated else "normal") + " domain " + ("with" if use_antialiasing else "without") + " antialiasing")
                     ts, energy, energy_ana = run(rotated)
                     plot(ts, energy, energy_ana)
                     calculate_growth_rates(ts, energy, energy_ana)
