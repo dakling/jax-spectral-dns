@@ -36,8 +36,8 @@ quantitative tests.
 
 #### test_growth_rates_quantitatively
 
-This test checks the growth rates of the most unstable modes for Re=5500,
-Re=5772.22 and Re=6000 with $'\alpha=1.02056'$. A plot of the growth rates and a video for Re=6000 are shown below.
+This test checks the growth rates of the most unstable modes for $\text{Re}=5500$,
+$\text{Re}=5772.22$ and $\text{Re}=6000$ with $\alpha=1.02056$. A plot of the growth rates and a video for Re=6000 are shown below.
 
 ![Growth rates]( ./img/energy_growth_rates.png )
 ![Growth at Re=6000]( ./img/Re_6000_growth.gif )
@@ -45,11 +45,12 @@ Re=5772.22 and Re=6000 with $'\alpha=1.02056'$. A plot of the growth rates and a
 #### test_transient_growth
 
 This test checks the growth rates of the optimal transient growth initial
-condition according to linear stability analysis for Re=600 and T=2 as well as
-for Re=3000 and $'T=15'$. In both cases, $'\alpha=1'$ and $'\beta=0'$.
+condition according to linear stability analysis for $\text{Re}=600$ and $T=2$ as well as
+for $\text{Re}=3000$ and $T=15$. In both cases, $\alpha=1$ and $\beta=0$.
 
 Below, a video of the Re=3000 case is shown. In both cases, the growth rates of
 the DNS (using a linearized operator) match very closely with the expected results.
 
-![Growth rates]( ./img/Re_3000_transient_growth.gif )
+![Growth rates for different times]( ./img/energy_t_final.png )
+![Maximum growth]( ./img/Re_3000_transient_growth.gif )
 
