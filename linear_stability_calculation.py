@@ -244,16 +244,26 @@ class LinearStabilityCalculation:
         N_domain = domain.number_of_cells(1)
         ys = domain.grid[1]
 
-        def to_3d_field(eigenvector, component=0):
-            phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
-            for i in range(N_domain):
-                for k in range(self.n):
-                    if self.symm:
-                        phi_mat = phi_mat.at[i, k].set(
-                            [phi_a, phi_s, phi_a][component](k, 0, ys[i])
-                        )
-                    else:
-                        phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+        phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
+        for i in range(N_domain):
+            for k in range(self.n):
+                phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+
+        return self.velocity_field_from_y_slice(domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor)
+
+    def velocity_field_from_y_slice(
+            self,
+            domain,
+            y_slice,
+            factor=1.0
+    ):
+        assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
+
+        u_vec = y_slice[0]
+        v_vec = y_slice[1]
+        w_vec = y_slice[2]
+
+        def to_3d_field(y_slice_i):
             out = (
                 factor
                 * jnp.einsum(
@@ -264,7 +274,7 @@ class LinearStabilityCalculation:
                             1j
                             * (self.alpha * domain.grid[0])
                         ),
-                        phi_mat @ eigenvector,
+                        y_slice_i,
                     ),
                     jnp.exp(
                         1j * (self.beta * domain.grid[2]),
@@ -275,13 +285,13 @@ class LinearStabilityCalculation:
             return out
 
         u_field = PhysicalField(
-            domain, to_3d_field(u_vec, component=0), name="velocity_pert_x"
+            domain, to_3d_field(u_vec), name="velocity_pert_x"
         )
         v_field = PhysicalField(
-            domain, to_3d_field(v_vec, component=1), name="velocity_pert_y"
+            domain, to_3d_field(v_vec), name="velocity_pert_y"
         )
         w_field = PhysicalField(
-            domain, to_3d_field(w_vec, component=2), name="velocity_pert_z"
+            domain, to_3d_field(w_vec), name="velocity_pert_z"
         )
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])

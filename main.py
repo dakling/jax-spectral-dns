@@ -2,7 +2,7 @@
 
 import jax
 import warnings
-warnings.filterwarnings('error')
+# warnings.filterwarnings('error')
 # import jax.profiler
 
 jax.config.update("jax_enable_x64", True)
@@ -56,7 +56,7 @@ def main():
     # these tests should work before pushing to develop
     # tp.test_navier_stokes_laminar()
     tp.test_2d_growth_rates_quantitatively()
-    # tp.test_transient_growth()
+    tp.test_transient_growth()
     # tests down here are less critical and should only be tested in the merge pipeline
     # tp.test_perturbation_laminar()
     # tp.test_2d_growth()

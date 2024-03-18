@@ -705,7 +705,7 @@ def run_jimenez_1990(start_time=0):
     nse.solve()
 
 
-def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_time=None, eps=1e-5, linearize=True, plot=True):
+def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_time=None, eps=1e-5, Nx=4, Ny=50, Nz=4, linearize=True, plot=True):
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -717,9 +717,10 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_time=None, 
 
     eps = float(eps)
 
-    Nx = 64
-    Ny = 90
-    Nz = 64
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+
     if end_time is None:
         end_time = T
     else:
@@ -1048,8 +1049,8 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
     print_verb("v0_norm:", jnp.linalg.norm(v0))
     learning_rate = v0_norm * 9e-2
     # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
-    solver = optax.adabelief(learning_rate=learning_rate) # minimizer
-    # solver = optax.adam(learning_rate=learning_rate) # minimizer
+    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    solver = optax.adam(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(v0)
     number_of_steps = 10
     old_gain = None
@@ -1079,7 +1080,198 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
         v0_new.save_to_file("vel_0_" + str(i+1))
         print_verb("iteration took", time.time() - start_time, "seconds")
 
-    run_case(v0, True)
+    final_negative_gain = run_case(v0, True)
+    final_gain = - final_negative_gain
+    print_verb("\n\n")
+    print_verb("gain:", final_gain)
+    print_verb("gain change:", (final_gain - gain))
+    print_verb("\n\n")
+
+
+    # res = jaxopt.minimize(
+    #     fun=run_case,
+    #     x0=v0_0.get_fields().flatten(),
+    #     # method='l-bfgs-experimental-do-not-rely-on-this',
+    #     method='bfgs',
+    #     tol=tol,
+    #     options = {'maxiter': 2},
+    #     )
+    # adapted from Joe's code
+    # maxiter = 1000
+    # tol = 1e-10
+    # solver = jaxopt.ScipyMinimize(
+    #     fun=run_case,
+    #     method='L-BFGS-B',
+    #     tol=tol,
+    #     # jit=True, # TODO
+    #     jit=False,
+    #     maxiter = maxiter,
+    #     # callback=callback
+    # )
+    # params, state = solver.run(v0_0.get_fields().flatten())
+
+    # def callback(intermediate_result=None):
+    #     global n_iter
+    #     vel_opt = VectorField([PhysicalField(domain, intermediate_result.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    #     vel_opt.set_time_step(n_iter)
+    #     vel_opt.plot_3d(2)
+    #     n_iter += 1
+
+    # res = sciopt.minimize(
+    #     fun=jax.value_and_grad(run_case),
+    #     x0=v0_0.get_fields().flatten(),
+    #     jac=True,
+    #     method='L-BFGS-B',
+    #     # method='CG',
+    #     tol=tol,
+    #     callback=callback
+    # )
+
+    # vel_opt = VectorField([PhysicalField(domain, res.x.reshape((3, Nx, Ny, Nz))[i,...], name="velocity_opt_" + "xyz"[i]) for i in range(3)])
+    # vel_opt.plot_3d(2)
+
+    # v0s = [[v0_0_norm[i].data for i in range(3)]]
+    # step_size = 1e-2
+    # for i in jnp.arange(10):
+    #     gain, corr = jax.value_and_grad(run_case)(v0s[-1])
+    #     corr_arr = jnp.array(corr)
+    #     corr_arr = corr_arr / jnp.linalg.norm(corr_arr) * jnp.linalg.norm(jnp.array(v0s[-1]))
+    #     print_verb("gain: " + str(gain))
+    #     eps = step_size
+
+    #     # v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
+    #     v0s[-1] = [v0s[-1][j] + eps * corr_arr[j] for j in range(3)]
+    #     v0_new = VectorField([PhysicalField(v0_0_norm[j].physical_domain, v0s[-1][j]) for j in range(3)])
+    #     v0_new.set_name("vel_0_" + str(i))
+    #     v0_new.plot_3d(2)
+    #     v0_new.save_to_file("vel_0_" + str(i))
+
+def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta=0.0):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+
+    Equation.initialize()
+    Nx = 8
+    Ny = 50
+    Nz = 4
+    # Nx = 48
+    # Ny = 64
+    # Nz = 12
+    end_time = T
+    number_of_modes = 20 # deliberately low value so that there is room for improvement
+    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
+    aliasing = 3/2
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
+
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        number_of_modes,
+        recompute_full=True,
+        save_final=False,
+    )
+    e_0 = 1e-6
+    v0_0_norm = v0_0.normalize_by_energy()
+    v0_0_norm *= e_0
+
+    def post_process(nse, i):
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+    def run_case(v0, out=False):
+
+        # U = lsc.velocity_field_from_y_slice(domain, jnp.array([v0[0], v0[1], jnp.zeros_like(v0[0])]))
+        U = lsc.velocity_field_from_y_slice(domain, jnp.array([v0.at[0].get(), v0.at[1].get(), jnp.zeros_like(v0.at[0].get())]))
+        U_norm = U.normalize_by_energy()
+        U_norm.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U_norm *= e_0
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
+        nse.end_time = end_time
+
+        # nse.set_linearize(False)
+        nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.activate_jit()
+        if out:
+            nse.write_intermediate_output = True
+            nse.post_process_fn = post_process
+        else:
+            nse.write_intermediate_output = False
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.before_time_step_fn = None
+        nse.after_time_step_fn = None
+        if out:
+            nse.post_process()
+
+        gain = vel.energy() / vel_0.energy()
+        negative_gain = -gain
+        # return gain
+        return negative_gain # (TODO would returning 1/gain lead to a better minimization problem?)
+
+    v0 = jnp.array([v0_0_norm[i].data[Nx//2, :, Nz//2] for i in range(2)])
+    v0_norm = jnp.linalg.norm(v0)
+    print_verb("v0_norm:", jnp.linalg.norm(v0))
+    learning_rate = v0_norm * 9e-2
+    # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
+    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    solver = optax.adam(learning_rate=learning_rate) # minimizer
+    opt_state = solver.init(v0)
+    number_of_steps = 2
+    old_gain = None
+
+    # v0_new = lsc.velocity_field_from_y_slice(domain, jnp.array([v0[0], v0[1], jnp.zeros_like(v0[0])]))
+    v0_new = lsc.velocity_field_from_y_slice(domain, jnp.array([v0.at[0].get(), v0.at[1].get(), jnp.zeros_like(v0.at[0].get())]))
+    v0_new.set_name("vel_0_" + str(0))
+    v0_new.plot_3d(2)
+    v0_new.save_to_file("vel_0_" + str(0))
+    for i in range(number_of_steps):
+        start_time = time.time()
+        negative_gain, corr = jax.value_and_grad(run_case)(v0)
+        gain = - negative_gain
+        print_verb("\n\n")
+        print_verb("gain: " + str(gain))
+        if old_gain:
+            print_verb("gain change: " + str(gain - old_gain))
+        print_verb("\n\n")
+        old_gain = gain
+
+        updates, opt_state = solver.update(corr, opt_state, v0)
+        v0 = optax.apply_updates(v0, updates)
+        print_verb("v0 magnitudes:", jnp.linalg.norm(v0))
+        print_verb("gradient magnitudes:", jnp.linalg.norm(corr))
+        v0_new = lsc.velocity_field_from_y_slice(domain, jnp.array([v0.at[0].get(), v0.at[1].get(), jnp.zeros_like(v0.at[0].get())]))
+        v0_new.normalize_by_energy()
+        v0_new *= e_0
+        v0_new.set_name("vel_0_" + str(i+1))
+        v0_new.plot_3d(2)
+        v0_new.save_to_file("vel_0_" + str(i+1))
+        print_verb("iteration took", time.time() - start_time, "seconds")
+
+    final_negative_gain = run_case(v0, True)
+    final_gain = - final_negative_gain
+    print_verb("\n\n")
+    print_verb("gain:", final_gain)
+    print_verb("gain change:", (final_gain - gain))
+    print_verb("\n\n")
 
 
     # res = jaxopt.minimize(
