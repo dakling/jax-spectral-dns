@@ -1273,10 +1273,10 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     print_verb("v0_norm:", jnp.linalg.norm(v0))
     learning_rate = v0_norm * 9e-2
     # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
-    solver = optax.adabelief(learning_rate=learning_rate) # minimizer
-    # solver = optax.adam(learning_rate=learning_rate) # minimizer
+    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    solver = optax.adam(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(v0)
-    number_of_steps = 3
+    number_of_steps = 20
     old_gain = None
 
     # v0_new = lsc.velocity_field_from_y_slice(domain, jnp.array([v0[0], v0[1], jnp.zeros_like(v0[0])]))
