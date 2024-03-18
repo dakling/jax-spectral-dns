@@ -968,9 +968,9 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
     beta = float(beta)
 
     Equation.initialize()
-    Nx = 4
-    Ny = 50
-    Nz = 4
+    Nx = 8
+    Ny = 90
+    Nz = 8
     # Nx = 48
     # Ny = 64
     # Nz = 12
@@ -994,6 +994,8 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
+    ts = []
+    energy_t = []
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
         vel_hat = nse.get_field("velocity_hat", i)
@@ -1010,12 +1012,23 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
 
+        vel_energy = vel.energy()
+        ts.append(time)
+        energy_t.append(vel_energy)
+
+        energy_t_arr = np.array(energy_t)
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ax.plot(ts, energy_t_arr/energy_t_arr[0], ".", label="growth (DNS)")
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+
     def run_case(v0, out=False):
 
         U_hat = VectorField([FourierField(domain, v0[i]) for i in range(3)])
         U = U_hat.no_hat()
-        U_norm = U.normalize_by_energy()
         U_norm.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
@@ -1052,7 +1065,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
     # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
     solver = optax.adam(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(v0)
-    number_of_steps = 10
+    number_of_steps = 20
     old_gain = None
 
     v0_new = VectorField([FourierField(domain, v0[j]) for j in range(3)]).no_hat()
@@ -1077,9 +1090,16 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
         v0_new = VectorField([FourierField(domain, v0[j]) for j in range(3)]).no_hat()
         v0_new.set_name("vel_0_" + str(i+1))
         v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
         v0_new.save_to_file("vel_0_" + str(i+1))
+        v0_new.set_name("vel_0_latest")
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
         print_verb("iteration took", time.time() - start_time, "seconds")
 
+    print_verb("performing final run with optimized initial condition")
     final_negative_gain = run_case(v0, True)
     final_gain = - final_negative_gain
     print_verb("\n\n")
@@ -1153,9 +1173,12 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     beta = float(beta)
 
     Equation.initialize()
+    # Nx = 4
+    # Ny = 24
+    # Nz = 4
     Nx = 8
-    Ny = 50
-    Nz = 4
+    Ny = 80
+    Nz = 8
     # Nx = 48
     # Ny = 64
     # Nz = 12
@@ -1178,7 +1201,12 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
 
+
+    ts = []
+    energy_t = []
     def post_process(nse, i):
+        n_steps = len(nse.get_field("velocity_hat"))
+        time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1189,16 +1217,29 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         vort.set_name("vorticity")
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
+        vel[0].plot_center(1)
+        vel[1].plot_center(1)
         vort[2].plot_3d(2)
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
+
+        vel_energy = vel.energy()
+        ts.append(time)
+        energy_t.append(vel_energy)
+
+        energy_t_arr = np.array(energy_t)
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ax.plot(ts, energy_t_arr/energy_t_arr[0], ".", label="growth (DNS)")
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
     def run_case(v0, out=False):
 
         # U = lsc.velocity_field_from_y_slice(domain, jnp.array([v0[0], v0[1], jnp.zeros_like(v0[0])]))
         U = lsc.velocity_field_from_y_slice(domain, jnp.array([v0.at[0].get(), v0.at[1].get(), jnp.zeros_like(v0.at[0].get())]))
+        U.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
         U_norm = U.normalize_by_energy()
-        U_norm.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
         U_norm *= e_0
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re)
@@ -1232,10 +1273,10 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     print_verb("v0_norm:", jnp.linalg.norm(v0))
     learning_rate = v0_norm * 9e-2
     # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
-    # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
-    solver = optax.adam(learning_rate=learning_rate) # minimizer
+    solver = optax.adabelief(learning_rate=learning_rate) # minimizer
+    # solver = optax.adam(learning_rate=learning_rate) # minimizer
     opt_state = solver.init(v0)
-    number_of_steps = 2
+    number_of_steps = 3
     old_gain = None
 
     # v0_new = lsc.velocity_field_from_y_slice(domain, jnp.array([v0[0], v0[1], jnp.zeros_like(v0[0])]))
@@ -1244,6 +1285,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     v0_new.plot_3d(2)
     v0_new.save_to_file("vel_0_" + str(0))
     for i in range(number_of_steps):
+        print_verb("Iteration", i+1, "of", number_of_steps)
         start_time = time.time()
         negative_gain, corr = jax.value_and_grad(run_case)(v0)
         gain = - negative_gain
@@ -1263,11 +1305,25 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         v0_new *= e_0
         v0_new.set_name("vel_0_" + str(i+1))
         v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
+        v0_new.set_name("vel_0_latest")
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
         v0_new.save_to_file("vel_0_" + str(i+1))
         print_verb("iteration took", time.time() - start_time, "seconds")
 
+    print_verb("performing final run with optimized initial condition")
     final_negative_gain = run_case(v0, True)
     final_gain = - final_negative_gain
+
+    # energy_t = np.array(energy_t)
+    # fig = figure.Figure()
+    # ax = fig.subplots(1, 1)
+    # ax.plot(ts, energy_t/energy_t[0], ".", label="growth (DNS)")
+    # fig.legend()
+    # fig.savefig("plots/energy_t.pdf")
     print_verb("\n\n")
     print_verb("gain:", final_gain)
     print_verb("gain change:", (final_gain - gain))
@@ -1403,7 +1459,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
             domain,
             coeffs_,
-            recompute=False
+            recompute=True
         )
         eps = 1e-5
         eps_ = eps / U.energy()

@@ -17,11 +17,12 @@ from fixed_parameters import FixedParameters
 NoneType = type(None)
 
 def print_verb(*str, verbosity_level:int=1, debug:bool=False):
+    pref = '  ' * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
-            jax.debug.print("{x}", x=' '.join(str))
+            jax.debug.print("{x}", x=pref + ' '.join(str))
         else:
-            print(*str)
+            print(pref, *str)
 
 class Equation:
     name = "equation"
