@@ -1169,7 +1169,7 @@ class TestProject(unittest.TestCase):
             for use_antialiasing in [False, True]:
                 for rotated in [False, True]:
                     print_verb("testing growth rates in " + ("rotated" if rotated else "normal") + " domain " + ("with" if use_antialiasing else "without") + " antialiasing")
-                    ts, energy, energy_ana = run(rotated)
+                    ts, energy, energy_ana = run(rotated, use_antialiasing)
                     plot(ts, energy, energy_ana)
                     calculate_growth_rates(ts, energy, energy_ana)
 
