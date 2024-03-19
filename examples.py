@@ -998,6 +998,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
     energy_t = []
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
+        time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1027,7 +1028,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0):
 
         U_hat = VectorField([FourierField(domain, v0[i]) for i in range(3)])
         U = U_hat.no_hat()
-        U_norm.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
@@ -1176,9 +1177,9 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     # Nx = 4
     # Ny = 24
     # Nz = 4
-    Nx = 8
-    Ny = 80
-    Nz = 8
+    Nx = 4
+    Ny = 50
+    Nz = 4
     # Nx = 48
     # Ny = 64
     # Nz = 12
@@ -1200,7 +1201,6 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     e_0 = 1e-6
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
-
 
     ts = []
     energy_t = []
@@ -1249,6 +1249,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        print_verb("energy_0: ", vel_0.energy(), debug=True)
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True

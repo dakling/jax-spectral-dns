@@ -20,7 +20,12 @@ def print_verb(*str, verbosity_level:int=1, debug:bool=False):
     pref = '  ' * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
-            jax.debug.print("{x}", x=pref + ' '.join(str))
+            print(pref, end='')
+            for st in str:
+                if type(st) is str:
+                    print(st, end='')
+                else:
+                    jax.debug.callback(lambda x: print(x), st)
         else:
             print(pref, *str)
 
