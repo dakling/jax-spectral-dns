@@ -1256,7 +1256,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
     print_verb("performing final run with optimized initial condition")
     final_negative_gain = run_case(v0, True)
-    final_gain = - final_negative_gain
+    # final_gain = - final_negative_gain
+    final_gain = 1 / final_negative_gain
 
     # energy_t = np.array(energy_t)
     # fig = figure.Figure()
