@@ -46,14 +46,14 @@ class TestProject(unittest.TestCase):
         )
 
         # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
-        # print("u")
-        # print(u)
-        # print("ux")
-        # print(u_x)
+        print_verb("u", verbosity_level=3)
+        print_verb(u, verbosity_level=3)
+        print_verb("ux", verbosity_level=3)
+        print_verb(u_x, verbosity_level=3)
         # u.plot_center(0, u_x, u_xx)
         tol = 5e-4
-        # print(abs(u_x - u_x_ana))
-        # print(abs(u_xx - u_xx_ana))
+        print_verb(abs(u_x - u_x_ana), verbosity_level=3)
+        , verbosity_level=print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
 
@@ -83,8 +83,8 @@ class TestProject(unittest.TestCase):
 
         # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
         tol = 8e-5
-        # print(abs(u_x - u_x_ana))
-        # print(abs(u_xx - u_xx_ana))
+        print_verb(abs(u_x - u_x_ana), verbosity_level=3)
+        print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
 
@@ -140,10 +140,10 @@ class TestProject(unittest.TestCase):
         # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
         # u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
         tol = 5e-5
-        # print(abs(u_x - u_x_ana))
-        # print(abs(u_xx - u_xx_ana))
-        # print(abs(u_y - u_y_ana))
-        # print(abs(u_yy - u_yy_ana))
+        print_verb(abs(u_x - u_x_ana), verbosity_level=3)
+        print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
+        print_verb(abs(u_y - u_y_ana), verbosity_level=3)
+        print_verb(abs(u_yy - u_yy_ana), verbosity_level=3)
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
         self.assertTrue(abs(u_y - u_y_ana) < tol)
@@ -233,12 +233,12 @@ class TestProject(unittest.TestCase):
         # u.plot_center(1, u_y, u_yy, u_y_ana, u_yy_ana)
         # u.plot_center(2, u_z, u_zz, u_z_ana, u_zz_ana)
 
-        # print(abs(u_x - u_x_ana))
-        # print(abs(u_xx - u_xx_ana))
-        # print(abs(u_y - u_y_ana))
-        # print(abs(u_yy - u_yy_ana))
-        # print(abs(u_z - u_z_ana))
-        # print(abs(u_zz - u_zz_ana))
+        print_verb(abs(u_x - u_x_ana), verbosity_level=3)
+        print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
+        print_verb(abs(u_y - u_y_ana), verbosity_level=3)
+        print_verb(abs(u_yy - u_yy_ana), verbosity_level=3)
+        print_verb(abs(u_z - u_z_ana), verbosity_level=3)
+        print_verb(abs(u_zz - u_zz_ana), verbosity_level=3)
         tol = 5e-5
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
@@ -305,10 +305,10 @@ class TestProject(unittest.TestCase):
         u_dom_diff_2.name = "u_1d_dom_diff_2"
         # u_int.plot(u)
         # u.integrate(0).plot(u)
-        # print(abs(u_int - u_int_ana))
-        # print(abs(u_int_2 - u_int_ana_2))
-        # print(abs(u_diff - u_diff_ana))
-        # print(abs(u_diff_2 - u_diff_ana_2))
+        print_verb(abs(u_int - u_int_ana), verbosity_level=3)
+        print_verb(abs(u_int_2 - u_int_ana_2), verbosity_level=3)
+        print_verb(abs(u_diff - u_diff_ana), verbosity_level=3)
+        print_verb(abs(u_diff_2 - u_diff_ana_2), verbosity_level=3)
         self.assertTrue(abs(u_int - u_int_ana) < tol)
         self.assertTrue(abs(u_int_2 - u_int_ana_2) < tol)
         self.assertTrue(abs(u_diff - u_diff_ana) < tol)
@@ -419,14 +419,14 @@ class TestProject(unittest.TestCase):
         # u.plot_center(0, u_x, u_x_2, u_int_x, u_int_xx)
         # u.plot_center(1, u_y, u_y_2, u_int_y, u_int_yy)
         tol = 1e-5
-        # print(abs(u_x - u_x_ana))
-        # print(abs(u_x_2 - u_xx_ana))
-        # print(abs(u_y - u_y_ana))
-        # print(abs(u_y_2 - u_yy_ana))
-        # print(abs(u_int_x - u_int_x_ana))
-        # print(abs(u_int_xx - u_int_xx_ana))
-        # print(abs(u_int_y - u_int_y_ana))
-        # print(abs(u_int_yy - u_int_yy_ana))
+        print_verb(abs(u_x - u_x_ana), verbosity_level=3)
+        print_verb(abs(u_x_2 - u_xx_ana), verbosity_level=3)
+        print_verb(abs(u_y - u_y_ana), verbosity_level=3)
+        print_verb(abs(u_y_2 - u_yy_ana), verbosity_level=3)
+        print_verb(abs(u_int_x - u_int_x_ana), verbosity_level=3)
+        print_verb(abs(u_int_xx - u_int_xx_ana), verbosity_level=3)
+        print_verb(abs(u_int_y - u_int_y_ana), verbosity_level=3)
+        print_verb(abs(u_int_yy - u_int_yy_ana), verbosity_level=3)
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_x_2 - u_xx_ana) < tol)
         self.assertTrue(abs(u_y - u_y_ana) < tol)
@@ -507,18 +507,18 @@ class TestProject(unittest.TestCase):
         # u_int_x.plot(u)
         # u_int_hat_x.no_hat().plot(u)
         # u_xx.plot(u_hat_xx.no_hat())
-        # print(abs(U - U_nohat))
-        # print(abs(u_hat_x.no_hat() - u_x))
-        # print(abs(u_hat_xx.no_hat() - u_xx))
-        # print(abs(u_hat_y.no_hat() - u_y))
-        # print(abs(u_hat_yy.no_hat() - u_yy))
-        # print(abs(u_hat_z.no_hat() - u_z))
-        # print(abs(u_hat_zz.no_hat() - u_zz))
-        # print(abs(u_int_hat_x.no_hat() - u_int_x))
-        # print(abs(u_int_hat_xx.no_hat() - u_int_xx))
-        # print(abs(u_int_hat_yy.no_hat() - u_int_yy))
-        # print(abs(u_int_hat_z.no_hat() - u_int_z))
-        # print(abs(u_int_hat_zz.no_hat() - u_int_zz))
+        print_verb(abs(U - U_nohat), verbosity_level=3)
+        print_verb(abs(u_hat_x.no_hat() - u_x), verbosity_level=3)
+        print_verb(abs(u_hat_xx.no_hat() - u_xx), verbosity_level=3)
+        print_verb(abs(u_hat_y.no_hat() - u_y), verbosity_level=3)
+        print_verb(abs(u_hat_yy.no_hat() - u_yy), verbosity_level=3)
+        print_verb(abs(u_hat_z.no_hat() - u_z), verbosity_level=3)
+        print_verb(abs(u_hat_zz.no_hat() - u_zz), verbosity_level=3)
+        print_verb(abs(u_int_hat_x.no_hat() - u_int_x), verbosity_level=3)
+        print_verb(abs(u_int_hat_xx.no_hat() - u_int_xx), verbosity_level=3)
+        print_verb(abs(u_int_hat_yy.no_hat() - u_int_yy), verbosity_level=3)
+        print_verb(abs(u_int_hat_z.no_hat() - u_int_z), verbosity_level=3)
+        print_verb(abs(u_int_hat_zz.no_hat() - u_int_zz), verbosity_level=3)
         tol = 1e-9
         # self.assertTrue(abs(U - U_nohat) < tol)
         self.assertTrue(abs(u_hat_x.no_hat() - u_x) < tol)
@@ -548,7 +548,7 @@ class TestProject(unittest.TestCase):
         # u_int.plot(u, u_int_ana)
 
         tol = 1e-7
-        # print(abs(u_int - u_int_ana))
+        print_verb(abs(u_int - u_int_ana), verbosity_level=3)
         self.assertTrue(abs(u_int - u_int_ana) < tol)
 
     def test_cheb_integration_2D(self):
@@ -575,8 +575,8 @@ class TestProject(unittest.TestCase):
         # u_int_2.plot(u, u_int_2_ana)
 
         tol = 1e-7
-        # print(abs(u_int_1 - u_int_1_ana))
-        # print(abs(u_int_2 - u_int_2_ana))
+        print_verb(abs(u_int_1 - u_int_1_ana), verbosity_level=3)
+        print_verb(abs(u_int_2 - u_int_2_ana), verbosity_level=3)
         self.assertTrue(abs(u_int_1 - u_int_1_ana) < tol)
         self.assertTrue(abs(u_int_2 - u_int_2_ana) < tol)
 
@@ -601,7 +601,7 @@ class TestProject(unittest.TestCase):
         # u_int.plot(u_int_ana)
 
         tol = 1e-8
-        # print(abs(u_int - u_int_ana))
+        print_verb(abs(u_int - u_int_ana), verbosity_level=3)
         self.assertTrue(abs(u_int - u_int_ana) < tol)
 
     def test_definite_integral(self):
@@ -622,8 +622,8 @@ class TestProject(unittest.TestCase):
         domain_1D_cheb = PhysicalDomain.create((Nx,), (False,))
         u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
         u_1d_cheb = PhysicalField.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
-        # print(u_1d_cheb.definite_integral(0))
-        # print(abs(u_1d_cheb.definite_integral(0) - 0.5321317555))
+        print_verb(u_1d_cheb.definite_integral(0), verbosity_level=3)
+        print_verb(abs(u_1d_cheb.definite_integral(0) - 0.5321317555), verbosity_level=3)
         self.assertTrue(abs(u_1d_cheb.definite_integral(0) - 0.5321317555) < tol)
         # 2D
         # Fourier
@@ -636,7 +636,7 @@ class TestProject(unittest.TestCase):
         u_2d_fourier = PhysicalField.FromFunc(
             domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier"
         )
-        # print(abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+        print_verb(abs(u_2d_fourier.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812), verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -661,8 +661,8 @@ class TestProject(unittest.TestCase):
             jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2
         )
         u_2d_cheb = PhysicalField.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
-        # print(abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
-        # print((u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
+        print_verb(abs(u_2d_cheb.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812), verbosity_level=3)
+        print_verb((u_2d_cheb.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962), verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -684,7 +684,7 @@ class TestProject(unittest.TestCase):
         # Mixed
         domain_2D_mixed = PhysicalDomain.create((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
         u_2d_mixed = PhysicalField.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
-        # print(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962))
+        print_verb(abs(u_2d_mixed.definite_integral(1).definite_integral(0) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962), verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -707,7 +707,7 @@ class TestProject(unittest.TestCase):
         u_2d_mixed_2 = PhysicalField.FromFunc(
             domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2"
         )
-        # print(abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812))
+        print_verb(abs(u_2d_mixed_2.definite_integral(1).definite_integral(0) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812), verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -743,7 +743,7 @@ class TestProject(unittest.TestCase):
         u_3d_fourier = PhysicalField.FromFunc(
             domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier"
         )
-        # print(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992)
+        print_verb(u_3d_fourier.definite_integral(2).definite_integral(1).definite_integral(0) - -10.84981433261992, verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -766,7 +766,7 @@ class TestProject(unittest.TestCase):
             + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi) ** 2)
         )
         u_3d_cheb = PhysicalField.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
-        # print(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872)
+        print_verb(u_3d_cheb.definite_integral(2).definite_integral(1).definite_integral(0) - 10.128527022082872, verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -789,7 +789,7 @@ class TestProject(unittest.TestCase):
             + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z) ** 2)
         )
         u_3d_mixed = PhysicalField.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
-        # print(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558)
+        print_verb(u_3d_mixed.definite_integral(2).definite_integral(1).definite_integral(0) - 7.596395266449558, verbosity_level=3)
         self.assertTrue(
             (
                 abs(
@@ -868,13 +868,13 @@ class TestProject(unittest.TestCase):
         out_hat = rhs_hat.reconstruct_from_wavenumbers(
             solve_poisson_for_single_wavenumber
         )
-        # print(str(time.time() - start_time) + " seconds used for reconstruction.")
+        print_verb(str(time.time() - start_time) + " seconds used for reconstruction.", verbosity_level=3)
         out = out_hat.no_hat()
 
         # u_ana.plot(out)
 
         tol = 1e-8
-        # print(abs(u_ana - out))
+        print_verb(abs(u_ana - out), verbosity_level=3)
         self.assertTrue(abs(u_ana - out) < tol)
 
     def test_poisson_no_slices(self):
@@ -919,7 +919,7 @@ class TestProject(unittest.TestCase):
         # u_ana.plot(out)
 
         tol = 1e-8
-        # print(abs(u_ana - out))
+        print_verb(abs(u_ana - out), verbosity_level=3)
         self.assertTrue(abs(u_ana - out) < tol)
 
     def test_navier_stokes_laminar(self, Ny=96, perturbation_factor=0.01):
@@ -959,13 +959,13 @@ class TestProject(unittest.TestCase):
             )
             vel_x_ana = PhysicalField.FromFunc(nse.get_physical_domain() , vel_x_fn_ana, name="vel_x_ana")
 
-            print("Doing post-processing")
+            print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             tol = 6e-5
-            print(abs(vel[0] - vel_x_ana))
-            print(abs(vel[1]))
-            print(abs(vel[2]))
+            print_verb(abs(vel[0] - vel_x_ana), verbosity_level=2)
+            print_verb(abs(vel[1]), verbosity_level=2)
+            print_verb(abs(vel[2]), verbosity_level=2)
             # check that the simulation is really converged
             self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
             self.assertTrue(abs(vel[1]) < tol)
@@ -991,13 +991,13 @@ class TestProject(unittest.TestCase):
 
     #     errors = list(map(run, Nys))
     #     errorsLog = list(map(lambda x: jnp.log2(x), errors))
-    #     print(errors)
+    #     print_verb(errors)
 
     #     def fittingFunc(x, a, b):
     #         return a + b * x
 
     #     result = optimization.curve_fit(fittingFunc, Nys, errorsLog)
-    #     print(result)
+    #     print_verb(result)
 
     def test_linear_stability(self):
         n = 50
@@ -1008,8 +1008,8 @@ class TestProject(unittest.TestCase):
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=n)
         evs, _ = lsc.calculate_eigenvalues()
         # evs, evecs = lsc.calculate_eigenvalues()
-        print(evs[0])
-        # print(evecs[0])
+        print_verb(evs[0], verbosity_level=3)
+        # print_verb(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 
     def test_perturbation_laminar(self, Ny=48, perturbation_factor=0.01):
@@ -1034,13 +1034,13 @@ class TestProject(unittest.TestCase):
             nse.before_time_step_fn = None
             nse.solve()
 
-            print("Doing post-processing")
+            print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             tol = 5e-7
-            print(abs(vel[0]))
-            print(abs(vel[1]))
-            print(abs(vel[2]))
+            print_verb(abs(vel[0]), verbosity_level=3)
+            print_verb(abs(vel[1]), verbosity_level=3)
+            print_verb(abs(vel[2]), verbosity_level=3)
             # check that the simulation is really converged
             self.assertTrue(abs(vel[0]) < tol)
             self.assertTrue(abs(vel[1]) < tol)
@@ -1054,8 +1054,8 @@ class TestProject(unittest.TestCase):
     #     for i in range(3):
     #         growth_5500.append(growth_5500_data[i][-1] - growth_5500_data[i][-2])
     #         growth_6000.append(growth_6000_data[i][-1] - growth_6000_data[i][-2])
-    #     print("growth_5500: ", growth_5500)
-    #     print("growth_6000: ", growth_6000)
+    #     print_verb("growth_5500: ", growth_5500)
+    #     print_verb("growth_6000: ", growth_6000)
     #     self.assertTrue(
     #         all([growth < 0 for growth in growth_5500]),
     #         "Expected perturbations to decay for Re=5500.",
@@ -1075,8 +1075,8 @@ class TestProject(unittest.TestCase):
     #     vel_final_no_jit_5500 = data_no_jit_5500[-1]
     #     vel_final_no_jit_6000 = data_no_jit_6000[-1]
 
-    #     print((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
-    #     print((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
+    #     print_verb((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
+    #     print_verb((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
     #     self.assertTrue(
     #         (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-6
     #     )
@@ -1118,35 +1118,35 @@ class TestProject(unittest.TestCase):
         def calculate_growth_rates(ts, energy, energy_ana):
             start_index = 1 # don't start at 0 to allow for some initial transient
             time = ts[0][-1] - ts[0][start_index]
-            print("Re = 5500:")
+            print_verb("Re = 5500:")
             growth_rate = (energy[0][-1] - energy[0][start_index]) / (time * energy_ana[0][start_index])
             growth_rate_ana = (energy_ana[0][-1] - energy_ana[0][start_index]) / (time * energy_ana[0][start_index])
-            print("growth rate: ", growth_rate)
-            print("growth rate (analytical): ", growth_rate_ana)
-            print("difference: ", abs(growth_rate_ana - growth_rate))
+            print_verb("growth rate: ", growth_rate)
+            print_verb("growth rate (analytical): ", growth_rate_ana)
+            print_verb("difference: ", abs(growth_rate_ana - growth_rate))
             rel_error_5500 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
-            print("relative error: ", rel_error_5500)
+            print_verb("relative error: ", rel_error_5500)
             assert rel_error_5500 < 1e-3
 
-            print("Re = 5772.22:")
+            print_verb("Re = 5772.22:")
             growth_rate = (energy[1][-1] - energy[1][start_index]) / (time * energy_ana[1][start_index])
             growth_rate_ana = (energy_ana[1][-1] - energy_ana[1][start_index]) / (time * energy_ana[1][start_index])
-            print("growth rate: ", growth_rate)
-            print("growth rate (analytical): ", growth_rate_ana)
-            print("difference: ", abs(growth_rate_ana - growth_rate))
+            print_verb("growth rate: ", growth_rate)
+            print_verb("growth rate (analytical): ", growth_rate_ana)
+            print_verb("difference: ", abs(growth_rate_ana - growth_rate))
             rel_error_5772 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
-            print("relative error: ", rel_error_5772)
+            print_verb("relative error: ", rel_error_5772)
             assert rel_error_5772 < 2 # (this can be quite large as the denominator is almost zero)
             assert abs(growth_rate) < 2e-6
 
-            print("Re = 6000:")
+            print_verb("Re = 6000:")
             growth_rate = (energy[2][-1] - energy[2][start_index]) / (time * energy_ana[2][start_index])
             growth_rate_ana = (energy_ana[2][-1] - energy_ana[2][start_index]) / (time * energy_ana[2][start_index])
-            print("growth rate: ", growth_rate)
-            print("growth rate (analytical): ", growth_rate_ana)
-            print("difference: ", abs(growth_rate_ana - growth_rate))
+            print_verb("growth rate: ", growth_rate)
+            print_verb("growth rate (analytical): ", growth_rate_ana)
+            print_verb("difference: ", abs(growth_rate_ana - growth_rate))
             rel_error_6000 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
-            print("relative error: ", rel_error_6000)
+            print_verb("relative error: ", rel_error_6000)
             assert rel_error_6000 < 1e-3
 
 
@@ -1180,7 +1180,7 @@ class TestProject(unittest.TestCase):
         for (Re, t) in [(600, 2), (3000, 15)]:
             gain, expected_gain, _, _ = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
             rel_error = abs((gain - expected_gain) / expected_gain)
-            # print(rel_error)
+            print_verb(rel_error, verbosity_level=3)
             assert rel_error <  5e-5
 
 

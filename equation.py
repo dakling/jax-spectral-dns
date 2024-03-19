@@ -234,7 +234,7 @@ class Equation:
             print(msg)
             while not self.done():
                 i = self.time_step
-                print(
+                print_verb(
                     "Time Step "
                     + str(i + 1)
                     + ", time: "
@@ -242,13 +242,12 @@ class Equation:
                     + ", dt: "
                     + str(self.get_dt())
                 )
-                # print("Time Step " + str(i + 1))
                 start_time = time.time()
                 self.before_time_step()
                 self.perform_time_step()
                 self.update_time()
                 self.after_time_step()
-                print("Took " + str(time.time() - start_time) + " seconds")
+                print_verb("Took " + str(time.time() - start_time) + " seconds")
 
     def plot(self):
         raise NotImplementedError()

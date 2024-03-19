@@ -54,7 +54,7 @@ def main():
     # run tests
     tp = TestProject()
     # these tests should work before pushing to develop
-    # tp.test_navier_stokes_laminar()
+    tp.test_navier_stokes_laminar()
     tp.test_2d_growth_rates_quantitatively()
     tp.test_transient_growth()
     # tests down here are less critical and should only be tested in the merge pipeline
