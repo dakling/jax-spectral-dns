@@ -992,8 +992,6 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    ts = []
-    energy_t = []
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
         time = (i / (n_steps - 1)) * end_time
@@ -1011,14 +1009,21 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
 
-        vel_energy = vel.energy()
-        ts.append(time)
-        energy_t.append(vel_energy)
-
-        energy_t_arr = np.array(energy_t)
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
-        ax.plot(ts, energy_t_arr/energy_t_arr[0], ".", label="growth (DNS)")
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr/energy_t_arr[0], "k.")
+        ax.plot(ts[:i+1], energy_t_arr[:i+1]/energy_t_arr[0], "bo", label="energy gain")
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
@@ -1134,11 +1139,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
 
-    ts = []
-    energy_t = []
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
-        time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1155,14 +1157,21 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
 
-        vel_energy = vel.energy()
-        ts.append(time)
-        energy_t.append(vel_energy)
-
-        energy_t_arr = np.array(energy_t)
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
-        ax.plot(ts, energy_t_arr/energy_t_arr[0], ".", label="growth (DNS)")
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr/energy_t_arr[0], "k.")
+        ax.plot(ts[:i+1], energy_t_arr[:i+1]/energy_t_arr[0], "bo", label="energy gain")
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
@@ -1181,7 +1190,6 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         nse.set_linearize(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        print_verb("energy_0: ", vel_0.energy(), debug=True)
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
@@ -1197,7 +1205,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
             nse.post_process()
 
         gain = vel.energy() / vel_0.energy()
-        negative_gain = -gain
+        # negative_gain = -gain
+        negative_gain = 1/gain
         # return gain
         return negative_gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
@@ -1228,7 +1237,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         v0_new.save_to_file("vel_0_" + str(i))
 
         negative_gain, corr = jax.value_and_grad(run_case)(v0)
-        gain = - negative_gain
+        # gain = - negative_gain
+        gain = 1 / negative_gain
         print_verb()
         print_verb("gain: " + str(gain))
         if old_gain:
