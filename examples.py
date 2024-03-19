@@ -1272,7 +1272,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     v0 = jnp.array([v0_0_norm[i].data[Nx//2, :, Nz//2] for i in range(2)])
     v0_norm = jnp.linalg.norm(v0)
     print_verb("v0_norm:", jnp.linalg.norm(v0))
-    learning_rate = v0_norm * 9e-2
+    learning_rate = v0_norm * 1e-2
     # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
     # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
     solver = optax.adam(learning_rate=learning_rate) # minimizer

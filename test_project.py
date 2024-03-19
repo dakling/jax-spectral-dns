@@ -53,7 +53,7 @@ class TestProject(unittest.TestCase):
         # u.plot_center(0, u_x, u_xx)
         tol = 5e-4
         print_verb(abs(u_x - u_x_ana), verbosity_level=3)
-        , verbosity_level=print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
+        print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
 
