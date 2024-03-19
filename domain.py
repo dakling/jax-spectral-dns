@@ -131,7 +131,12 @@ class Domain(ABC):
                     scale_factors_.append(1.0)
                 grid.append(get_cheb_grid(shape[dim], scale_factors_[dim]))
                 diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
+        # make grid immutable
+        for gr in grid:
+            gr.setflags(write=False)
         mgrid = np.meshgrid(*grid, indexing="ij")
+        for mgr in mgrid:
+            mgr.setflags(write=False)
         return cls(
             number_of_dimensions,
             tuple(periodic_directions),

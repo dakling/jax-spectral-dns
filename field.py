@@ -385,7 +385,10 @@ class VectorField:
 
     def div(self):
         out = self[0].diff(0)
-        out.name = "div_" + self.name + "_" + str(0)
+        try:
+            out.name = "div_" + self.name + "_" + str(0)
+        except TypeError:
+            out.name = "div_field"
         for dim in self.all_dimensions()[1:]:
             out += self[dim].diff(dim)
         return out

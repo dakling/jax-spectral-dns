@@ -148,6 +148,15 @@ class NavierStokesVelVort(Equation):
             rk_mats_rhs_ns,
             rk_mats_lhs_inv_ns,
         ) = self.prepare_assemble_rk_matrices(domain, physical_domain, Re_tau, dt)
+
+        poisson_mat.setflags(write=False)
+        rk_mats_rhs.setflags(write=False)
+        rk_mats_lhs_inv.setflags(write=False)
+        rk_rhs_inhom.setflags(write=False)
+        rk_mats_lhs_inv_inhom.setflags(write=False)
+        rk_mats_rhs_ns.setflags(write=False)
+        rk_mats_lhs_inv_ns.setflags(write=False)
+
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
             physical_domain,
             poisson_mat,

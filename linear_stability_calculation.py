@@ -438,10 +438,8 @@ class LinearStabilityCalculation:
         self, domain, coeffs, recompute=True
     ):
         """Calcluate the initial condition that achieves maximum growth at time
-        T. Uses cached values for velocity fields and eigenvalues/-vectors,
-        however, recompute_partial=True forces recomputation of the velocity
-        fields (but not of eigenvalues/-vectors) and  recompute_full=True forces
-        recomputation of eigenvalues/eigenvectors as well as velocity fields."""
+        T. Uses cached values for eigenvalues/-vectors,
+        however, recompute=True forces recomputation."""
 
         if recompute or type(self.eigenvectors) == NoneType:
             self.calculate_eigenvalues()
@@ -459,8 +457,8 @@ class LinearStabilityCalculation:
         domain,
         T,
         number_of_modes,
-        recompute_partial=False,
-        recompute_full=False,
+        recompute_partial=True,
+        recompute_full=True,
         save_final=False,
     ):
         """Calcluate the initial condition that achieves maximum growth at time
