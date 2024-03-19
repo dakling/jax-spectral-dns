@@ -22,6 +22,7 @@ NoneType = type(None)
 class TestProject(unittest.TestCase):
     def setUp(self):
         Equation.initialize()
+        Equation.verbosity_level = 0 # suppress output
 
     def test_1D_cheb(self):
         Nx = 48
