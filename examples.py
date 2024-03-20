@@ -1411,8 +1411,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         print_verb("Iteration", i+1, "of", number_of_steps)
 
         nse_ = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
-        vort_yslice = params[0]
-        v1_yslice = params[1]
+        v1_yslice = params[0]
+        vort_yslice = jnp.zeros_like(v1_yslice)
         vort_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, vort_yslice))
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[2]
