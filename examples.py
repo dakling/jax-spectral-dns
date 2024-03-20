@@ -1266,6 +1266,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     Ny = int(Ny)
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
+    min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-2
 
     Equation.initialize()
@@ -1326,6 +1327,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
+    inv_fn = lambda gain: -gain
     def run_case(v0, out=False):
 
         vort_yslice = v0[0]
@@ -1373,7 +1375,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
             nse.post_process()
 
         gain = vel.energy() / vel_0.energy()
-        inverse_gain = -gain
+        inverse_gain = inv_fn(gain)
         # inverse_gain = 1/gain
         # return gain
         return inverse_gain # (TODO would returning 1/gain lead to a better minimization problem?)
@@ -1433,13 +1435,12 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
         params, state = solver.update(params, state)
         inverse_gain = state.value
-        gain = - inverse_gain
-        # gain = 1 / inverse_gain
+        gain = inv_fn(inverse_gain)
         print_verb()
         print_verb("gain: " + str(gain))
         if old_gain:
             print_verb("gain change: " + str(gain - old_gain))
-            if i > min_number_of_optax_steps and gain - old_gain < 0:
+            if i >= min_number_of_optax_steps and gain - old_gain < 0:
                 print_verb("switching to LBFGS solver")
                 solver = jaxopt.LBFGS(jax.value_and_grad(run_case), value_and_grad=True, implicit_diff=False, jit=False, maxls=15) # minimizer
                 state = solver.init_state(params)
@@ -1454,8 +1455,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
     print_verb("performing final run with optimized initial condition")
     final_inverse_gain = run_case(params, True)
-    final_gain = - final_inverse_gain
-    # final_gain = 1 / final_inverse_gain
+    final_gain = inv_fn(final_inverse_gain)
 
     print_verb()
     print_verb("gain:", final_gain)
