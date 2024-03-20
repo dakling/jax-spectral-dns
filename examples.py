@@ -1257,7 +1257,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
     print_verb()
 
 
-def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20):
+def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20, min_number_of_optax_steps=4):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
@@ -1373,8 +1373,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
             nse.post_process()
 
         gain = vel.energy() / vel_0.energy()
-        # inverse_gain = -gain
-        inverse_gain = 1/gain
+        inverse_gain = -gain
+        # inverse_gain = 1/gain
         # return gain
         return inverse_gain # (TODO would returning 1/gain lead to a better minimization problem?)
 
@@ -1389,11 +1389,11 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     v0 = tuple([vort0_1, v0_1, v0_0_00_hat])
     v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in v0]))
     print_verb("v0_norm:", v0_norm, verbosity_level=3)
-    learning_rate = v0_norm * 1e-3
+    learning_rate = v0_norm * 1e-4
     # learning_rate = 1e-5
     # opt = optax.adagrad(learning_rate=learning_rate) # minimizer
-    # opt = optax.adabelief(learning_rate=learning_rate) # minimizer
-    opt = optax.adam(learning_rate=learning_rate) # minimizer
+    opt = optax.adabelief(learning_rate=learning_rate) # minimizer
+    # opt = optax.adam(learning_rate=learning_rate) # minimizer
     solver = jaxopt.OptaxSolver(opt=opt, fun=jax.value_and_grad(run_case), value_and_grad=True, jit=False) # minimizer
     # solver = jaxopt.LBFGS(jax.value_and_grad(run_case), True, jit=False, implicit_diff=True, maxls=10) # minimizer
     # solver = jaxopt.NonlinearCG(jax.value_and_grad(run_case), True, jit=False, implicit_diff=True, maxls=2) # minimizer
@@ -1421,6 +1421,9 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         v0_new = U.normalize_by_energy()
         v0_new *= e_0
         print_verb("relative continuity error:", v0_new.div().energy() / v0_new.energy())
+        print_verb("x-continuity:", v0_new[0].diff(0).energy())
+        print_verb("y-continuity:", v0_new[1].diff(1).energy())
+        print_verb("z-continuity:", v0_new[2].diff(2).energy())
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i)
         v0_new.plot_3d(2)
@@ -1430,13 +1433,13 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
         params, state = solver.update(params, state)
         inverse_gain = state.value
-        # gain = - inverse_gain
-        gain = 1 / inverse_gain
+        gain = - inverse_gain
+        # gain = 1 / inverse_gain
         print_verb()
         print_verb("gain: " + str(gain))
         if old_gain:
             print_verb("gain change: " + str(gain - old_gain))
-            if gain - old_gain < 0:
+            if i > min_number_of_optax_steps and gain - old_gain < 0:
                 print_verb("switching to LBFGS solver")
                 solver = jaxopt.LBFGS(jax.value_and_grad(run_case), value_and_grad=True, implicit_diff=False, jit=False, maxls=15) # minimizer
                 state = solver.init_state(params)
@@ -1451,8 +1454,8 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
     print_verb("performing final run with optimized initial condition")
     final_inverse_gain = run_case(params, True)
-    # final_gain = - final_inverse_gain
-    final_gain = 1 / final_inverse_gain
+    final_gain = - final_inverse_gain
+    # final_gain = 1 / final_inverse_gain
 
     print_verb()
     print_verb("gain:", final_gain)
