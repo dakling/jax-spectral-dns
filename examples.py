@@ -1330,11 +1330,12 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     inv_fn = lambda gain: -gain
     def run_case(v0, out=False):
 
-        vort_yslice = v0[0]
-        v1_yslice = v0[1]
+        # vort_yslice = v0[0]
+        v1_yslice = v0[0]
+        vort_yslice = jnp.zeros_like(v0[0])
         vort_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, vort_yslice))
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
-        v0_00 = v0[2]
+        v0_00 = v0[1]
         v2_00 = jnp.zeros_like(v0_00)
 
 
@@ -1383,12 +1384,12 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     # vort0_1 = v0_0_norm.curl()[1].data[Nx//2, :, Nz//2] * (1+0j)
     # v0_1 = v0_0_norm[1].data[Nx//2, :, Nz//2] * (1+0j)
     # v0_0_00_hat = v0_0_norm_hat[0].data[0, :, 0] * (1+0j)
-    vort0_1 = v0_0_norm.curl().hat()[1].data[1, :, 0] * (1+0j)
+    # vort0_1 = v0_0_norm.curl().hat()[1].data[1, :, 0] * (1+0j) # does not matter in this problem
 
     v0_1 = v0_0_norm_hat[1].data[1, :, 0] * (1+0j)
     v0_0_00_hat = v0_0_norm_hat[0].data[1, :, 0] * (1+0j)
     # v0_2_00 = v0_0_norm[2].data[0, :, 0]
-    v0 = tuple([vort0_1, v0_1, v0_0_00_hat])
+    v0 = tuple([v0_1, v0_0_00_hat])
     v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in v0]))
     print_verb("v0_norm:", v0_norm, verbosity_level=3)
     learning_rate = v0_norm * 1e-4
