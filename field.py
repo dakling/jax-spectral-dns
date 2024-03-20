@@ -47,6 +47,11 @@ class Field(ABC):
 
     field_dir = "./fields/"
 
+    @classmethod
+    def Zeros(cls, domain, name="field"):
+        data = jnp.zeros(domain.shape)
+        return cls(domain, data, name)
+
     @abstractmethod
     def get_domain(self) -> Domain:
         ...
@@ -55,6 +60,9 @@ class Field(ABC):
         """Save field to file filename."""
         field_array = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
+
+    def get_data(self):
+        return self.data
 
     def get_name(self):
         """Return the name of the field."""
@@ -169,6 +177,16 @@ class VectorField:
         self.elements = elements
         self.name = name
         self.domain = elements[0].get_domain()
+
+    @classmethod
+    def Zeros(cls, field_cls, domain, name="field"):
+        dim = domain.number_of_dimensions
+        return cls([field_cls.Zeros(domain) for _ in range(dim)])
+
+    @classmethod
+    def FromData(cls, field_cls, domain, data, name="field"):
+        dim = domain.number_of_dimensions
+        return cls([field_cls(domain, data[i]) for i in range(dim)])
 
     # def __getattr__(self, attr):
     #     def on_all(*args, **kwargs):

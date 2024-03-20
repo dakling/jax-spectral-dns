@@ -174,6 +174,13 @@ class NavierStokesVelVort(Equation):
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
     @classmethod
+    def FromDomain(cls, domain, Re=1.8e2, end_time=1e0, **params):
+        velocity_field = VectorField.Zeros(PhysicalField, domain)
+        velocity_field_hat = velocity_field.hat()
+        velocity_field_hat.name = "velocity_hat"
+        return cls(velocity_field_hat, Re=Re, end_time=end_time, **params)
+
+    @classmethod
     def FromVelocityField(cls, velocity_field, Re=1.8e2, end_time=1e0, **params):
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
@@ -440,6 +447,97 @@ class NavierStokesVelVort(Equation):
         for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
             self.add_field(field_name)
         self.update_nonlinear_terms()
+
+    def vort_yvel_to_vel(self, vort, vel_y, vel_x_00, vel_z_00, two_d=False):
+        # compute velocities in x and z directions
+        number_of_input_arguments = 2
+        domain = self.get_domain()
+        Nx = domain.number_of_cells(0)
+        Ny = domain.number_of_cells(1)
+        Nz = domain.number_of_cells(2)
+        def rk_00():
+            return (vel_x_00, vel_z_00)
+
+        def rk_not_00(kx, kz, vort_, vel_y_):
+            kx_ = jnp.asarray(domain.grid[0])[kx]
+            kz_ = jnp.asarray(domain.grid[2])[kz]
+            minus_kx_kz_sq = -(kx_**2 + kz_**2)
+            vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1)
+            vel_x_ = (
+                -1j * kx_ * vel_1_y_ + 1j * kz_ * vort_
+            ) / minus_kx_kz_sq
+            if two_d:
+                vel_z_ = jnp.zeros_like(vel_x_)
+            else:
+                vel_z_ = (
+                    -1j * kz_ * vel_1_y_ - 1j * kx_ * vort_
+                ) / minus_kx_kz_sq
+            return (vel_x_, vel_z_)
+
+        def inner_map(kx):
+            def fn(kz_one_pt_state):
+                if two_d:
+                    kz = 0
+                else:
+                    kz = kz_one_pt_state[0].real.astype(int)
+                fields_1d = jnp.split(
+                    kz_one_pt_state[1:],
+                    number_of_input_arguments,
+                    axis=0,
+                )
+                return jax.lax.cond(
+                    kx == 0,
+                    lambda kx___, kz___: jax.lax.cond(
+                        kz___ == 0,
+                        lambda _, __: rk_00(),
+                        lambda kx__, kz__: rk_not_00(kx__, kz__, *fields_1d),
+                        kx___,
+                        kz___,
+                    ),
+                    lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
+                    kx.real.astype(int),
+                    kz,
+                )
+            return fn
+
+        def outer_map(kzs_):
+            def fn(kx_state):
+                kx = kx_state[0]
+                # kx = kx_[0]
+                fields_2d = jnp.split(
+                    kx_state[1:],
+                    number_of_input_arguments,
+                    axis=0
+                    # state, number_of_input_arguments, axis=0
+                )
+                for i in range(len(fields_2d)):
+                    fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
+                state_slice = jnp.concatenate(fields_2d).T
+                kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
+                return jax.lax.map(inner_map(kx), kz_state_slice)
+            return fn
+
+
+        kx_arr = np.atleast_2d(np.arange(Nx))
+        kz_arr = np.atleast_2d(np.arange(Nz))
+        state = jnp.concatenate(
+            [
+                jnp.moveaxis(vort, 1, 2),
+                jnp.moveaxis(vel_y, 1, 2),
+            ],
+            axis=1,
+        )
+        # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
+        kx_state = jnp.concatenate(
+            [
+                kx_arr.T,
+                jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
+            ],
+            axis=1,
+        )
+        out = jax.lax.map(outer_map(kz_arr), kx_state)
+        u_w = [jnp.moveaxis(v, 1, 2) for v in out]
+        return [u_w[0], vel_y, u_w[1]]
 
     def perform_runge_kutta_step(self, vel_hat_data):
         # if not Field.activate_jit_:

@@ -14,7 +14,7 @@ from equation import Equation, print_verb
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 from navier_stokes_perturbation import solve_navier_stokes_perturbation
 from linear_stability_calculation import LinearStabilityCalculation
-from examples import run_pseudo_2d_perturbation, run_transient_growth
+from examples import run_pseudo_2d_perturbation, run_transient_growth, run_transient_growth_nonpert
 
 NoneType = type(None)
 
@@ -1178,6 +1178,11 @@ class TestProject(unittest.TestCase):
 
 
     def test_transient_growth(self):
+        for (Re, t) in [(600, 2), (3000, 15)]:
+            gain, expected_gain, _, _ = run_transient_growth_nonpert(Re, t, alpha=1, beta=0, eps=1e-3, plot=False)
+            rel_error = abs((gain - expected_gain) / expected_gain)
+            print_verb(rel_error, verbosity_level=1)
+            assert rel_error <  5e-3
         for (Re, t) in [(600, 2), (3000, 15)]:
             gain, expected_gain, _, _ = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
             rel_error = abs((gain - expected_gain) / expected_gain)

@@ -251,6 +251,27 @@ class LinearStabilityCalculation:
 
         return self.velocity_field_from_y_slice(domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor)
 
+    def y_slice_to_3d_field(self, domain, y_slice_i, factor=1.0):
+        out = (
+            factor
+            * jnp.einsum(
+                "ij,k->ijk",
+                jnp.einsum(
+                    "i,j->ij",
+                    jnp.exp(
+                        1j
+                        * (self.alpha * domain.grid[0])
+                    ),
+                    y_slice_i,
+                ),
+                jnp.exp(
+                    1j * (self.beta * domain.grid[2]),
+                ),
+            )
+        ).real
+
+        return out
+
     def velocity_field_from_y_slice(
             self,
             domain,
@@ -263,35 +284,15 @@ class LinearStabilityCalculation:
         v_vec = y_slice[1]
         w_vec = y_slice[2]
 
-        def to_3d_field(y_slice_i):
-            out = (
-                factor
-                * jnp.einsum(
-                    "ij,k->ijk",
-                    jnp.einsum(
-                        "i,j->ij",
-                        jnp.exp(
-                            1j
-                            * (self.alpha * domain.grid[0])
-                        ),
-                        y_slice_i,
-                    ),
-                    jnp.exp(
-                        1j * (self.beta * domain.grid[2]),
-                    ),
-                )
-            ).real
-
-            return out
 
         u_field = PhysicalField(
-            domain, to_3d_field(u_vec), name="velocity_pert_x"
+            domain, self.y_slice_to_3d_field(domain, u_vec, factor), name="velocity_pert_x"
         )
         v_field = PhysicalField(
-            domain, to_3d_field(v_vec), name="velocity_pert_y"
+            domain, self.y_slice_to_3d_field(domain, v_vec, factor), name="velocity_pert_y"
         )
         w_field = PhysicalField(
-            domain, to_3d_field(w_vec), name="velocity_pert_z"
+            domain, self.y_slice_to_3d_field(domain, w_vec, factor), name="velocity_pert_z"
         )
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
