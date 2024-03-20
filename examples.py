@@ -1387,8 +1387,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     # vort0_1 = v0_0_norm.curl().hat()[1].data[1, :, 0] * (1+0j) # does not matter in this problem
 
     v0_1 = v0_0_norm_hat[1].data[1, :, 0] * (1+0j)
-    v0_0_00_hat = v0_0_norm_hat[0].data[1, :, 0] * (1+0j)
-    # v0_2_00 = v0_0_norm[2].data[0, :, 0]
+    v0_0_00_hat = v0_0_norm_hat[0].data[0, :, 0] * (1+0j)
     v0 = tuple([v0_1, v0_0_00_hat])
     v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in v0]))
     print_verb("v0_norm:", v0_norm, verbosity_level=3)
@@ -1415,7 +1414,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         vort_yslice = jnp.zeros_like(v1_yslice)
         vort_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, vort_yslice))
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
-        v0_00 = params[2]
+        v0_00 = params[1]
         v2_00 = jnp.zeros_like(v0_00)
         U_hat_data = nse_.vort_yvel_to_vel(vort_hat, v1_hat, v0_00, v2_00, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
@@ -1424,9 +1423,6 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         v0_new = U.normalize_by_energy()
         v0_new *= e_0
         print_verb("relative continuity error:", v0_new.div().energy() / v0_new.energy())
-        print_verb("x-continuity:", v0_new[0].diff(0).energy())
-        print_verb("y-continuity:", v0_new[1].diff(1).energy())
-        print_verb("z-continuity:", v0_new[2].diff(2).energy())
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i)
         v0_new.plot_3d(2)
