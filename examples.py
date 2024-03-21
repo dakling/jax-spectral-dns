@@ -171,11 +171,24 @@ def run_navier_stokes_turbulent():
         ax[0].plot(dedalus_data[0], dedalus_data[1], label="dedalus")
     except FileNotFoundError:
         print_verb("No dedalus data to compare results with were found.")
+    try:
+        dedalus_data_small_dt = np.genfromtxt(
+            # "./energy-dedalus.txt",
+            "./energy_dedalus_highre_small_dt.txt",
+            delimiter=","
+        ).T
+        ax[0].plot(dedalus_data_small_dt[0], dedalus_data_small_dt[1], "--", label="dedalus (small dt)")
+    except FileNotFoundError:
+        print_verb("No dedalus small dt data to compare results with were found.")
     ax[0].plot(ts, energy_t, "o", label="jax")
     try:
         ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
     except Exception:
         print_verb("No dedalus data to compare results with were found.")
+    try:
+        ax[1].plot(dedalus_data_small_dt[0], dedalus_data_small_dt[1] / dedalus_data_small_dt[1][0], "--")
+    except Exception:
+        print_verb("No dedalus small dt data to compare results with were found.")
     ax[1].plot(ts, energy_t / energy_t[0], "o")
     fig.legend()
     fig.savefig("plots/energy.png")
@@ -1296,7 +1309,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         print_verb("\n")
 
     print_verb("performing final run with optimized initial condition")
-    final_inverse_gain = run_case(v0, True)
+    final_inverse_gain = run_case(params, True)
     final_gain = - final_inverse_gain
     print_verb()
     print_verb("gain:", final_gain)
@@ -2189,7 +2202,7 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         print_verb("\n")
 
     print_verb("performing final run with optimized initial condition")
-    final_inverse_gain = run_case(v0, True)
+    final_inverse_gain = run_case(params, True)
     final_gain = - final_inverse_gain
     print_verb()
     print_verb("gain:", final_gain)
