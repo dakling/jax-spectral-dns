@@ -801,7 +801,7 @@ def run_transient_growth_nonpert(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_tim
     if plot and abs(Re - 3000) < 1e-3:
         rh_93_data = np.genfromtxt(
             "rh93_transient_growth.csv", delimiter=","
-        ).T  # TODO get rid of this at some point
+        ).T
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
@@ -921,7 +921,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_time=None, 
     if plot and abs(Re - 3000) < 1e-3:
         rh_93_data = np.genfromtxt(
             "rh93_transient_growth.csv", delimiter=","
-        ).T  # TODO get rid of this at some point
+        ).T
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
@@ -1130,7 +1130,8 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-2
     end_time = T
-    number_of_modes = 20 # deliberately low value so that there is room for improvement
+    # number_of_modes = 20 # deliberately low value so that there is room for improvement
+    number_of_modes = 60
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3/2
 
@@ -1144,6 +1145,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         recompute_full=True,
         save_final=False,
     )
+
     e_0 = 1e-6
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
@@ -1194,7 +1196,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         U_hat_data = nse.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U = U_hat.no_hat()
-        U.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
@@ -1346,10 +1348,12 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         recompute_full=True,
         save_final=False,
     )
+
     e_0 = 1e-3
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
     v0_0_norm_hat = v0_0_norm.hat()
+
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
@@ -1398,7 +1402,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         U_hat_data = nse.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U = U_hat.no_hat()
-        U.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
         nse.end_time = end_time
@@ -1432,9 +1436,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
         gain = vel.energy() / vel_0.energy()
         inverse_gain = inv_fn(gain)
-        # inverse_gain = 1/gain
-        # return gain
-        return inverse_gain # (TODO would returning 1/gain lead to a better minimization problem?)
+        return inverse_gain
 
     v0_1 = v0_0_norm_hat[1].data[1, :, 0] * (1+0j)
     v0_0_00_hat = v0_0_norm_hat[0].data[0, :, 0] * (1+0j)
@@ -1481,7 +1483,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         U_hat_data = nse_.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U = U_hat.no_hat()
-        U.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
         v0_new *= e_0
         print_verb("relative continuity error:", v0_new.div().energy() / v0_new.energy())
@@ -1624,44 +1626,7 @@ def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, 
         if energy_gain_svd is not None:
             print_verb("expected gain:", energy_gain_svd)
         print_verb("\n\n")
-        return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
-
-    # coeffs_list = [coeffs]
-    # step_size = 5e-1
-    # print_verb(coeffs_list[-1])
-    # number_of_steps = 1000
-    # for i in range(number_of_steps):
-    #     start_time = time.time()
-    #     gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
-    #     corr_arr = jnp.array(corr)
-    #     print_verb("gain: " + str(-gain))
-    #     if energy_gain_svd is not None:
-    #         print_verb("expected gain:", energy_gain_svd)
-    #     print_verb("whole iteration took", time.time() - start_time, "seconds")
-    #     eps = step_size
-
-    #     coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
-    #     print_verb(coeffs_list[-1])
-    #     # coeff_array = np.array(coeffs_list[-1].tolist())
-    #     # coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
-
-    # learning_rate = 1e-1
-    # solver = optax.adagrad(learning_rate=learning_rate) # minimizer
-    # # solver = optax.adabelief(learning_rate=learning_rate) # minimizer
-    # # solver = optax.adam(learning_rate=learning_rate) # minimizer
-    # opt_state = solver.init(coeffs)
-    # number_of_steps = 1000
-    # print_verb(coeffs)
-    # for i in range(number_of_steps):
-    #     gain, corr = jax.value_and_grad(run_case)(coeffs)
-    #     print_verb("gain: " + str(-gain))
-
-    #     updates, opt_state = solver.update(corr, opt_state, coeffs)
-    #     coeffs = optax.apply_updates(coeffs, updates)
-    #     print_verb("coeffs:", coeffs)
-    #     print_verb("gradient magnitudes:", jnp.linalg.norm(corr))
-    #     coeff_array = np.array(coeffs.tolist())
-    #     coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(i))
+        return -gain
 
     import matplotlib.pyplot as plt
 
@@ -1772,7 +1737,7 @@ def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alp
         # return gain
         # print_verb("gain:", gain)
         print_verb("gain: ", gain, debug=True)
-        return -gain # (TODO would returning 1/gain lead to a better minimization problem?)
+        return -gain
 
     coeffs = jnp.array([1.0,2.0,3.0])
     coeffs_list = [coeffs]
@@ -2103,7 +2068,7 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         U_hat_data = nse.vort_yvel_to_vel(vort_hat, v1_hat, v0_00, v2_00, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U = U_hat.no_hat()
-        U.update_boundary_conditions() # TODO possibly even enfore bcs for derivatives
+        U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 

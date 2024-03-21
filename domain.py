@@ -39,10 +39,7 @@ def get_fourier_grid(N, scale_factor=2 * np.pi, aliasing=1.0):
     unless scaled to a different interval using scale_factor."""
     n = int(N * aliasing)
     if n % 2 != 0:
-        print(
-            "Warning: Only even number of points supported for Fourier basis, making the domain larger by one."
-        )
-        n += 1
+        raise Exception("Fourier discretization points must be even!")
     return np.linspace(start=0.0, stop=scale_factor, num=int(n + 1))[:-1]
 
 
