@@ -1339,21 +1339,22 @@ class NavierStokesVelVort(Equation):
 
 
 def solve_navier_stokes_laminar(
-    Re=1.8e2,
-    end_time=1e1,
-    max_iter=10000,
-    Nx=6,
-    Ny=40,
-    Nz=None,
-    perturbation_factor=0.1,
-    scale_factors=(1.87, 1.0, 0.93),
-    **params
+        Re=1.8e2,
+        end_time=1e1,
+        max_iter=10000,
+        Nx=6,
+        Ny=40,
+        Nz=None,
+        perturbation_factor=0.1,
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=1.0,
+        **params
 ):
     Ny = Ny
     Nz = Nz or Nx + 4
 
     domain = PhysicalDomain.create(
-        (Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors
+        (Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing
     )
     # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
     u_max_over_u_tau = 1.0

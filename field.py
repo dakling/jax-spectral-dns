@@ -1285,18 +1285,18 @@ class PhysicalField(Field):
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
                 shape = tuple(
-                    (jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist()
+                    (np.array(self.physical_domain.shape)[tuple(inds),]).tolist()
                 )
                 periodic_directions = tuple(
                     (
-                        jnp.array(self.physical_domain.periodic_directions)[
+                        np.array(self.physical_domain.periodic_directions)[
                             tuple(inds),
                         ]
                     ).tolist()
                 )
                 scale_factors = tuple(
                     (
-                        jnp.array(self.physical_domain.scale_factors)[tuple(inds),]
+                        np.array(self.physical_domain.scale_factors)[tuple(inds),]
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
@@ -1318,18 +1318,18 @@ class PhysicalField(Field):
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
                 shape = tuple(
-                    (jnp.array(self.physical_domain.shape)[tuple(inds),]).tolist()
+                    (np.array(self.physical_domain.shape)[tuple(inds),]).tolist()
                 )
                 periodic_directions = tuple(
                     (
-                        jnp.array(self.physical_domain.periodic_directions)[
+                        np.array(self.physical_domain.periodic_directions)[
                             tuple(inds),
                         ]
                     ).tolist()
                 )
                 scale_factors = tuple(
                     (
-                        jnp.array(self.physical_domain.scale_factors)[tuple(inds),]
+                        np.array(self.physical_domain.scale_factors)[tuple(inds),]
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(

@@ -90,7 +90,12 @@ class Equation:
             if type(index) == NoneType:
                 return self.fields[name]
             else:
-                return self.fields[name][index]
+                out = self.fields[name][index]
+                if index >= 0:
+                    out.set_time_step(index)
+                else:
+                    out.set_time_step(len(self.fields[name]) + index)
+                return out
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
