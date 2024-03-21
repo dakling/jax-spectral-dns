@@ -455,6 +455,9 @@ class NavierStokesVelVort(Equation):
         Nx = domain.number_of_cells(0)
         Ny = domain.number_of_cells(1)
         Nz = domain.number_of_cells(2)
+        if two_d:
+            vort = jnp.zeros_like(vel_y)
+            vel_z_00 = jnp.zeros_like(vel_x_00)
         def rk_00():
             return (vel_x_00, vel_z_00)
 
