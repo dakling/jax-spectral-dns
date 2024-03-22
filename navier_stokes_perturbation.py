@@ -137,10 +137,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             velocity_base_hat.set_name("velocity_base_hat")
         self.add_field("velocity_base_hat", velocity_base_hat)
 
-        try:
-            self.linearize = params["linearize"]
-        except KeyError:
-            self.linearize = False
+        self.linearize = params.get("linearize", False)
         self.set_linearize(self.linearize)
 
     def update_flow_rate(self):

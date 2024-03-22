@@ -28,54 +28,9 @@ from equation import Equation, print_verb
 from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
 from navier_stokes_perturbation import NavierStokesVelVortPerturbation, solve_navier_stokes_perturbation
 from linear_stability_calculation import LinearStabilityCalculation
+from optimiser import Optimiser
 
 NoneType = type(None)
-
-def run_optimization():
-    Re = 1e0
-    Ny = 24
-    end_time = 1
-
-    nse = solve_navier_stokes_laminar(
-        Re=Re, Ny=Ny, end_time=end_time, perturbation_factor=0.0
-    )
-
-    def run(v0):
-        nse_ = solve_navier_stokes_laminar(
-            Re=Re, Ny=Ny, end_time=end_time, max_iter=10, perturbation_factor=0.0
-        )
-        nse_.max_iter = 10
-        v0_field = PhysicalField(nse_.get_physical_domain()
-, v0)
-        vel_0 = nse_.get_initial_field("velocity_hat")
-        vel_0_new = VectorField([v0_field.hat(), vel_0[1], vel_0[2]])
-        nse_.set_field("velocity_hat", 0, vel_0_new)
-        nse_.after_time_step_fn = None
-        nse_.solve()
-        vel_out = nse_.get_latest_field("velocity_hat").no_hat()
-        return (vel_out[0].max() / vel_0[0].max()).real
-
-    vel_x_fn_ana = (
-        lambda X: -1 * jnp.pi / 3 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    )
-    v0_0 = PhysicalField.FromFunc(nse.get_physical_domain()
-, vel_x_fn_ana)
-
-    v0s = [v0_0.data]
-    eps = 1e3
-    for i in jnp.arange(10):
-        gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_field = PhysicalField(nse.get_physical_domain()
-, corr, name="correction")
-        corr_field.update_boundary_conditions()
-        print_verb("gain: " + str(gain))
-        print_verb("corr (abs): " + str(abs(corr_field)))
-        v0s.append(v0s[-1] + eps * corr_field.data)
-        v0_new = PhysicalField(nse.get_physical_domain()
-, v0s[-1])
-        v0_new.name = "vel_0_" + str(i)
-        v0_new.plot(v0_0)
-
 
 def run_navier_stokes_turbulent():
     Re = 3000
@@ -1045,78 +1000,7 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
     fig_final.savefig("plots/energy_t_final.pdf")
 
 
-def run_optimization_pseudo_2d_perturbation():
-    Re = 3000.0
-    T = 1.0
-    alpha = 1.02056
-    Nx = 64
-    Ny = 90
-    Nz = 64
-    # Nx = 20
-    # Ny = 40
-    # Nz = 10
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
-    # PhysicalField.activate_jit()
-
-    def run(v0):
-        (
-            energy_t,
-            energy_x_t,
-            energy_y_t,
-            energy_t_ana,
-            energy_x_t_ana,
-            energy_y_t_ana,
-            ts,
-        ) = run_pseudo_2d_perturbation(
-            # Re=Re,
-            # alpha=alpha,
-            # end_time=T,
-            Nx=Nx,
-            Ny=Ny,
-            Nz=Nz,
-            linearize=False,
-            plot=False,
-            save=False,
-            v0=v0,
-        )
-        return energy_t[-1] / energy_t[0]
-
-    Equation.initialize()
-
-
-    dom = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors)
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
-    v0_0 = lsc.velocity_field_single_mode(dom, 0)
-
-
-    v0s = [[v0_0[i].field for i in range(3)]]
-    step_size = 1e-0
-    sq_grad_sums = 0.0 * v0_0[0].field
-    for i in jnp.arange(10):
-        gain, corr = jax.value_and_grad(run)(v0s[-1])
-        corr_arr = jnp.array(corr)
-        # corr_field = VectorField([Field(v0_0.domain, corr[i], name="correction_" + "xyz"[i]) for i in range(3)])
-        # corr_field.plot_3d(2)
-        # corr_field.update_boundary_conditions()
-        print_verb("gain: " + str(gain))
-        # print_verb("corr (abs): " + str(abs(corr_field)))
-        sq_grad_sums += corr_arr**2.0
-        # alpha = jnp.array([eps / (1e-10 + jnp.sqrt(sq_grad_sums[i])) for i in range(v0_0[0].field.shape)])
-        # eps = step_size / ((1 + 1e-10) * jnp.sqrt(sq_grad_sums))
-        eps = step_size
-
-        # print_verb("eps")
-        # print_verb(eps)
-        # print_verb("sq_grad_sums")
-        # print_verb(sq_grad_sums)
-        v0s.append([v0s[-1][j] + eps * corr_arr[j] for j in range(3)])
-        v0_new = VectorField([Field(v0_0.domain, v0s[-1][j]) for j in range(3)])
-        v0_new.set_name("vel_0_" + str(i))
-        v0_new.plot_3d(2)
-
-n_iter = 0
-
-def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20, min_number_of_optax_steps=-1):
+def run_optimisation_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20, min_number_of_optax_steps=-1):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
@@ -1185,16 +1069,9 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    inv_fn = lambda gain: -gain
-    def run_case(v0, out=False):
-
-
-        v1_hat = v0[0]
-        v0_00 = v0[1]
+    def run_case(U_hat, out=False):
 
         nse = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
-        U_hat_data = nse.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
@@ -1203,15 +1080,6 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         nse.end_time = end_time
 
         nse.init_velocity(U_norm.hat())
-
-        if out:
-            U_norm.set_name("vel")
-            U_norm.plot_3d(2)
-            v0_0_norm.set_name("vel_init")
-            v0_0_norm.plot_3d(2)
-            v_diff = U_norm - v0_0_norm
-            v_diff.set_name("vel_diff")
-            v_diff.plot_3d(2)
 
         # nse.set_linearize(False)
         nse.set_linearize(True)
@@ -1232,94 +1100,23 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
             nse.post_process()
 
         gain = vel.energy() / vel_0.energy()
-        inverse_gain = inv_fn(gain)
-        return inverse_gain
+        return gain
 
-    v0_1 = v0_0_hat[1].data * (1+0j)
-    v0_0_00_hat = v0_0_hat[0].data[0, :, 0] * (1+0j)
-    v0 = tuple([v0_1, v0_0_00_hat])
-    v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in v0]))
-    print_verb("v0_norm:", v0_norm, verbosity_level=3)
-    learning_rate = v0_norm * 1e-3
-
-    def get_optax_solver():
-        # opt = optax.adagrad(learning_rate=learning_rate) # minimizer
-        # opt = optax.adabelief(learning_rate=learning_rate) # minimizer
-        opt = optax.adam(learning_rate=learning_rate) # minimizer
-        solver = jaxopt.OptaxSolver(opt=opt, fun=jax.value_and_grad(run_case), value_and_grad=True, jit=True) # minimizer
-        return solver
-
-    def get_jaxopt_solver():
-        # solver = jaxopt.NonlinearCG(jax.value_and_grad(run_case), True, jit=False, implicit_diff=True, maxls=2) # minimizer
-        solver = jaxopt.LBFGS(jax.value_and_grad(run_case), value_and_grad=True, implicit_diff=True, jit=True, linesearch="zoom", linesearch_init="current", maxls=15) # minimizer
-        return solver
-
-    if min_number_of_optax_steps < 0:
-        solver_switched = False
-        print_verb("using jaxopt solver")
-        solver = get_jaxopt_solver()
-    else:
-        solver_switched = True
-        print_verb("using optax solver")
-        solver = get_optax_solver()
-
-    params = v0
-    state = solver.init_state(params)
-    old_gain = inv_fn(state.value)
-    print_verb("gain:", old_gain)
-
-    for i in range(number_of_steps):
-        start_time = time.time()
-        print_verb("Iteration", i+1, "of", number_of_steps)
-
-        nse_ = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
-        v1_hat = params[0]
-        v0_00 = params[1]
-        U_hat_data = nse_.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        v0_new = U.normalize_by_energy()
-        v0_new *= e_0
-        print_verb("relative continuity error:", v0_new.div().energy() / v0_new.energy())
-
-        v0_new.set_name("vel_0")
-        v0_new.set_time_step(i + 1)
-        v0_new.plot_3d(2)
-        v0_new[0].plot_center(1)
-        v0_new[1].plot_center(1)
-        v0_new.save_to_file("vel_0_" + str(i + 1))
-
-        params, state = solver.update(params, state)
-        inverse_gain = state.value
-        gain = inv_fn(inverse_gain)
-        print_verb()
-        print_verb("gain: " + str(gain))
-        if old_gain:
-            print_verb("gain change: " + str(gain - old_gain))
-            if (not solver_switched) and i >= min_number_of_optax_steps and gain - old_gain < 0:
-                print_verb("switching to jaxopt solver")
-                solver = get_jaxopt_solver()
-                solver_switched = True
-                state = solver.init_state(params)
-        print_verb()
-        old_gain = gain
-
-        v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in params]))
-        print_verb("v0 magnitudes:", v0_norm, verbosity_level=2)
-        print_verb("iteration took", time.time() - start_time, "seconds")
-        print_verb("\n")
-
-    print_verb("performing final run with optimised initial condition")
-    final_inverse_gain = run_case(params, True)
-    final_gain = - final_inverse_gain
-    print_verb()
-    print_verb("gain:", final_gain)
-    print_verb("gain change:", (final_gain - gain))
-    print_verb()
+    optimiser = Optimiser(
+        domain,
+        run_case,
+        v0_0_hat,
+        minimise=False,
+        force_2d=True,
+        max_iter=number_of_steps,
+        use_optax=min_number_of_optax_steps >= 0,
+        min_optax_steps=min_number_of_optax_steps,
+        objective_fn_name="gain"
+    )
+    optimiser.optimise()
 
 
-def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20, min_number_of_optax_steps=4):
+def run_optimisation_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20, min_number_of_optax_steps=4):
     Re = float(Re)
     T = float(T)
     alpha = float(alpha)
@@ -1352,7 +1149,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
     e_0 = 1e-3
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
-    v0_0_norm_hat = v0_0_norm.hat()
+    v0_0_hat = v0_0_norm.hat()
 
 
     def post_process(nse, i):
@@ -1391,30 +1188,13 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    inv_fn = lambda gain: -gain
-    def run_case(v0, out=False):
-
-        v1_yslice = v0[0]
-        v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
-        v0_00 = v0[1]
-
-        nse = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
-        U_hat_data = nse.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
+    def run_case(U_hat, out=False):
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
         nse.end_time = end_time
         nse.init_velocity(U_norm.hat())
-        if out:
-            U_norm.set_name("vel")
-            U_norm.plot_3d(2)
-            v0_0_norm.set_name("vel_init")
-            v0_0_norm.plot_3d(2)
-            v_diff = U_norm - v0_0_norm
-            v_diff.set_name("vel_diff")
-            v_diff.plot_3d(2)
 
         # nse.set_linearize(False)
         nse.set_linearize(True)
@@ -1435,326 +1215,35 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
             nse.post_process()
 
         gain = vel.energy() / vel_0.energy()
-        inverse_gain = inv_fn(gain)
-        return inverse_gain
+        return gain
 
-    v0_1 = v0_0_norm_hat[1].data[1, :, 0] * (1+0j)
-    v0_0_00_hat = v0_0_norm_hat[0].data[0, :, 0] * (1+0j)
-    v0 = tuple([v0_1, v0_0_00_hat])
-    v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in v0]))
-    print_verb("v0_norm:", v0_norm, verbosity_level=3)
-    learning_rate = v0_norm * 1e-3
-    # learning_rate = 1e-5
+    def vel_hat_to_params(vel_hat):
+        v0_1 = vel_hat[1].data[1, :, 0] * (1+0j)
+        v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1+0j)
+        v0 = tuple([v0_1, v0_0_00_hat])
 
-    def get_optax_solver():
-        # opt = optax.adagrad(learning_rate=learning_rate) # minimizer
-        # opt = optax.adabelief(learning_rate=learning_rate) # minimizer
-        opt = optax.adam(learning_rate=learning_rate) # minimizer
-        solver = jaxopt.OptaxSolver(opt=opt, fun=jax.value_and_grad(run_case), value_and_grad=True, jit=True) # minimizer
-        return solver
-
-    def get_jaxopt_solver():
-        # solver = jaxopt.NonlinearCG(jax.value_and_grad(run_case), True, jit=False, implicit_diff=True, maxls=2) # minimizer
-        solver = jaxopt.LBFGS(jax.value_and_grad(run_case), value_and_grad=True, implicit_diff=True, jit=True, linesearch="zoom", linesearch_init="current", maxls=15) # minimizer
-        return solver
-
-    if min_number_of_optax_steps < 0:
-        solver_switched = False
-        print_verb("using jaxopt solver")
-        solver = get_jaxopt_solver()
-    else:
-        solver_switched = True
-        print_verb("using optax solver")
-        solver = get_optax_solver()
-
-    params = v0
-    state = solver.init_state(params)
-    old_gain = inv_fn(state.value)
-    print_verb("gain:", old_gain)
-
-    for i in range(number_of_steps):
-        start_time = time.time()
-        print_verb("Iteration", i+1, "of", number_of_steps)
-
-        nse_ = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
+    def params_to_vel_hat(params):
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
         U_hat_data = nse_.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        v0_new = U.normalize_by_energy()
-        v0_new *= e_0
-        print_verb("relative continuity error:", v0_new.div().energy() / v0_new.energy())
-        v0_new.set_name("vel_0")
-        v0_new.set_time_step(i)
-        v0_new.plot_3d(2)
-        v0_new[0].plot_center(1)
-        v0_new[1].plot_center(1)
-        v0_new.save_to_file("vel_0_" + str(i))
+        return U_hat
 
-        params, state = solver.update(params, state)
-        inverse_gain = state.value
-        gain = inv_fn(inverse_gain)
-        print_verb()
-        print_verb("gain: " + str(gain))
-        if old_gain:
-            print_verb("gain change: " + str(gain - old_gain))
-            if (not solver_switched) and i >= min_number_of_optax_steps and gain - old_gain < 0:
-                print_verb("switching to jaxopt solver")
-                solver = get_jaxopt_solver()
-                solver_switched = True
-                state = solver.init_state(params)
-        print_verb()
-        old_gain = gain
-
-        v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in params]))
-        print_verb("v0 magnitudes:", v0_norm, verbosity_level=2)
-
-        print_verb("iteration took", time.time() - start_time, "seconds")
-        print_verb("\n")
-
-    print_verb("performing final run with optimised initial condition")
-    final_inverse_gain = run_case(params, True)
-    final_gain = inv_fn(final_inverse_gain)
-
-    print_verb()
-    print_verb("gain:", final_gain)
-    if gain:
-        print_verb("gain change:", (final_gain - gain))
-    print_verb()
-
-
-def run_optimization_transient_growth_coefficients(Re=3000.0, T=0.5, alpha=1.0, beta=0.0, file=None):
-    Re = float(Re)
-    T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
-
-    Equation.initialize()
-    Nx = 8
-    Ny = 50
-    Nz = 4
-    end_time = T
-    number_of_modes = 80
-    scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    aliasing = 3/2
-
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-    # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
-    energy_gain_svd = None
-
-    def coeffs_to_complex_coeffs(c):
-        half_len = len(c) // 2
-        return c[:half_len] + 1j*c[half_len:]
-
-    def complex_coeffs_to_coeffs(c):
-        return jnp.block([c.real, c.imag])
-
-    S, coeffs_orig = lsc.calculate_transient_growth_svd(domain, T, number_of_modes, save=False, recompute=True)
-    energy_gain_svd = S[0]**2
-    print_verb("excpected energy gain:", energy_gain_svd)
-    if file is not None:
-        coeff_array = np.load(file, allow_pickle=True)
-        coeffs = coeffs_to_complex_coeffs(jnp.array(coeff_array.tolist()))
-    else:
-        coeffs = coeffs_orig
-
-    correct_coeffs = coeffs_to_complex_coeffs(jnp.array([4.34764619e-14,1.32303681e-02,3.92520959e-11,-9.04709746e-05,
-                                                         2.15886763e-04,-1.02942018e-02,-1.09454748e-13,7.30117704e-13,
-                                                         1.38533034e-14,3.30576081e-11,-5.59880684e-01,9.35123909e-05,
-                                                         9.14614269e-14,-1.36998039e-11,5.21419267e-14,-6.98347617e-01,
-                                                         -7.36970972e-12,2.93050962e-01,3.27559129e-04,-1.34436440e-04,
-                                                         -1.25241080e-14,-1.63571438e-01,1.73528871e-11,-2.25564252e-04,
-                                                         -1.13870293e-13,-2.19919116e-01,3.50275103e-11,-1.70394364e-04,
-                                                         -7.37516719e-14,5.31533821e-02,-3.00539152e-11,-1.87271304e-04,
-                                                         -1.77364016e-13,-4.35910260e-02,2.05732669e-11,-9.99991818e-05,
-                                                         2.43203358e-14,-2.06514224e-02,-4.04271862e-11,-2.48697837e-05,
-                                                         -1.24532779e-13,-1.21789120e-02,-2.62106858e-11,1.30298805e-05,
-                                                         5.35540369e-14,7.51231714e-05,-5.99142964e-12,1.01050849e-05,
-                                                         -1.19756743e-14,3.40971109e-03,-9.37127307e-14,9.57604569e-01,
-                                                         1.11957355e-12,-7.18632262e-05,5.81332190e-06,-2.55611639e-01,
-                                                         -1.09486395e-13,-1.15004488e-11,3.77841975e-14,-1.85682978e-11,
-                                                         7.14887335e-01,-3.69828770e-04,-3.92353412e-14,-7.86532109e-12,
-                                                         2.91993706e-14,-1.10741047e+00,9.56204055e-12,-6.29518366e-01,
-                                                         1.40514777e-04,4.50561969e-04,-7.34234334e-16,2.18187559e-01,
-                                                         2.61059172e-12,3.39071399e-04,1.05807592e-14,-5.35355624e-02,
-                                                         -2.48892717e-11,-2.48769788e-04,-1.66931866e-13,9.26838885e-02,
-                                                         -4.56410041e-11,-4.06999954e-05,-9.07165396e-14,-1.28950935e-02,
-                                                         -4.83973899e-11,-3.79294387e-05,1.70990967e-13,-1.11876117e-02,
-                                                         -6.96492243e-12,4.73699810e-05,-1.10341594e-14,-3.85886935e-03,
-                                                         4.51245247e-12,1.92912285e-05,-5.49754581e-14,-1.77457465e-03,
-                                                         1.27154635e-11,2.61933727e-06,3.69624291e-14,-1.59204845e-03]))
-
-    # raise Exception("break")
-
-    def run_case(coeffs_):
-
-        start_time = time.time()
-        U = lsc.calculate_transient_growth_initial_condition_from_coefficients(
-            domain,
-            coeffs_,
-            recompute=True
-        )
-        eps = 1e-5
-        eps_ = eps / U.energy()
-        U_norm = U * eps_
-        # U_norm.update_boundary_conditions()
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain)
-        nse.end_time = end_time
-
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        print_verb("preparation took", time.time() - start_time, "seconds")
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
-
-        gain = vel.energy() / vel_0.energy()
-        # return gain
-        # print_verb("gain:", gain)
-        print_verb("\n\n")
-        print_verb("gain:", gain, debug=True)
-        if energy_gain_svd is not None:
-            print_verb("expected gain:", energy_gain_svd)
-        print_verb("\n\n")
-        return -gain
-
-    import matplotlib.pyplot as plt
-
-    def plot(coeffs_new):
-        i_s = np.arange(number_of_modes)
-        fig = figure.Figure()
-        # ax = fig.subplots(1, 3)
-        ax = fig.subplots(3, 1)
-        ax[0].set_yscale("log")
-        ax[1].set_yscale("symlog")
-        ax[2].set_yscale("symlog")
-        ax[0].plot(i_s, abs(coeffs_orig), "x", label="initial")
-        ax[1].plot(i_s, (coeffs_orig.real), "x")
-        ax[2].plot(i_s, (coeffs_orig.imag), "x")
-        if abs(Re - 600) < 1e-3:
-            ax[0].plot(i_s[:50], abs(correct_coeffs), "o", label="previous optimization")
-            ax[1].plot(i_s[:50], (correct_coeffs.real), "o")
-            ax[2].plot(i_s[:50], (correct_coeffs.imag), "o")
-        if abs(Re - 3000) < 1e-3:
-            rh_93_coeffs = np.genfromtxt(
-                "rh93_coeffs.csv", delimiter=","
-            ).T
-            ax[0].plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "k.", label="rh93")
-            fig2 = figure.Figure()
-            ax2 = fig2.subplots(1, 1)
-            ax2.set_yscale("log")
-            ax2.plot(rh_93_coeffs[0]-1, abs(rh_93_coeffs[1]), "k.", label="rh93")
-
-            cut_off = min(rh_93_coeffs[1])
-            coeffs_orig_filtered = coeffs_orig[abs(coeffs_orig) >= cut_off]
-            coeffs_new_filtered = coeffs_new[abs(coeffs_new) >= cut_off]
-            i_s_1 = np.arange(len(coeffs_orig_filtered))
-            i_s_2 = np.arange(len(coeffs_new_filtered))
-            ax2.plot(i_s_1, abs(coeffs_orig_filtered), "x", label="initial")
-            ax2.plot(i_s_2, abs(coeffs_new_filtered), ".", label="current")
-            fig2.legend()
-            fig2.savefig("plots/coeff_plot_rh.pdf")
-        ax[0].plot(i_s, abs(coeffs_new), ".", label="current")
-        ax[1].plot(i_s, (coeffs_new.real), ".")
-        ax[2].plot(i_s, (coeffs_new.imag), ".")
-        fig.legend()
-        fig.savefig("plots/coeff_plot.pdf")
-
-    def callback(intermediate_result=None):
-        global n_iter
-        coeff_array.dump(PhysicalField.field_dir + "coeffs_" + str(n_iter))
-        print_verb(coeff_array)
-        n_iter += 1
-        coeffs_new = coeffs_to_complex_coeffs(np.array(intermediate_result.x.tolist()))
-        plot(coeffs_new)
-
-    tol = 1e-8
-
-    print_verb(coeffs)
-    plot(coeffs)
-    assert jnp.linalg.norm(coeffs - coeffs_to_complex_coeffs(complex_coeffs_to_coeffs(coeffs))) < 1e-30
-    res = sciopt.minimize(
-        fun=jax.value_and_grad(lambda c: run_case(coeffs_to_complex_coeffs(c))),
-        x0=complex_coeffs_to_coeffs(coeffs),
-        jac=True,
-        # method='L-BFGS-B',
-        method='CG',
-        tol=tol,
-        callback=callback
+    optimiser = Optimiser(
+        domain,
+        run_case,
+        v0_0_hat,
+        minimise=False,
+        force_2d=True,
+        max_iter=number_of_steps,
+        use_optax=min_number_of_optax_steps >= 0,
+        min_optax_steps=min_number_of_optax_steps,
+        vel_hat_to_parameters_fn=vel_hat_to_params,
+        parameters_to_vel_hat_fn=params_to_vel_hat,
+        objective_fn_name="gain"
     )
-    print_verb(res)
-
-def run_optimization_transient_growth_coefficients_memtest(Re=3000.0, T=0.5, alpha=1.0, beta=0.0, file=None):
-    Re = float(Re)
-    T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
-
-    Equation.initialize()
-    Nx = 64
-    Ny = 90
-    Nz = 64
-    end_time = T
-    scale_factors=(1.87, 1.0, 0.93)
-
-    # HACK
-    domain: PhysicalDomain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=1)
-    def run_case(coeffs_):
-
-        start_time = time.time()
-        U = VectorField([PhysicalField.FromFunc(domain, lambda X: 0.1 * (coeffs_[0] * jnp.sin(X[0]) + coeffs_[1] * (1 - X[1]**2) + coeffs_[2] * jnp.cos(X[2]))) for _ in range(3)])
-        eps = 1e-5
-        eps_ = eps / U.energy()
-        U_norm = U * eps_
-        # U_norm.update_boundary_conditions()
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re, physical_domain=domain, dt=1e-2)
-        nse.end_time = end_time
-
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        print_verb("preparation took", time.time() - start_time, "seconds")
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
-
-        gain = vel.energy() / vel_0.energy()
-        # return gain
-        # print_verb("gain:", gain)
-        print_verb("gain: ", gain, debug=True)
-        return -gain
-
-    coeffs = jnp.array([1.0,2.0,3.0])
-    coeffs_list = [coeffs]
-    step_size = 5e-1
-    print_verb(coeffs_list[-1])
-    number_of_steps = 2
-    for i in range(number_of_steps):
-        start_time = time.time()
-        gain, corr = jax.value_and_grad(run_case)(coeffs_list[-1])
-        corr_arr = jnp.array(corr)
-        print_verb("gain: " + str(-gain))
-        print_verb("whole iteration took", time.time() - start_time, "seconds")
-        eps = step_size
-
-        coeffs_list[-1] = coeffs_list[-1] - eps * corr_arr
-        print_verb(coeffs_list[-1])
-
+    optimiser.optimise()
 
 
 def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
@@ -2057,7 +1546,6 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    inv_fn = lambda gain: -gain
     def run_case(v0, out=False):
         v1_hat = v0[0]
         vort_hat = v0[1]
@@ -2086,90 +1574,17 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         nse.solve()
         vel_final = nse.get_latest_field("velocity_hat").no_hat()
         gain = vel_final.energy() / energy_0_
-        return inv_fn(gain)
+        return gain
 
-    vort_hat = vel_pert.curl().hat()
-    v0_1 = vel_hat[1].data * (1+0j)
-    v0_2 = vort_hat[1].data * (1+0j)
-    v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1+0j)
-    v0_2_00_hat = vel_hat[2].data[0, :, 0] * (1+0j)
-    v0 = tuple([v0_1, v0_2, v0_0_00_hat, v0_2_00_hat])
-    v0_norm = jnp.linalg.norm(jnp.concatenate([jnp.array(v.flatten()) for v in v0]))
-    print_verb("v0_norm:", v0_norm, verbosity_level=3)
-    learning_rate = v0_norm * 1e-3
-
-    def get_optax_solver():
-        # opt = optax.adagrad(learning_rate=learning_rate) # minimizer
-        # opt = optax.adabelief(learning_rate=learning_rate) # minimizer
-        opt = optax.adam(learning_rate=learning_rate) # minimizer
-        solver = jaxopt.OptaxSolver(opt=opt, fun=jax.value_and_grad(run_case), value_and_grad=True, jit=True) # minimizer
-        return solver
-
-    def get_jaxopt_solver():
-        # solver = jaxopt.NonlinearCG(jax.value_and_grad(run_case), True, jit=False, implicit_diff=True, maxls=2) # minimizer
-        solver = jaxopt.LBFGS(jax.value_and_grad(run_case), value_and_grad=True, implicit_diff=True, jit=True, linesearch="zoom", linesearch_init="current", maxls=15) # minimizer
-        return solver
-
-    if min_number_of_optax_steps < 0:
-        solver_switched = False
-        print_verb("using jaxopt solver")
-        solver = get_jaxopt_solver()
-    else:
-        solver_switched = True
-        print_verb("using optax solver")
-        solver = get_optax_solver()
-
-    params = v0
-    state = solver.init_state(params)
-    old_gain = inv_fn(state.value)
-    print_verb("gain:", old_gain)
-
-    for i in range(number_of_steps):
-        start_time = time.time()
-        print_verb("Iteration", i+1, "of", number_of_steps)
-
-        nse_ = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
-        vort_hat = params[0]
-        v1_hat = params[1]
-        v0_00 = params[2]
-        v2_00 = params[3]
-        U_hat_data = nse_.vort_yvel_to_vel(vort_hat, v1_hat, v0_00, v2_00, two_d=True)
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        v0_new = U.normalize_by_energy()
-        v0_new *= e_0
-        print_verb("relative continuity error:", v0_new.div().energy() / v0_new.energy())
-
-        v0_new.set_name("vel_0")
-        v0_new.set_time_step(i + 1)
-        v0_new.plot_3d(2)
-        v0_new[0].plot_center(1)
-        v0_new[1].plot_center(1)
-        v0_new.save_to_file("vel_0_" + str(i + 1))
-
-        params, state = solver.update(params, state)
-        inverse_gain = state.value
-        gain = inv_fn(inverse_gain)
-        print_verb()
-        print_verb("gain: " + str(gain))
-        if old_gain:
-            print_verb("gain change: " + str(gain - old_gain))
-            if (not solver_switched) and i >= min_number_of_optax_steps and gain - old_gain < 0:
-                print_verb("switching to jaxopt solver")
-                solver = get_jaxopt_solver()
-                solver_switched = True
-                state = solver.init_state(params)
-        print_verb()
-        old_gain = gain
-
-        print_verb("iteration took", time.time() - start_time, "seconds")
-        print_verb("\n")
-
-    print_verb("performing final run with optimised initial condition")
-    final_inverse_gain = run_case(params, True)
-    final_gain = - final_inverse_gain
-    print_verb()
-    print_verb("gain:", final_gain)
-    print_verb("gain change:", (final_gain - gain))
-    print_verb()
+    optimiser = Optimiser(
+        domain,
+        run_case,
+        v0_0_hat,
+        minimise=False,
+        force_2d=False,
+        max_iter=number_of_steps,
+        use_optax=min_number_of_optax_steps >= 0,
+        min_optax_steps=min_number_of_optax_steps,
+        objective_fn_name="gain"
+    )
+    optimiser.optimise()

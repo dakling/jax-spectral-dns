@@ -103,20 +103,11 @@ class NavierStokesVelVort(Equation):
             domain = velocity_field[0].fourier_domain
             physical_domain = velocity_field[0].physical_domain
 
-        try:
-            u_max_over_u_tau = params["u_max_over_u_tau"]
-        except KeyError:
-            u_max_over_u_tau = 1.0
+        u_max_over_u_tau = params.get("u_max_over_u_tau", 1.0)
 
-        try:
-            dt = params["dt"]
-        except KeyError:
-            dt = 1e-2
+        dt = params.get("dt", 1e-2)
 
-        try:
-            max_cfl = params["max_cfl"]
-        except KeyError:
-            max_cfl = 0.7
+        max_cfl = params.get("max_cfl", 0.7)
 
         try:
             Re_tau = params["Re_tau"]
@@ -128,15 +119,6 @@ class NavierStokesVelVort(Equation):
         self.nonlinear_update_fn = lambda vel: update_nonlinear_terms_high_performance(
             self.get_physical_domain(), self.get_domain(), vel
         )
-        # if (
-        #     self.get_physical_domain().number_of_cells(0)
-        #     * self.get_physical_domain().number_of_cells(2)
-        #     > 100
-        # ):
-        #     print("checkpointing activated")
-        #     self.nonlinear_update_fn = jax.checkpoint(
-        #         self.nonlinear_update_fn, static_argnums=(0,)
-        #     )
         super().__init__(domain, velocity_field, dt=dt)
 
         poisson_mat = domain.assemble_poisson_matrix()
@@ -449,7 +431,8 @@ class NavierStokesVelVort(Equation):
         self.update_nonlinear_terms()
 
     @classmethod
-    def vort_yvel_to_vel(cls, domain, vort, vel_y, vel_x_00, vel_z_00, two_d=False):
+    def vort_yvel_to_vel(cls, physical_domain, vort, vel_y, vel_x_00, vel_z_00, two_d=False):
+        domain = physical_domain.hat()
         # compute velocities in x and z directions
         number_of_input_arguments = 2
         Nx = domain.number_of_cells(0)
