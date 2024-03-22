@@ -1274,12 +1274,7 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         nse.get_physical_domain(),
         T,
         number_of_modes,
-        recompute_full=False,
-        # recompute_full=True,
-        # recompute_partial=False,
-        recompute_partial=True,
-        save_modes=False,
-        save_final=True,
+        recompute_full=True
     )
 
     eps_ = eps / jnp.sqrt(U.energy())
@@ -1341,88 +1336,18 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
                 vel_pert_energy - energy0,
             )
 
-    nse.before_time_step_fn = before_time_step
+    nse.before_time_step_fn = None
+    nse.post_process_fn = post_process
 
     nse.solve()
+    nse.post_process()
 
     U_ = nse.get_latest_field("velocity_hat").no_hat()
     for i in range(3):
         U_[i].name = "uvw"[i]
         # U_hat[i].name = "uvw"[i]
         U_[i].save_to_file("uvw"[i] + "_final")
-        # print_verb(i, U_[i])
-        # U_hat[i].save_to_file("uvw"[i])
 
-
-def run_get_mean_profile(Re=2000):
-    Nx = 64
-    Ny = 90
-    Nz = 64
-    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93))
-    avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
-    def get_vel_field(domain, cheb_coeffs):
-        U_mat = np.zeros((Ny, len(cheb_coeffs)))
-        for i in range(Ny):
-            for j in range(len(cheb_coeffs)):
-                U_mat[i, j] = cheb(j, 0, domain.grid[1][i])
-        U_y_slice = U_mat @ cheb_coeffs
-        u_data = np.moveaxis(np.tile(np.tile(U_y_slice, reps=(Nz, 1)), reps=(Nx, 1, 1)), 1, 2)
-        vel_base = VectorField([PhysicalField(domain, jnp.asarray(u_data)),
-                                PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-                                PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-        return vel_base, U_y_slice
-
-    vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
-    vel_base.set_name("velocity_base")
-    # vel_base.plot_3d(0)
-    # vel_base.plot_3d(1)
-    # vel_base.plot_3d(2)
-
-    # vel_base_max = vel_base[0].max()
-    # fit_fn = lambda y, k, n: vel_base_max * (((1 - y**2)**(1/n) + (1 - y**1.1)**(1/k)) / 2)
-    # fit_fn_jac = jax.jacrev(fit_fn)
-    # out = sciopt.curve_fit(lambda y, m, n: vel_base_max * (1 - y**m)**(1/n), domain.grid[1], U_y_slice, p0=(2.0, 1.0), maxfev=60000)
-    # print_verb(out)
-    # vel_base_fit, _ = get_vel_field(domain, avg_vel_coeffs[:16])
-    # vel_base_fit = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2] + fit_fn(X[1], out[0], out[1])),
-    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-    # vel_base_fit = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2] + fit_fn(X[1], 4.0, 3.0)),
-    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    #                             PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-
-    # vel_base[0].plot_center(1, vel_base_fit[0])
-
-    # vel_hat = vel.hat()
-    # vel_hat.set_name("velocity_hat")
-    # nse = NavierStokesVelVort(vel_hat, Re=Re)
-    # nse.activate_jit()
-    # nse.write_intermediate_output = True
-    # nse.end_time = 10
-    # nse.initialize()
-    # nse.solve()
-    # nse.deactivate_jit()
-
-    # # post-processing
-    # mean_vel = VectorField([PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    #                    PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
-    #                    PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-    # n = len(nse.get_field("velocity_hat"))
-    # for i, velocity_hat in enumerate(nse.get_field("velocity_hat")):
-    #     velocity = velocity_hat.no_hat()
-    #     mean_vel += velocity / n
-    #     velocity.set_name("velocity")
-    #     velocity.set_time_step(i)
-    #     velocity[0].plot_3d(2)
-    #     velocity[0].plot_center(1)
-
-    #     mean_vel += velocity / n
-
-    #     mean_vel_ = mean_vel * n / (i+1)
-    #     mean_vel_.set_name("mean_velocity")
-    #     mean_vel_.set_time_step(i)
-    #     mean_vel_[0].plot_3d(2)
-    #     mean_vel_[0].plot_center(1)
 
 
 def run_ld_2020(turb=True, Re_tau=180, Nx=64, Ny=90, Nz=32, number_of_steps=10, min_number_of_optax_steps=-1):
