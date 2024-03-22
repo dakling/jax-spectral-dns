@@ -70,7 +70,7 @@ While the initial condition in the `test_transient_growth` case is obtained
 through linear stability theory, it is also possible to find it using
 gradient-based optimisation.  This is done in
 `run_optimisation_transient_growth` and
-`run_optimisation_transient_growth_y_profile` (the latter enforces $\alpha=1,
+`run_optimisation_transient_growth_y_profile` (the latter enforces $\alpha=1$,
 which does not make a big difference in this case).
 
 This approach is more computationally expensive, but has the advantage that it

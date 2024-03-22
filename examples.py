@@ -1539,6 +1539,8 @@ def run_ld_2020(turb=True, Re_tau=180, Nx=64, Ny=90, Nz=32, number_of_steps=10, 
         else:
             nse.write_intermediate_output = False
         nse.solve()
+        if out:
+            nse.post_process()
         vel_final = nse.get_latest_field("velocity_hat").no_hat()
         gain = vel_final.energy() / energy_0_
         return gain
