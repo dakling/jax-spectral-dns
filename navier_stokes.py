@@ -824,6 +824,8 @@ class NavierStokesVelVort(Equation):
 
             # @partial(jax.jit, static_argnums=(0, 1, 2))
             # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,1,2))
+            # TODO possible room for improvement: don't pass entire conv_ns stuff, only kx=kz=0 needed
+            # TODO possible room for improvement: don't use entire vel_hat in rk00
             def get_new_vel_field_map(
                 Nx,
                 Ny,
