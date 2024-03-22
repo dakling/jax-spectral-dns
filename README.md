@@ -60,8 +60,3 @@ is shown. Since it is run for 40 time units and uses a linearized operator, the
 energy decay after $T=15$ is also visible.
 ![Growth rates for different times]( ./img/energy_t.png )
 ![Maximum growth]( ./img/Re_3000_transient_growth.gif )
-
-<!-- If the same setup is used with the full nonlinear operator, it is clear that the -->
-<!-- flow becomes turbulent. -->
-<!-- ![Growth rates for different times]( ./img/energy_t_nonlinear.png ) -->
-<!-- ![Maximum growth]( ./img/Re_3000_transient_growth_nonlinear.gif ) -->

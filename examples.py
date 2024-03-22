@@ -2,7 +2,7 @@
 
 import sys
 import jax
-# import jax.scipy.optimize as jaxopt
+# import jax.scipy.optimise as jaxopt
 # import jaxopt
 try:
     import optax
@@ -92,7 +92,7 @@ def run_navier_stokes_turbulent():
         # Nx=4,
         # Ny=12,
         # Nz=4,
-        dt=2e-3,
+        dt=1e-3,
         end_time=end_time,
         scale_factors=(2*np.pi, 1.0, 2*np.pi),
         aliasing=3/2
@@ -1130,8 +1130,8 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-2
     end_time = T
-    # number_of_modes = 20 # deliberately low value so that there is room for improvement
-    number_of_modes = 60
+    number_of_modes = 20 # deliberately low value so that there is room for improvement
+    # number_of_modes = 60
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3/2
 
@@ -1310,7 +1310,7 @@ def run_optimization_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         print_verb("iteration took", time.time() - start_time, "seconds")
         print_verb("\n")
 
-    print_verb("performing final run with optimized initial condition")
+    print_verb("performing final run with optimised initial condition")
     final_inverse_gain = run_case(params, True)
     final_gain = - final_inverse_gain
     print_verb()
@@ -1515,7 +1515,7 @@ def run_optimization_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         print_verb("iteration took", time.time() - start_time, "seconds")
         print_verb("\n")
 
-    print_verb("performing final run with optimized initial condition")
+    print_verb("performing final run with optimised initial condition")
     final_inverse_gain = run_case(params, True)
     final_gain = inv_fn(final_inverse_gain)
 
@@ -2166,7 +2166,7 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         print_verb("iteration took", time.time() - start_time, "seconds")
         print_verb("\n")
 
-    print_verb("performing final run with optimized initial condition")
+    print_verb("performing final run with optimised initial condition")
     final_inverse_gain = run_case(params, True)
     final_gain = - final_inverse_gain
     print_verb()

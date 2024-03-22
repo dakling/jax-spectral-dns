@@ -448,10 +448,10 @@ class NavierStokesVelVort(Equation):
             self.add_field(field_name)
         self.update_nonlinear_terms()
 
-    def vort_yvel_to_vel(self, vort, vel_y, vel_x_00, vel_z_00, two_d=False):
+    @classmethod
+    def vort_yvel_to_vel(cls, domain, vort, vel_y, vel_x_00, vel_z_00, two_d=False):
         # compute velocities in x and z directions
         number_of_input_arguments = 2
-        domain = self.get_domain()
         Nx = domain.number_of_cells(0)
         Ny = domain.number_of_cells(1)
         Nz = domain.number_of_cells(2)
