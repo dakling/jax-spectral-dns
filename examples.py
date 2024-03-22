@@ -1120,8 +1120,7 @@ def run_optimisation_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
 
     Equation.initialize()
     end_time = T
-    # number_of_modes = 20 # deliberately low value so that there is room for improvement
-    number_of_modes = 60
+    number_of_modes = 20 # deliberately low value so that there is room for improvement
     scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     aliasing = 3/2
 

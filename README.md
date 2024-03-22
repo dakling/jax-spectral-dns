@@ -10,11 +10,14 @@ Navier-Stokes DNS solver.
 ### Dependencies
 
 - python, obviously
-- some standard python libraries (mostly used for post-processing):
+- some standard python libraries (mostly used for pre- and post-processing):
     - numpy
     - scipy
     - matplotlib
 - [jax](https://github.com/google/jax)
+- optional (for using optimiser.py):
+    - jaxopt
+    - optax
 - (notably, [jax-cfd](https://github.com/google/jax-cfd) is not needed.)
 
 ### Checking if everything is set up correctly
@@ -76,7 +79,7 @@ optimisation problems as well.
 
 Below, the output of a run of `run_optimisation_transient_growthy_profile` is shown. 
 Even though the optimiser is only run for eight iterations, a clear improvement
-from an energy gain of $$ up to a gain of $15.12$ is achieved. Getting closer to 
+from an energy gain of $1.24$ up to a gain of $15.12$ is achieved. Getting closer to 
 the expected gain of a bit above $20$ would likely require more iterations.
 Nonetheless, the initial condition is optimised until it qualitatively resembles
 the one shown in the `test_transient_growth` section, and the simulation

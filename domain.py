@@ -11,7 +11,6 @@ from matplotlib import legend
 import matplotlib.pyplot as plt
 from matplotlib import legend
 from numpy import float128
-import scipy as sc
 from functools import partial
 import dataclasses
 from typing import Tuple, Union, Sequence, List
