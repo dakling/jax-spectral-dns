@@ -2,16 +2,6 @@
 
 import sys
 import jax
-# import jax.scipy.optimise as jaxopt
-# import jaxopt
-try:
-    import optax
-except ModuleNotFoundError:
-    print("optax not found")
-try:
-    import jaxopt
-except ModuleNotFoundError:
-    print("jaxopt not found")
 import scipy.optimize as sciopt
 import jax.numpy as jnp
 import numpy as np
@@ -1071,15 +1061,14 @@ def run_optimisation_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
 
     def run_case(U_hat, out=False):
 
-        nse = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse.end_time = end_time
 
-        nse.init_velocity(U_norm.hat())
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm)
+        nse.end_time = end_time
 
         # nse.set_linearize(False)
         nse.set_linearize(True)
@@ -1193,8 +1182,9 @@ def run_optimisation_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm)
         nse.end_time = end_time
-        nse.init_velocity(U_norm.hat())
 
         # nse.set_linearize(False)
         nse.set_linearize(True)
@@ -1221,12 +1211,13 @@ def run_optimisation_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         v0_1 = vel_hat[1].data[1, :, 0] * (1+0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1+0j)
         v0 = tuple([v0_1, v0_0_00_hat])
+        return v0
 
     def params_to_vel_hat(params):
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
-        U_hat_data = nse_.vort_yvel_to_vel(None, v1_hat, v0_00, None, two_d=True)
+        U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(domain, None, v1_hat, v0_00, None, two_d=True)
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         return U_hat
 
@@ -1291,14 +1282,6 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
         save_final=True,
     )
 
-    # u = PhysicalField.FromFunc(nse.physical_domain, (lambda X: (X[0] + X[1]**2 + X[2]**3)), name="vel_x")
-    # v = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 2 * (X[0] + X[1]**2 + X[2]**3)), name="vel_y")
-    # w = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 3 * (X[0] + X[1]**2 + X[2]**3)), name="vel_z")
-    # # u = PhysicalField.FromFunc(nse.physical_domain, (lambda X: (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_x")
-    # # v = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 2 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_y")
-    # # w = PhysicalField.FromFunc(nse.physical_domain, (lambda X: 3 * (1.0 + 0.0*X[0]*X[1]*X[2])), name="vel_z")
-    # U = VectorField([u, v, w], name="vel")
-
     eps_ = eps / jnp.sqrt(U.energy())
     U_hat = U.hat() * eps_
     print_verb("U energy norm: ", jnp.sqrt(U.energy()))
@@ -1357,18 +1340,6 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
                 "velocity perturbation energy change: ",
                 vel_pert_energy - energy0,
             )
-            # print_verb(
-            #     "velocity perturbation energy x change: ",
-            #     vel_pert[0].energy() - vel_pert_old[0].energy(),
-            # )
-            # print_verb(
-            #     "velocity perturbation energy y change: ",
-            #     vel_pert[1].energy() - vel_pert_old[1].energy(),
-            # )
-            # print_verb(
-            #     "velocity perturbation energy z change: ",
-            #     vel_pert[2].energy() - vel_pert_old[2].energy(),
-            # )
 
     nse.before_time_step_fn = before_time_step
 

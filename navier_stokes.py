@@ -438,6 +438,7 @@ class NavierStokesVelVort(Equation):
         Nx = domain.number_of_cells(0)
         Ny = domain.number_of_cells(1)
         Nz = domain.number_of_cells(2)
+
         if two_d:
             vort = jnp.zeros_like(vel_y)
             vel_z_00 = jnp.zeros_like(vel_x_00)
@@ -449,6 +450,7 @@ class NavierStokesVelVort(Equation):
             kz_ = jnp.asarray(domain.grid[2])[kz]
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1)
+            vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(vel_1_y_, 1)
             vel_x_ = (
                 -1j * kx_ * vel_1_y_ + 1j * kz_ * vort_
             ) / minus_kx_kz_sq
@@ -503,6 +505,8 @@ class NavierStokesVelVort(Equation):
                 return jax.lax.map(inner_map(kx), kz_state_slice)
             return fn
 
+        vel_y = domain.update_boundary_conditions(vel_y)
+        vort = domain.update_boundary_conditions(vort)
 
         kx_arr = np.atleast_2d(np.arange(Nx))
         kz_arr = np.atleast_2d(np.arange(Nz))

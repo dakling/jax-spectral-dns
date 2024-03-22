@@ -92,7 +92,7 @@ class Optimiser:
             v0_0_00_hat = v_hat[0].data[0, :, 0] * (1 + 0j)
             self.parameters = tuple([v0_1, v0_0_00_hat])
         else:
-            self.paramters = self.vel_hat_to_parameters_fn(v_hat)
+            self.parameters = self.vel_hat_to_parameters_fn(v_hat)
         return self.parameters
 
     def get_parameters_norm(self):
@@ -134,9 +134,6 @@ class Optimiser:
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
-        print_verb(
-            "relative continuity error:", v0_new.div().energy() / v0_new.energy()
-        )
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
