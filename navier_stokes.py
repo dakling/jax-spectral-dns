@@ -826,14 +826,14 @@ class NavierStokesVelVort(Equation):
                 Nz,
                 v_1_lap_hat,
                 vort_hat_1,
-                h_v_hat,
-                h_g_hat,
-                h_v_hat_old,
-                h_g_hat_old,
                 conv_ns_hat_0,
                 conv_ns_hat_2,
                 conv_ns_hat_old_0,
                 conv_ns_hat_old_2,
+                h_v_hat,
+                h_g_hat,
+                h_v_hat_old,
+                h_g_hat_old,
             ):
                 number_of_input_arguments = 6
 
