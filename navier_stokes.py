@@ -548,26 +548,20 @@ class NavierStokesVelVort(Equation):
         def perform_single_rk_step_for_single_wavenumber(
             step,
         ):
-            # @partial(jax.checkpoint) # enable to reduce memory usage at the expense of runtime
             def fn(
                 K,
-                # poisson_mat,
-                # rk_rhs_mat,
-                # rk_lhs_mat_inv,
-                # rk_rhs_inhom,
-                # rk_lhs_mat_inv_inhom,
-                # rk_rhs_mat_ns,
-                # rk_lhs_mat_inv_ns,
                 v_1_lap_hat_sw,
                 vort_1_hat_sw,
-                conv_ns_hat_sw_0,
-                conv_ns_hat_sw_2,
-                conv_ns_hat_old_sw_0,
-                conv_ns_hat_old_sw_2,
                 h_v_hat_sw,
                 h_g_hat_sw,
                 h_v_hat_old_sw,
                 h_g_hat_old_sw,
+                v_0_hat_sw_00,
+                v_2_hat_sw_00,
+                conv_ns_hat_sw_0_00,
+                conv_ns_hat_sw_2_00,
+                conv_ns_hat_old_sw_0_00,
+                conv_ns_hat_old_sw_2_00,
             ):
                 domain = self.get_domain()
                 kx = K[0]
@@ -711,14 +705,14 @@ class NavierStokesVelVort(Equation):
 
                     v_hat = jnp.block(
                         [
-                            vel_hat_data[0, kx__, :, kz__],
-                            vel_hat_data[2, kx__, :, kz__],
+                            v_0_hat_sw_00,
+                            v_2_hat_sw_00,
                         ]
                     )
                     N_00_new = jnp.block(
                         [
-                            -conv_ns_hat_sw_0,
-                            -conv_ns_hat_sw_2,
+                            -conv_ns_hat_sw_0_00,
+                            -conv_ns_hat_sw_2_00,
                         ]
                     ) + jnp.block(
                         [
@@ -732,8 +726,8 @@ class NavierStokesVelVort(Equation):
                     else:
                         N_00_old = jnp.block(
                             [
-                                -conv_ns_hat_old_sw_0,
-                                -conv_ns_hat_old_sw_2,
+                                -conv_ns_hat_old_sw_0_00,
+                                -conv_ns_hat_old_sw_2_00,
                             ]
                         ) + jnp.block(
                             [
@@ -841,34 +835,35 @@ class NavierStokesVelVort(Equation):
                 h_v_hat_old,
                 h_g_hat_old,
             ):
-                number_of_input_arguments = 10
+                number_of_input_arguments = 6
+
+                conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
+                conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
+                conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
+                conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
+                v_0_hat_00 = vel_hat_data[0][0, :, 0]
+                v_2_hat_00 = vel_hat_data[2][0, :, 0]
 
                 def outer_map(kzs_):
-                    # def fn(kx_, state):
                     def fn(kx_state):
                         kx = kx_state[0]
-                        # kx = kx_[0]
                         fields_2d = jnp.split(
                             kx_state[1:],
                             number_of_input_arguments,
                             axis=0
-                            # state, number_of_input_arguments, axis=0
                         )
                         for i in range(len(fields_2d)):
                             fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
                         state_slice = jnp.concatenate(fields_2d).T
                         kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
                         return jax.lax.map(inner_map(kx), kz_state_slice)
-                        # return jnp.array(list(map(inner_map(kx), kzs_.T, state_slice)))
 
                     return fn
 
                 def inner_map(kx):
-                    # def fn(kz_, one_pt_state):
                     def fn(kz_one_pt_state):
                         kz = kz_one_pt_state[0]
                         fields_1d = jnp.split(
-                            # one_pt_state, number_of_input_arguments, axis=0
                             kz_one_pt_state[1:],
                             number_of_input_arguments,
                             axis=0,
@@ -879,7 +874,15 @@ class NavierStokesVelVort(Equation):
                             v_2_new_field,
                             _,
                         ) = perform_single_rk_step_for_single_wavenumber(step)(
-                            [kx.real.astype(int), kz.real.astype(int)], *fields_1d
+                            [kx.real.astype(int),
+                             kz.real.astype(int)],
+                            *fields_1d,
+                            v_0_hat_00,
+                            v_2_hat_00,
+                            conv_ns_hat_0_00,
+                            conv_ns_hat_2_00,
+                            conv_ns_hat_0_00_old,
+                            conv_ns_hat_2_00_old,
                         )
                         return [v_0_new_field, v_1_hat_new, v_2_new_field]
 
@@ -891,10 +894,6 @@ class NavierStokesVelVort(Equation):
                     [
                         jnp.moveaxis(v_1_lap_hat, 1, 2),
                         jnp.moveaxis(vort_hat_1, 1, 2),
-                        jnp.moveaxis(conv_ns_hat_0, 1, 2),
-                        jnp.moveaxis(conv_ns_hat_2, 1, 2),
-                        jnp.moveaxis(conv_ns_hat_old_0, 1, 2),
-                        jnp.moveaxis(conv_ns_hat_old_2, 1, 2),
                         jnp.moveaxis(h_v_hat, 1, 2),
                         jnp.moveaxis(h_g_hat, 1, 2),
                         jnp.moveaxis(h_v_hat_old, 1, 2),
