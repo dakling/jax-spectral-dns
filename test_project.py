@@ -508,18 +508,18 @@ class TestProject(unittest.TestCase):
         # u_int_x.plot(u)
         # u_int_hat_x.no_hat().plot(u)
         # u_xx.plot(u_hat_xx.no_hat())
-        print_verb(abs(U - U_nohat), verbosity_level=3)
+        # print_verb(abs(U - U_nohat), verbosity_level=3)
         print_verb(abs(u_hat_x.no_hat() - u_x), verbosity_level=3)
         print_verb(abs(u_hat_xx.no_hat() - u_xx), verbosity_level=3)
         print_verb(abs(u_hat_y.no_hat() - u_y), verbosity_level=3)
         print_verb(abs(u_hat_yy.no_hat() - u_yy), verbosity_level=3)
         print_verb(abs(u_hat_z.no_hat() - u_z), verbosity_level=3)
         print_verb(abs(u_hat_zz.no_hat() - u_zz), verbosity_level=3)
-        print_verb(abs(u_int_hat_x.no_hat() - u_int_x), verbosity_level=3)
-        print_verb(abs(u_int_hat_xx.no_hat() - u_int_xx), verbosity_level=3)
-        print_verb(abs(u_int_hat_yy.no_hat() - u_int_yy), verbosity_level=3)
-        print_verb(abs(u_int_hat_z.no_hat() - u_int_z), verbosity_level=3)
-        print_verb(abs(u_int_hat_zz.no_hat() - u_int_zz), verbosity_level=3)
+        # print_verb(abs(u_int_hat_x.no_hat() - u_int_x), verbosity_level=3)
+        # print_verb(abs(u_int_hat_xx.no_hat() - u_int_xx), verbosity_level=3)
+        # print_verb(abs(u_int_hat_yy.no_hat() - u_int_yy), verbosity_level=3)
+        # print_verb(abs(u_int_hat_z.no_hat() - u_int_z), verbosity_level=3)
+        # print_verb(abs(u_int_hat_zz.no_hat() - u_int_zz), verbosity_level=3)
         tol = 1e-9
         # self.assertTrue(abs(U - U_nohat) < tol)
         self.assertTrue(abs(u_hat_x.no_hat() - u_x) < tol)
@@ -869,7 +869,6 @@ class TestProject(unittest.TestCase):
         out_hat = rhs_hat.reconstruct_from_wavenumbers(
             solve_poisson_for_single_wavenumber
         )
-        print_verb(str(time.time() - start_time) + " seconds used for reconstruction.", verbosity_level=3)
         out = out_hat.no_hat()
 
         # u_ana.plot(out)
