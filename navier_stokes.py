@@ -156,26 +156,26 @@ class NavierStokesVelVort(Equation):
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
     @classmethod
-    def FromDomain(cls, domain, Re=1.8e2, end_time=1e0, **params):
+    def FromDomain(cls, domain, **params):
         velocity_field = VectorField.Zeros(PhysicalField, domain)
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
-        return cls(velocity_field_hat, Re=Re, end_time=end_time, **params)
+        return cls(velocity_field_hat, **params)
 
     @classmethod
-    def FromVelocityField(cls, velocity_field, Re=1.8e2, end_time=1e0, **params):
+    def FromVelocityField(cls, velocity_field, **params):
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
-        return cls(velocity_field_hat, Re=Re, end_time=end_time, **params)
+        return cls(velocity_field_hat, **params)
 
     @classmethod
-    def FromRandom(cls, shape, Re, end_time=1e0):
+    def FromRandom(cls, shape, **params):
         domain = PhysicalDomain.create(shape, (True, False, True))
         vel_x = PhysicalField.FromRandom(domain, name="u0")
         vel_y = PhysicalField.FromRandom(domain, name="u1")
         vel_z = PhysicalField.FromRandom(domain, name="u2")
         vel = VectorField([vel_x, vel_y, vel_z], "velocity")
-        return cls.FromVelocityField(vel, Re, end_time=end_time)
+        return cls.FromVelocityField(vel, **params)
 
     def get_physical_domain(self):
         return self.nse_fixed_parameters.physical_domain

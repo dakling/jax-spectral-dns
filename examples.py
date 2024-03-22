@@ -1067,7 +1067,7 @@ def run_optimisation_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         U_norm *= e_0
 
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1183,7 +1183,7 @@ def run_optimisation_transient_growth_y_profile(Re=3000.0, T=15, alpha=1.0, beta
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
         nse.end_time = end_time
 
         # nse.set_linearize(False)
