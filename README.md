@@ -42,11 +42,13 @@ quantitative tests.
 This test checks the growth rates of the most unstable modes for $\text{Re}=5500$,
 $\text{Re}=5772.22$ and $\text{Re}=6000$ with $\alpha=1.02056$. A plot of the growth rates and a video for Re=6000 are shown below.
 
-![Growth rates]( ./img/energy_growth_rates.png )
-*Growth rates at different Re*
+|![Growth rates]( ./img/energy_growth_rates.png )|
+|:--:| 
+|*Growth rates at different Re*|
 
-![Growth at Re=6000]( ./img/Re_6000_growth.gif )
-*Simulation at Re=6000*
+|![Growth at Re=6000]( ./img/Re_6000_growth.gif )|
+|:--:| 
+|*Simulation at Re=6000*|
 
 #### test_transient_growth
 
@@ -59,17 +61,20 @@ the DNS (using a linearized operator) match very closely with the expected resul
 This image shows a time study, where simulations with optimal initial conditions
 for different time horizons are run and compared with the data taken from Reddy
 & Henningson (1993).
-![Growth rates for different times]( ./img/energy_t_final.png )
-*Growth rates at different times compared with maximum growth over time*
+|![Growth rates for different times]( ./img/energy_t_final.png )|
+|:--:| 
+|*Growth rates at different times compared with maximum growth over time*|
 
 Below, a video of the Re=3000 case with the optimal initial condition for $T=15$
 is shown. Since it is run for 40 time units and uses a linearized operator, the
 energy decay after $T=15$ is also visible.
-![Growth rates for T=15]( ./img/energy_t.png )
-*Growth rate for $T=15$*
+|![Growth rates for T=15]( ./img/energy_t.png )|
+|:--:| 
+|*Growth rate for $T=15$*|
 
-![Maximum growth]( ./img/Re_3000_transient_growth.gif )
-*Simulation of initial condition optimised for maximum gain at $T=15$*
+|![Maximum growth]( ./img/Re_3000_transient_growth.gif )|
+|:--:| 
+|*Simulation of initial condition optimised for maximum gain at $T=15$*|
 
 ### Gradient-based optimisation
 
@@ -84,19 +89,22 @@ This approach is more computationally expensive, but has the advantage that it
 generalizes to the nonlinear case, and that the method can be used in other
 optimisation problems as well.
 
-Below, the output of a run of `run_optimisation_transient_growthy_profile` is shown. 
-Even though the optimiser is only run for eight iterations, a clear improvement
+Below, the output of a run of `run_optimisation_transient_growth_y_profile` is shown. 
+Even though the optimiser is only run for ten iterations, a clear improvement
 from an energy gain of $1.24$ up to a gain of $15.12$ is achieved. Getting closer to 
 the expected gain of a bit above $20$ would likely require more iterations.
 Nonetheless, the initial condition is optimised until it qualitatively resembles
 the one shown in the `test_transient_growth` section, and the simulation
 also matches up nicely, at least qualitatively.
 
-![Energy gain over time]( ./img/energy_t_opt_final.png )
-*Gain over time*
+|![Energy gain over time]( ./img/energy_t_opt_final.png )|
+|:--:| 
+|*Gain over time*|
 
-![Optimisation of the initial condition]( ./img/Re_3000_transient_growth_initial.gif )
-*Evolution of the initial condition as the optimisation progresses*
+|![Optimisation of the initial condition]( ./img/Re_3000_transient_growth_initial.gif )|
+|:--:| 
+|*Evolution of the initial condition as the optimisation progresses*|
 
-![Simulation using the optimised initial condition]( ./img/Re_3000_transient_growth_optimiser.gif )
-*Simulation using the final optimised initial condition*
+|![Simulation using the optimised initial condition]( ./img/Re_3000_transient_growth_optimiser.gif )|
+|:--:| 
+|*Simulation using the final optimised initial condition*|
