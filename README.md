@@ -60,3 +60,28 @@ is shown. Since it is run for 40 time units and uses a linearized operator, the
 energy decay after $T=15$ is also visible.
 ![Growth rates for different times]( ./img/energy_t.png )
 ![Maximum growth]( ./img/Re_3000_transient_growth.gif )
+
+### Gradient-based optimisation
+
+While the initial condition in the `test_transient_growth` case is obtained
+through linear stability theory, it is also possible to find it using
+gradient-based optimisation.  This is done in
+`run_optimisation_transient_growth` and
+`run_optimisation_transient_growth_y_profile` (the latter enforces $\alpha=1,
+which does not make a big difference in this case).
+
+This approach is more computationally expensive, but has the advantage that it
+generalizes to the nonlinear case, and that the method can be used in other
+optimisation problems as well.
+
+Below, the output of a run of `run_optimisation_transient_growthy_profile` is shown. 
+Even though the optimiser is only run for eight iterations, a clear improvement
+from an energy gain of $$ up to a gain of $15.12$ is achieved. Getting closer to 
+the expected gain of a bit above $20$ would likely require more iterations.
+Nonetheless, the initial condition is optimised until it qualitatively resembles
+the one shown in the `test_transient_growth` section, and the simulation
+also matches up nicely, at least qualitatively.
+
+![Energy gain over time]( ./img/energy_t_opt_final.png )
+![Optimisation of the initial condition]( ./img/Re_3000_transient_growth_initial.gif )
+![Simulation using the optimised initial condition]( ./img/Re_3000_transient_growth_optimiser.gif )
