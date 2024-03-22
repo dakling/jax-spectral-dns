@@ -30,6 +30,7 @@ def print_verb(*str, verbosity_level:int=1, debug:bool=False):
         else:
             print(pref, *str)
 
+
 class Equation:
     name = "equation"
     write_intermediate_output = False
@@ -68,16 +69,8 @@ class Equation:
         # self.initialize()
 
     @classmethod
-    def initialize(cls):
-        jax.config.update("jax_enable_x64", True)
-        newpaths = [Field.field_dir, Field.plotting_dir]
-        for newpath in newpaths:
-            if not os.path.exists(newpath):
-                os.makedirs(newpath)
-        # clean plotting dir
-        [f.unlink() for f in Path(Field.plotting_dir).glob("*.pdf") if f.is_file()]
-        [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
-        [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
+    def initialize(cls, cleanup=True):
+        Field.initialize(cleanup)
 
     def get_dt(self):
         return self.fixed_parameters.dt

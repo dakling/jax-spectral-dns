@@ -292,17 +292,17 @@ def run_pseudo_2d():
                 ax = fig.subplots(1, 1)
                 ax.plot(ts, energy_t_ana)
                 ax.plot(ts, energy_t, ".")
-                fig.savefig("plots/energy_t.pdf")
+                fig.savefig("plots/energy_t.png")
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
                 ax.plot(ts, energy_x_t_ana)
                 ax.plot(ts, energy_x_t, ".")
-                fig.savefig("plots/energy_x_t.pdf")
+                fig.savefig("plots/energy_x_t.png")
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
                 ax.plot(ts, energy_y_t_ana)
                 ax.plot(ts, energy_y_t, ".")
-                fig.savefig("plots/energy_y_t.pdf")
+                fig.savefig("plots/energy_y_t.png")
         # input("carry on?")
 
     nse.after_time_step_fn = None
@@ -542,7 +542,7 @@ def run_pseudo_2d_perturbation(
     ax = fig.subplots(1, 1)
     ax.plot(ts, energy_t, ".")
     ax.plot(ts, energy_t_ana, "-")
-    fig.savefig("plots/energy_t.pdf")
+    fig.savefig("plots/energy_t.png")
 
     return (
         energy_t,
@@ -794,7 +794,7 @@ def run_transient_growth_nonpert(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_tim
                 label="growth (Reddy/Henningson 1993)",
             )
         fig.legend()
-        fig.savefig("plots/energy_t.pdf")
+        fig.savefig("plots/energy_t.png")
 
     gain = energy_t[-1]/energy_t[0]
     print_verb("final energy gain:", gain)
@@ -913,7 +913,7 @@ def run_transient_growth(Re=3000.0, T=15.0, alpha=1.0, beta=0.0, end_time=None, 
                 label="growth (Reddy/Henningson 1993)",
             )
         fig.legend()
-        fig.savefig("plots/energy_t.pdf")
+        fig.savefig("plots/energy_t.png")
 
     gain = energy_t[-1]/energy_t[0]
     print_verb("final energy gain:", gain)
@@ -942,7 +942,7 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
         label="max gain (Reddy/Henningson 1993)",
     )
     fig.legend()
-    fig.savefig("plots/energy_t_intermediate.pdf")
+    fig.savefig("plots/energy_t_intermediate.png")
     ts_list = []
     energy_t_list = []
     T_list = np.arange(5, 41, 5)
@@ -959,7 +959,7 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
             "b--",
         )
         fig.legend()
-        fig.savefig("plots/energy_t_intermediate.pdf")
+        fig.savefig("plots/energy_t_intermediate.png")
 
     ts_list.reverse()
     energy_t_list.reverse()
@@ -987,7 +987,7 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
         "b--",
     )
     fig_final.legend()
-    fig_final.savefig("plots/energy_t_final.pdf")
+    fig_final.savefig("plots/energy_t_final.png")
 
 
 def run_optimisation_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8, Ny=90, Nz=8, number_of_steps=20, min_number_of_optax_steps=-1):
@@ -1058,6 +1058,7 @@ def run_optimisation_transient_growth(Re=3000.0, T=15, alpha=1.0, beta=0.0, Nx=8
         ax.plot(ts[:i+1], energy_t_arr[:i+1]/energy_t_arr[0], "bo", label="energy gain")
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig("plots/plot_energy_t_final.png")
 
     def run_case(U_hat, out=False):
 
@@ -1425,19 +1426,24 @@ def run_get_mean_profile(Re=2000):
     #     mean_vel_[0].plot_center(1)
 
 
-def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_steps=-1):
+def run_ld_2020(turb=True, Re_tau=180, Nx=64, Ny=90, Nz=32, number_of_steps=10, min_number_of_optax_steps=-1):
     Re_tau = float(Re_tau)
     turb = str(turb) == 'True'
-    Nx = 48
-    Ny = 80
-    Nz = 32
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    min_number_of_optax_steps = int(min_number_of_optax_steps)
     aliasing = 3/2
     # aliasing = 1
     Nx = int(Nx * ((3/2) / aliasing))
     Nz = int(Nz * ((3/2) / aliasing))
+
+    # Equation.initialize()
+
     dt=1e-2
-    # end_time = 0.7 # in ld2020 units
-    end_time = 0.02 # in ld2020 units
+    end_time = 0.7 # in ld2020 units
+    # end_time = 0.02 # in ld2020 units
     e_0 = 1e-6
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=(1.87, 1.0, 0.93), aliasing=aliasing)
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
@@ -1449,17 +1455,18 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         U_y_slice = U_mat @ cheb_coeffs
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2)
+        max = np.max(u_data)
         vel_base = VectorField([PhysicalField(domain, jnp.asarray(u_data)),
                                 PhysicalField.FromFunc(domain, lambda X: 0*X[2]),
                                 PhysicalField.FromFunc(domain, lambda X: 0*X[2])])
-        return vel_base, U_y_slice
+        return vel_base, U_y_slice, max
 
     if turb:
         print_verb("using turbulent base profile")
-        vel_base, _ = get_vel_field(domain, avg_vel_coeffs)
-        vel_base, max = vel_base.normalize_by_max_value()
+        vel_base, _, max = get_vel_field(domain, avg_vel_coeffs)
+        vel_base, _ = vel_base.normalize_by_max_value()
         vel_base.set_name("velocity_base")
-        u_max_over_u_tau = max[0]
+        u_max_over_u_tau = max
     else:
         print_verb("using laminar base profile")
         vel_base = VectorField([PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1]**2) + 0*X[2]),
@@ -1484,7 +1491,7 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
-        time = (i / (n_steps - 1)) * end_time
+        # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1517,24 +1524,14 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(v0, out=False):
-        v1_hat = v0[0]
-        vort_hat = v0[1]
-        v0_00 = v0[2]
-        v2_00 = v0[3]
+    def run_case(U_hat, out=False):
 
-        nse = NavierStokesVelVortPerturbation.FromDomain(domain, Re=Re, dt=dt)
-        U_hat_data = nse.vort_yvel_to_vel(vort_hat, v1_hat, v0_00, v2_00, two_d=True)
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
-
-        vel_hat = U_norm.hat()
-        vel_hat.set_name("velocity_hat")
-        energy_0_ = vel_hat.no_hat().energy()
-        nse.init_velocity(vel_hat)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re=Re, dt=dt)
+        energy_0_ = U_norm.energy()
         nse.activate_jit()
         nse.end_time = end_time_
         if out:
@@ -1550,7 +1547,7 @@ def run_ld_2020(turb=True, Re_tau=180, number_of_steps=10, min_number_of_optax_s
     optimiser = Optimiser(
         domain,
         run_case,
-        v0_0_hat,
+        vel_hat,
         minimise=False,
         force_2d=False,
         max_iter=number_of_steps,

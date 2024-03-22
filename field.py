@@ -8,8 +8,6 @@ from abc import ABC, abstractmethod
 import math
 import jax
 import jax.numpy as jnp
-# from jax.tree_util import register_pytree_node_class
-from functools import partial
 import matplotlib.figure as figure
 from matplotlib import colors
 import matplotlib.cm as cm
@@ -20,8 +18,8 @@ from typing import Union
 
 import numpy as np
 
-from importlib import reload
-import sys
+from pathlib import Path
+import os
 
 # try:
 #     reload(sys.modules["domain"])
@@ -55,6 +53,19 @@ class Field(ABC):
     @abstractmethod
     def get_domain(self) -> Domain:
         ...
+
+    @classmethod
+    def initialize(cls, cleanup=True):
+        jax.config.update("jax_enable_x64", True)
+        newpaths = [Field.field_dir, Field.plotting_dir]
+        for newpath in newpaths:
+            if not os.path.exists(newpath):
+                os.makedirs(newpath)
+        if cleanup:
+            # clean plotting dir
+            [f.unlink() for f in Path(Field.plotting_dir).glob("*.pdf") if f.is_file()]
+            [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
+            [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
 
     def save_to_file(self, filename):
         """Save field to file filename."""
@@ -532,21 +543,27 @@ class VectorField:
                 ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
             except TypeError:  # compatibilty with older matplotlib versions
                 ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
-            fig.savefig(
-                self[0].plotting_dir
-                + "plot_streamlines_"
-                + self.get_name()
-                + "_t_"
-                + "{:06}".format(self[0].time_step)
-                + self[0].plotting_format
-            )
-            fig.savefig(
-                self[0].plotting_dir
-                + "plot_streamlines_"
-                + self.get_name()
-                + "_latest"
-                + self[0].plotting_format
-            )
+            def save():
+                fig.savefig(
+                    self[0].plotting_dir
+                    + "plot_streamlines_"
+                    + self.get_name()
+                    + "_t_"
+                    + "{:06}".format(self[0].time_step)
+                    + self[0].plotting_format
+                )
+                fig.savefig(
+                    self[0].plotting_dir
+                    + "plot_streamlines_"
+                    + self.get_name()
+                    + "_latest"
+                    + self[0].plotting_format
+                )
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
 
     def plot_vectors(self, normal_direction):
         if not self[0].activate_jit_:
@@ -567,21 +584,27 @@ class VectorField:
             Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
             ax.quiver(xi, yi, Ui, Vi)
-            fig.savefig(
-                self[0].plotting_dir
-                + "plot_vectors_"
-                + self.get_name()
-                + "_t_"
-                + "{:06}".format(self[0].time_step)
-                + self[0].plotting_format
-            )
-            fig.savefig(
-                self[0].plotting_dir
-                + "plot_vectors_"
-                + self.get_name()
-                + "_latest"
-                + self[0].plotting_format
-            )
+            def save():
+                fig.savefig(
+                    self[0].plotting_dir
+                    + "plot_vectors_"
+                    + self.get_name()
+                    + "_t_"
+                    + "{:06}".format(self[0].time_step)
+                    + self[0].plotting_format
+                )
+                fig.savefig(
+                    self[0].plotting_dir
+                    + "plot_vectors_"
+                    + self.get_name()
+                    + "_latest"
+                    + self[0].plotting_format
+                )
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
 
 
 # @register_pytree_node_class
@@ -848,22 +871,28 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
+                def save():
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_cl_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_cl_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
                 # plt.close(fig)
             elif self.physical_domain.number_of_dimensions == 2:
                 # fig, ax = plt.subplots(1, 1)
@@ -884,25 +913,31 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y"][dimension]
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y"][dimension]
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
+                def save():
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_cl_"
+                        + self.name
+                        + "_"
+                        + ["x", "y"][dimension]
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_cl_"
+                        + self.name
+                        + "_"
+                        + ["x", "y"][dimension]
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
                 # plt.close(fig)
             elif self.physical_domain.number_of_dimensions == 3:
                 # fig, ax = plt.subplots(1, 1)
@@ -929,25 +964,31 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y", "z"][dimension]
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_cl_"
-                    + self.name
-                    + "_"
-                    + ["x", "y", "z"][dimension]
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
+                def save():
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_cl_"
+                        + self.name
+                        + "_"
+                        + ["x", "y", "z"][dimension]
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_cl_"
+                        + self.name
+                        + "_"
+                        + ["x", "y", "z"][dimension]
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
             else:
                 raise Exception("Not implemented yet")
 
@@ -969,21 +1010,27 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
+                def save():
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
 
             elif self.physical_domain.number_of_dimensions == 2:
                 fig = figure.Figure(figsize=(15, 5))
@@ -1015,21 +1062,27 @@ class PhysicalField(Field):
                             other_field.data,
                         )
                     fig.legend()
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_"
-                        + self.name
-                        + "_latest"
-                        + self.plotting_format
-                    )
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_"
-                        + self.name
-                        + "_t_"
-                        + "{:06}".format(self.time_step)
-                        + self.plotting_format
-                    )
+                    def save():
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_"
+                            + self.name
+                            + "_latest"
+                            + self.plotting_format
+                        )
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_"
+                            + self.name
+                            + "_t_"
+                            + "{:06}".format(self.time_step)
+                            + self.plotting_format
+                        )
+                    try:
+                        save()
+                    except FileNotFoundError:
+                        Field.initialize(False)
+                        save()
             elif self.physical_domain.number_of_dimensions == 3:
                 fig = figure.Figure()
                 # ax = fig.subplots(1, 3, figsize=(15, 5))
@@ -1057,21 +1110,27 @@ class PhysicalField(Field):
                             label=other_field.name,
                         )
                 fig.legend()
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
+                def save():
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
             else:
                 raise Exception("Not implemented yet")
 
@@ -1133,21 +1192,27 @@ class PhysicalField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 fig.colorbar(ims[0], ax=ax, label=self.name)
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_3d_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_3d_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
+                def save():
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_3d_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_3d_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
 
     def plot_3d_single(self, dim):
         if not self.activate_jit_:
@@ -1180,25 +1245,31 @@ class PhysicalField(Field):
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
-            fig.savefig(
-                self.plotting_dir
-                + "plot_3d_"
-                + "xyz"[dim]
-                + "_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_3d_"
-                + "xyz"[dim]
-                + "_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
+            def save():
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "xyz"[dim]
+                    + "_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "xyz"[dim]
+                    + "_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
 
     def plot_isolines(self, normal_direction, isolines=None):
         if not self.activate_jit_:
@@ -1229,25 +1300,31 @@ class PhysicalField(Field):
             )
             CS = ax.contour(X, Y, f, isolines)
             ax.clabel(CS, inline=True, fontsize=10)
-            fig.savefig(
-                self.plotting_dir
-                + "plot_iso_"
-                + "xyz"[normal_direction]
-                + "_"
-                + self.name
-                + "_t_"
-                + "{:06}".format(self.time_step)
-                + self.plotting_format
-            )
-            fig.savefig(
-                self.plotting_dir
-                + "plot_iso_"
-                + "xyz"[normal_direction]
-                + "_"
-                + self.name
-                + "_latest"
-                + self.plotting_format
-            )
+            def save():
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_iso_"
+                    + "xyz"[normal_direction]
+                    + "_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_iso_"
+                    + "xyz"[normal_direction]
+                    + "_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
 
     def hat(self):
         out = FourierField.FromField(self)
@@ -1389,6 +1466,9 @@ class FourierField(Field):
         ret = FourierField(self.physical_domain, self.data + other.data, name=new_name)
         ret.time_step = self.time_step
         return ret
+
+    def __sub__(self, other):
+        return self + other * (-1.0)
 
     def __mul__(self, other):
         if isinstance(other, Field):

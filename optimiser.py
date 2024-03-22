@@ -38,13 +38,12 @@ class Optimiser:
 
         self.domain = domain
         self.v_hat = v_hat_initial
+        self.force_2d = force_2d
         self.parameters = self.vel_hat_to_parameters(self.v_hat)
-        self.value = None
         self.old_value = None
         self.current_iteration = 0
         self.max_iter = max_iter
         self.min_optax_iter = min_optax_iter
-        self.force_2d = force_2d
         if minimise:
             self.inv_fn = lambda x: x
         else:
@@ -62,6 +61,9 @@ class Optimiser:
             print_verb("Using jaxopt solver")
         self.state = self.solver.init_state(self.parameters)
         self.objective_fn_name = params.get("objective_fn_name", "objective function")
+
+        self.value = self.inv_fn(self.state.value)
+        print_verb(self.objective_fn_name + ":", self.value)
 
     def parameters_to_vel_hat(self, parameters):
         if self.parameters_to_vel_hat_fn == None:
@@ -88,9 +90,16 @@ class Optimiser:
 
     def vel_hat_to_parameters(self, v_hat):
         if self.vel_hat_to_parameters_fn == None:
-            v0_1 = v_hat[1].data * (1 + 0j)
-            v0_0_00_hat = v_hat[0].data[0, :, 0] * (1 + 0j)
-            self.parameters = tuple([v0_1, v0_0_00_hat])
+            if self.force_2d:
+                v0_1 = v_hat[1].data * (1 + 0j)
+                v0_0_00_hat = v_hat[0].data[0, :, 0] * (1 + 0j)
+                self.parameters = tuple([v0_1, v0_0_00_hat])
+            else:
+                vort_hat = v_hat.curl()[1].data * (1 + 0j)
+                v0_1 = v_hat[1].data * (1 + 0j)
+                v0_0_00_hat = v_hat[0].data[0, :, 0] * (1 + 0j)
+                v2_0_00_hat = v_hat[2].data[0, :, 0] * (1 + 0j)
+                self.parameters = tuple([vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat])
         else:
             self.parameters = self.vel_hat_to_parameters_fn(v_hat)
         return self.parameters
