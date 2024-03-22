@@ -1388,7 +1388,7 @@ def solve_navier_stokes_laminar(
     vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-    nse = NavierStokesVelVort.FromVelocityField(vel, Re, **params)
+    nse = NavierStokesVelVort.FromVelocityField(vel, Re=Re, **params)
     nse.end_time = end_time
     nse.max_iter = max_iter
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
