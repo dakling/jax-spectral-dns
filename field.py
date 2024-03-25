@@ -108,6 +108,11 @@ class Field(ABC):
     def min(self):
         return jnp.min(self.data.flatten())
 
+    def absmax(self):
+        max = jnp.max(self.data.flatten())
+        min = jnp.min(self.data.flatten())
+        return jnp.max(jnp.array([max, -min]))
+
     def __neg__(self):
         ret = self * (-1.0)
         ret.time_step = self.time_step
@@ -794,7 +799,7 @@ class PhysicalField(Field):
     def normalize_by_max_value(self, return_max=False):
         """Divide field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
-        max = abs(self.max())
+        max = abs(self.absmax())
 
         self.data = jax.lax.cond(
             max > 1e-20,

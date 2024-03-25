@@ -235,7 +235,8 @@ class LinearStabilityCalculation:
             self,
             domain,
             evec,
-            factor=1.0
+            factor=1.0,
+            symm=False
     ):
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
@@ -244,10 +245,17 @@ class LinearStabilityCalculation:
         N_domain = domain.number_of_cells(1)
         ys = domain.grid[1]
 
-        phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
-        for i in range(N_domain):
-            for k in range(self.n):
-                phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+        n = u_vec.shape[0]
+        # phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
+        phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
+        if symm:
+            for i in range(N_domain):
+                for k in range(n):
+                    phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+        else:
+            for i in range(N_domain):
+                for k in range(n):
+                    phi_mat = phi_mat.at[i, k].set(phi_s(k, 0, ys[i]))
 
         return self.velocity_field_from_y_slice(domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor)
 

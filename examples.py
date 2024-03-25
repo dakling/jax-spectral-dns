@@ -1473,7 +1473,6 @@ def run_optimisation_transient_growth_mean_y_profile(
     )
     velocity_base_hat = velocity_base.hat()
     velocity_base_hat.set_name("velocity_base_hat")
-    U_base_int_0 = velocity_base[0].volume_integral()
 
     def post_process(nse, i):
         if i == 0:
@@ -1557,19 +1556,25 @@ def run_optimisation_transient_growth_mean_y_profile(
         vel_hat, vel_base = inp
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
-        v0_base_hat = vel_base[0].get_data()[0, :, 0]
-        v0 = tuple([v0_1, v0_0_00_hat, v0_base_hat])
+        # v0_base_hat = vel_base[0].get_data()[0, :, 0]
+        v0_base_hat_coeffs = jnp.array([-0.5+0.0j, 0.0+0.0j, 0.0+0.0j])
+        v0 = tuple([v0_1, v0_0_00_hat, v0_base_hat_coeffs])
         return v0
 
     def params_to_run_input(params):
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
-        v0_base_yslice = params[2]
+        # v0_base_yslice = params[2]
+        v0_base_yslice_coeffs = params[2]
+        v0_base_zeros = jnp.zeros_like(v0_base_yslice_coeffs)
+        for _ in range(3):
+            v0_base_yslice_coeffs = jnp.concatenate((v0_base_yslice_coeffs, v0_base_zeros))
         U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
             domain, None, v1_hat, v0_00, None, two_d=True
         )
-        v0_base_hat = domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
+        # v0_base_hat = domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
+        v0_base_hat = (lsc0.velocity_field(domain, v0_base_yslice_coeffs, symm=True)).hat()[0].get_data()
 
         U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
         U_base = VectorField.FromData(FourierField, domain, [v0_base_hat, jnp.zeros_like(v0_base_hat), jnp.zeros_like(v0_base_hat)])
