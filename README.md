@@ -90,8 +90,8 @@ generalizes to the nonlinear case, and that the method can be used in other
 optimisation problems as well.
 
 Below, the output of a run of `run_optimisation_transient_growth_y_profile` is shown. 
-Even though the optimiser is only run for ten iterations, a clear improvement
-from an energy gain of $1.24$ up to a gain of $18.34$ is achieved. Getting closer to 
+Even though the optimiser is only run for twenty iterations, a clear improvement
+from an energy gain of $1.24$ up to a gain of $19.29 is achieved. Getting closer to 
 the expected gain of a bit above $20$ would likely require more iterations.
 Nonetheless, the initial condition is optimised until it qualitatively resembles
 the one shown in the `test_transient_growth` section, and the simulation
