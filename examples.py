@@ -990,7 +990,7 @@ def run_transient_growth(
             for j in range(n_steps):
                 time_ = (j / (n_steps - 1)) * end_time
                 vel_hat_ = nse.get_field("velocity_hat", j)
-                vel_ = vel_hat.no_hat()
+                vel_ = vel_hat_.no_hat()
                 vel_energy_ = vel_.energy()
                 ts_.append(time_)
                 energy_t_.append(vel_energy_)

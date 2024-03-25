@@ -66,11 +66,7 @@ for different time horizons are run and compared with the data taken from Reddy
 |*Growth rates at different times compared with maximum growth over time*|
 
 Below, a video of the Re=3000 case with the optimal initial condition for $T=15$
-is shown. Since it is run for 40 time units and uses a linearized operator, the
-energy decay after $T=15$ is also visible.
-|![Growth rates for T=15]( ./img/energy_t.png )|
-|:--:| 
-|*Growth rate for $T=15$*|
+is shown. 
 
 |![Maximum growth]( ./img/Re_3000_transient_growth.gif )|
 |:--:| 
@@ -96,10 +92,6 @@ the expected gain of a bit above $20$ would likely require more iterations.
 Nonetheless, the initial condition is optimised until it qualitatively resembles
 the one shown in the `test_transient_growth` section, and the simulation
 also matches up nicely, at least qualitatively.
-
-|![Energy gain over time]( ./img/energy_t_opt_final.png )|
-|:--:| 
-|*Gain over time*|
 
 |![Optimisation of the initial condition]( ./img/Re_3000_transient_growth_initial.gif )|
 |:--:| 
