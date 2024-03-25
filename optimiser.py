@@ -231,4 +231,5 @@ class OptimiserPertAndBase(Optimiser):
         U_base.set_name("vel_base")
         U_base.set_time_step(i + 1)
         U_base[0].plot_3d(2)
+        U_base[0].plot_center(1)
         U_base[0].save_to_file("vel_base_" + str(i + 1))

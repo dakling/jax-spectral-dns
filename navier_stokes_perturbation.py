@@ -1,9 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 NoneType = type(None)
 import jax
 import jax.numpy as jnp
+import numpy as np
 from functools import partial
+import matplotlib.figure as figure
 
 # from importlib import reload
 import sys
@@ -277,6 +279,49 @@ def solve_navier_stokes_perturbation(
     nse.end_time = end_time
     nse.max_iter = max_iter
 
+    nse.before_time_step_fn = None
     nse.after_time_step_fn = None
+
+    def post_process(nse_, i):
+        n_steps = len(nse_.get_field("velocity_hat"))
+        vel_hat = nse_.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[0].plot_center(1)
+        vel[1].plot_center(1)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse_.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+    nse.post_process_fn = post_process
 
     return nse

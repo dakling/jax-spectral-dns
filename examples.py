@@ -829,6 +829,29 @@ def run_transient_growth_nonpert(
             vort_pert[2].plot_3d(2)
             vel_pert.plot_streamlines(2)
             vel_pert[0].plot_isolines(2)
+
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ts_ = []
+            energy_t_ = []
+            for j in range(n_steps):
+                time_ = (j / (n_steps - 1)) * end_time
+                vel_hat_ = nse.get_field("velocity_hat", j)
+                vel_ = vel_hat.no_hat()
+                vel_energy_ = vel_.energy()
+                ts_.append(time_)
+                energy_t_.append(vel_energy_)
+
+            energy_t_arr = np.array(energy_t_)
+            ax.plot(ts_, energy_t_arr / energy_t_arr[0], "k.")
+            ax.plot(
+                ts_[: i + 1],
+                energy_t_arr[: i + 1] / energy_t_arr[0],
+                "bo",
+                label="energy gain",
+            )
+            fig.legend()
+            fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         vel_pert_energy = vel_pert.energy()
         ts.append(time)
         energy_t.append(vel_pert_energy)
@@ -844,20 +867,20 @@ def run_transient_growth_nonpert(
     nse.deactivate_jit()
     nse.post_process()
 
-    energy_t = np.array(energy_t)
-    if plot:
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        ax.plot(ts, energy_t / energy_t[0], ".", label="growth (DNS)")
-        if abs(Re - 3000) < 1e-3:
-            ax.plot(
-                rh_93_data[0],
-                rh_93_data[1],
-                "--",
-                label="growth (Reddy/Henningson 1993)",
-            )
-        fig.legend()
-        fig.savefig("plots/energy_t.png")
+    # energy_t = np.array(energy_t)
+    # if plot:
+    #     fig = figure.Figure()
+    #     ax = fig.subplots(1, 1)
+    #     ax.plot(ts, energy_t / energy_t[0], ".", label="growth (DNS)")
+    #     if abs(Re - 3000) < 1e-3:
+    #         ax.plot(
+    #             rh_93_data[0],
+    #             rh_93_data[1],
+    #             "--",
+    #             label="growth (Reddy/Henningson 1993)",
+    #         )
+    #     fig.legend()
+    #     fig.savefig("plots/energy_t.png")
 
     gain = energy_t[-1] / energy_t[0]
     print_verb("final energy gain:", gain)
@@ -959,6 +982,29 @@ def run_transient_growth(
             vort[2].plot_3d(2)
             vel.plot_streamlines(2)
             vel[0].plot_isolines(2)
+
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            ts_ = []
+            energy_t_ = []
+            for j in range(n_steps):
+                time_ = (j / (n_steps - 1)) * end_time
+                vel_hat_ = nse.get_field("velocity_hat", j)
+                vel_ = vel_hat.no_hat()
+                vel_energy_ = vel_.energy()
+                ts_.append(time_)
+                energy_t_.append(vel_energy_)
+
+            energy_t_arr = np.array(energy_t_)
+            ax.plot(ts_, energy_t_arr / energy_t_arr[0], "k.")
+            ax.plot(
+                ts_[: i + 1],
+                energy_t_arr[: i + 1] / energy_t_arr[0],
+                "bo",
+                label="energy gain",
+            )
+            fig.legend()
+            fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         vel_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_energy)
@@ -1422,10 +1468,12 @@ def run_optimisation_transient_growth_mean_y_profile(
         lambda X: 0.0 * X[0] * X[1] * X[2],
         name="velocity_z_base",
     )
-    velocity_base_hat = VectorField(
-        [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
+    velocity_base = VectorField(
+        [velocity_x_base, velocity_y_base, velocity_z_base]
     )
+    velocity_base_hat = velocity_base.hat()
     velocity_base_hat.set_name("velocity_base_hat")
+    U_base_int_0 = velocity_base[0].volume_integral()
 
     def post_process(nse, i):
         if i == 0:
@@ -1473,7 +1521,9 @@ def run_optimisation_transient_growth_mean_y_profile(
 
     def run_case(inp, out=False):
         U_hat, U_base_hat = inp
-        U_base_hat.no_hat().normalize_by_max_value().hat()
+        U_base = U_base_hat.no_hat()
+        U_base.normalize_by_max_value()
+        U_base_hat = U_base.hat()
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()

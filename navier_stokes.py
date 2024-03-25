@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from functools import partial, reduce
+import matplotlib.figure as figure
 
 # from importlib import reload
 import sys
@@ -1393,27 +1394,51 @@ def solve_navier_stokes_laminar(
     nse.max_iter = max_iter
     vel_0 = nse.get_initial_field("velocity_hat").no_hat()
 
-    plot_interval = 10
+    nse.before_time_step_fn = None
+    nse.after_time_step_fn = None
 
-    def before_time_step(nse):
-        i = nse.time_step
-        if (i - 1) % plot_interval == 0:
-            vel = nse.get_field("velocity_hat", i).no_hat()
-            vel_old = nse.get_field("velocity_hat", i - 1).no_hat()
-            vel[0].plot_center(1, vel_0[0], vel_x_ana)
-            vel[1].plot_center(1, vel_0[1])
-            vel[2].plot_center(1, vel_0[2])
-            vel[0].plot_3d()
-            vel[1].plot_3d()
-            vel[2].plot_3d()
-            print(abs(vel[0] - vel_x_ana))
-            print(abs(vel[1]))
-            print(abs(vel[2]))
-            old_error = abs(vel_old[0] - vel_x_ana)
-            new_error = abs(vel[0] - vel_x_ana)
-            rel_change = abs(new_error - old_error) / old_error
-            print("rel_change: " + str(rel_change))
+    def post_process(nse_, i):
+        n_steps = len(nse_.get_field("velocity_hat"))
+        vel_hat = nse_.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
 
-    nse.before_time_step_fn = before_time_step
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[0].plot_center(1)
+        vel[1].plot_center(1)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse_.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        gain = energy_t[-1] / energy_t[0]
+        return gain
+    nse.post_process_fn = post_process
 
     return nse
