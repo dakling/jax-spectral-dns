@@ -248,7 +248,7 @@ class LinearStabilityCalculation:
         n = u_vec.shape[0]
         # phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
         phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
-        if symm:
+        if not symm:
             for i in range(N_domain):
                 for k in range(n):
                     phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
