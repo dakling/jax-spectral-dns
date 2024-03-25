@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 
 from equation import print_verb
-from field import FourierField, VectorField
+from field import Field, FourierField, VectorField
 from navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 try:
@@ -24,7 +24,7 @@ class Optimiser:
         self,
         domain,
         run_fn,
-        v_hat_initial,
+        run_input_initial,
         minimise=False,
         force_2d=False,
         max_iter=20,
@@ -33,13 +33,13 @@ class Optimiser:
         **params
     ):
 
-        self.parameters_to_vel_hat_fn = params.get("parameters_to_vel_hat_fn")
-        self.vel_hat_to_parameters_fn = params.get("vel_hat_to_parameters_fn")
+        self.parameters_to_run_input_fn = params.get("parameters_to_run_input_fn")
+        self.run_input_to_parameters_fn = params.get("run_input_to_parameters_fn")
 
         self.domain = domain
-        self.v_hat = v_hat_initial
+        self.run_input = run_input_initial
         self.force_2d = force_2d
-        self.parameters = self.vel_hat_to_parameters(self.v_hat)
+        self.parameters = self.run_input_to_parameters(self.run_input)
         self.old_value = None
         self.current_iteration = 0
         self.max_iter = max_iter
@@ -48,7 +48,7 @@ class Optimiser:
             self.inv_fn = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn = lambda v, out=False: self.inv_fn(run_fn(self.parameters_to_vel_hat(v), out))
+        self.run_fn = lambda v, out=False: self.inv_fn(run_fn(self.parameters_to_run_input(v), out))
         if use_optax:
             learning_rate = params.get("learning_rate", 1e-2)
             scale_by_norm = params.get("scale_by_norm", True)
@@ -65,8 +65,8 @@ class Optimiser:
         self.value = self.inv_fn(self.state.value)
         print_verb(self.objective_fn_name + ":", self.value)
 
-    def parameters_to_vel_hat(self, parameters):
-        if self.parameters_to_vel_hat_fn == None:
+    def parameters_to_run_input(self, parameters):
+        if self.parameters_to_run_input_fn == None:
             if self.force_2d:
                 vort_hat = None
                 v1_hat = parameters[0]
@@ -81,27 +81,31 @@ class Optimiser:
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
                 domain, vort_hat, v1_hat, v0_00, v2_00, two_d=True
             )
-            U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
+            input = VectorField.FromData(FourierField, domain, U_hat_data)
         else:
-            U_hat = self.parameters_to_vel_hat_fn(parameters)
-        U_hat.set_name("velocity_hat")
-        U_hat.set_time_step(self.current_iteration)
-        return U_hat
+            input = self.parameters_to_run_input_fn(parameters)
+        def set_time_step_rec(inp):
+            if isinstance(inp, Field) or isinstance(inp, VectorField):
+                inp.set_time_step(self.current_iteration)
+            else:
+                [set_time_step_rec(inp_i) for inp_i in inp]
+        set_time_step_rec(input)
+        return input
 
-    def vel_hat_to_parameters(self, v_hat):
-        if self.vel_hat_to_parameters_fn == None:
+    def run_input_to_parameters(self, input):
+        if self.run_input_to_parameters_fn == None:
             if self.force_2d:
-                v0_1 = v_hat[1].data * (1 + 0j)
-                v0_0_00_hat = v_hat[0].data[0, :, 0] * (1 + 0j)
+                v0_1 = input[1].data * (1 + 0j)
+                v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
                 self.parameters = tuple([v0_1, v0_0_00_hat])
             else:
-                vort_hat = v_hat.curl()[1].data * (1 + 0j)
-                v0_1 = v_hat[1].data * (1 + 0j)
-                v0_0_00_hat = v_hat[0].data[0, :, 0] * (1 + 0j)
-                v2_0_00_hat = v_hat[2].data[0, :, 0] * (1 + 0j)
+                vort_hat = input.curl()[1].data * (1 + 0j)
+                v0_1 = input[1].data * (1 + 0j)
+                v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
+                v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
                 self.parameters = tuple([vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat])
         else:
-            self.parameters = self.vel_hat_to_parameters_fn(v_hat)
+            self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
 
     def get_parameters_norm(self):
@@ -139,7 +143,7 @@ class Optimiser:
     def post_process_iteration(self):
 
         i = self.current_iteration
-        U_hat = self.parameters_to_vel_hat(self.parameters)
+        U_hat = self.parameters_to_run_input(self.parameters)
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
@@ -205,3 +209,26 @@ class Optimiser:
         self.old_value = self.value
         self.value = final_value
         print_verb()
+
+class OptimiserPertAndBase(Optimiser):
+
+    def post_process_iteration(self):
+
+        i = self.current_iteration
+        U_hat, U_base_hat = self.parameters_to_run_input(self.parameters)
+        U = U_hat.no_hat()
+        U.update_boundary_conditions()
+        v0_new = U.normalize_by_energy()
+
+        v0_new.set_name("vel_0")
+        v0_new.set_time_step(i + 1)
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
+        v0_new.save_to_file("vel_0_" + str(i + 1))
+
+        U_base = U_base_hat.no_hat()
+        U_base.set_name("vel_base")
+        U_base.set_time_step(i + 1)
+        U_base[0].plot_3d(2)
+        U_base[0].save_to_file("vel_base_" + str(i + 1))

@@ -21,7 +21,7 @@ from navier_stokes_perturbation import (
     solve_navier_stokes_perturbation,
 )
 from linear_stability_calculation import LinearStabilityCalculation
-from optimiser import Optimiser
+from optimiser import Optimiser, OptimiserPertAndBase
 
 NoneType = type(None)
 
@@ -1324,13 +1324,13 @@ def run_optimisation_transient_growth_y_profile(
         gain = vel.energy() / vel_0.energy()
         return gain
 
-    def vel_hat_to_params(vel_hat):
+    def run_input_to_params(vel_hat):
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
         v0 = tuple([v0_1, v0_0_00_hat])
         return v0
 
-    def params_to_vel_hat(params):
+    def params_to_run_input(params):
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
@@ -1349,8 +1349,193 @@ def run_optimisation_transient_growth_y_profile(
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
-        vel_hat_to_parameters_fn=vel_hat_to_params,
-        parameters_to_vel_hat_fn=params_to_vel_hat,
+        run_input_to_parameters_fn=run_input_to_params,
+        parameters_to_run_input_fn=params_to_run_input,
+        objective_fn_name="gain",
+    )
+    optimiser.optimise()
+
+def run_optimisation_transient_growth_mean_y_profile(
+    Re=3000.0,
+    T=15,
+    alpha=1.0,
+    beta=0.0,
+    Nx=8,
+    Ny=90,
+    Nz=8,
+    number_of_steps=20,
+    min_number_of_optax_steps=-1,
+):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    min_number_of_optax_steps = int(min_number_of_optax_steps)
+    dt = 1e-2
+
+    Equation.initialize()
+    end_time = T
+    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
+    aliasing = 3 / 2
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc0 = LinearStabilityCalculation(Re=Re, alpha=0, beta=0, n=Ny)
+    domain: PhysicalDomain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=scale_factors,
+        aliasing=aliasing,
+    )
+
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        number_of_modes,
+        recompute_full=True,
+        save_final=False,
+    )
+
+    e_0 = 1e-3
+    v0_0_norm = v0_0.normalize_by_energy()
+    v0_0_norm *= e_0
+    v0_0_hat = v0_0_norm.hat()
+
+    u_max_over_u_tau = 1.0
+
+    velocity_x_base = PhysicalField.FromFunc(
+        domain,
+        lambda X: u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
+        name="velocity_x_base",
+    )
+    velocity_y_base = PhysicalField.FromFunc(
+        domain,
+        lambda X: 0.0 * X[0] * X[1] * X[2],
+        name="velocity_y_base",
+    )
+    velocity_z_base = PhysicalField.FromFunc(
+        domain,
+        lambda X: 0.0 * X[0] * X[1] * X[2],
+        name="velocity_z_base",
+    )
+    velocity_base_hat = VectorField(
+        [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
+    )
+    velocity_base_hat.set_name("velocity_base_hat")
+
+    def post_process(nse, i):
+        if i == 0:
+            vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
+            vel_base.plot_3d(2)
+        n_steps = len(nse.get_field("velocity_hat"))
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[0].plot_center(1)
+        vel[1].plot_center(1)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+
+    def run_case(inp, out=False):
+        U_hat, U_base_hat = inp
+        U_base_hat.no_hat().normalize_by_max_value().hat()
+        U = U_hat.no_hat()
+        U.update_boundary_conditions()
+        U_norm = U.normalize_by_energy()
+        U_norm *= e_0
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re, velocity_base_hat=U_base_hat)
+        nse.end_time = end_time
+
+        # nse.set_linearize(False)
+        nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.activate_jit()
+        if out:
+            nse.write_intermediate_output = True
+            nse.post_process_fn = post_process
+        else:
+            nse.write_intermediate_output = False
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.before_time_step_fn = None
+        nse.after_time_step_fn = None
+        if out:
+            nse.post_process()
+
+        gain = vel.energy() / vel_0.energy()
+        return gain
+
+    def run_input_to_params(inp):
+        vel_hat, vel_base = inp
+        v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
+        v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
+        v0_base_hat = vel_base[0].get_data()[0, :, 0]
+        v0 = tuple([v0_1, v0_0_00_hat, v0_base_hat])
+        return v0
+
+    def params_to_run_input(params):
+        v1_yslice = params[0]
+        v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
+        v0_00 = params[1]
+        v0_base_yslice = params[2]
+        U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
+            domain, None, v1_hat, v0_00, None, two_d=True
+        )
+        v0_base_hat = domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
+
+        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
+        U_base = VectorField.FromData(FourierField, domain, [v0_base_hat, jnp.zeros_like(v0_base_hat), jnp.zeros_like(v0_base_hat)])
+        return (U_hat, U_base)
+
+    optimiser = OptimiserPertAndBase(
+        domain,
+        run_case,
+        (v0_0_hat, velocity_base_hat),
+        minimise=False,
+        force_2d=True,
+        max_iter=number_of_steps,
+        use_optax=min_number_of_optax_steps >= 0,
+        min_optax_steps=min_number_of_optax_steps,
+        run_input_to_parameters_fn=run_input_to_params,
+        parameters_to_run_input_fn=params_to_run_input,
         objective_fn_name="gain",
     )
     optimiser.optimise()
@@ -1524,7 +1709,7 @@ def run_ld_2020(
     if turb:
         print_verb("using turbulent base profile")
         vel_base, _, max = get_vel_field(domain, avg_vel_coeffs)
-        vel_base, _ = vel_base.normalize_by_max_value()
+        vel_base = vel_base.normalize_by_max_value()
         vel_base.set_name("velocity_base")
         u_max_over_u_tau = max
     else:

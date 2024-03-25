@@ -103,10 +103,10 @@ class Field(ABC):
         return self.data[index]
 
     def max(self):
-        return max(self.data.flatten())
+        return jnp.max(self.data.flatten())
 
     def min(self):
-        return min(self.data.flatten())
+        return jnp.min(self.data.flatten())
 
     def __neg__(self):
         ret = self * (-1.0)
@@ -117,27 +117,33 @@ class Field(ABC):
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.data) / self.number_of_dofs()
 
-    def normalize(self):
-        self.data = self.data / self.energy()
+    def energy(self):
+        raise NotImplementedError()
+
+    def normalize_by_energy(self):
+        en = self.energy()
+        self.data = jax.lax.cond(en > 1e-20,
+                                 lambda: self.data / en,
+                                 lambda: self.data)
         return self
 
     def number_of_dimensions(self):
         return len(self.all_dimensions())
 
     def number_of_dofs(self):
-        return int(math.prod(self.physical_domain.shape))
+        return int(math.prod(self.get_domain().shape))
 
     def all_dimensions(self):
-        return self.physical_domain.all_dimensions()
+        return self.get_domain().all_dimensions()
 
     def is_periodic(self, direction):
-        return self.physical_domain.is_periodic(direction)
+        return self.get_domain().is_periodic(direction)
 
     def all_periodic_dimensions(self):
-        return self.physical_domain.all_periodic_dimensions()
+        return self.get_domain().all_periodic_dimensions()
 
     def all_nonperiodic_dimensions(self):
-        return self.physical_domain.all_nonperiodic_dimensions()
+        return self.get_domain().all_nonperiodic_dimensions()
 
     def pad_mat_with_zeros(self):
         return jnp.block(
@@ -286,14 +292,20 @@ class VectorField:
             f.data = f.data / jnp.sqrt(en)
         return self
 
-    def normalize_by_max_value(self):
+    def normalize_by_max_value(self, return_max=False):
         """Divide each field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
         max = []
         for f in self:
-            f, max_i = f.normalize_by_max_value()
-            max.append(max_i)
-        return self, max
+            if return_max:
+                f, max_i = f.normalize_by_max_value(True)
+                max.append(max_i)
+            else:
+                f, max_i = f.normalize_by_max_value(True)
+        if return_max:
+            return self, max
+        else:
+            return self
 
     def energy_norm(self, k):
         energy = k**2 * self[1] * self[1]
@@ -779,13 +791,21 @@ class PhysicalField(Field):
         out.data = jnp.array(field_array.tolist())
         return out
 
-    def normalize_by_max_value(self):
+    def normalize_by_max_value(self, return_max=False):
         """Divide field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
         max = abs(self.max())
-        if max > 1e-20:
-            self.data = self.data / max
-        return self, max
+
+        self.data = jax.lax.cond(
+            max > 1e-20,
+            lambda: self.data / max,
+            lambda: self.data
+
+        )
+        if return_max:
+            return self, max
+        else:
+            return self
 
     def get_domain(self):
         return self.physical_domain
