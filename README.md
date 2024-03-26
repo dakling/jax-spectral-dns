@@ -7,7 +7,24 @@ Navier-Stokes DNS solver.
 
 ## Getting started
 
+### Installation
+
+- clone the gitlab repository:
+```
+git clone https://gitlab.com/dakling/jax-optim.git ./jax-spectral-dns
+```
+
+- install using pip:
+```
+cd ./jax-spectral-dns
+pip install .
+```
+
+
 ### Dependencies
+
+When using pip for installation as shown above, the python package dependencies
+are automatically installed. For those interested, they are still listed here:
 
 - python, obviously
 - some standard python libraries (mostly used for pre- and post-processing):
