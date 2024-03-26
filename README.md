@@ -50,6 +50,15 @@ functions in `test_project.py` are used in order to check that everything is wor
 fine. Functions in `examples.py` run the solver but to not contain any
 quantitative tests.
 
+The simplest way to run a case from `examples.py` is through the `main.py` file, using 
+```
+python jax-spectral-dns/main.py <function_name> <function_args>
+```
+so for example
+```
+python jax-spectral-dns/main.py run_transient_growth 3000 15
+```
+
 ## Example outputs
 
 ### Validation cases:
