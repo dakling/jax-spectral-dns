@@ -29,22 +29,24 @@ def run_navier_stokes_turbulent_pseudo_2d():
     Re = 5000
 
     end_time = 5
+
+    use_antialias = False
+    # use_antialias = True # also works fine
+    if use_antialias:
+        aliasing = 3/2
+        Nz = 4
+    else:
+        aliasing = 1
+        Nz = 2
     nse = solve_navier_stokes_laminar(
         Re=Re,
         Nx=128,
         Ny=128,
-        Nz=2,
-        # Nx=92,
-        # Ny=128,
-        # Nz=92,
-        # Nx=4,
-        # Ny=12,
-        # Nz=4,
-        dt=1e-3,
+        Nz=Nz,
+        dt=5e-3,
         end_time=end_time,
         scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
-        # aliasing=3 / 2,
-        aliasing=1,
+        aliasing=aliasing
     )
     u_fn = lambda X: 1-X[1]**2 + 0.1*(jnp.sin(X[0])*(jnp.cos(jnp.pi/2 * X[1])*(-2*X[1]) - jnp.pi/2 * jnp.sin(jnp.pi/2 * X[1])*(1-X[1]**2))) + 0 * X[2]
     v_fn = lambda X: 0.1*(-jnp.cos(X[0])*(1-X[1]**2)*jnp.cos(jnp.pi/2*X[1])) + 0 * X[2]
@@ -141,7 +143,7 @@ def run_navier_stokes_turbulent_pseudo_2d():
     #     )
     # except FileNotFoundError:
     #     print_verb("No dedalus small dt data to compare results with were found.")
-    ax[0].plot(ts, energy_t, "o", label="jax")
+    ax[0].plot(ts, energy_t, "--", label="jax")
     try:
         ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
     except Exception:
@@ -154,7 +156,10 @@ def run_navier_stokes_turbulent_pseudo_2d():
     #     )
     # except Exception:
     #     print_verb("No dedalus small dt data to compare results with were found.")
-    ax[1].plot(ts, energy_t / energy_t[0], "o")
+    ax[1].plot(ts, energy_t / energy_t[0], "--")
+    ax[1].set_xlabel("$t$")
+    ax[0].set_ylabel("$E$")
+    ax[1].set_ylabel("$E/E_0$")
     fig.legend()
     fig.savefig("plots/energy.png")
 
@@ -303,6 +308,9 @@ def run_navier_stokes_turbulent():
     except Exception:
         print_verb("No dedalus small dt data to compare results with were found.")
     ax[1].plot(ts, energy_t / energy_t[0], "o")
+    ax[1].set_xlabel("$t$")
+    ax[0].set_ylabel("$E$")
+    ax[1].set_ylabel("$E/E_0$")
     fig.legend()
     fig.savefig("plots/energy.png")
 
@@ -982,6 +990,8 @@ def run_transient_growth_nonpert(
                 "bo",
                 label="energy gain",
             )
+            ax.set_xlabel("$t$")
+            ax.set_ylabel("$G$")
             fig.legend()
             fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         vel_pert_energy = vel_pert.energy()
@@ -1135,6 +1145,8 @@ def run_transient_growth(
                 "bo",
                 label="energy gain",
             )
+            ax.set_xlabel("$t$")
+            ax.set_ylabel("$G$")
             fig.legend()
             fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         vel_energy = vel.energy()
@@ -1579,7 +1591,7 @@ def run_optimisation_transient_growth_nonlinear(
         save_final=False,
     )
 
-    e_0 = 1e-4
+    e_0 = 1e-3
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
