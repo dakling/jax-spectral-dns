@@ -25,6 +25,138 @@ from optimiser import Optimiser, OptimiserPertAndBase
 
 NoneType = type(None)
 
+def run_navier_stokes_turbulent_pseudo_2d():
+    Re = 5000
+
+    end_time = 5
+    nse = solve_navier_stokes_laminar(
+        Re=Re,
+        Nx=128,
+        Ny=128,
+        Nz=2,
+        # Nx=92,
+        # Ny=128,
+        # Nz=92,
+        # Nx=4,
+        # Ny=12,
+        # Nz=4,
+        dt=1e-3,
+        end_time=end_time,
+        scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
+        # aliasing=3 / 2,
+        aliasing=1,
+    )
+    u_fn = lambda X: 1-X[1]**2 + 0.1*(jnp.sin(X[0])*(jnp.cos(jnp.pi/2 * X[1])*(-2*X[1]) - jnp.pi/2 * jnp.sin(jnp.pi/2 * X[1])*(1-X[1]**2))) + 0 * X[2]
+    v_fn = lambda X: 0.1*(-jnp.cos(X[0])*(1-X[1]**2)*jnp.cos(jnp.pi/2*X[1])) + 0 * X[2]
+
+    w_fn = lambda X: 0 * X[2]
+
+    vel_x = PhysicalField.FromFunc(nse.get_physical_domain(), u_fn, name="velocity_x")
+    vel_y = PhysicalField.FromFunc(nse.get_physical_domain(), v_fn, name="velocity_y")
+    vel_z = PhysicalField.FromFunc(nse.get_physical_domain(), w_fn, name="velocity_z")
+    vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
+    vel_hat = vel.hat()
+    vel_hat.set_name("velocity_hat")
+    nse.init_velocity(vel_hat)
+
+    u_base_fn = lambda X: 1 - X[1] ** 2
+    v_base_fn = lambda X: 0.0 * jnp.sin(X[2])
+    w_base_fn = lambda X: 0.0 * jnp.sin(X[2])
+
+    vel_base_x = PhysicalField.FromFunc(
+        nse.get_physical_domain(), u_base_fn, name="velocity_base_x"
+    )
+    vel_base_y = PhysicalField.FromFunc(
+        nse.get_physical_domain(), v_base_fn, name="velocity_base_y"
+    )
+    vel_base_z = PhysicalField.FromFunc(
+        nse.get_physical_domain(), w_base_fn, name="velocity_base_z"
+    )
+    vel_base = VectorField([vel_base_x, vel_base_y, vel_base_z], name="velocity_base")
+
+    ts = []
+    energy_t = []
+
+    nse.initialize()
+    nse.before_time_step_fn = None
+    nse.after_time_step_fn = None
+    nse.activate_jit()
+    nse.write_intermediate_output = True
+    nse.solve()
+
+    n_steps = len(nse.get_field("velocity_hat"))
+
+    def post_process(nse, i):
+        time = (i / (n_steps - 1)) * end_time
+        vel = nse.get_field("velocity_hat", i).no_hat()
+        vel_pert = vel - vel_base
+        vel_pert.set_name("velocity_pert")
+        vel_pert.set_time_step(i)
+        # vort_hat, _ = nse.get_vorticity_and_helicity()
+        # vort = vort_hat.no_hat()
+        # vort.set_time_step(i)
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[2].plot_3d(2)
+        vel_pert[0].plot_3d(2)
+        vel_pert[1].plot_3d(2)
+        vel_pert[2].plot_3d(2)
+        # vort[0].plot_3d(2)
+        # vort[1].plot_3d(2)
+        # vort[2].plot_3d(2)
+        vel[0].plot_center(1)
+        vel[1].plot_center(1)
+        vel[2].plot_center(1)
+        ts.append(time)
+        energy = vel_pert.energy()
+        energy_t.append(energy)
+        print_verb(time, ",", energy)
+
+    nse.post_process_fn = post_process
+    nse.post_process()
+
+    energy_t = np.array(energy_t)
+    fig = figure.Figure()
+    ax = fig.subplots(2, 1)
+    try:
+        dedalus_data = np.genfromtxt(
+            "./energy-dedalus.txt",
+            # "./energy_dedalus_highre.txt",
+            delimiter=",",
+        ).T
+        ax[0].plot(dedalus_data[0], dedalus_data[1], label="dedalus")
+    except FileNotFoundError:
+        print_verb("No dedalus data to compare results with were found.")
+    # try:
+    #     dedalus_data_small_dt = np.genfromtxt(
+    #         # "./energy-dedalus.txt",
+    #         "./energy_dedalus_highre_small_dt.txt",
+    #         delimiter=",",
+    #     ).T
+    #     ax[0].plot(
+    #         dedalus_data_small_dt[0],
+    #         dedalus_data_small_dt[1],
+    #         "--",
+    #         label="dedalus (small dt)",
+    #     )
+    # except FileNotFoundError:
+    #     print_verb("No dedalus small dt data to compare results with were found.")
+    ax[0].plot(ts, energy_t, "o", label="jax")
+    try:
+        ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
+    except Exception:
+        print_verb("No dedalus data to compare results with were found.")
+    # try:
+    #     ax[1].plot(
+    #         dedalus_data_small_dt[0],
+    #         dedalus_data_small_dt[1] / dedalus_data_small_dt[1][0],
+    #         "--",
+    #     )
+    # except Exception:
+    #     print_verb("No dedalus small dt data to compare results with were found.")
+    ax[1].plot(ts, energy_t / energy_t[0], "o")
+    fig.legend()
+    fig.savefig("plots/energy.png")
 
 def run_navier_stokes_turbulent():
     Re = 3000
@@ -1401,6 +1533,141 @@ def run_optimisation_transient_growth_y_profile(
     )
     optimiser.optimise()
 
+
+def run_optimisation_transient_growth_nonlinear(
+    Re=3000.0,
+    T=15,
+    alpha=1.0,
+    beta=0.0,
+    Nx=48,
+    Ny=64,
+    Nz=8,
+    number_of_steps=20,
+    min_number_of_optax_steps=-1,
+):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+
+    Equation.initialize()
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    min_number_of_optax_steps = int(min_number_of_optax_steps)
+    dt = 1e-2
+    end_time = T
+    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    # number_of_modes = 60
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
+    aliasing = 3 / 2
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    domain: PhysicalDomain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=scale_factors,
+        aliasing=aliasing,
+    )
+
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        number_of_modes,
+        recompute_full=True,
+        save_final=False,
+    )
+
+    e_0 = 1e-4
+    v0_0_norm = v0_0.normalize_by_energy()
+    v0_0_norm *= e_0
+    v0_0_hat = v0_0_norm.hat()
+
+    def post_process(nse, i):
+        n_steps = len(nse.get_field("velocity_hat"))
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig("plots/plot_energy_t_final.png")
+
+    def run_case(U_hat, out=False):
+
+        U = U_hat.no_hat()
+        U.update_boundary_conditions()
+        U_norm = U.normalize_by_energy()
+        U_norm *= e_0
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse.end_time = end_time
+
+        nse.set_linearize(False)
+        # nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.activate_jit()
+        if out:
+            nse.write_intermediate_output = True
+            nse.post_process_fn = post_process
+        else:
+            nse.write_intermediate_output = False
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.before_time_step_fn = None
+        nse.after_time_step_fn = None
+        if out:
+            nse.post_process()
+
+        gain = vel.energy() / vel_0.energy()
+        return gain
+
+    optimiser = Optimiser(
+        domain,
+        run_case,
+        v0_0_hat,
+        minimise=False,
+        force_2d=True,
+        max_iter=number_of_steps,
+        use_optax=min_number_of_optax_steps >= 0,
+        min_optax_steps=min_number_of_optax_steps,
+        objective_fn_name="gain",
+    )
+    optimiser.optimise()
+
 def run_optimisation_transient_growth_mean_y_profile(
     Re=3000.0,
     T=15,
@@ -1729,9 +1996,9 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
 def run_ld_2020(
     turb=True,
     Re_tau=180,
-    Nx=64,
+    Nx=60,
     Ny=90,
-    Nz=32,
+    Nz=48,
     number_of_steps=10,
     min_number_of_optax_steps=-1,
 ):
@@ -1749,7 +2016,7 @@ def run_ld_2020(
 
     # Equation.initialize()
 
-    dt = 1e-2
+    dt = 3e-3
     end_time = 0.7  # in ld2020 units
     # end_time = 0.02 # in ld2020 units
     e_0 = 1e-6
