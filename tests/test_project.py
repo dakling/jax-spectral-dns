@@ -8,13 +8,13 @@ import matplotlib.figure as figure
 
 jax.config.update("jax_enable_x64", True)
 
-from domain import PhysicalDomain
-from field import Field, PhysicalField, FourierFieldSlice, VectorField
-from equation import Equation, print_verb
-from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
-from navier_stokes_perturbation import solve_navier_stokes_perturbation
-from linear_stability_calculation import LinearStabilityCalculation
-from examples import run_pseudo_2d_perturbation, run_transient_growth, run_transient_growth_nonpert
+from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.field import Field, PhysicalField, FourierFieldSlice, VectorField
+from jax_spectral_dns.equation import Equation, print_verb
+from jax_spectral_dns.navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
+from jax_spectral_dns.navier_stokes_perturbation import solve_navier_stokes_perturbation
+from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
+from jax_spectral_dns.examples import run_pseudo_2d_perturbation, run_transient_growth, run_transient_growth_nonpert
 
 NoneType = type(None)
 
