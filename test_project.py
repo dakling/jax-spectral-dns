@@ -1154,12 +1154,14 @@ class TestProject(unittest.TestCase):
         def plot(ts, dataset, dataset_ana):
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
-            ax.plot(ts[0], dataset_ana[0]/dataset_ana[0][0], "-", label="Re_5500")
-            ax.plot(ts[0], dataset[0]/dataset_ana[0][0], ".", label="Re_5500")
-            ax.plot(ts[1], dataset_ana[1]/dataset_ana[1][0], "-", label="Re_5772")
-            ax.plot(ts[1], dataset[1]/dataset_ana[1][0], ".", label="Re_5772")
-            ax.plot(ts[2], dataset_ana[2]/dataset_ana[2][0], "-", label="Re_6000")
-            ax.plot(ts[2], dataset[2]/dataset_ana[2][0], ".", label="Re_6000")
+            ax.plot(ts[0], dataset_ana[0]/dataset_ana[0][0], "b-", label="Re_5500 (linear theory)")
+            ax.plot(ts[0], dataset[0]/dataset_ana[0][0], "b.", label="Re_5500 (DNS)")
+            ax.plot(ts[1], dataset_ana[1]/dataset_ana[1][0], "y", label="Re_5772 (linear theory)")
+            ax.plot(ts[1], dataset[1]/dataset_ana[1][0], "y", label="Re_5772 (DNS)")
+            ax.plot(ts[2], dataset_ana[2]/dataset_ana[2][0], "g-", label="Re_6000 (linear theory)")
+            ax.plot(ts[2], dataset[2]/dataset_ana[2][0], "g.", label="Re_6000 (DNS)")
+            ax.set_xlabel("$t$")
+            ax.set_ylabel("$G$")
             fig.legend()
             fig.savefig(
                 "plots/" + "energy" + ".png"

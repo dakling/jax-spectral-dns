@@ -1269,6 +1269,16 @@ class NavierStokesVelVort(Equation):
         # TODO would this be better?
         # number_of_outer_steps = max_factor(number_of_time_steps)
         # number_of_inner_steps = number_of_time_steps // number_of_outer_steps
+        vb = 2
+        if (
+            abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
+            > number_of_outer_steps
+        ):
+            print_verb(
+                "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
+            )
+            vb = 1
+
         print_verb(
             "Dividing "
             + str(number_of_time_steps)
@@ -1277,15 +1287,8 @@ class NavierStokesVelVort(Equation):
             + " inner steps and "
             + str(number_of_outer_steps)
             + " outer steps.",
-            verbosity_level=2
+            verbosity_level=vb
         )
-        if (
-            abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
-            > number_of_outer_steps
-        ):
-            print_verb(
-                "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
-            )
         assert (
             number_of_inner_steps >= number_of_outer_steps
         ), "Something went wrong with inner/outer step division."
