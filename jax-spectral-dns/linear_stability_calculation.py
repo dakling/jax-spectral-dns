@@ -8,10 +8,10 @@ from scipy.integrate import quad
 import scipy
 import timeit
 
-from cheb import cheb, phi, phi_s, phi_a, phi_pressure
-from domain import PhysicalDomain
-from equation import print_verb
-from field import PhysicalField, VectorField
+from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
+from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.equation import print_verb
+from jax_spectral_dns.field import PhysicalField, VectorField
 
 NoneType = type(None)
 

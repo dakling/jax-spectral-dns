@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-jax_spectral_dns.
+jax-spectral-dns.
 
 A spectral DNS solver supporting automatic differentiation
 """

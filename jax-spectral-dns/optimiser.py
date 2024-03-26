@@ -4,9 +4,9 @@ import time
 import jax
 import jax.numpy as jnp
 
-from equation import print_verb
-from field import Field, FourierField, VectorField
-from navier_stokes_perturbation import NavierStokesVelVortPerturbation
+from jax_spectral_dns.equation import print_verb
+from jax_spectral_dns.field import Field, FourierField, VectorField
+from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 try:
     import optax

@@ -11,34 +11,11 @@ import matplotlib.figure as figure
 # from importlib import reload
 import sys
 
-# try:
-#     reload(sys.modules["domain"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
-from domain import PhysicalDomain
-
-# try:
-#     reload(sys.modules["field"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
-from field import Field, PhysicalField, VectorField, FourierField, FourierFieldSlice
-
-# try:
-#     reload(sys.modules["equation"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         pass
-from equation import Equation, print_verb
-
-# try:
-#     reload(sys.modules["linear_stability_calculation"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load linear stability")
-from fixed_parameters import NavierStokesVelVortFixedParameters
-from linear_stability_calculation import LinearStabilityCalculation
+from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.field import Field, PhysicalField, VectorField, FourierField, FourierFieldSlice
+from jax_spectral_dns.equation import Equation, print_verb
+from jax_spectral_dns.fixed_parameters import NavierStokesVelVortFixedParameters
+from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 
 
 def update_nonlinear_terms_high_performance(

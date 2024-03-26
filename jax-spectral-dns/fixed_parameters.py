@@ -3,7 +3,7 @@
 import numpy as np
 import dataclasses
 
-from domain import Domain, PhysicalDomain
+from jax_spectral_dns.domain import Domain, PhysicalDomain
 
 @dataclasses.dataclass(frozen=True)
 class FixedParameters():

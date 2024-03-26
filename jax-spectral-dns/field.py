@@ -21,12 +21,7 @@ import numpy as np
 from pathlib import Path
 import os
 
-# try:
-#     reload(sys.modules["domain"])
-# except:
-#     if hasattr(sys, "ps1"):
-#         print("Unable to load")
-from domain import Domain, PhysicalDomain, FourierDomain
+from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
 
 NoneType = type(None)
 

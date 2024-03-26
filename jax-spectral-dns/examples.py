@@ -11,17 +11,17 @@ from functools import partial
 import typing
 import time
 
-from cheb import cheb
-from domain import PhysicalDomain
-from field import FourierField, PhysicalField, FourierFieldSlice, VectorField
-from equation import Equation, print_verb
-from navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
-from navier_stokes_perturbation import (
+from jax_spectral_dns.cheb import cheb
+from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.field import FourierField, PhysicalField, FourierFieldSlice, VectorField
+from jax_spectral_dns.equation import Equation, print_verb
+from jax_spectral_dns.navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
+from jax_spectral_dns.navier_stokes_perturbation import (
     NavierStokesVelVortPerturbation,
     solve_navier_stokes_perturbation,
 )
-from linear_stability_calculation import LinearStabilityCalculation
-from optimiser import Optimiser, OptimiserPertAndBase
+from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
+from jax_spectral_dns.optimiser import Optimiser, OptimiserPertAndBase
 
 NoneType = type(None)
 

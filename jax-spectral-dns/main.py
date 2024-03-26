@@ -17,26 +17,12 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 )
 
 import sys
-from examples import *
+from jax_spectral_dns.examples import *
 
-
-def main():
-    pass
-    # solve_heat_eq_1D()
-    # optimize_heat_eq_1D()
-    # run_jimenez_1990()
-    # run_transient_growth(600, 2.0)
-    # run_pseudo_2d_perturbation()
-    # run_optimization_pseudo_2d_perturbation()
-    # run_optimization_transient_growth()
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
-        main()
-    elif len(sys.argv) == 2:
-        globals()[sys.argv[1]]()
+        raise Exception("Please indicate a function from examples.py that should be run.")
     else:
         args = sys.argv[2:]
         globals()[sys.argv[1]](*args)
-
-# jax.profiler.save_device_memory_profile("memory.prof")

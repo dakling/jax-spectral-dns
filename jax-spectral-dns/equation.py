@@ -10,8 +10,8 @@ import jax.numpy as jnp
 from pathlib import Path
 import os
 
-from field import Field, FourierField
-from fixed_parameters import FixedParameters
+from jax_spectral_dns.field import Field, FourierField
+from jax_spectral_dns.fixed_parameters import FixedParameters
 
 
 NoneType = type(None)

@@ -6,26 +6,9 @@ import jax.numpy as jnp
 from importlib import reload
 import sys
 
-try:
-    reload(sys.modules["domain"])
-except:
-    if hasattr(sys, 'ps1'):
-        pass
-from domain import PhysicalDomain
-
-try:
-    reload(sys.modules["field"])
-except:
-    if hasattr(sys, 'ps1'):
-        pass
-from field import PhysicalField
-
-try:
-    reload(sys.modules["equation"])
-except:
-    if hasattr(sys, 'ps1'):
-        pass
-from equation import Equation
+from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.field import PhysicalField
+from jax_spectral_dns.equation import Equation
 
 
 class Heat_Eq(Equation):
