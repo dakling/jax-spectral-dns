@@ -1706,7 +1706,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
     end_time = T
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     aliasing = 3 / 2
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
