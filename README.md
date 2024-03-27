@@ -1,4 +1,4 @@
-# Jax-Optim
+# Jax-Spectral-DNS
 
 This repository contains a spectral solver written in python. Notably, the
 library [jax](https://github.com/google/jax) is used, so that automatic

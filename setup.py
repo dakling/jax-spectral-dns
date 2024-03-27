@@ -8,7 +8,7 @@ setup(
     author='Dario Klingenberg',
     author_email='dsk34@cam.ac.uk',
     license='AGPL3',
-    packages=['jax-spectral-dns'],
+    packages=['jax_spectral_dns'],
     install_requires=['jax',
                       'numpy',
                       'scipy',
