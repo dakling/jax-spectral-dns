@@ -1262,8 +1262,6 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
 def run_optimisation_transient_growth(
     Re=3000.0,
     T=15,
-    alpha=1.0,
-    beta=0.0,
     Nx=8,
     Ny=90,
     Nz=8,
@@ -1272,8 +1270,8 @@ def run_optimisation_transient_growth(
 ):
     Re = float(Re)
     T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
+    alpha=1.0,
+    beta=0.0,
 
     Equation.initialize()
     Nx = int(Nx)
@@ -1397,8 +1395,6 @@ def run_optimisation_transient_growth(
 def run_optimisation_transient_growth_y_profile(
     Re=3000.0,
     T=15,
-    alpha=1.0,
-    beta=0.0,
     Nx=8,
     Ny=90,
     Nz=8,
@@ -1407,8 +1403,8 @@ def run_optimisation_transient_growth_y_profile(
 ):
     Re = float(Re)
     T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
+    alpha=1.0,
+    beta=0.0,
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
@@ -1549,8 +1545,6 @@ def run_optimisation_transient_growth_y_profile(
 def run_optimisation_transient_growth_nonlinear(
     Re=3000.0,
     T=15,
-    alpha=1.0,
-    beta=0.0,
     Nx=48,
     Ny=64,
     Nz=8,
@@ -1559,8 +1553,8 @@ def run_optimisation_transient_growth_nonlinear(
 ):
     Re = float(Re)
     T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
+    alpha=1.0,
+    beta=0.0,
 
     Equation.initialize()
     Nx = int(Nx)
@@ -1683,8 +1677,6 @@ def run_optimisation_transient_growth_nonlinear(
 def run_optimisation_transient_growth_nonlinear_3d(
     Re=3000.0,
     T=15,
-    alpha=1.0,
-    beta=0.0,
     Nx=48,
     Ny=64,
     Nz=48,
@@ -1693,8 +1685,8 @@ def run_optimisation_transient_growth_nonlinear_3d(
 ):
     Re = float(Re)
     T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
+    alpha=1.0,
+    beta=0.0,
 
     Equation.initialize()
     Nx = int(Nx)
@@ -1817,8 +1809,6 @@ def run_optimisation_transient_growth_nonlinear_3d(
 def run_optimisation_transient_growth_mean_y_profile(
     Re=3000.0,
     T=15,
-    alpha=1.0,
-    beta=0.0,
     Nx=8,
     Ny=90,
     Nz=8,
@@ -1827,8 +1817,8 @@ def run_optimisation_transient_growth_mean_y_profile(
 ):
     Re = float(Re)
     T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
+    alpha=1.0,
+    beta=0.0,
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
