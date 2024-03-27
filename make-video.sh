@@ -1,31 +1,50 @@
 #!/usr/bin/env sh
 
-make_video(){
+make_video_mp4(){
     mkdir img || echo
-    # ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4"
+    ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4"
+}
+
+combine_two_mp4(){
+    mkdir img || echo
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+}
+
+combine_three_mp4(){
+    mkdir img || echo
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+}
+
+combine_four_mp4(){
+    mkdir img || echo
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+}
+
+make_video_gif(){
+    mkdir img || echo
     convert "plots/plot_$1_t_*.png" "img/$2.gif"
 }
 
-combine_two(){
+combine_two_gif(){
     mkdir img || echo
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     for f in a-*.gif; do convert +append $f ${f/a/b} $f; done  # append frames side-by-side
     convert -loop 0 -delay 20 a-*.gif "img/$1.gif"               # rejoin frames
-    # ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+    rm a*.gif b*.gif
 }
 
-combine_three(){
+combine_three_gif(){
     mkdir img || echo
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     convert "./img/$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif
     for f in a-*.gif; do convert +append $f ${f/a/b} ${f/a/c} $f; done  # append frames side-by-side
     convert -loop 0 -delay 20 a-*.gif "img/$1.gif"               # rejoin frames
-    # ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+    rm a*.gif b*.gif c*.gif
 }
 
-combine_four(){
+combine_four_gif(){
     mkdir img || echo
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
@@ -37,32 +56,69 @@ combine_four(){
         convert -append ${f/a/e} ${f/a/f} $f; # append frames on top of each other
     done
     convert -loop 0 -delay 20 a-*.gif "img/$1.gif"               # rejoin frames
-    # rm a*.gif b*.gif c*.gif d*.gif e*.gif f*.gif                                    #clean up
-    # ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+    rm a*.gif b*.gif c*.gif d*.gif e*.gif f*.gif                                    #clean up
 }
 
+make_video(){
+    if $GIF; then
+        make_video_gif $@
+    fi
+    if $MP4; then
+        make_video_gif $@
+    fi
+}
 
-# for run_jimenez_1990
+combine_two(){
+    if $GIF; then
+        combine_two_gif $@
+    fi
+    if $MP4; then
+        combine_two_gif $@
+    fi
+}
 
-# make_video 3d_z_vorticity_z vort_z_Re_5000_jimenez1990
-# make_video iso_z_vorticity_z vort_z_Re_5000_isolines_jimenez1990
-# make_video streamlines_velocity_moving_frame velocity_moving_frame_Re_5000_streamlines_jimenez1990
+combine_three(){
+    if $GIF; then
+        combine_three_gif $@
+    fi
+    if $MP4; then
+        combine_three_gif $@
+    fi
+}
 
-# combine_three Re_5000_jimenez_1990 velocity_moving_frame_Re_5000_streamlines_jimenez1990 vort_z_Re_5000_isolines_jimenez1990 vort_z_Re_5000_jimenez1990
+combine_four(){
+    if $GIF; then
+        combine_four_gif $@
+    fi
+    if $MP4; then
+        combine_four_gif $@
+    fi
+}
 
+cleanup(){
+    if $GIF; then
+        rm img/__*.gif
+    fi
+    if $MP4; then
+        rm img/__*.mp4
+    fi
+}
 
-# for run_transient_growth
+rm img/*
 
-make_video cl_vel_0_x_y Re_3000_vel0_x
-make_video cl_vel_0_y_y Re_3000_vel0_y
-make_video 3d_z_velocity_x Re_3000_velocity_x
-make_video 3d_z_velocity_y Re_3000_velocity_y
-make_video 3d_z_vorticity_z Re_3000_vorticity_z
-make_video energy Re_3000_energy
+# adapt this to the specific case output
 
-# combine_three Re_3000_transient_growth_nonlinear Re_3000_velocity_x Re_3000_velocity_y Re_3000_vorticity_z
-combine_two Re_3000_transient_growth_initial Re_3000_vel0_x Re_3000_vel0_y
-# combine_three Re_3000_transient_growth Re_3000_velocity_x Re_3000_velocity_y Re_3000_energy
-combine_four Re_3000_transient_growth_with_vort Re_3000_velocity_x Re_3000_velocity_y Re_3000_vorticity_z Re_3000_energy
+GIF=true
+MP4=false
 
-rm a*.gif b*.gif c*.gif d*.gif e*.gif f*.gif                                    #clean up
+make_video 3d_z_vel_0_x __vel0_3d_x
+make_video 3d_z_vel_0_y __vel0_3d_y
+make_video 3d_z_velocity_x __velocity_x
+make_video 3d_z_velocity_y __velocity_y
+make_video 3d_z_vorticity_z __vorticity_z
+make_video energy __energy
+
+combine_two transient_growth_initial __vel0_3d_x __vel0_3d_y
+combine_four transient_growth __velocity_x __velocity_y __vorticity_z __energy
+
+cleanup

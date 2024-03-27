@@ -36,6 +36,10 @@ are automatically installed. For those interested, they are still listed here:
     - jaxopt
     - optax
 - (notably, [jax-cfd](https://github.com/google/jax-cfd) is not needed.)
+- optional (for postprocessing with `make-video.sh`):
+    - bash or a similiar shell
+    - imagemagick (to make gif-files)
+    - ffmpeg (to make mp4-files)
 
 ### Checking if everything is set up correctly
 
