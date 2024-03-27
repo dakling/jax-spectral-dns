@@ -52,11 +52,11 @@ quantitative tests.
 
 The simplest way to run a case from `examples.py` is through the `main.py` file, using 
 ```
-python jax-spectral-dns/main.py <function_name> <function_args>
+python jax_spectral_dns/main.py <function_name> <function_args>
 ```
 so for example
 ```
-python jax-spectral-dns/main.py run_transient_growth 3000 15
+python jax_spectral_dns/main.py run_transient_growth 3000 15
 ```
 
 ## Example outputs

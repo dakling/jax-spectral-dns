@@ -1680,6 +1680,140 @@ def run_optimisation_transient_growth_nonlinear(
     )
     optimiser.optimise()
 
+def run_optimisation_transient_growth_nonlinear_3d(
+    Re=3000.0,
+    T=15,
+    alpha=1.0,
+    beta=0.0,
+    Nx=48,
+    Ny=64,
+    Nz=48,
+    number_of_steps=20,
+    min_number_of_optax_steps=-1,
+):
+    Re = float(Re)
+    T = float(T)
+    alpha = float(alpha)
+    beta = float(beta)
+
+    Equation.initialize()
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    min_number_of_optax_steps = int(min_number_of_optax_steps)
+    dt = 1e-2
+    end_time = T
+    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    # number_of_modes = 60
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
+    aliasing = 3 / 2
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    domain: PhysicalDomain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=scale_factors,
+        aliasing=aliasing,
+    )
+
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        number_of_modes,
+        recompute_full=True,
+        save_final=False,
+    )
+
+    e_0 = 1e-3
+    v0_0_norm = v0_0.normalize_by_energy()
+    v0_0_norm *= e_0
+    v0_0_hat = v0_0_norm.hat()
+
+    def post_process(nse, i):
+        n_steps = len(nse.get_field("velocity_hat"))
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig("plots/plot_energy_t_final.png")
+
+    def run_case(U_hat, out=False):
+
+        U = U_hat.no_hat()
+        U.update_boundary_conditions()
+        U_norm = U.normalize_by_energy()
+        U_norm *= e_0
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse.end_time = end_time
+
+        nse.set_linearize(False)
+        # nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.activate_jit()
+        if out:
+            nse.write_intermediate_output = True
+            nse.post_process_fn = post_process
+        else:
+            nse.write_intermediate_output = False
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.before_time_step_fn = None
+        nse.after_time_step_fn = None
+        if out:
+            nse.post_process()
+
+        gain = vel.energy() / vel_0.energy()
+        return gain
+
+    optimiser = Optimiser(
+        domain,
+        run_case,
+        v0_0_hat,
+        minimise=False,
+        force_2d=False,
+        max_iter=number_of_steps,
+        use_optax=min_number_of_optax_steps >= 0,
+        min_optax_steps=min_number_of_optax_steps,
+        objective_fn_name="gain",
+    )
+    optimiser.optimise()
+
 def run_optimisation_transient_growth_mean_y_profile(
     Re=3000.0,
     T=15,
