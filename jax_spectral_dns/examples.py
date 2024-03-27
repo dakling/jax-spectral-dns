@@ -2261,7 +2261,9 @@ def run_ld_2020(
     vel_hat.set_name("velocity_hat")
 
     Re = Re_tau * u_max_over_u_tau
-    end_time_ = end_time * u_max_over_u_tau
+    # end_time_ = end_time * u_max_over_u_tau
+    end_time_ = round(end_time * u_max_over_u_tau)
+    print_verb("end time in LD2020 units:", end_time_ / u_max_over_u_tau)
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
