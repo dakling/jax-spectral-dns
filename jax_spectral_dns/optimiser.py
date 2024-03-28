@@ -148,6 +148,9 @@ class Optimiser:
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
 
+        cont_error = v0_new.div().energy() / v0_new.energy()
+        print_verb("cont_error", cont_error)
+
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
         v0_new.plot_3d(2)

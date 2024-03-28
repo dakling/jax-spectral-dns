@@ -1550,6 +1550,7 @@ def run_optimisation_transient_growth_nonlinear(
     Nz=8,
     number_of_steps=20,
     min_number_of_optax_steps=-1,
+        e_0=1e-3
 ):
     Re = float(Re)
     T = float(T)
@@ -1562,10 +1563,10 @@ def run_optimisation_transient_growth_nonlinear(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
+    e_0 = float(e_0)
     dt = 1e-2
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
-    # number_of_modes = 60
+    number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3 / 2
 
@@ -1585,7 +1586,6 @@ def run_optimisation_transient_growth_nonlinear(
         save_final=False,
     )
 
-    e_0 = 1e-3
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
@@ -1682,6 +1682,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
     Nz=48,
     number_of_steps=20,
     min_number_of_optax_steps=-1,
+        e_0=1e-3
 ):
     Re = float(Re)
     T = float(T)
@@ -1694,11 +1695,11 @@ def run_optimisation_transient_growth_nonlinear_3d(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
+    e_0 = float(e_0)
     dt = 1e-2
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
-    # number_of_modes = 60
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
+    number_of_modes = 60
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 1.0)
     aliasing = 3 / 2
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
@@ -1717,7 +1718,6 @@ def run_optimisation_transient_growth_nonlinear_3d(
         save_final=False,
     )
 
-    e_0 = 1e-3
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
