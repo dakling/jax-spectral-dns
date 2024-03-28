@@ -54,7 +54,9 @@ class Optimiser:
             self.inv_fn = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn = lambda v, out=False: self.inv_fn(run_fn(self.parameters_to_run_input(v), out))
+        self.run_fn = lambda v, out=False: self.inv_fn(
+            run_fn(self.parameters_to_run_input(v), out)
+        )
         if use_optax:
             learning_rate = params.get("learning_rate", 1e-2)
             scale_by_norm = params.get("scale_by_norm", True)
@@ -90,24 +92,26 @@ class Optimiser:
             input = VectorField.FromData(FourierField, domain, U_hat_data)
         else:
             input = self.parameters_to_run_input_fn(parameters)
+
         def set_time_step_rec(inp):
             if isinstance(inp, Field) or isinstance(inp, VectorField):
                 inp.set_time_step(self.current_iteration)
             else:
                 [set_time_step_rec(inp_i) for inp_i in inp]
+
         set_time_step_rec(input)
         return input
 
     def parameters_from_file(self):
         """Load paramters from file filename."""
         print_verb("loading parameters from", self.parameter_file_name)
-        with open(Field.field_dir + self.parameter_file_name, 'rb') as file:
+        with open(Field.field_dir + self.parameter_file_name, "rb") as file:
             self.parameters = pickle.load(file)
         return self.parameters
 
     def parameters_to_file(self):
         """Save paramters to file filename."""
-        with open(Field.field_dir + self.parameter_file_name, 'wb') as file:
+        with open(Field.field_dir + self.parameter_file_name, "wb") as file:
             pickle.dump(self.parameters, file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def run_input_to_parameters(self, input):
@@ -229,6 +233,7 @@ class Optimiser:
         self.old_value = self.value
         self.value = final_value
         print_verb()
+
 
 class OptimiserPertAndBase(Optimiser):
 
