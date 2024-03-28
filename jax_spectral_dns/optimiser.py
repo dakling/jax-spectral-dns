@@ -3,6 +3,7 @@
 import time
 import jax
 import jax.numpy as jnp
+import pickle
 
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, VectorField
@@ -37,9 +38,14 @@ class Optimiser:
         self.run_input_to_parameters_fn = params.get("run_input_to_parameters_fn")
 
         self.domain = domain
-        self.run_input = run_input_initial
         self.force_2d = force_2d
-        self.parameters = self.run_input_to_parameters(self.run_input)
+        if type(run_input_initial) is str:
+            self.parameter_file_name = run_input_initial
+            self.parameters = self.parameters_from_file()
+        else:
+            self.parameter_file_name = "parameters"
+            run_input = run_input_initial
+            self.parameters = self.run_input_to_parameters(run_input)
         self.old_value = None
         self.current_iteration = 0
         self.max_iter = max_iter
@@ -91,6 +97,18 @@ class Optimiser:
                 [set_time_step_rec(inp_i) for inp_i in inp]
         set_time_step_rec(input)
         return input
+
+    def parameters_from_file(self):
+        """Load paramters from file filename."""
+        print_verb("loading parameters from", self.parameter_file_name)
+        with open(Field.field_dir + self.parameter_file_name, 'rb') as file:
+            self.parameters = pickle.load(file)
+        return self.parameters
+
+    def parameters_to_file(self):
+        """Save paramters to file filename."""
+        with open(Field.field_dir + self.parameter_file_name, 'wb') as file:
+            pickle.dump(self.parameters, file, protocol=pickle.HIGHEST_PROTOCOL)
 
     def run_input_to_parameters(self, input):
         if self.run_input_to_parameters_fn == None:
@@ -156,7 +174,7 @@ class Optimiser:
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
-        v0_new.save_to_file("vel_0_" + str(i + 1))
+        self.parameters_to_file()
 
     def switch_solver_maybe(self):
         i = self.current_iteration
@@ -194,7 +212,6 @@ class Optimiser:
             )
             self.switch_solver_maybe()
         print_verb()
-
         print_verb("iteration took", time.time() - start_time, "seconds")
         print_verb("\n")
 

@@ -160,7 +160,7 @@ class LinearStabilityCalculation:
     def read_mat(self, file, key):
         return scipy.io.loadmat(file)[key]
 
-    def calculate_eigenvalues(self):
+    def calculate_eigenvalues(self, save=False):
         try:
             if None in [self.A, self.B]:
                 self.assemble_matrix_fast()
@@ -180,12 +180,13 @@ class LinearStabilityCalculation:
         eevs = sorted(eevs, reverse=True, key=lambda x: x[0].real)
         self.eigenvalues = np.array([eev[0] for eev in eevs])
         self.eigenvectors = [eev[1] for eev in eevs]
-        self.eigenvalues.dump(
-            "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n)
-        )
-        np.array(self.eigenvectors).dump(
-            "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n)
-        )
+        if save:
+            self.eigenvalues.dump(
+                "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n)
+            )
+            np.array(self.eigenvectors).dump(
+                "fields/eigenvectors_Re_" + str(self.Re) + "_n_" + str(self.n)
+            )
         return self.eigenvalues, self.eigenvectors
 
 
@@ -196,7 +197,7 @@ class LinearStabilityCalculation:
             factor=1.0,
             recompute_partial=False,
             recompute_full=False,
-            save=True,
+            save=False,
     ):
         recompute_partial = recompute_partial or recompute_full
         try:
@@ -501,7 +502,7 @@ class LinearStabilityCalculation:
         except FileNotFoundError:
             if recompute_full or type(self.V) == NoneType:
                 self.S, factors = self.calculate_transient_growth_svd(
-                    domain, T, number_of_modes, save=True, recompute=recompute_full
+                    domain, T, number_of_modes, save=False, recompute=recompute_full
                 )
 
 

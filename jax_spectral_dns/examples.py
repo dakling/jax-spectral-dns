@@ -1682,7 +1682,8 @@ def run_optimisation_transient_growth_nonlinear_3d(
     Nz=48,
     number_of_steps=20,
     min_number_of_optax_steps=-1,
-        e_0=1e-3
+        e_0=1e-3,
+        init_file=None
 ):
     Re = float(Re)
     T = float(T)
@@ -1702,7 +1703,6 @@ def run_optimisation_transient_growth_nonlinear_3d(
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 1.0)
     aliasing = 3 / 2
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -1710,17 +1710,22 @@ def run_optimisation_transient_growth_nonlinear_3d(
         aliasing=aliasing,
     )
 
-    v0_0 = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
+    if init_file is None:
+        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
-    v0_0_norm = v0_0.normalize_by_energy()
-    v0_0_norm *= e_0
-    v0_0_hat = v0_0_norm.hat()
+        v0_0 = lsc.calculate_transient_growth_initial_condition(
+            domain,
+            T,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        v0_0_norm = v0_0.normalize_by_energy()
+        v0_0_norm *= e_0
+        v0_0_hat = v0_0_norm.hat()
+    else:
+        v0_0_hat = None
+
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
@@ -1796,7 +1801,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
     optimiser = Optimiser(
         domain,
         run_case,
-        v0_0_hat,
+        init_file or v0_0_hat,
         minimise=False,
         force_2d=False,
         max_iter=number_of_steps,
