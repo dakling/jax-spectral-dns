@@ -15,6 +15,7 @@ setup(
                       'matplotlib',
                       'jaxopt',
                       'optax',
+                      'pytest',
                       ],
 
     classifiers=[

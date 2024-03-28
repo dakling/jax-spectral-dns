@@ -31,6 +31,7 @@ are automatically installed. For those interested, they are still listed here:
     - numpy
     - scipy
     - matplotlib
+    - pytest (for running the test suite)
 - [jax](https://github.com/google/jax)
 - optional (for using optimiser.py):
     - jaxopt
