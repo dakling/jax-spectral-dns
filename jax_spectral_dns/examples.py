@@ -1969,7 +1969,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
     e_0 = float(e_0)
     dt = 1e-2
     end_time = T
-    number_of_modes = 20
+    number_of_modes = 60
     # scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 1.0)
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 0.93)
     # scale_factors = (1.87, 1.0, 0.93)
