@@ -141,8 +141,6 @@ class Optimiser:
             if scale_by_norm
             else learning_rate
         )
-        # opt = optax.adagrad(learning_rate=learning_rate_) # minimizer
-        # opt = optax.adabelief(learning_rate=learning_rate_) # minimizer
         opt = optax.adam(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
             opt=opt, fun=jax.value_and_grad(jax.jit(self.run_fn)), value_and_grad=True, jit=True
@@ -150,9 +148,8 @@ class Optimiser:
         return solver
 
     def get_jaxopt_solver(self):
-        # solver = jaxopt.NonlinearCG(jax.value_and_grad(self.run_fn), True, jit=False, implicit_diff=True, maxls=2) # minimizer
         solver = jaxopt.LBFGS(
-            jax.value_and_grad(self.run_fn),
+            jax.value_and_grad(jax.jit(self.run_fn)),
             value_and_grad=True,
             implicit_diff=True,
             jit=True,

@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
 import jax
-import warnings
+jax.config.update("jax_enable_x64", True)
+# import warnings
 # warnings.filterwarnings('error')
 # import jax.profiler
+import logging
 
-jax.config.update("jax_enable_x64", True)
 import os
 import multiprocessing
+
+logging.getLogger("jax").setLevel(logging.WARNING)
 
 max_devices = 1
 # max_devices = 6
