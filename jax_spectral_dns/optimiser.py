@@ -87,7 +87,7 @@ class Optimiser:
                 v2_00 = parameters[3]
             domain = self.domain
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
-                domain, vort_hat, v1_hat, v0_00, v2_00, two_d=True
+                domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
             )
             input = VectorField.FromData(FourierField, domain, U_hat_data)
         else:
@@ -145,7 +145,7 @@ class Optimiser:
         # opt = optax.adabelief(learning_rate=learning_rate_) # minimizer
         opt = optax.adam(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
-            opt=opt, fun=jax.value_and_grad(self.run_fn), value_and_grad=True, jit=True
+            opt=opt, fun=jax.value_and_grad(jax.jit(self.run_fn)), value_and_grad=True, jit=True
         )
         return solver
 
@@ -234,6 +234,71 @@ class Optimiser:
         self.value = final_value
         print_verb()
 
+class OptimiserNonFourier(Optimiser):
+
+    def parameters_to_run_input(self, parameters):
+        if self.parameters_to_run_input_fn == None:
+            if self.force_2d:
+                vort_hat = None
+                v1 = parameters[0].real
+                v0_00_hat = parameters[1]
+                v2_00_hat = None
+            else:
+                vort = parameters[0].real
+                v1 = parameters[1].real
+                v0_00_hat = parameters[2]
+                v2_00_hat = parameters[3]
+                vort = self.domain.update_boundary_conditions(vort)
+                vort_hat = self.domain.field_hat(vort)
+            v1 = self.domain.update_boundary_conditions(v1)
+            v1_hat = self.domain.field_hat(v1)
+            domain = self.domain
+            U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
+                domain, vort_hat, v1_hat, v0_00_hat, v2_00_hat, two_d=self.force_2d
+            )
+            input = VectorField.FromData(FourierField, domain, U_hat_data).no_hat()
+        else:
+            input = self.parameters_to_run_input_fn(parameters)
+
+        def set_time_step_rec(inp):
+            if isinstance(inp, Field) or isinstance(inp, VectorField):
+                inp.set_time_step(self.current_iteration)
+            else:
+                [set_time_step_rec(inp_i) for inp_i in inp]
+
+        set_time_step_rec(input)
+        return input
+
+    def run_input_to_parameters(self, input):
+        if self.run_input_to_parameters_fn == None:
+            input_hat = input.hat()
+            if self.force_2d:
+                v0_1 = input[1].data * (1+0j)
+                v0_0_00_hat = input_hat[0].data[0, :, 0] * (1+0j)
+                self.parameters = tuple([v0_1, v0_0_00_hat])
+            else:
+                vort = input.curl()[1].data * (1+0j)
+                v0_1 = input[1].data * (1+0j)
+                v0_0_00_hat = input_hat[0].data[0, :, 0]
+                v2_0_00_hat = input_hat[2].data[0, :, 0]
+                self.parameters = tuple([vort, v0_1, v0_0_00_hat, v2_0_00_hat])
+        else:
+            self.parameters = self.run_input_to_parameters_fn(input)
+        return self.parameters
+
+    def post_process_iteration(self):
+
+        i = self.current_iteration
+        U = self.parameters_to_run_input(self.parameters)
+        U.update_boundary_conditions()
+        v0_new = U.normalize_by_energy()
+
+        v0_new.set_name("vel_0")
+        v0_new.set_time_step(i + 1)
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
+        v0_new.save_to_file("vel_0_" + str(i + 1))
 
 class OptimiserPertAndBase(Optimiser):
 

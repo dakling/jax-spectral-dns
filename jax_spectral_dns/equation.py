@@ -17,7 +17,7 @@ from jax_spectral_dns.fixed_parameters import FixedParameters
 NoneType = type(None)
 
 def print_verb(*str, verbosity_level:int=1, debug:bool=False):
-    pref = '  ' * verbosity_level
+    pref = "[" + time.ctime() + "]  " + '  ' * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
             print(pref, end=' ')
@@ -214,12 +214,12 @@ class Equation:
             _, number_of_time_steps = self.solve_scan()
             print_verb(
                 "Took "
-                + str((time.time() - start_time))
+                + "{:%10.3f}".format(time.time() - start_time)
                 + " seconds for "
                 + str(number_of_time_steps)
-                + " time steps, or "
-                + str((time.time() - start_time) / number_of_time_steps)
-                + " seconds per time step.",
+                + " time steps (TS), or "
+                + "{:.3e}".format((time.time() - start_time) / number_of_time_steps)
+                + " s/TS.",
                 verbosity_level=1
             )
             self.deactivate_jit()

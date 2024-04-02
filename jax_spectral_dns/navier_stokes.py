@@ -421,7 +421,7 @@ class NavierStokesVelVort(Equation):
             vort = jnp.zeros_like(vel_y)
             vel_z_00 = jnp.zeros_like(vel_x_00)
         def rk_00():
-            return (vel_x_00, vel_z_00)
+            return (vel_x_00 * (1 + 0j), vel_z_00 * (1 + 0j))
 
         def rk_not_00(kx, kz, vort_, vel_y_):
             kx_ = jnp.asarray(domain.grid[0])[kx]
