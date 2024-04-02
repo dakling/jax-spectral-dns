@@ -214,7 +214,7 @@ class Equation:
             _, number_of_time_steps = self.solve_scan()
             print_verb(
                 "Took "
-                + "{:%10.3f}".format(time.time() - start_time)
+                + "{:.2f}".format(time.time() - start_time)
                 + " seconds for "
                 + str(number_of_time_steps)
                 + " time steps (TS), or "
