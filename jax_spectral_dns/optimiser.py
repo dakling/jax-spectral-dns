@@ -247,7 +247,7 @@ class OptimiserNonFourier(Optimiser):
     def make_noisy(self, parameters, noise_amplitude=1e-1):
         e0 = parameters.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
-        return VectorField([ f + PhysicalField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters ])
+        return VectorField([ f + FourierField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)).no_hat() for f in parameters ])
 
     def parameters_to_run_input(self, parameters):
         if self.parameters_to_run_input_fn == None:
@@ -320,7 +320,6 @@ class OptimiserPertAndBase(Optimiser):
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         # only add noise to perturbation field
-        # return (VectorField([ f + PhysicalField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters[0] ]).hat(), parameters[1])
         return (VectorField([ f + FourierField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters[0] ]), parameters[1])
 
     def post_process_iteration(self):

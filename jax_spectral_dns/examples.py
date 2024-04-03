@@ -1827,7 +1827,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     e_0 = float(e_0)
-    dt = 1e-2
+    dt = 2e-2
     end_time = T
     number_of_modes = 60
     # scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 1.0)
@@ -1940,6 +1940,8 @@ def run_optimisation_transient_growth_nonlinear_3d(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
+        add_noise=True,
+        noise_amplitude=1e-3,
     )
     optimiser.optimise()
 
