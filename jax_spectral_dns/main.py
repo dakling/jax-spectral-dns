@@ -9,6 +9,7 @@ import logging
 
 import os
 import multiprocessing
+from jax_spectral_dns.equation import print_verb
 
 logging.getLogger("jax").setLevel(logging.WARNING)
 
@@ -22,10 +23,31 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 import sys
 from jax_spectral_dns.examples import *
 
+def print_welcome():
+    vl=0
+    print("")
+    print("")
+    print_verb("#############################", verbosity_level=vl)
+    print_verb("# Starting jax-spectral-dns #", verbosity_level=vl)
+    print_verb("#############################", verbosity_level=vl)
+    print("")
+    print("")
+
+def print_goodbye():
+    vl=0
+    print("")
+    print("")
+    print_verb("######################", verbosity_level=vl)
+    print_verb("# End of run reached #", verbosity_level=vl)
+    print_verb("######################", verbosity_level=vl)
+    print("")
+    print("")
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:
         raise Exception("Please indicate a function from examples.py that should be run.")
     else:
+        print_welcome()
         args = sys.argv[2:]
         globals()[sys.argv[1]](*args)
+        print_goodbye()

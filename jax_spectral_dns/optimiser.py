@@ -130,7 +130,7 @@ class Optimiser:
                 v0_1 = input[1].data * (1 + 0j)
                 v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
                 v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
-                self.parameters = tuple([vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat])
+                self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
         else:
             self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
@@ -154,13 +154,13 @@ class Optimiser:
         )
         opt = optax.adam(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
-            opt=opt, fun=jax.value_and_grad(jax.jit(self.run_fn)), value_and_grad=True, jit=True
+            opt=opt, fun=jax.value_and_grad(self.run_fn), value_and_grad=True, jit=True
         )
         return solver
 
     def get_jaxopt_solver(self):
         solver = jaxopt.LBFGS(
-            jax.value_and_grad(jax.jit(self.run_fn)),
+            jax.value_and_grad(self.run_fn),
             value_and_grad=True,
             implicit_diff=True,
             jit=True,

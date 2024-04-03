@@ -1816,8 +1816,8 @@ def run_optimisation_transient_growth_nonlinear_3d(
 ):
     Re = float(Re)
     T = float(T)
-    # alpha=1.0
-    alpha=2*jnp.pi/1.87
+    alpha=1.0
+    # alpha=2*jnp.pi/1.87
     beta=0.0
 
     Equation.initialize()
@@ -1940,8 +1940,9 @@ def run_optimisation_transient_growth_nonlinear_3d(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=True,
-        noise_amplitude=1e-3,
+        add_noise=False,
+        # add_noise=True,
+        # noise_amplitude=1e-3,
     )
     optimiser.optimise()
 

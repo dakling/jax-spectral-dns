@@ -214,9 +214,9 @@ class Equation:
                 + "{:.2f}".format(time.time() - start_time)
                 + " seconds for "
                 + str(number_of_time_steps)
-                + " time steps (TS), or "
+                + " time steps ("
                 + "{:.3e}".format((time.time() - start_time) / number_of_time_steps)
-                + " s/TS.",
+                + " s/TS).",
                 verbosity_level=1
             )
             self.deactivate_jit()
@@ -227,7 +227,7 @@ class Equation:
                   "for printing and plotting. Only recommended for testing. "\
                   "To enable high-performance mode, use the "\
                   "activate_jit()-method of the Equation class."
-            print(msg)
+            print_verb(msg, verbosity_level=0)
             while not self.done():
                 i = self.time_step
                 print_verb(
