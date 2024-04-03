@@ -2415,6 +2415,7 @@ def run_ld_2020(
     Nz=48,
     number_of_steps=10,
     min_number_of_optax_steps=-1,
+        e_0=1e-3
 ):
     Re_tau = float(Re_tau)
     turb = str(turb) == "True"
@@ -2427,13 +2428,13 @@ def run_ld_2020(
     # aliasing = 1
     Nx = int(Nx * ((3 / 2) / aliasing))
     Nz = int(Nz * ((3 / 2) / aliasing))
+    e_0 = float(e_0)
 
     # Equation.initialize()
 
     dt = 3e-3
     end_time = 0.7  # in ld2020 units
     # end_time = 0.02 # in ld2020 units
-    e_0 = 1e-6
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
