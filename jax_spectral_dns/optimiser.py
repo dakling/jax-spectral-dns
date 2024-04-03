@@ -22,18 +22,18 @@ except ModuleNotFoundError:
 class Optimiser:
 
     def __init__(
-            self,
-            domain,
-            run_fn,
-            run_input_initial,
-            minimise=False,
-            force_2d=False,
-            max_iter=20,
-            use_optax=False,
-            min_optax_iter=0,
-            add_noise=True,
-            noise_amplitude=1e-1,
-            **params
+        self,
+        domain,
+        run_fn,
+        run_input_initial,
+        minimise=False,
+        force_2d=False,
+        max_iter=20,
+        use_optax=False,
+        min_optax_iter=0,
+        add_noise=True,
+        noise_amplitude=1e-1,
+        **params
     ):
 
         self.parameters_to_run_input_fn = params.get("parameters_to_run_input_fn")
@@ -47,7 +47,9 @@ class Optimiser:
         else:
             self.parameter_file_name = "parameters"
             if add_noise:
-                run_input = self.make_noisy(run_input_initial, noise_amplitude=noise_amplitude)
+                run_input = self.make_noisy(
+                    run_input_initial, noise_amplitude=noise_amplitude
+                )
             else:
                 run_input = run_input_initial
             self.parameters = self.run_input_to_parameters(run_input)
@@ -59,8 +61,14 @@ class Optimiser:
             self.inv_fn = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn = lambda v, out=False: self.inv_fn(
-            run_fn(self.parameters_to_run_input(v), out)
+        # self.run_fn = lambda v, out=False: self.inv_fn(
+        #     run_fn(self.parameters_to_run_input(v), out)
+        # )
+        self.run_fn = jax.jit(
+            lambda v, out=False: self.inv_fn(
+                run_fn(self.parameters_to_run_input(v), out)
+            ),
+            static_argnums=1,
         )
         if use_optax:
             learning_rate = params.get("learning_rate", 1e-2)
@@ -144,7 +152,15 @@ class Optimiser:
         parameters_no_hat = parameters.no_hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
-        return VectorField([ f + FourierField.FromRandom(self.domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters ])
+        return VectorField(
+            [
+                f
+                + FourierField.FromRandom(
+                    self.domain, seed=37, interval=(-interval_bound, interval_bound)
+                )
+                for f in parameters
+            ]
+        )
 
     def get_optax_solver(self, learning_rate=1e-2, scale_by_norm=True):
         learning_rate_ = (
@@ -242,12 +258,23 @@ class Optimiser:
         self.value = final_value
         print_verb()
 
+
 class OptimiserNonFourier(Optimiser):
 
     def make_noisy(self, parameters, noise_amplitude=1e-1):
         e0 = parameters.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
-        return VectorField([ f + FourierField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)).no_hat() for f in parameters ])
+        return VectorField(
+            [
+                f
+                + FourierField.FromRandom(
+                    parameters.physical_domain,
+                    seed=37,
+                    interval=(-interval_bound, interval_bound),
+                ).no_hat()
+                for f in parameters
+            ]
+        )
 
     def parameters_to_run_input(self, parameters):
         if self.parameters_to_run_input_fn == None:
@@ -286,12 +313,12 @@ class OptimiserNonFourier(Optimiser):
         if self.run_input_to_parameters_fn == None:
             input_hat = input.hat()
             if self.force_2d:
-                v0_1 = input[1].data * (1+0j)
-                v0_0_00_hat = input_hat[0].data[0, :, 0] * (1+0j)
+                v0_1 = input[1].data * (1 + 0j)
+                v0_0_00_hat = input_hat[0].data[0, :, 0] * (1 + 0j)
                 self.parameters = tuple([v0_1, v0_0_00_hat])
             else:
-                vort = input.curl()[1].data * (1+0j)
-                v0_1 = input[1].data * (1+0j)
+                vort = input.curl()[1].data * (1 + 0j)
+                v0_1 = input[1].data * (1 + 0j)
                 v0_0_00_hat = input_hat[0].data[0, :, 0]
                 v2_0_00_hat = input_hat[2].data[0, :, 0]
                 self.parameters = tuple([vort, v0_1, v0_0_00_hat, v2_0_00_hat])
@@ -313,6 +340,7 @@ class OptimiserNonFourier(Optimiser):
         v0_new[1].plot_center(1)
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
+
 class OptimiserPertAndBase(Optimiser):
 
     def make_noisy(self, parameters, noise_amplitude=1e-1):
@@ -320,7 +348,20 @@ class OptimiserPertAndBase(Optimiser):
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         # only add noise to perturbation field
-        return (VectorField([ f + FourierField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters[0] ]), parameters[1])
+        return (
+            VectorField(
+                [
+                    f
+                    + FourierField.FromRandom(
+                        parameters.physical_domain,
+                        seed=37,
+                        interval=(-interval_bound, interval_bound),
+                    )
+                    for f in parameters[0]
+                ]
+            ),
+            parameters[1],
+        )
 
     def post_process_iteration(self):
 
