@@ -43,10 +43,7 @@ class Equation:
     verbosity_level:int = 1
 
     def __init__(self, domain, *fields, **params):
-        try:
-            dt = params["dt"]
-        except KeyError:
-            dt = 1e-2
+        dt = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step = 0

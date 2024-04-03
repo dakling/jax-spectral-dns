@@ -1469,6 +1469,21 @@ class FourierField(Field):
             self.fourier_domain = fourier_domain
         self.data = data
 
+    @classmethod
+    def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
+        """Construct a random field depending on the independent variables described by domain."""
+        # TODO generate "nice" random fields
+        key = jax.random.PRNGKey(seed)
+        zero_field = PhysicalField.FromFunc(domain)
+        rands = []
+        for i in jnp.arange(zero_field.number_of_dofs()):
+            key, subkey = jax.random.split(key)
+            rands.append(
+                jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
+            )
+        field = jnp.array(rands).reshape(zero_field.physical_domain.shape)
+        return cls(domain, field, name)
+
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 

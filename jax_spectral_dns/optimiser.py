@@ -6,7 +6,7 @@ import jax.numpy as jnp
 import pickle
 
 from jax_spectral_dns.equation import print_verb
-from jax_spectral_dns.field import Field, FourierField, VectorField
+from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 try:
@@ -22,16 +22,18 @@ except ModuleNotFoundError:
 class Optimiser:
 
     def __init__(
-        self,
-        domain,
-        run_fn,
-        run_input_initial,
-        minimise=False,
-        force_2d=False,
-        max_iter=20,
-        use_optax=False,
-        min_optax_iter=0,
-        **params
+            self,
+            domain,
+            run_fn,
+            run_input_initial,
+            minimise=False,
+            force_2d=False,
+            max_iter=20,
+            use_optax=False,
+            min_optax_iter=0,
+            add_noise=True,
+            noise_amplitude=1e-1,
+            **params
     ):
 
         self.parameters_to_run_input_fn = params.get("parameters_to_run_input_fn")
@@ -44,7 +46,10 @@ class Optimiser:
             self.parameters = self.parameters_from_file()
         else:
             self.parameter_file_name = "parameters"
-            run_input = run_input_initial
+            if add_noise:
+                run_input = self.make_noisy(run_input_initial, noise_amplitude=noise_amplitude)
+            else:
+                run_input = run_input_initial
             self.parameters = self.run_input_to_parameters(run_input)
         self.old_value = None
         self.current_iteration = 0
@@ -134,6 +139,12 @@ class Optimiser:
         return jnp.linalg.norm(
             jnp.concatenate([jnp.array(v.flatten()) for v in self.parameters])
         )
+
+    def make_noisy(self, parameters, noise_amplitude=1e-1):
+        parameters_no_hat = parameters.no_hat()
+        e0 = parameters_no_hat.energy()
+        interval_bound = e0**0.5 * noise_amplitude / 2
+        return VectorField([ f + FourierField.FromRandom(self.domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters ])
 
     def get_optax_solver(self, learning_rate=1e-2, scale_by_norm=True):
         learning_rate_ = (
@@ -233,6 +244,11 @@ class Optimiser:
 
 class OptimiserNonFourier(Optimiser):
 
+    def make_noisy(self, parameters, noise_amplitude=1e-1):
+        e0 = parameters.energy()
+        interval_bound = e0**0.5 * noise_amplitude / 2
+        return VectorField([ f + PhysicalField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters ])
+
     def parameters_to_run_input(self, parameters):
         if self.parameters_to_run_input_fn == None:
             if self.force_2d:
@@ -298,6 +314,14 @@ class OptimiserNonFourier(Optimiser):
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
 class OptimiserPertAndBase(Optimiser):
+
+    def make_noisy(self, parameters, noise_amplitude=1e-1):
+        parameters_no_hat = parameters[0].hat()
+        e0 = parameters_no_hat.energy()
+        interval_bound = e0**0.5 * noise_amplitude / 2
+        # only add noise to perturbation field
+        # return (VectorField([ f + PhysicalField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters[0] ]).hat(), parameters[1])
+        return (VectorField([ f + FourierField.FromRandom(parameters.physical_domain, seed=37, interval=(-interval_bound, interval_bound)) for f in parameters[0] ]), parameters[1])
 
     def post_process_iteration(self):
 
