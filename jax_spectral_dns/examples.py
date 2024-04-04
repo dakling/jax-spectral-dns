@@ -2433,7 +2433,7 @@ def run_ld_2020(
     # Equation.initialize()
 
     dt = 4e-3
-    end_time = 0.1  # in ld2020 units
+    end_time = 0.5  # in ld2020 units
     # end_time = 0.02 # in ld2020 units
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
