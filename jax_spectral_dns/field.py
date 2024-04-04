@@ -14,7 +14,8 @@ import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator # type: ignore
 import functools
 import dataclasses
-from typing import Optional, Self, Union
+from typing import Optional, Union
+from typing_extensions import Self
 
 import numpy as np
 

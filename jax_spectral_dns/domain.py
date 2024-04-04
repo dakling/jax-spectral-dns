@@ -12,7 +12,8 @@ from matplotlib import legend
 from numpy import float128
 from functools import partial
 import dataclasses
-from typing import Self, Tuple, Union, Sequence, List, Any
+from typing import Tuple, Union, Sequence, List, Any
+from typing_extensions import Self
 
 
 
