@@ -663,7 +663,7 @@ class PhysicalField(Field):
         out_field = self.data + value
         return PhysicalField(self.physical_domain, out_field, name=self.name)
 
-    def __add__(self, other: Union[PhysicalField, jnp.ndarray]) -> PhysicalField:
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
         assert not isinstance(
             other, FourierField
         ), "Attempted to add a Field and a Fourier Field."
@@ -687,13 +687,13 @@ class PhysicalField(Field):
         ret.time_step = self.time_step
         return ret
 
-    def __sub__(self, other: Union[PhysicalField, jnp.ndarray]) -> PhysicalField:
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
         assert not isinstance(
             other, FourierField
         ), "Attempted to subtract a Field and a Fourier Field."
         return self + other * (-1.0)
 
-    def __mul__(self, other: Union[PhysicalField, jnp.ndarray, float]) -> PhysicalField:
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         if isinstance(other, FourierField):
             raise Exception("Attempted to multiply physical field and Fourier field")
         elif isinstance(other, Field):
@@ -732,8 +732,8 @@ class PhysicalField(Field):
     __lmul__ = __mul__
 
     def __truediv__(
-        self, other: Union[PhysicalField, jnp.ndarray, float]
-    ) -> PhysicalField:
+        self, other: Union[Self, jnp.ndarray, float]
+    ) -> Self:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
@@ -1503,7 +1503,7 @@ class FourierField(Field):
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 
-    def __add__(self, other: Union[FourierField, jnp.ndarray]):
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
         assert isinstance(
             other, FourierField
         ), "Attempted to add a Fourier Field and a Field."
@@ -1518,10 +1518,10 @@ class FourierField(Field):
         ret.time_step = self.time_step
         return ret
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
         return self + other * (-1.0)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         if isinstance(other, Field):
             assert isinstance(
                 other, FourierField
@@ -1562,7 +1562,7 @@ class FourierField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         out = super().__truediv__(other)
         return FourierField(self.physical_domain, out.data, name=out.name)
 
@@ -1821,10 +1821,10 @@ class FourierFieldSlice(FourierField):
             constant_values=0.0,
         )
 
-    def __neg__(self):
+    def __neg__(self) -> Self:
         return self * (-1.0)
 
-    def __add__(self, other):
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
         if self.activate_jit_:
             new_name = ""
         else:
@@ -1844,10 +1844,10 @@ class FourierFieldSlice(FourierField):
             ks_int=self.ks_int,
         )
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
         return self + other * (-1.0)
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         if isinstance(other, Field):
             if self.activate_jit_:
                 new_name = ""
@@ -1891,7 +1891,7 @@ class FourierFieldSlice(FourierField):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         if type(other) == Field:
             raise Exception("Don't know how to divide by another field")
         else:
