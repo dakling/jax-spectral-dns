@@ -95,7 +95,8 @@ class Domain(ABC):
         if type(scale_factors) == NoneType:
             scale_factors_: List[float] = []
         else:
-            assert isinstance(scale_factors, list | tuple)
+            # assert isinstance(scale_factors, list | tuple)
+            assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
         grid = []
         diff_mats = []
