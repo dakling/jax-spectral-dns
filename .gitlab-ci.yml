@@ -26,6 +26,8 @@ default:
 test:   # This job runs in the test stage.
     script:
         - echo "Running unit tests..."
+        - mypy jax_spectral_dns/
+        - mypy tests/test_project.py
         - pytest
     rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
