@@ -4,8 +4,7 @@ from abc import ABC
 import jax
 import jax.numpy as jnp
 import numpy as np
-# import jax.scipy as jsc
-import scipy as sc
+import scipy as sc # type: ignore
 from jax.tree_util import register_pytree_node_class
 from matplotlib import legend
 import matplotlib.pyplot as plt
@@ -13,7 +12,7 @@ from matplotlib import legend
 from numpy import float128
 from functools import partial
 import dataclasses
-from typing import Tuple, Union, Sequence, List
+from typing import Self, Tuple, Union, Sequence, List, Any
 
 
 
@@ -75,39 +74,28 @@ class Domain(ABC):
     performed on it."""
 
     number_of_dimensions: int
-    periodic_directions: Tuple[bool]
-    scale_factors: Tuple[jnp.float64]
-    shape: Tuple[int]
-    grid: Tuple[jnp.ndarray]
-    diff_mats: Tuple[jnp.ndarray]
-    mgrid: Tuple[jnp.ndarray]
-    # aliasing: float = 1  # no antialiasing (requires finer resolution)
+    periodic_directions: Tuple[bool, ...]
+    scale_factors: Tuple[float, ...]
+    shape: Tuple[int, ...]
+    grid: Tuple[np.ndarray, ...]
+    diff_mats: Tuple[np.ndarray, ...]
+    mgrid: Tuple[np.ndarray, ...]
     aliasing : float = 3 / 2  # prevent aliasing using the 3/2-rule
-
-    # def tree_flatten(self):
-    #     children = (self.grid, self.diff_mats, self.mgrid)
-    #     aux_data = (self.number_of_dimensions, self.periodic_directions, self.scale_factors, self.shape, self.aliasing)
-    #     return (children, aux_data)
-
-    # @classmethod
-    # def tree_unflatten(cls, aux_data, children):
-    #     return cls(*aux_data[:4], *children, aux_data[5])
 
     @classmethod
     def create(
         cls,
-        shape: Sequence[int],
-        periodic_directions: Sequence[bool],
-        scale_factors: Union[Tuple[np.float64], NoneType] = None,
-        # aliasing=1,
+        shape: Tuple[int, ...],
+        periodic_directions: Tuple[bool, ...],
+        scale_factors: Union[Tuple[float, ...], NoneType] = None,
         aliasing=3/2,
-    ):
+    ) -> Self:
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
-            scale_factors_: Union[List[np.float64]] = []
+            scale_factors_: List[float] = []
         else:
-            assert isinstance(scale_factors, List) or isinstance(scale_factors, Tuple)
-            scale_factors_ = scale_factors
+            assert isinstance(scale_factors, list | tuple)
+            scale_factors_ = list(scale_factors)
         grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):

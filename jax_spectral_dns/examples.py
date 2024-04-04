@@ -2,7 +2,6 @@
 
 import sys
 import jax
-import scipy.optimize as sciopt
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
@@ -2415,7 +2414,8 @@ def run_ld_2020(
     Nz=48,
     number_of_steps=10,
     min_number_of_optax_steps=-1,
-        e_0=1e-3
+        e_0=1e-3,
+        init_file=None
 ):
     Re_tau = float(Re_tau)
     turb = str(turb) == "True"
@@ -2432,8 +2432,8 @@ def run_ld_2020(
 
     # Equation.initialize()
 
-    dt = 3e-3
-    end_time = 0.7  # in ld2020 units
+    dt = 4e-3
+    end_time = 0.1  # in ld2020 units
     # end_time = 0.02 # in ld2020 units
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -2488,51 +2488,30 @@ def run_ld_2020(
         vel_base.set_name("velocity_base")
         u_max_over_u_tau = 18.5  # matches Vilda's profile
 
-    vel_pert = VectorField(
-        [
-            PhysicalField.FromFunc(
-                domain,
-                lambda X: 0.1
-                * (1 - X[1] ** 2)
-                * 0.5
-                * (
-                    0 * jnp.cos(1 / 0.5 * 2 * jnp.pi / 1.87 * X[0])
-                    + 1 * jnp.cos(1 / 0.5 * 2 * jnp.pi / 0.93 * X[2])
-                ),
-            ),
-            PhysicalField.FromFunc(
-                domain,
-                lambda X: 0.0
-                * (1 - X[1] ** 2)
-                * 0.5
-                * (
-                    0.1 * jnp.cos(1 / 0.5 * 2 * jnp.pi / 1.87 * X[0])
-                    + 0.1 * jnp.cos(1 / 0.5 * 2 * jnp.pi / 0.93 * X[2])
-                ),
-            ),
-            PhysicalField.FromFunc(
-                domain,
-                lambda X: 0.01
-                * (1 - X[1] ** 2)
-                * 0.5
-                * (
-                    0.1 * jnp.cos(1 / 0.5 * 2 * jnp.pi / 1.87 * X[0])
-                    + 0.0 * jnp.cos(1 / 0.5 * 2 * jnp.pi / 0.93 * X[2])
-                ),
-            ),
-        ]
-    )
-    vel_pert.set_name("velocity")
-    vel_pert.normalize_by_energy
-    vel_pert *= e_0
-
-    vel_hat = vel_pert.hat()
-    vel_hat.set_name("velocity_hat")
 
     Re = Re_tau * u_max_over_u_tau
     # end_time_ = end_time * u_max_over_u_tau
     end_time_ = round(end_time * u_max_over_u_tau)
     print_verb("end time in LD2020 units:", end_time_ / u_max_over_u_tau)
+
+    if init_file is None:
+        number_of_modes = 60
+        lsc = LinearStabilityCalculation(Re=Re, alpha=2*jnp.pi / 1.87, beta=0, n=Ny)
+
+        v0_0 = lsc.calculate_transient_growth_initial_condition(
+            domain,
+            end_time,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        v0_0_norm = v0_0.normalize_by_energy()
+        v0_0_norm *= e_0
+        vel_hat = v0_0_norm.hat()
+        vel_hat.set_name("velocity_hat")
+    else:
+        vel_hat = None
+
 
     def post_process(nse, i):
         n_steps = len(nse.get_field("velocity_hat"))
@@ -2599,7 +2578,7 @@ def run_ld_2020(
     optimiser = Optimiser(
         domain,
         run_case,
-        vel_hat,
+        vel_hat or init_file,
         minimise=False,
         force_2d=False,
         max_iter=number_of_steps,

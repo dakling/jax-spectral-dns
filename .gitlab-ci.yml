@@ -19,6 +19,7 @@
 default:
     image: ghcr.io/nvidia/jax:nightly-2023-10-26-linux-amd64
     before_script:
+        - pip install mypy
         - pip install .
     
 

@@ -10,11 +10,11 @@ from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorFie
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 try:
-    import optax
+    import optax # type: ignore
 except ModuleNotFoundError:
     print("optax not found")
 try:
-    import jaxopt
+    import jaxopt # type: ignore
 except ModuleNotFoundError:
     print("jaxopt not found")
 
@@ -61,14 +61,8 @@ class Optimiser:
             self.inv_fn = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        # self.run_fn = lambda v, out=False: self.inv_fn(
-        #     run_fn(self.parameters_to_run_input(v), out)
-        # )
-        self.run_fn = jax.jit(
-            lambda v, out=False: self.inv_fn(
-                run_fn(self.parameters_to_run_input(v), out)
-            ),
-            static_argnums=1,
+        self.run_fn = lambda v, out=False: self.inv_fn(
+            run_fn(self.parameters_to_run_input(v), out)
         )
         if use_optax:
             learning_rate = params.get("learning_rate", 1e-2)

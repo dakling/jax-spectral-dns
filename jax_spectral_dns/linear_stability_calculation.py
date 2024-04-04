@@ -3,9 +3,9 @@
 import numpy as np
 import jax.numpy as jnp
 from numpy.linalg import  svd
-from scipy.linalg import eig, cholesky
-from scipy.integrate import quad
-import scipy
+import scipy # type: ignore
+from scipy.linalg import eig, cholesky # type: ignore
+from scipy.integrate import quad # type: ignore
 import timeit
 
 from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure

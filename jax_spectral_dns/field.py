@@ -11,10 +11,10 @@ import jax.numpy as jnp
 import matplotlib.figure as figure
 from matplotlib import colors
 import matplotlib.cm as cm
-from scipy.interpolate import RegularGridInterpolator
+from scipy.interpolate import RegularGridInterpolator # type: ignore
 import functools
 import dataclasses
-from typing import Union
+from typing import Optional, Self, Union
 
 import numpy as np
 
@@ -89,6 +89,21 @@ class Field(ABC):
     # @classmethod
     # def activate_jit(cls):
     #     cls.activate_jit_ = True
+
+    def __add__(self, _: Union[Self, jnp.ndarray]) -> Self:
+        raise NotImplementedError()
+
+    def __sub__(self, _: Union[Self, jnp.ndarray]) -> Self:
+        raise NotImplementedError()
+
+    def __mul__(self, _: Union[Self, jnp.ndarray, float]) -> Self:
+        raise NotImplementedError()
+
+    __rmul__ = __mul__
+    __lmul__ = __mul__
+
+    def __truediv__(self, _: Union[Self, jnp.ndarray, float]) -> Self:
+        raise NotImplementedError()
 
     def __repr__(self):
         # self.plot()
@@ -232,16 +247,16 @@ class VectorField:
             out += str(elem)
         return out
 
-    def __add__(self, other):
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
         out = []
         for i in range(len(self)):
             out.append(self[i] + other[i])
         return VectorField(out)
 
-    def __sub__(self, other):
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
         return self + (-1) * other
 
-    def __mul__(self, other):
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         out = []
         if isinstance(other, Field):
             for i in range(len(self)):
@@ -254,7 +269,7 @@ class VectorField:
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
         out = []
         for i in range(len(self)):
             out.append(self[i] / other)
@@ -807,7 +822,7 @@ class PhysicalField(Field):
         else:
             return self
 
-    def get_domain(self):
+    def get_domain(self) -> PhysicalDomain:
         return self.physical_domain
 
     def l2error(self, fn):
@@ -1458,7 +1473,7 @@ class FourierField(Field):
         data: jnp.ndarray,
         name: str = "field_hat",
         time_step: int = 0,
-        fourier_domain: FourierDomain = None,
+        fourier_domain: Optional[FourierDomain] = None,
     ):
         self.name = name
         self.time_step: int = time_step

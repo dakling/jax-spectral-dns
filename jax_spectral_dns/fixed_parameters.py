@@ -21,9 +21,9 @@ class NavierStokesVelVortFixedParameters():
     rk_mats_lhs_inv_inhom: np.ndarray
     rk_mats_rhs_ns: np.ndarray
     rk_mats_lhs_inv_ns: np.ndarray
-    Re_tau: np.float64
-    max_cfl: np.float64 = 0.3
+    Re_tau: float
+    max_cfl: float = 0.3
     dt_update_frequency: int = (
         10  # update the timestep every time_step_udate_frequency time steps
     )
-    u_max_over_u_tau: np.float64 = 1e0
+    u_max_over_u_tau: float = 1e0
