@@ -9,12 +9,13 @@ import math
 import jax
 import jax.numpy as jnp
 import matplotlib.figure as figure
+from matplotlib.axes import Axes
+from mpl_toolkits.mplot3d.axes3d import Axes3D # type: ignore
 from matplotlib import colors
-import matplotlib.cm as cm
 from scipy.interpolate import RegularGridInterpolator # type: ignore
 import functools
 import dataclasses
-from typing import Optional, Union
+from typing import Iterable, Optional, Sequence, Union
 from typing_extensions import Self
 
 import numpy as np
@@ -41,17 +42,27 @@ class Field(ABC):
 
     field_dir = "./fields/"
 
+    def __init__(self, domain: Domain, data: jnp.ndarray, name: str):
+        self.domain = domain
+        self.data = data
+        self.name = name
+        raise NotImplementedError("Trying to initialize an abstract class")
+
     @classmethod
-    def Zeros(cls, domain, name="field"):
-        data = jnp.zeros(domain.shape)
+    def Zeros(cls, domain, name="field") -> Self:
+        data: jnp.ndarray = jnp.zeros(domain.shape)
         return cls(domain, data, name)
 
     @abstractmethod
     def get_domain(self) -> Domain:
         ...
 
+    @abstractmethod
+    def get_physical_domain(self) -> PhysicalDomain:
+        ...
+
     @classmethod
-    def initialize(cls, cleanup=True):
+    def initialize(cls, cleanup: bool=True) -> None:
         jax.config.update("jax_enable_x64", True)
         newpaths = [Field.field_dir, Field.plotting_dir]
         for newpath in newpaths:
@@ -59,19 +70,20 @@ class Field(ABC):
                 os.makedirs(newpath)
         if cleanup:
             # clean plotting dir
-            [f.unlink() for f in Path(Field.plotting_dir).glob("*.pdf") if f.is_file()]
-            [f.unlink() for f in Path(Field.plotting_dir).glob("*.png") if f.is_file()]
-            [f.unlink() for f in Path(Field.plotting_dir).glob("*.mp4") if f.is_file()]
+            for file_ending in ["*.pdf", "*.png", "*.mp4"]:
+                for f in Path(Field.plotting_dir).glob(file_ending):
+                    if f.is_file():
+                        f.unlink()
 
-    def save_to_file(self, filename):
+    def save_to_file(self, filename: str) -> None:
         """Save field to file filename."""
-        field_array = np.array(self.data.tolist())
+        field_array: np.ndarray = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
 
-    def get_data(self):
+    def get_data(self) -> jnp.ndarray:
         return self.data
 
-    def get_name(self):
+    def get_name(self) -> str:
         """Return the name of the field."""
         return self.name
 
@@ -91,19 +103,19 @@ class Field(ABC):
     # def activate_jit(cls):
     #     cls.activate_jit_ = True
 
-    def __add__(self, _: Union[Self, jnp.ndarray]) -> Self:
+    def __add__(self: Self, _: Union[Self, jnp.ndarray]) -> Field:
         raise NotImplementedError()
 
-    def __sub__(self, _: Union[Self, jnp.ndarray]) -> Self:
+    def __sub__(self, _: Union[Self, jnp.ndarray]) -> Field:
         raise NotImplementedError()
 
-    def __mul__(self, _: Union[Self, jnp.ndarray, float]) -> Self:
+    def __mul__(self, _: Union[Self, jnp.ndarray, float]) -> Field:
         raise NotImplementedError()
 
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, _: Union[Self, jnp.ndarray, float]) -> Self:
+    def __truediv__(self, _: float) -> Self:
         raise NotImplementedError()
 
     def __repr__(self):
@@ -143,22 +155,22 @@ class Field(ABC):
                                  lambda: self.data)
         return self
 
-    def number_of_dimensions(self):
+    def number_of_dimensions(self) -> int:
         return len(self.all_dimensions())
 
-    def number_of_dofs(self):
+    def number_of_dofs(self) -> int:
         return int(math.prod(self.get_domain().shape))
 
-    def all_dimensions(self):
+    def all_dimensions(self) -> Sequence[int]:
         return self.get_domain().all_dimensions()
 
-    def is_periodic(self, direction):
+    def is_periodic(self, direction) -> bool:
         return self.get_domain().is_periodic(direction)
 
-    def all_periodic_dimensions(self):
+    def all_periodic_dimensions(self) -> list[int]:
         return self.get_domain().all_periodic_dimensions()
 
-    def all_nonperiodic_dimensions(self):
+    def all_nonperiodic_dimensions(self) -> list[int]:
         return self.get_domain().all_nonperiodic_dimensions()
 
     def pad_mat_with_zeros(self):
@@ -175,12 +187,7 @@ class Field(ABC):
         )
 
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
-        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet(direction)
-
-    def get_cheb_mat_2_homogeneous_dirichlet_only_rows(self, direction):
-        return self.physical_domain.get_cheb_mat_2_homogeneous_dirichlet_only_rows(
-            direction
-        )
+        return self.get_physical_domain().get_cheb_mat_2_homogeneous_dirichlet(direction)
 
     @abstractmethod
     def diff(self, direction: int, order: int = 1) -> Field:
@@ -248,16 +255,16 @@ class VectorField:
             out += str(elem)
         return out
 
-    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def __add__(self, other: Union[VectorField, jnp.ndarray]) -> VectorField:
         out = []
         for i in range(len(self)):
             out.append(self[i] + other[i])
         return VectorField(out)
 
-    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def __sub__(self, other: Union[VectorField, jnp.ndarray]) -> VectorField:
         return self + (-1) * other
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __mul__(self, other: Union[VectorField, jnp.ndarray, float]) -> VectorField:
         out = []
         if isinstance(other, Field):
             for i in range(len(self)):
@@ -270,7 +277,7 @@ class VectorField:
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __truediv__(self, other: float) -> VectorField:
         out = []
         for i in range(len(self)):
             out.append(self[i] / other)
@@ -451,7 +458,6 @@ class VectorField:
         return out
 
     def reconstruct_from_wavenumbers(self, fn, number_of_other_fields=0):
-        assert self.number_of_dimensions != 3, "2D not implemented yet"
 
         # jit = True
         # vectorize = True
@@ -553,6 +559,7 @@ class VectorField:
         if not self[0].activate_jit_:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             directions = [i for i in self.all_dimensions() if i != normal_direction]
             x = self.domain.grid[directions[0]]
             y = jnp.flip(self.domain.grid[directions[1]])
@@ -597,6 +604,7 @@ class VectorField:
         if not self[0].activate_jit_:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             directions = [i for i in self.all_dimensions() if i != normal_direction]
             x = self.domain.grid[directions[0]]
             y = jnp.flip(self.domain.grid[directions[1]])
@@ -663,7 +671,7 @@ class PhysicalField(Field):
         out_field = self.data + value
         return PhysicalField(self.physical_domain, out_field, name=self.name)
 
-    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> PhysicalField:
         assert not isinstance(
             other, FourierField
         ), "Attempted to add a Field and a Fourier Field."
@@ -685,15 +693,15 @@ class PhysicalField(Field):
             assert isinstance(other, jnp.ndarray)
             ret = PhysicalField(self.physical_domain, self.data + other, name="field")
         ret.time_step = self.time_step
-        return ret
+        return ret 
 
-    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> PhysicalField:
         assert not isinstance(
             other, FourierField
         ), "Attempted to subtract a Field and a Fourier Field."
-        return self + other * (-1.0)
+        return self + other * (-1.0) # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> PhysicalField:
         if isinstance(other, FourierField):
             raise Exception("Attempted to multiply physical field and Fourier field")
         elif isinstance(other, Field):
@@ -708,7 +716,7 @@ class PhysicalField(Field):
                 self.physical_domain, self.data * other.data, name=new_name
             )
             ret.time_step = self.time_step
-            return ret
+            return ret 
         else:
             if self.activate_jit_:
                 new_name = ""
@@ -732,9 +740,9 @@ class PhysicalField(Field):
     __lmul__ = __mul__
 
     def __truediv__(
-        self, other: Union[Self, jnp.ndarray, float]
-    ) -> Self:
-        if type(other) == Field:
+        self, other: float
+    ) -> PhysicalField:
+        if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
         else:
             new_name = "field"
@@ -766,7 +774,7 @@ class PhysicalField(Field):
         return cls(domain, field, name)
 
     @classmethod
-    def FromField(cls, domain, field):
+    def FromField(cls, domain: PhysicalDomain, field: PhysicalField) -> PhysicalField:
         """Construct a new field depending on the independent variables described by
         domain by interpolating a given field."""
         # TODO testing + performance improvements needed
@@ -777,32 +785,33 @@ class PhysicalField(Field):
         if domain.number_of_dimensions == 1:
             for x in domain.grid[0]:
                 out.append(field.eval(x))
+                out_array = jnp.array(out)
         elif domain.number_of_dimensions == 2:
             for x in domain.grid[0]:
                 for y in domain.grid[1]:
                     out.append(field.eval([x, y]))
-            out = jnp.array(out)
-            out.reshape(domain.number_of_cells(0), domain.number_of_cells(1))
+            out_array = jnp.array(out)
+            out_array.reshape(domain.number_of_cells(0), domain.number_of_cells(1))
         elif domain.number_of_dimensions == 3:
             for x in domain.grid[0]:
                 for y in domain.grid[1]:
                     for z in domain.grid[2]:
                         out.append(field.eval([x, y, z]))
-            out = jnp.array(out)
-            out.reshape(
+            out_arr = jnp.array(out)
+            out_arr.reshape(
                 domain.number_of_cells(0),
                 domain.number_of_cells(1),
                 domain.number_of_cells(2),
             )
         else:
             raise NotImplementedError("Number of dimensions not supported.")
-        return PhysicalField(domain, out, field.name + "_projected")
+        return PhysicalField(domain, out_arr, field.name + "_projected")
 
     @classmethod
-    def FromFile(cls, domain, filename, name="field"):
+    def FromFile(cls, domain: PhysicalDomain, filename: str, name: str="field") -> PhysicalField:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
-        out = PhysicalField(domain, None, name=name)
+        out = PhysicalField.Zeros(domain, name=name)
         field_array = np.load(out.field_dir + filename, allow_pickle=True)
         out.data = jnp.array(field_array.tolist())
         return out
@@ -825,6 +834,9 @@ class PhysicalField(Field):
 
     def get_domain(self) -> PhysicalDomain:
         return self.physical_domain
+
+    def get_physical_domain(self) -> PhysicalDomain:
+        return self.get_domain()
 
     def l2error(self, fn):
         # TODO supersampling
@@ -879,14 +891,14 @@ class PhysicalField(Field):
             other_values.append(self.data)
         for dim in reversed(self.all_dimensions()):
             base_value = jnp.take(base_value, indices=interpolant[dim], axis=dim)
-            for i in self.all_dimensions():
-                if i == dim:
-                    other_values[i] = jnp.take(
-                        other_values[i], indices=interpolant[dim] + 1, axis=dim
+            for j in self.all_dimensions():
+                if j == dim:
+                    other_values[j] = jnp.take(
+                        other_values[j], indices=interpolant[dim] + 1, axis=dim
                     )
                 else:
-                    other_values[i] = jnp.take(
-                        other_values[i], indices=interpolant[dim], axis=dim
+                    other_values[j] = jnp.take(
+                        other_values[j], indices=interpolant[dim], axis=dim
                     )
         out = base_value
         for dim in self.all_dimensions():
@@ -898,6 +910,7 @@ class PhysicalField(Field):
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
                 ax.plot(self.physical_domain.grid[0], self.data, label=self.name)
                 for other_field in other_fields:
                     ax.plot(
@@ -934,6 +947,7 @@ class PhysicalField(Field):
                 # fig, ax = plt.subplots(1, 1)
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
                 other_dim = [i for i in self.all_dimensions() if i != dimension][0]
                 N_c = self.physical_domain.number_of_cells(other_dim) // 2
                 ax.plot(
@@ -979,22 +993,23 @@ class PhysicalField(Field):
                 # fig, ax = plt.subplots(1, 1)
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
-                other_dim = [i for i in self.all_dimensions() if i != dimension]
-                N_c = [
-                    self.physical_domain.number_of_cells(dim) // 2 for dim in other_dim
+                assert type(ax) is Axes
+                other_dims = [i for i in self.all_dimensions() if i != dimension]
+                N_cs = [
+                    self.physical_domain.number_of_cells(dim) // 2 for dim in other_dims
                 ]
                 ax.plot(
                     self.physical_domain.grid[dimension],
-                    self.data.take(indices=N_c[1], axis=other_dim[1]).take(
-                        indices=N_c[0], axis=other_dim[0]
+                    self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
+                        indices=N_cs[0], axis=other_dims[0]
                     ),
                     label=self.name,
                 )
                 for other_field in other_fields:
                     ax.plot(
                         self.physical_domain.grid[dimension],
-                        other_field.data.take(indices=N_c[1], axis=other_dim[1]).take(
-                            indices=N_c[0], axis=other_dim[0]
+                        other_field.data.take(indices=N_cs[1], axis=other_dims[1]).take(
+                            indices=N_cs[0], axis=other_dims[0]
                         ),
                         "--",
                         label=other_field.name,
@@ -1033,6 +1048,7 @@ class PhysicalField(Field):
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
                 ax.plot(
                     self.physical_domain.grid[0],
                     self.data,
@@ -1070,8 +1086,10 @@ class PhysicalField(Field):
 
             elif self.physical_domain.number_of_dimensions == 2:
                 fig = figure.Figure(figsize=(15, 5))
-                ax = [fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)]
+                ax = np.array([fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)])
+                assert type(ax) is np.ndarray
                 ax3d = fig.add_subplot(1, 3, 3, projection="3d")
+                assert type(ax3d) is Axes3D
                 for dimension in self.all_dimensions():
                     other_dim = [i for i in self.all_dimensions() if i != dimension][0]
                     N_c = self.physical_domain.number_of_cells(other_dim) // 2
@@ -1123,16 +1141,17 @@ class PhysicalField(Field):
                 fig = figure.Figure()
                 # ax = fig.subplots(1, 3, figsize=(15, 5))
                 ax = fig.subplots(1, 3)
+                assert type(ax) is np.ndarray
                 for dimension in self.all_dimensions():
-                    other_dim = [i for i in self.all_dimensions() if i != dimension]
-                    N_c = [
+                    other_dims = [i for i in self.all_dimensions() if i != dimension]
+                    N_cs = [
                         self.physical_domain.number_of_cells(dim) // 2
-                        for dim in other_dim
+                        for dim in other_dims
                     ]
                     ax[dimension].plot(
                         self.physical_domain.grid[dimension],
-                        self.data.take(indices=N_c[1], axis=other_dim[1]).take(
-                            indices=N_c[0], axis=other_dim[0]
+                        self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
+                            indices=N_cs[0], axis=other_dims[0]
                         ),
                         label=self.name,
                     )
@@ -1140,8 +1159,8 @@ class PhysicalField(Field):
                         ax[dimension].plot(
                             self.physical_domain.grid[dimension],
                             other_field.data.take(
-                                indices=N_c[1], axis=other_dim[1]
-                            ).take(indices=N_c[0], axis=other_dim[0]),
+                                indices=N_cs[1], axis=other_dims[1]
+                            ).take(indices=N_cs[0], axis=other_dims[0]),
                             "--",
                             label=other_field.name,
                         )
@@ -1211,19 +1230,19 @@ class PhysicalField(Field):
                         ax[dim].imshow(
                             self.data.take(indices=N_c, axis=dim),
                             interpolation=None,
-                            extent=[
+                            extent=(
                                 self.physical_domain.grid[other_dim[1]][0],
                                 self.physical_domain.grid[other_dim[1]][-1],
                                 self.physical_domain.grid[other_dim[0]][0],
                                 self.physical_domain.grid[other_dim[0]][-1],
-                            ],
+                            ),
                         )
                     )
                     ax[dim].set_xlabel("xyz"[other_dim[1]])
                     ax[dim].set_ylabel("xyz"[other_dim[0]])
                 # Find the min and max of all colors for use in setting the color scale.
-                vmin = min(image.get_array().min() for image in ims)
-                vmax = max(image.get_array().max() for image in ims)
+                vmin = min(image.get_array().min() for image in ims) # type: ignore[union-attr]
+                vmax = max(image.get_array().max() for image in ims) # type: ignore[union-attr]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
                 for im in ims:
                     im.set_norm(norm)
@@ -1257,6 +1276,7 @@ class PhysicalField(Field):
             ), "Only 3D supported for this plotting method."
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             ims = []
             N_c = self.physical_domain.number_of_cells(dim) // 2
             other_dim = [i for i in self.all_dimensions() if i != dim]
@@ -1264,19 +1284,19 @@ class PhysicalField(Field):
                 ax.imshow(
                     self.data.take(indices=N_c, axis=dim).T,
                     interpolation=None,
-                    extent=[
+                    extent=(
                         self.physical_domain.grid[other_dim[0]][0],
                         self.physical_domain.grid[other_dim[0]][-1],
                         self.physical_domain.grid[other_dim[1]][0],
                         self.physical_domain.grid[other_dim[1]][-1],
-                    ],
+                    ),
                 )
             )
             ax.set_xlabel("xyz"[other_dim[0]])
             ax.set_ylabel("xyz"[other_dim[1]])
             # Find the min and max of all colors for use in setting the color scale.
-            vmin = min(image.get_array().min() for image in ims)
-            vmax = max(image.get_array().max() for image in ims)
+            vmin = min(image.get_array().min() for image in ims) # type: ignore[union-attr]
+            vmax = max(image.get_array().max() for image in ims) # type: ignore[union-attr]
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
@@ -1313,17 +1333,19 @@ class PhysicalField(Field):
                 isolines = [0, 1.5, 2.5, 3.5]
                 isolines += [-i for i in isolines[1:]]
 
+            assert isolines is not None
             isolines.sort()
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             directions = [i for i in self.all_dimensions() if i != normal_direction]
             x = self.physical_domain.grid[directions[0]]
             y = self.physical_domain.grid[directions[1]]
             X, Y = jnp.meshgrid(x, y)
             N_c = self.physical_domain.number_of_cells(normal_direction) // 2
             f = self.data.take(indices=N_c, axis=normal_direction).T
-            cmap = colors.ListedColormap([("gray", 0.3), "white"])
+            cmap = colors.ListedColormap((("gray", 0.3), "white")) # type: ignore[arg-type]
             bounds = [-1e10, 0, 1e10]
             norm = colors.BoundaryNorm(bounds, cmap.N)
             ax.imshow(
@@ -1482,17 +1504,18 @@ class FourierField(Field):
         if fourier_domain is None:
             self.fourier_domain = domain.hat()
         else:
+            assert type(fourier_domain) is FourierDomain
             self.fourier_domain = fourier_domain
         self.data = data
 
     @classmethod
-    def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
+    def FromRandom(cls, domain: PhysicalDomain, seed: int=0, interval: tuple[float, float]=(-0.1, 0.1), name:str ="field") -> FourierField:
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
         zero_field = PhysicalField.FromFunc(domain)
         rands = []
-        for i in jnp.arange(zero_field.number_of_dofs()):
+        for _ in jnp.arange(zero_field.number_of_dofs()):
             key, subkey = jax.random.split(key)
             rands.append(
                 jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
@@ -1503,7 +1526,10 @@ class FourierField(Field):
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 
-    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
+    def get_physical_domain(self) -> PhysicalDomain:
+        return self.physical_domain
+
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
         assert isinstance(
             other, FourierField
         ), "Attempted to add a Fourier Field and a Field."
@@ -1518,10 +1544,10 @@ class FourierField(Field):
         ret.time_step = self.time_step
         return ret
 
-    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
-        return self + other * (-1.0)
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
+        return self + other * (-1.0) # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> FourierField:
         if isinstance(other, Field):
             assert isinstance(
                 other, FourierField
@@ -1562,7 +1588,7 @@ class FourierField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __truediv__(self, other: float) -> FourierField:
         out = super().__truediv__(other)
         return FourierField(self.physical_domain, out.data, name=out.name)
 
@@ -1607,18 +1633,10 @@ class FourierField(Field):
                 constant_values=out_0,
             )
         else:
-            if order == 2:
-                out_field = (
-                    super()
-                    .integrate(direction, order, bc_right=bc_right, bc_left=bc_left)
-                    .data
-                )
-            else:
-                out_field = (
-                    super()
-                    .integrate(direction, order, bc_right=bc_right, bc_left=bc_left)
-                    .data
-                )
+            out_field = (
+                self.physical_domain
+                .integrate(self.data, direction, order, bc_right=bc_right, bc_left=bc_left)
+            )
 
         return FourierField(
             self.physical_domain, out_field, name=self.name + "_int_" + str(order)
@@ -1703,7 +1721,7 @@ class FourierField(Field):
     def reconstruct_from_wavenumbers(self, fn, vectorize=False):
         if vectorize:
             print("vectorisation not implemented yet, using unvectorized version")
-        assert self.number_of_dimensions != 3, "2D not implemented yet"
+        assert self.number_of_dimensions() != 3, "2D not implemented yet"
         k1 = self.fourier_domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.fourier_domain.grid[self.all_periodic_dimensions()[1]]
         k1_ints = jnp.arange((len(k1)), dtype=int)
@@ -1779,7 +1797,7 @@ class FourierFieldSlice(FourierField):
     def assemble_poisson_matrix(self):
         y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(0)
         n = y_mat.shape[0]
-        factor = 0
+        factor = np.zeros_like(self.ks[0])
         for direction in self.all_periodic_dimensions():
             factor += (1j * self.ks[direction]) ** 2
 
@@ -1821,33 +1839,43 @@ class FourierFieldSlice(FourierField):
             constant_values=0.0,
         )
 
-    def __neg__(self) -> Self:
+    def __neg__(self) -> FourierFieldSlice:
         return self * (-1.0)
 
-    def __add__(self, other: Union[Self, jnp.ndarray]) -> Self:
-        if self.activate_jit_:
-            new_name = ""
+    def __add__(self, other: Union[Self, jnp.ndarray]) -> FourierFieldSlice:
+        if isinstance(other, FourierFieldSlice):
+            if self.activate_jit_:
+                new_name = ""
+            else:
+                try:
+                    if other.name[0] == "-":
+                        new_name = self.name + " - " + other.name[1:]
+                    else:
+                        new_name = self.name + " + " + other.name
+                except Exception:
+                    new_name = "field"
+            return FourierFieldSlice(
+                self.fourier_domain,
+                self.non_periodic_direction,
+                self.data + other.data,
+                new_name,
+                *self.ks_raw,
+                ks_int=self.ks_int,
+            )
         else:
-            try:
-                if other.name[0] == "-":
-                    new_name = self.name + " - " + other.name[1:]
-                else:
-                    new_name = self.name + " + " + other.name
-            except Exception:
-                new_name = "field"
-        return FourierFieldSlice(
-            self.fourier_domain,
-            self.non_periodic_direction,
-            self.data + other.data,
-            new_name,
-            *self.ks_raw,
-            ks_int=self.ks_int,
-        )
+            return FourierFieldSlice(
+                self.fourier_domain,
+                self.non_periodic_direction,
+                self.data + other,
+                self.name,
+                *self.ks_raw,
+                ks_int=self.ks_int,
+            )
 
-    def __sub__(self, other: Union[Self, jnp.ndarray]) -> Self:
-        return self + other * (-1.0)
+    def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierFieldSlice:
+        return self + other * (-1.0) # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
+    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> FourierFieldSlice:
         if isinstance(other, Field):
             if self.activate_jit_:
                 new_name = ""
@@ -1891,8 +1919,8 @@ class FourierFieldSlice(FourierField):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: Union[Self, jnp.ndarray, float]) -> Self:
-        if type(other) == Field:
+    def __truediv__(self, other: float) -> FourierFieldSlice:
+        if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
         else:
             if self.activate_jit_:
@@ -1900,7 +1928,7 @@ class FourierFieldSlice(FourierField):
             else:
                 try:
                     if other.real >= 0:
-                        new_name = self.name + "/" + other
+                        new_name = self.name + "/" + str(other)
                     elif other == 1:
                         new_name = self.name
                     elif other == -1:
@@ -1918,6 +1946,6 @@ class FourierFieldSlice(FourierField):
                 ks_int=self.ks_int,
             )
 
-    def shift(self, value):
+    def shift(self, value: float) -> FourierFieldSlice:
         out_field = self.data + value
-        return FourierField(self.fourier_domain, out_field, name=self.name)
+        return FourierFieldSlice(self.fourier_domain, self.non_periodic_direction, out_field, name=self.name)

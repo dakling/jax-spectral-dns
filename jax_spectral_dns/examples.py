@@ -2430,7 +2430,7 @@ def run_ld_2020(
     Nz = int(Nz * ((3 / 2) / aliasing))
     e_0 = float(e_0)
 
-    # Equation.initialize()
+    Equation.initialize()
 
     dt = 4e-3
     end_time = 0.5  # in ld2020 units

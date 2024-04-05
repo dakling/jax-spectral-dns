@@ -12,7 +12,8 @@ def cheb(order: int, deriv: int, y: Optional[float]=None) -> Union[float, Chebys
     if y is None:
         return ch
     else:
-        return ch(y)
+        out: float = ch(y)
+        return out
 
 
 def phi(order: int, deriv: int, y: float) -> Union[float, Chebyshev]:

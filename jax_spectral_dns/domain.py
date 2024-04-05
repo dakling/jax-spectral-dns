@@ -12,7 +12,7 @@ from matplotlib import legend
 from numpy import float128
 from functools import partial
 import dataclasses
-from typing import Tuple, Union, Sequence, List, Any
+from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any
 from typing_extensions import Self
 
 
@@ -88,7 +88,7 @@ class Domain(ABC):
         cls,
         shape: Tuple[int, ...],
         periodic_directions: Tuple[bool, ...],
-        scale_factors: Union[Tuple[float, ...], NoneType] = None,
+        scale_factors: Optional[Tuple[float, ...]] = None,
         aliasing=3/2,
     ) -> Self:
         number_of_dimensions = len(shape)
@@ -101,7 +101,7 @@ class Domain(ABC):
         grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):
-            if type(periodic_directions) != NoneType and periodic_directions[dim]:
+            if periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
                 grid.append(
@@ -134,24 +134,24 @@ class Domain(ABC):
             aliasing,
         )
 
-    def number_of_cells(self, direction):
+    def number_of_cells(self, direction: int) -> int:
         return len(self.grid[direction])
 
-    def all_dimensions(self):
+    def all_dimensions(self) -> Sequence[int]:
         return range(self.number_of_dimensions)
         # return jnp.arange(self.number_of_dimensions)
 
-    def is_periodic(self, direction):
+    def is_periodic(self, direction: int) -> bool:
         return self.periodic_directions[direction]
 
-    def all_periodic_dimensions(self):
+    def all_periodic_dimensions(self) -> list[int]:
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
             if self.is_periodic(d)
         ]
 
-    def all_nonperiodic_dimensions(self):
+    def all_nonperiodic_dimensions(self) -> list[int]:
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
@@ -408,7 +408,7 @@ class PhysicalDomain(Domain):
     def __eq__(self, other):
         return hash(self) is hash(other)
 
-    def hat(self):
+    def hat(self) -> FourierDomain:
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
@@ -460,7 +460,7 @@ class FourierDomain(Domain):
     
 
     @classmethod
-    def FromPhysicalDomain(cls, physical_domain):
+    def FromPhysicalDomain(cls, physical_domain: PhysicalDomain) -> FourierDomain:
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
