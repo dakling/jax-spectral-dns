@@ -32,7 +32,7 @@ class Heat_Eq(Equation):
     def perform_implicit_euler_step(self, dt, i):
         # only for 1D!
         u = self.get_latest_field("u")
-        D2 = self.domain.get_cheb_mat_2_homogeneous_dirichlet(0)
+        D2 = self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(0)
         I = jnp.eye(D2.shape[0])
         new_u = PhysicalField(u.domain, jnp.linalg.inv(I - dt * D2) @ u.data, name=u.name)
         new_u.update_boundary_conditions()
@@ -51,11 +51,11 @@ class Heat_Eq(Equation):
         return self.fields["u"]
 
     def plot(self):
-        if self.domain.number_of_dimensions <= 2:
+        if self.get_domain().number_of_dimensions <= 2:
             u_0 = self.get_initial_field("u")
             u_fin = self.get_latest_field("u")
             u_0.plot(u_fin)
-        elif self.domain.number_of_dimensions == 3:
+        elif self.get_domain().number_of_dimensions == 3:
             u_0 = self.get_initial_field("u")
             u_fin = self.get_latest_field("u")
             for i in self.all_dimensions():

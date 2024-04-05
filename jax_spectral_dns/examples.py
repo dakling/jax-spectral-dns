@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
+from matplotlib.axes import Axes
 from functools import partial
 import typing
 import time
@@ -116,9 +117,10 @@ def run_navier_stokes_turbulent_pseudo_2d():
     nse.post_process_fn = post_process
     nse.post_process()
 
-    energy_t = np.array(energy_t)
+    energy_t_arr = np.array(energy_t)
     fig = figure.Figure()
     ax = fig.subplots(2, 1)
+    assert type(ax) is np.ndarray
     try:
         dedalus_data = np.genfromtxt(
             "./energy-dedalus.txt",
@@ -142,7 +144,7 @@ def run_navier_stokes_turbulent_pseudo_2d():
     #     )
     # except FileNotFoundError:
     #     print_verb("No dedalus small dt data to compare results with were found.")
-    ax[0].plot(ts, energy_t, "--", label="jax")
+    ax[0].plot(ts, energy_t_arr, "--", label="jax")
     try:
         ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
     except Exception:
@@ -155,7 +157,7 @@ def run_navier_stokes_turbulent_pseudo_2d():
     #     )
     # except Exception:
     #     print_verb("No dedalus small dt data to compare results with were found.")
-    ax[1].plot(ts, energy_t / energy_t[0], "--")
+    ax[1].plot(ts, energy_t_arr / energy_t_arr[0], "--")
     ax[1].set_xlabel("$t$")
     ax[0].set_ylabel("$E$")
     ax[1].set_ylabel("$E/E_0$")
@@ -267,9 +269,10 @@ def run_navier_stokes_turbulent():
     nse.post_process_fn = post_process
     nse.post_process()
 
-    energy_t = np.array(energy_t)
+    energy_t_arr = np.array(energy_t)
     fig = figure.Figure()
     ax = fig.subplots(2, 1)
+    assert type(ax) is np.ndarray
     try:
         dedalus_data = np.genfromtxt(
             # "./energy-dedalus.txt",
@@ -293,7 +296,7 @@ def run_navier_stokes_turbulent():
         )
     except FileNotFoundError:
         print_verb("No dedalus small dt data to compare results with were found.")
-    ax[0].plot(ts, energy_t, "o", label="jax")
+    ax[0].plot(ts, energy_t_arr, "o", label="jax")
     try:
         ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
     except Exception:
@@ -306,7 +309,7 @@ def run_navier_stokes_turbulent():
         )
     except Exception:
         print_verb("No dedalus small dt data to compare results with were found.")
-    ax[1].plot(ts, energy_t / energy_t[0], "o")
+    ax[1].plot(ts, energy_t_arr / energy_t_arr[0], "o")
     ax[1].set_xlabel("$t$")
     ax[0].set_ylabel("$E$")
     ax[1].set_ylabel("$E/E_0$")
@@ -462,16 +465,19 @@ def run_pseudo_2d():
             if True:
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
                 ax.plot(ts, energy_t_ana)
                 ax.plot(ts, energy_t, ".")
                 fig.savefig("plots/energy_t.png")
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
                 ax.plot(ts, energy_x_t_ana)
                 ax.plot(ts, energy_x_t, ".")
                 fig.savefig("plots/energy_x_t.png")
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
                 ax.plot(ts, energy_y_t_ana)
                 ax.plot(ts, energy_y_t, ".")
                 fig.savefig("plots/energy_y_t.png")
@@ -735,6 +741,7 @@ def run_pseudo_2d_perturbation(
 
     fig = figure.Figure()
     ax = fig.subplots(1, 1)
+    assert type(ax) is Axes
     ax.plot(ts, energy_t, ".")
     ax.plot(ts, energy_t_ana, "-")
     fig.savefig("plots/energy_t.png")
@@ -823,28 +830,10 @@ def run_jimenez_1990(start_time=0):
             vel_moving_frame.set_time_step(i)
             vel_moving_frame.plot_streamlines(2)
             # remove old fields
-            [
-                f.unlink()
-                for f in Path("./fields/").glob(
-                    "velocity_perturbation_0_t_" + str(i - 10)
-                )
-                if f.is_file()
-            ]
-            [
-                f.unlink()
-                for f in Path("./fields/").glob(
-                    "velocity_perturbation_1_t_" + str(i - 10)
-                )
-                if f.is_file()
-            ]
-            [
-                f.unlink()
-                for f in Path("./fields/").glob(
-                    "velocity_perturbation_2_t_" + str(i - 10)
-                )
-                if f.is_file()
-            ]
             for j in range(3):
+                for f in Path("./fields/").glob("velocity_perturbation_"+ str(j) + "_t_" + str(i - 10)):
+                    if f.is_file():
+                        f.unlink()
                 vel_pert[j].save_to_file(
                     "velocity_perturbation_" + str(j) + "_t_" + str(i)
                 )
@@ -971,6 +960,7 @@ def run_transient_growth_nonpert(
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             ts_ = []
             energy_t_ = []
             for j in range(n_steps):
@@ -1126,6 +1116,7 @@ def run_transient_growth(
 
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             ts_ = []
             energy_t_ = []
             for j in range(n_steps):
@@ -1163,11 +1154,12 @@ def run_transient_growth(
     nse.deactivate_jit()
     nse.post_process()
 
-    energy_t = np.array(energy_t)
+    energy_t_arr = np.array(energy_t)
     if plot:
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
-        ax.plot(ts, energy_t / energy_t[0], ".", label="growth (DNS)")
+        assert type(ax) is Axes
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], ".", label="growth (DNS)")
         if abs(Re - 3000) < 1e-3:
             ax.plot(
                 rh_93_data[0],
@@ -1178,7 +1170,7 @@ def run_transient_growth(
         fig.legend()
         fig.savefig("plots/energy_t.png")
 
-    gain = energy_t[-1] / energy_t[0]
+    gain = energy_t_arr[-1] / energy_t_arr[0]
     print_verb("final energy gain:", gain)
     print_verb("expected final energy gain:", e_max)
 
@@ -1195,6 +1187,7 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
 
     fig = figure.Figure()
     ax = fig.subplots(1, 1)
+    assert type(ax) is Axes
     ax.set_xlabel("T")
     ax.set_ylabel("G")
     ax.plot(
@@ -1233,6 +1226,7 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
     # make a nice final figure
     fig_final = figure.Figure()
     ax_final = fig_final.subplots(1, 1)
+    assert type(ax_final) is Axes
     ax_final.set_xlabel("T")
     ax_final.set_ylabel("G")
     ax_final.plot(
@@ -1324,6 +1318,7 @@ def run_optimisation_transient_growth(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -1455,6 +1450,7 @@ def run_optimisation_transient_growth_nonfourier(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -1587,6 +1583,7 @@ def run_optimisation_transient_growth_y_profile(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -1736,6 +1733,7 @@ def run_optimisation_transient_growth_nonlinear(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -1876,6 +1874,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -2018,6 +2017,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -2177,6 +2177,7 @@ def run_optimisation_transient_growth_mean_y_profile(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):
@@ -2532,6 +2533,7 @@ def run_ld_2020(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
         ts = []
         energy_t = []
         for j in range(n_steps):

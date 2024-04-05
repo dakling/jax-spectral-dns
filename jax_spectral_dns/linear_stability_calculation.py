@@ -224,6 +224,7 @@ class LinearStabilityCalculation:
             if recompute_full or type(self.eigenvalues) == NoneType:
                 print_verb("calculating eigenvalues", verbosity_level=2)
                 self.calculate_eigenvalues()
+            assert self.eigenvectors is not None
             u = self.velocity_field(domain, self.eigenvectors[mode], factor)
 
             if save:
@@ -328,7 +329,8 @@ class LinearStabilityCalculation:
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
                 print_verb("Fields not found, performing eigenvalue computation.", verbosity_level=2)
-                self.velocity_field(domain, self.eigenvector[mode], save=False)
+                assert self.eigenvectors is not None
+                self.velocity_field(domain, self.eigenvectors[mode])
         try:
             self.eigenvalues = np.load(
                 "fields/eigenvalues_Re_" + str(self.Re) + "_n_" + str(self.n),
@@ -337,7 +339,11 @@ class LinearStabilityCalculation:
         except FileNotFoundError:
             self.calculate_eigenvalues()
 
+        assert self.eigenvalues is not None
+
         def out(t, dim=None):
+            assert self.velocity_field_ is not None
+            assert self.eigenvalues is not None
             if type(dim) == NoneType:
                 energy = 0
                 for d in domain.all_dimensions():
@@ -372,6 +378,10 @@ class LinearStabilityCalculation:
                     )
             except FileNotFoundError:
                 self.calculate_eigenvalues()
+
+        assert self.eigenvalues is not None
+        assert self.eigenvectors is not None
+
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
 
@@ -453,6 +463,8 @@ class LinearStabilityCalculation:
 
         if recompute or type(self.eigenvectors) == NoneType:
             self.calculate_eigenvalues()
+
+        assert self.eigenvectors is not None
 
         factors = coeffs
 

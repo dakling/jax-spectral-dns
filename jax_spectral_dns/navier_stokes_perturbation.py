@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import numpy as np
 from functools import partial
 import matplotlib.figure as figure
+from matplotlib.axes import Axes
 
 # from importlib import reload
 import sys
@@ -30,7 +31,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     )
     vort_new = physical_domain.curl(vel_new)
 
-    vel_new_sq = 0
+    vel_new_sq = jnp.zeros_like(vel_new[0, ...])
     for j in physical_domain.all_dimensions():
         vel_new_sq += vel_new[j,...] * vel_new[j,...]
     vel_new_sq_nabla = []
@@ -48,7 +49,7 @@ def update_nonlinear_terms_high_performance_perturbation(
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
-    vel_new_sq_a = 0
+    vel_new_sq_a = jnp.zeros_like(vel_new[0, ...])
     for j in physical_domain.all_dimensions():
         vel_new_sq_a += vel_new[j] * vel_base[j]
     vel_new_sq_nabla_a = []
@@ -155,7 +156,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         #     # self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,), policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
         #     self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,))
 
-    def get_time_step(self):
+    def get_time_step(self) -> float:
         # return self.max_dt
         if self.time_step % self.get_dt_update_frequency() == 0:
             dX = self.get_physical_domain().grid[0][1:] - self.get_physical_domain().grid[0][:-1]
@@ -170,7 +171,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             u_cfl = (abs(DX) / abs(U)).min().real
             v_cfl = (abs(DY) / abs(V)).min().real
             w_cfl = (abs(DZ) / abs(W)).min().real
-            self.dt = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
+            self.dt: float = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
             assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
         return self.dt
 
@@ -284,6 +285,7 @@ def solve_navier_stokes_perturbation(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) == Axes
         ts = []
         energy_t = []
         for j in range(n_steps):

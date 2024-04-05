@@ -98,6 +98,7 @@ class Optimiser:
             )
             input = VectorField.FromData(FourierField, domain, U_hat_data)
         else:
+            assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
 
         def set_time_step_rec(inp):
@@ -134,6 +135,7 @@ class Optimiser:
                 v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
                 self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
         else:
+            assert self.run_input_to_parameters_fn is not None
             self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
 
@@ -209,7 +211,7 @@ class Optimiser:
             print_verb("switching to jaxopt solver")
             self.solver = self.get_jaxopt_solver()
             self.solver_switched = True
-            self.state = solver.init_state(self.parameters)
+            self.state = self.solver.init_state(self.parameters)
 
     def perform_iteration(self):
         start_time = time.time()
@@ -292,6 +294,7 @@ class OptimiserNonFourier(Optimiser):
             )
             input = VectorField.FromData(FourierField, domain, U_hat_data).no_hat()
         else:
+            assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
 
         def set_time_step_rec(inp):
@@ -317,6 +320,7 @@ class OptimiserNonFourier(Optimiser):
                 v2_0_00_hat = input_hat[2].data[0, :, 0]
                 self.parameters = tuple([vort, v0_1, v0_0_00_hat, v2_0_00_hat])
         else:
+            assert self.run_input_to_parameters_fn is not None
             self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
 

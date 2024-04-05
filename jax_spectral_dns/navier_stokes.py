@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 from functools import partial, reduce
 import matplotlib.figure as figure
+from matplotlib.axes import Axes
 
 # from importlib import reload
 import sys
@@ -29,7 +30,7 @@ def update_nonlinear_terms_high_performance(
     )
     vort_new = physical_domain.curl(vel_new)
 
-    vel_new_sq = 0
+    vel_new_sq = jnp.zeros_like(vel_new[0])
     for j in physical_domain.all_dimensions():
         vel_new_sq += vel_new[j] * vel_new[j]
     vel_new_sq_nabla = []
@@ -780,6 +781,10 @@ class NavierStokesVelVort(Equation):
             if type(conv_ns_hat_old) == NoneType:
                 conv_ns_hat_old = conv_ns_hat
 
+            assert h_v_hat_old is not None
+            assert h_g_hat_old is not None
+            assert conv_ns_hat_old is not None
+
             # solve equations
             v_1_hat = vel_hat_data[1, ...]
             v_1_lap_hat = jnp.sum(
@@ -1397,6 +1402,7 @@ def solve_navier_stokes_laminar(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
+        assert type(ax) == Axes
         ts = []
         energy_t = []
         for j in range(n_steps):

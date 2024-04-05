@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from functools import partial
-from typing import Callable, Optional
+from typing import Any, Callable, Optional, Sequence
 import time
 
 import jax
@@ -16,19 +16,19 @@ from jax_spectral_dns.fixed_parameters import FixedParameters
 
 NoneType = type(None)
 
-def print_verb(*str, verbosity_level:int=1, debug:bool=False):
+def print_verb(*in_str: Any, verbosity_level:int=1, debug:bool=False):
     pref = "[" + time.ctime() + "]  " + '  ' * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
             print(pref, end=' ')
-            for st in str:
+            for st in in_str:
                 if type(st) is str:
                     print(st, end='')
                 else:
                     jax.debug.callback(lambda x: print(x, end=''), st)
             print()
         else:
-            print(pref, *str)
+            print(pref, *in_str)
 
 
 class Equation:
@@ -174,10 +174,12 @@ class Equation:
 
     def before_time_step(self):
         if type(self.before_time_step_fn) != NoneType:
+            assert self.before_time_step_fn is not None
             self.before_time_step_fn(self)
 
     def after_time_step(self):
         if type(self.after_time_step_fn) != NoneType:
+            assert self.after_time_step_fn is not None
             self.after_time_step_fn(self)
 
     def post_process(self):
