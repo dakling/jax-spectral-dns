@@ -4,6 +4,7 @@ from abc import ABC
 import jax
 import jax.numpy as jnp
 import numpy as np
+import numpy.typing as npt
 import scipy as sc # type: ignore
 from jax.tree_util import register_pytree_node_class
 from matplotlib import legend
@@ -19,8 +20,10 @@ from typing_extensions import Self
 
 NoneType = type(None)
 
+np_float_array = npt.NDArray[np.float64]
+jnp_float_array = jnp.ndarray
 
-def get_cheb_grid(N, scale_factor=1.0):
+def get_cheb_grid(N: int, scale_factor: float=1.0) -> np_float_array:
     """Assemble a Chebyshev grid with N points on the interval [-1, 1],
     unless scaled to a different interval using scale_factor (currently not
     implemented)."""
@@ -33,7 +36,7 @@ def get_cheb_grid(N, scale_factor=1.0):
     )  # gauss-lobatto points with endpoints
 
 
-def get_fourier_grid(N, scale_factor=2 * np.pi, aliasing=1.0):
+def get_fourier_grid(N: int, scale_factor: float=2.0 * np.pi, aliasing:float =1.0) -> np_float_array:
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
     n = int(N * aliasing)
@@ -42,7 +45,7 @@ def get_fourier_grid(N, scale_factor=2 * np.pi, aliasing=1.0):
     return np.linspace(start=0.0, stop=scale_factor, num=int(n + 1))[:-1]
 
 
-def assemble_cheb_diff_mat(xs, order=1):
+def assemble_cheb_diff_mat(xs: np_float_array, order: int=1) -> np_float_array:
     """Assemble a 1D Chebyshev differentiation matrix in direction i with
     differentiation order order."""
     N = len(xs)
@@ -53,7 +56,7 @@ def assemble_cheb_diff_mat(xs, order=1):
     return np.linalg.matrix_power(D_ - np.diag(sum(np.transpose(D_))), order)
 
 
-def assemble_fourier_diff_mat(N, order=1, aliasing=1.0):
+def assemble_fourier_diff_mat(N: int, order: int=1, aliasing: float=1.0)  -> np_float_array:
     """Assemble a 1D Fourier differentiation matrix in direction i with
     differentiation order order."""
     n = int(N * aliasing)
@@ -78,9 +81,9 @@ class Domain(ABC):
     periodic_directions: Tuple[bool, ...]
     scale_factors: Tuple[float, ...]
     shape: Tuple[int, ...]
-    grid: Tuple[np.ndarray, ...]
-    diff_mats: Tuple[np.ndarray, ...]
-    mgrid: Tuple[np.ndarray, ...]
+    grid: Tuple[np_float_array, ...]
+    diff_mats: Tuple[np_float_array, ...]
+    mgrid: Tuple[np_float_array, ...]
     aliasing : float = 3 / 2  # prevent aliasing using the 3/2-rule
 
     @classmethod
@@ -159,7 +162,7 @@ class Domain(ABC):
         ]
 
     # @partial(jax.jit, static_argnums=(0,2,3))
-    def diff(self, field, direction, order=1, _=None):
+    def diff(self, field: jnp_float_array, direction: int, order: int=1, _: Any=None) -> jnp_float_array:
         """Calculate and return the derivative of given order for field in
         direction."""
         inds = "ijk"
@@ -184,19 +187,19 @@ class Domain(ABC):
         field slice in direction."""
         return np.linalg.matrix_power(self.diff_mats[direction], order) @ field
 
-    def enforce_homogeneous_dirichlet(self, mat):
+    def enforce_homogeneous_dirichlet(self, mat: np_float_array) -> np_float_array:
         """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         homogeneous dirichlet boundary conditions at both ends by setting the
         off-diagonal elements of its first and last rows and columns to zero and
         the diagonal elements to unity."""
 
-        def set_first_mat_row_and_col_to_unit(matr):
+        def set_first_mat_row_and_col_to_unit(matr: np_float_array) -> np_float_array:
             N = matr.shape[0]
             return np.block(
                 [[1, np.zeros((1, N - 1))], [np.zeros((N - 1, 1)), matr[1:, 1:]]]
             )
 
-        def set_last_mat_row_and_col_to_unit(matr):
+        def set_last_mat_row_and_col_to_unit(matr: np_float_array) -> np_float_array:
             N = matr.shape[0]
             return np.block(
                 [[matr[:-1, :-1], np.zeros((N - 1, 1))], [np.zeros((1, N - 1)), 1]]
@@ -204,17 +207,17 @@ class Domain(ABC):
 
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
 
-    def enforce_inhomogeneous_dirichlet(self, mat, rhs, bc_left, bc_right):
+    def enforce_inhomogeneous_dirichlet(self, mat: np_float_array, rhs, bc_left, bc_right) -> tuple[np_float_array, np_float_array]:
         # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         # inhomogeneous dirichlet boundary conditions at both ends by setting the
         # off-diagonal elements of its first and last rows to zero and
         # the diagonal elements to unity, and the first and last element of the
         # rhs to the desired values bc_left and bc_right."""
-        def set_first_mat_row_to_unit(matr):
+        def set_first_mat_row_to_unit(matr: np_float_array) -> np_float_array:
             N = matr.shape[0]
             return np.block([[1, np.zeros((1, N - 1))], [matr[1:, :]]])
 
-        def set_last_mat_row_to_unit(matr):
+        def set_last_mat_row_to_unit(matr: np_float_array) -> np_float_array:
             N = matr.shape[0]
             return np.block([[matr[:-1, :]], [np.zeros((1, N - 1)), 1]])
 
@@ -223,7 +226,7 @@ class Domain(ABC):
 
         return (out_mat, out_rhs)
 
-    def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> np_float_array:
         """Assemble the Chebyshev differentiation matrix of second order with
         homogeneous Dirichlet boundary conditions enforced by setting the first
         and last rows and columns to one (diagonal elements) and zero
@@ -233,33 +236,40 @@ class Domain(ABC):
             np.linalg.matrix_power(self.diff_mats[direction], 2)
         )
 
-    def integrate(self, field, direction, order=1, bc_left=None, bc_right=None):
+    def integrate(self, field: jnp_float_array, direction: int, order: int=1, bc_left: Optional[float]=None, bc_right: Optional[float]=None) -> Union[float, jnp_float_array]:
         """Calculate the integral or order for field in direction subject to the
         boundary conditions bc_left and/or bc_right. Since this is difficult to
         generalize, only cases that are needed are implemented."""
-        if (type(bc_left) != NoneType and abs(bc_left) > 1e-20) or (
-            type(bc_right) != NoneType and abs(bc_right) > 1e-20
-        ):
+
+        def safe_is_nonzero(input: Optional[float]) -> bool:
+            if type(input) == NoneType:
+                return False
+            else:
+                assert input is not None
+                return abs(input) > 1e-20
+
+        if (safe_is_nonzero(bc_left)) or (safe_is_nonzero(bc_right)):
             raise Exception("Only homogeneous dirichlet conditions currently supported")
+
         assert order <= 2, "Integration only supported up to second order"
 
-        def set_first_mat_row_and_col_to_unit(matr):
+        def set_first_mat_row_and_col_to_unit(matr: jnp_float_array) -> jnp_float_array:
             if bc_right == None:
                 return matr
             N = matr.shape[0]
             return jnp.block(
-                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]
+                jnp.array([[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]])
             )
 
-        def set_last_mat_row_and_col_to_unit(matr):
+        def set_last_mat_row_and_col_to_unit(matr: jnp_float_array) -> jnp_float_array:
             if bc_left == None:
                 return matr
             N = matr.shape[0]
             return jnp.block(
-                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
+                jnp.array([[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]])
             )
 
-        def set_first_of_field(field, first):
+        def set_first_of_field(field: jnp_float_array, new_first: Union[jnp_float_array, float]) -> jnp_float_array:
             N = field.shape[direction]
             inds = jnp.arange(1, N)
             inner = field.take(indices=inds, axis=direction)
@@ -267,11 +277,11 @@ class Domain(ABC):
                 inner,
                 [(0, 0) if d != direction else (1, 0) for d in self.all_dimensions()],
                 mode="constant",
-                constant_values=first,
+                constant_values=new_first,
             )
             return out
 
-        def set_last_of_field(field, first):
+        def set_last_of_field(field: jnp_float_array, new_last: Union[jnp_float_array, float]) -> jnp_float_array:
             N = field.shape[direction]
             inds = jnp.arange(0, N - 1)
             inner = field.take(indices=inds, axis=direction)
@@ -279,11 +289,11 @@ class Domain(ABC):
                 inner,
                 [(0, 0) if d != direction else (0, 1) for d in self.all_dimensions()],
                 mode="constant",
-                constant_values=first,
+                constant_values=new_last,
             )
             return out
 
-        def set_first_and_last_of_field(field, first, last):
+        def set_first_and_last_of_field(field: jnp_float_array, first: Union[jnp_float_array, float], last: Union[jnp_float_array, float]) -> jnp_float_array:
             N = field.shape[direction]
             inds = jnp.arange(1, N - 1)
             inner = field.take(indices=inds, axis=direction)
@@ -298,11 +308,13 @@ class Domain(ABC):
         if not self.is_periodic(direction):
             if order == 1:
                 if type(bc_right) != NoneType and type(bc_left) == NoneType:
+                    assert bc_right is not None
                     mat = set_first_mat_row_and_col_to_unit(
                         jnp.linalg.matrix_power(self.diff_mats[direction], order)
                     )
                     b = set_first_of_field(field, bc_right)
                 elif type(bc_left) != NoneType and type(bc_right) == NoneType:
+                    assert bc_left is not None
                     mat = set_last_mat_row_and_col_to_unit(
                         jnp.linalg.matrix_power(self.diff_mats[direction], order)
                     )

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+import numpy.typing as npt
 import dataclasses
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
@@ -14,13 +15,13 @@ class FixedParameters():
 @dataclasses.dataclass(frozen=True)
 class NavierStokesVelVortFixedParameters():
     physical_domain: PhysicalDomain
-    poisson_mat: np.ndarray
-    rk_mats_rhs: np.ndarray
-    rk_mats_lhs_inv: np.ndarray
-    rk_rhs_inhom: np.ndarray
-    rk_mats_lhs_inv_inhom: np.ndarray
-    rk_mats_rhs_ns: np.ndarray
-    rk_mats_lhs_inv_ns: np.ndarray
+    poisson_mat: npt.NDArray[np.float64]
+    rk_mats_rhs: npt.NDArray[np.float64]
+    rk_mats_lhs_inv: npt.NDArray[np.float64]
+    rk_rhs_inhom: npt.NDArray[np.float64]
+    rk_mats_lhs_inv_inhom: npt.NDArray[np.float64]
+    rk_mats_rhs_ns: npt.NDArray[np.float64]
+    rk_mats_lhs_inv_ns: npt.NDArray[np.float64]
     Re_tau: float
     max_cfl: float = 0.3
     dt_update_frequency: int = (

@@ -19,6 +19,7 @@ from typing import Iterable, Optional, Sequence, Union
 from typing_extensions import Self
 
 import numpy as np
+import numpy.typing as npt
 
 from pathlib import Path
 import os
@@ -77,7 +78,7 @@ class Field(ABC):
 
     def save_to_file(self, filename: str) -> None:
         """Save field to file filename."""
-        field_array: np.ndarray = np.array(self.data.tolist())
+        field_array: npt.NDArray[np.float64] = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
 
     def get_data(self) -> jnp.ndarray:

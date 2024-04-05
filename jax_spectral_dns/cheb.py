@@ -8,7 +8,7 @@ from numpy.polynomial.chebyshev import Chebyshev
 def cheb(order: int, deriv: int, y: Optional[float]=None) -> Union[float, Chebyshev]:
     unit_array = np.eye(order + 1)[order].flatten()
     ch = Chebyshev(unit_array)
-    ch = ch.deriv(deriv)
+    ch = ch.deriv(deriv) #type: ignore
     if y is None:
         return ch
     else:
