@@ -15,7 +15,7 @@ from matplotlib import colors
 from scipy.interpolate import RegularGridInterpolator # type: ignore
 import functools
 import dataclasses
-from typing import Iterable, Optional, Sequence, Union
+from typing import Callable, Iterable, Optional, Sequence, Union
 from typing_extensions import Self
 
 import numpy as np
@@ -25,6 +25,10 @@ from pathlib import Path
 import os
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
+
+np_float_array = npt.NDArray[np.float64]
+np_complex_array = npt.NDArray[np.complex64]
+jnp_float_array = jnp.ndarray
 
 NoneType = type(None)
 
@@ -62,9 +66,21 @@ class Field(ABC):
     def get_physical_domain(self) -> PhysicalDomain:
         ...
 
+    @abstractmethod
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jnp_float_array]]:
+        """Divide field by the absolute value of its maximum, unless it is
+        very small (this prevents divide-by-zero issues)."""
+        ...
+
+    @abstractmethod
+    def update_boundary_conditions(self) -> None:
+        """Divide field by the absolute value of its maximum, unless it is
+        very small (this prevents divide-by-zero issues)."""
+        ...
+
     @classmethod
     def initialize(cls, cleanup: bool=True) -> None:
-        jax.config.update("jax_enable_x64", True)
+        jax.config.update("jax_enable_x64", True) #type: ignore[no-untyped-call]
         newpaths = [Field.field_dir, Field.plotting_dir]
         for newpath in newpaths:
             if not os.path.exists(newpath):
@@ -78,7 +94,7 @@ class Field(ABC):
 
     def save_to_file(self, filename: str) -> None:
         """Save field to file filename."""
-        field_array: npt.NDArray[np.float64] = np.array(self.data.tolist())
+        field_array: np_float_array = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
 
     def get_data(self) -> jnp.ndarray:
@@ -126,13 +142,13 @@ class Field(ABC):
     def __getitem__(self, index):
         return self.data[index]
 
-    def max(self):
+    def max(self) -> jnp_float_array:
         return jnp.max(self.data.flatten())
 
-    def min(self):
+    def min(self) -> jnp_float_array:
         return jnp.min(self.data.flatten())
 
-    def absmax(self):
+    def absmax(self) -> jnp_float_array:
         max = jnp.max(self.data.flatten())
         min = jnp.min(self.data.flatten())
         return jnp.max(jnp.array([max, -min]))
@@ -146,14 +162,14 @@ class Field(ABC):
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.data) / self.number_of_dofs()
 
-    def energy(self):
+    def energy(self) -> float:
         raise NotImplementedError()
 
-    def normalize_by_energy(self):
+    def normalize_by_energy(self) -> Self:
         en = self.energy()
         self.data = jax.lax.cond(en > 1e-20,
                                  lambda: self.data / en,
-                                 lambda: self.data)
+                                 lambda: self.data) # type: ignore[no-untyped-call]
         return self
 
     def number_of_dimensions(self) -> int:
@@ -187,7 +203,7 @@ class Field(ABC):
             ]
         )
 
-    def get_cheb_mat_2_homogeneous_dirichlet(self, direction):
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> np_float_array:
         return self.get_physical_domain().get_cheb_mat_2_homogeneous_dirichlet(direction)
 
     @abstractmethod
@@ -214,15 +230,15 @@ class Field(ABC):
 
 
 class VectorField:
-    def __init__(self, elements, name=None):
+    def __init__(self, elements: Sequence[Field], name: Optional[str]=None):
         self.elements = elements
         self.name = name
         self.domain = elements[0].get_domain()
 
     @classmethod
-    def Zeros(cls, field_cls, domain, name="field"):
+    def Zeros(cls, field_cls, domain: Domain, name:str ="field") -> Self:
         dim = domain.number_of_dimensions
-        return cls([field_cls.Zeros(domain) for _ in range(dim)])
+        return cls([field_cls.Zeros(domain) for _ in range(dim)], name)
 
     @classmethod
     def FromData(cls, field_cls, domain, data, name="field"):
@@ -243,9 +259,6 @@ class VectorField:
 
     def __iter__(self):
         return iter(self.elements)
-
-    def append(self, element):
-        return self.elements.append(element)
 
     def __len__(self):
         return len(self.elements)
@@ -303,20 +316,20 @@ class VectorField:
             out += abs(f)
         return out
 
-    def energy(self):
+    def energy(self) -> float:
         en = 0
         for f in self:
             en += f.energy()
         return en
 
-    def normalize_by_energy(self):
+    def normalize_by_energy(self) -> Self:
         """Divide each field by the energy of the Vector field."""
         en = self.energy()
         for f in self:
             f.data = f.data / jnp.sqrt(en)
         return self
 
-    def normalize_by_max_value(self, return_max=False):
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, list[jnp_float_array]]]:
         """Divide each field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
         max = []
@@ -350,7 +363,10 @@ class VectorField:
         ... # dedalus case setup goes here...
         u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
         u.data = np.stack([u_array, v_array, w_array])"""
-        self.set_name(self.name)
+        if self.name is None:
+            self.set_name("field")
+        else:
+            self.set_name(self.name)
         for f in self:
             field_array = np.array(f.data.tolist())
             field_array.dump(f.field_dir + filename)
@@ -359,27 +375,29 @@ class VectorField:
         return jnp.array([f.data for f in self])
         # return [f.data for f in self]
 
-    def get_time_step(self):
+    def get_time_step(self) -> int:
         time_steps = [f.time_step for f in self]
-        return max(time_steps)
+        out = max(time_steps)
+        assert type(out) is int
+        return out
 
     def set_time_step(self, time_step):
         self.time_step = time_step
         for j in range(len(self)):
             self[j].time_step = time_step
 
-    def get_name(self):
-        if type(self.name) != NoneType:
+    def get_name(self) -> str:
+        if self.name is not None:
             return self.name
         if len(self) == 1:
+            assert type(self[0].name) is str
             return self[0].name
         else:
+            assert type(self[0].name) is str
             name = self[0].name
-            # for i in range(len(self)):
-            #     name = set(name).intersection(self[i].name)
             return name[:-2]
 
-    def set_name(self, name):
+    def set_name(self, name: str) -> None:
         self.name = name
         for j in range(len(self)):
             self[j].name = name + "_" + "xyz"[j]
@@ -388,19 +406,25 @@ class VectorField:
         for field in self:
             field.update_boundary_conditions()
 
-    def all_dimensions(self):
-        return self[0].get_domain().all_dimensions()
+    def all_dimensions(self) -> Sequence[int]:
+        out = self[0].get_domain().all_dimensions()
+        assert type(out) is Sequence[int]
+        return out
 
-    def all_periodic_dimensions(self):
-        return self[0].get_domain().all_periodic_dimensions()
+    def all_periodic_dimensions(self) -> list[int]:
+        out = self[0].get_domain().all_periodic_dimensions()
+        assert type(out) is list[int]
+        return out
 
-    def all_nonperiodic_dimensions(self):
-        return self[0].get_domain().all_nonperiodic_dimensions()
+    def all_nonperiodic_dimensions(self) -> list[int]:
+        out = self[0].get_domain().all_nonperiodic_dimensions()
+        assert type(out) is list[int]
+        return out
 
-    def hat(self):
+    def hat(self) -> VectorField:
         return VectorField([f.hat() for f in self])
 
-    def no_hat(self):
+    def no_hat(self) -> VectorField:
         return VectorField([f.no_hat() for f in self])
 
     def plot(self, *other_fields):
@@ -408,11 +432,12 @@ class VectorField:
             other_fields_i = [item[i] for item in other_fields]
             self[i].plot(*other_fields_i)
 
-    def plot_3d(self, direction=None):
+    def plot_3d(self, direction: Optional[int]=None) -> None:
         for f in self:
+            assert type(f) is PhysicalField, "plot_3d only defined for PhysicalField."
             f.plot_3d(direction)
 
-    def cross_product(self, other):
+    def cross_product(self, other: VectorField) -> VectorField:
         out_0 = self[1] * other[2] - self[2] * other[1]
         out_1 = self[2] * other[0] - self[0] * other[2]
         out_2 = self[0] * other[1] - self[1] * other[0]
@@ -424,7 +449,7 @@ class VectorField:
 
         return VectorField(out)
 
-    def curl(self):
+    def curl(self) -> VectorField:
         assert len(self) == 3, "rotation only defined in 3 dimensions"
         for f in self:
             assert (
@@ -450,9 +475,9 @@ class VectorField:
 
     def div(self):
         out = self[0].diff(0)
-        try:
+        if self.name is not None:
             out.name = "div_" + self.name + "_" + str(0)
-        except TypeError:
+        else:
             out.name = "div_field"
         for dim in self.all_dimensions()[1:]:
             out += self[dim].diff(dim)
@@ -579,7 +604,7 @@ class VectorField:
                 ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
             except TypeError:  # compatibilty with older matplotlib versions
                 ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
-            def save():
+            def save() -> None:
                 fig.savefig(
                     self[0].plotting_dir
                     + "plot_streamlines_"
@@ -621,7 +646,7 @@ class VectorField:
             Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
             ax.quiver(xi, yi, Ui, Vi)
-            def save():
+            def save() -> None:
                 fig.savefig(
                     self[0].plotting_dir
                     + "plot_vectors_"
@@ -752,7 +777,7 @@ class PhysicalField(Field):
             return ret
 
     @classmethod
-    def FromFunc(cls, domain, func=None, name="field"):
+    def FromFunc(cls, domain: PhysicalDomain, func: Optional[Callable[[Sequence[float]], float]]=None, name: str="field") -> Self:
         """Construct from function func depending on the independent variables described by domain."""
         if not func:
             func = lambda x: 0.0 * math.prod(x)
@@ -817,7 +842,7 @@ class PhysicalField(Field):
         out.data = jnp.array(field_array.tolist())
         return out
 
-    def normalize_by_max_value(self, return_max=False):
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jnp_float_array]]:
         """Divide field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
         max = abs(self.absmax())
@@ -827,7 +852,7 @@ class PhysicalField(Field):
             lambda: self.data / max,
             lambda: self.data
 
-        )
+        ) # type: ignore[no-untyped-call]
         if return_max:
             return self, max
         else:
@@ -844,11 +869,18 @@ class PhysicalField(Field):
         analytical_solution = PhysicalField.FromFunc(self.physical_domain, fn)
         return jnp.linalg.norm((self - analytical_solution).data, None)
 
-    def volume_integral(self):
+    def volume_integral(self) -> float:
         int = PhysicalField(self.physical_domain, self.data)
-        for i in reversed(self.all_dimensions()):
-            int = int.definite_integral(i)
-        return int
+        dims = list(reversed(self.all_dimensions()))
+        for i in dims[:-1]:
+            assert type(int) is PhysicalField
+            out_ = int.definite_integral(i)
+            assert type(out_) is PhysicalField
+            int = out_
+        assert type(int) is PhysicalField
+        out = int.definite_integral(dims[-1])
+        assert type(out) is float
+        return out
 
     def energy(self):
         energy = 0.5 * self * self
@@ -875,7 +907,7 @@ class PhysicalField(Field):
                 constant_values=0.0,
             )
 
-    def eval(self, X):
+    def eval(self, X: Sequence[float]) -> jnp_float_array:
         """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
         grd = self.physical_domain.grid
         interpolant = []
@@ -921,7 +953,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                def save():
+                def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_cl_"
@@ -964,7 +996,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                def save():
+                def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_cl_"
@@ -1016,7 +1048,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                def save():
+                def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_cl_"
@@ -1063,7 +1095,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
-                def save():
+                def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_"
@@ -1117,7 +1149,7 @@ class PhysicalField(Field):
                             other_field.data,
                         )
                     fig.legend()
-                    def save():
+                    def save() -> None:
                         fig.savefig(
                             self.plotting_dir
                             + "plot_"
@@ -1166,7 +1198,7 @@ class PhysicalField(Field):
                             label=other_field.name,
                         )
                 fig.legend()
-                def save():
+                def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_"
@@ -1190,9 +1222,9 @@ class PhysicalField(Field):
             else:
                 raise Exception("Not implemented yet")
 
-    def plot_3d(self, direction=None):
+    def plot_3d(self, direction: Optional[int]=None) -> None:
         if not self.activate_jit_:
-            if type(direction) != NoneType:
+            if direction is not None:
                 self.plot_3d_single(direction)
             else:
                 assert (
@@ -1248,7 +1280,7 @@ class PhysicalField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 fig.colorbar(ims[0], ax=ax, label=self.name)
-                def save():
+                def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_3d_"
@@ -1270,7 +1302,7 @@ class PhysicalField(Field):
                     Field.initialize(False)
                     save()
 
-    def plot_3d_single(self, dim):
+    def plot_3d_single(self, dim: int) -> None:
         if not self.activate_jit_:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -1302,7 +1334,7 @@ class PhysicalField(Field):
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
-            def save():
+            def save() -> None:
                 fig.savefig(
                     self.plotting_dir
                     + "plot_3d_"
@@ -1359,7 +1391,7 @@ class PhysicalField(Field):
             )
             CS = ax.contour(X, Y, f, isolines)
             ax.clabel(CS, inline=True, fontsize=10)
-            def save():
+            def save() -> None:
                 fig.savefig(
                     self.plotting_dir
                     + "plot_iso_"
@@ -1398,25 +1430,29 @@ class PhysicalField(Field):
             self.name + "_" + name_suffix,
         )
 
-    def integrate(self, direction, order=1, bc_left=None, bc_right=None):
+    def integrate(self, direction: int, order: int=1, bc_left: Optional[float]=None, bc_right: Optional[float]=None) -> PhysicalField:
         out_bc = self.physical_domain.integrate(
             self.data, direction, order, bc_left, bc_right
         )
+        assert type(out_bc) is jnp_float_array
         return PhysicalField(self.physical_domain, out_bc, name=self.name + "_int")
 
     def definite_integral(
-        self, direction
-    ):  # TODO make this jittable by removing .tolist()-calls
-        def reduce_add_along_axis(arr, axis):
+        self, direction: int
+    ) -> Union[float, jnp_float_array, PhysicalField]:
+        def reduce_add_along_axis(arr: jnp_float_array, axis: int) -> jnp_float_array:
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
             out_arr = functools.reduce(lambda a, b: a + b, arr)
+            assert type(out_arr) is jnp_float_array
             return out_arr
 
         if not self.is_periodic(direction):
             int = self.integrate(direction, 1, bc_right=0.0)
             if self.number_of_dimensions() == 1:
-                return int[0] - int[-1]
+                out = int[0] - int[-1]
+                assert type(out) is float
+                return out
             else:
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
@@ -1594,14 +1630,14 @@ class FourierField(Field):
         return FourierField(self.physical_domain, out.data, name=out.name)
 
     @classmethod
-    def FromField(cls, field):
+    def FromField(cls, field: PhysicalField) -> FourierField:
         out = cls(field.physical_domain, field.data, field.name + "_hat")
         out.physical_domain = field.physical_domain
         out.fourier_domain = field.physical_domain.hat()
         out.data = out.physical_domain.field_hat(field.data)
         return out
 
-    def normalize_by_max_value(self):
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jnp_float_array]]:
         raise Exception("This is not supported for Fourier Fields. Transform to PhysicalField, normalize, and transform back to FourierField instead.")
 
 
@@ -1634,10 +1670,12 @@ class FourierField(Field):
                 constant_values=out_0,
             )
         else:
-            out_field = (
+            out_field_ = (
                 self.physical_domain
                 .integrate(self.data, direction, order, bc_right=bc_right, bc_left=bc_left)
             )
+            assert type(out_field_) is jnp_float_array
+            out_field = out_field_
 
         return FourierField(
             self.physical_domain, out_field, name=self.name + "_int_" + str(order)
@@ -1654,7 +1692,12 @@ class FourierField(Field):
     def definite_integral(self, direction):
         raise NotImplementedError()
 
-    def assemble_poisson_matrix(self):
+    def update_boundary_conditions(self) -> None:
+        """Divide field by the absolute value of its maximum, unless it is
+        very small (this prevents divide-by-zero issues)."""
+        raise NotImplementedError()
+
+    def assemble_poisson_matrix(self) -> np_complex_array:
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
@@ -1665,24 +1708,24 @@ class FourierField(Field):
         )
         n = y_mat.shape[0]
         bc_padding = 1
-        eye_bc = jnp.block(
+        eye_bc = np.block(
             [
-                [jnp.zeros((bc_padding, n))],
+                [np.zeros((bc_padding, n))],
                 [
-                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
-                    jnp.eye(n - 2 * bc_padding),
-                    jnp.zeros((n - 2 * bc_padding, bc_padding)),
+                    np.zeros((n - 2 * bc_padding, bc_padding)),
+                    np.eye(n - 2 * bc_padding),
+                    np.zeros((n - 2 * bc_padding, bc_padding)),
                 ],
-                [jnp.zeros((bc_padding, n))],
+                [np.zeros((bc_padding, n))],
             ]
         )
         k1 = self.fourier_domain.grid[self.all_periodic_dimensions()[0]]
         k2 = self.fourier_domain.grid[self.all_periodic_dimensions()[1]]
         k1sq = k1**2
         k2sq = k2**2
-        mat = jnp.array(
+        mat = np.array(
             [
-                [jnp.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
+                [np.linalg.inv((-(k1sq_ + k2sq_)) * eye_bc + y_mat) for k2sq_ in k2sq]
                 for k1sq_ in k1sq
             ]
         )
@@ -1741,7 +1784,7 @@ class FourierField(Field):
 
 class FourierFieldSlice(FourierField):
     def __init__(
-        self, domain, non_periodic_direction, data, name="field", *ks, **params
+        self, domain, non_periodic_direction, data, name: str="field_hat_slice", *ks, **params
     ):
         # self.physical_domain = domain
         self.fourier_domain = domain
@@ -1754,17 +1797,17 @@ class FourierFieldSlice(FourierField):
         self.ks_int = jnp.insert(self.ks_int, non_periodic_direction, -1)
         self.name = name
 
-    def all_dimensions(self):
+    def all_dimensions(self) -> Sequence[int]:
         return range(len(self.ks))
 
-    def all_periodic_dimensions(self):
+    def all_periodic_dimensions(self) -> list[int]:
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
             if d not in self.all_nonperiodic_dimensions()
         ]
 
-    def all_nonperiodic_dimensions(self):
+    def all_nonperiodic_dimensions(self) -> list[int]:
         return [self.non_periodic_direction]
 
     def diff(self, direction, order=1):
@@ -1795,16 +1838,17 @@ class FourierFieldSlice(FourierField):
             ks_int=self.ks_int,
         )
 
-    def assemble_poisson_matrix(self):
+    def assemble_poisson_matrix(self) -> np_complex_array:
         y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(0)
         n = y_mat.shape[0]
         factor = np.zeros_like(self.ks[0])
         for direction in self.all_periodic_dimensions():
             factor += (1j * self.ks[direction]) ** 2
 
-        I = jnp.eye(n)
+        I = np.eye(n)
         mat = factor * I + y_mat
-        mat_inv = jnp.linalg.inv(mat)
+        mat_inv = np.linalg.inv(mat)
+        assert type(mat_inv) is np_complex_array
         return mat_inv
 
     def solve_poisson(self, mat=None):

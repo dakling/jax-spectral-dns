@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 from abc import ABC
 import jax
 import jax.numpy as jnp
@@ -15,7 +17,6 @@ from functools import partial
 import dataclasses
 from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any
 from typing_extensions import Self
-
 
 
 NoneType = type(None)
@@ -258,7 +259,7 @@ class Domain(ABC):
                 return matr
             N = matr.shape[0]
             return jnp.block(
-                jnp.array([[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]])
+                [jnp.array([1, jnp.zeros((1, N - 1))]), jnp.array([jnp.zeros((N - 1, 1)), matr[1:, 1:]])]
             )
 
         def set_last_mat_row_and_col_to_unit(matr: jnp_float_array) -> jnp_float_array:
@@ -266,7 +267,7 @@ class Domain(ABC):
                 return matr
             N = matr.shape[0]
             return jnp.block(
-                jnp.array([[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]])
+                [jnp.array([matr[:-1, :-1], jnp.zeros((N - 1, 1))]), jnp.array([jnp.zeros((1, N - 1)), 1])]
             )
 
         def set_first_of_field(field: jnp_float_array, new_first: Union[jnp_float_array, float]) -> jnp_float_array:
@@ -420,13 +421,13 @@ class PhysicalDomain(Domain):
     def __eq__(self, other):
         return hash(self) is hash(other)
 
-    def hat(self) -> FourierDomain:
+    def hat(self) -> 'FourierDomain':
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
         return FourierDomain.FromPhysicalDomain(self)
 
-    def field_hat(self, field):
+    def field_hat(self, field: jnp_float_array) -> jnp_float_array:
         """Compute the Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
@@ -472,7 +473,7 @@ class FourierDomain(Domain):
     
 
     @classmethod
-    def FromPhysicalDomain(cls, physical_domain: PhysicalDomain) -> FourierDomain:
+    def FromPhysicalDomain(cls, physical_domain: PhysicalDomain) -> 'FourierDomain':
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
@@ -586,7 +587,7 @@ class FourierDomain(Domain):
         )
         return out_field
 
-    def no_hat(self, field):
+    def no_hat(self, field: jnp_float_array) -> jnp_float_array:
         """Compute the inverse Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
