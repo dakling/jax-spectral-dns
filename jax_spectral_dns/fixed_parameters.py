@@ -6,22 +6,24 @@ import dataclasses
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
 
+np_float_array = npt.NDArray[np.float64]
+
 @dataclasses.dataclass(frozen=True)
 class FixedParameters():
     domain: Domain
-    dt: np.float64
+    dt: float
 
 
 @dataclasses.dataclass(frozen=True)
 class NavierStokesVelVortFixedParameters():
     physical_domain: PhysicalDomain
-    poisson_mat: npt.NDArray[np.float64]
-    rk_mats_rhs: npt.NDArray[np.float64]
-    rk_mats_lhs_inv: npt.NDArray[np.float64]
-    rk_rhs_inhom: npt.NDArray[np.float64]
-    rk_mats_lhs_inv_inhom: npt.NDArray[np.float64]
-    rk_mats_rhs_ns: npt.NDArray[np.float64]
-    rk_mats_lhs_inv_ns: npt.NDArray[np.float64]
+    poisson_mat: np_float_array
+    rk_mats_rhs: np_float_array
+    rk_mats_lhs_inv: np_float_array
+    rk_rhs_inhom: np_float_array
+    rk_mats_lhs_inv_inhom: np_float_array
+    rk_mats_rhs_ns: np_float_array
+    rk_mats_lhs_inv_ns: np_float_array
     Re_tau: float
     max_cfl: float = 0.3
     dt_update_frequency: int = (

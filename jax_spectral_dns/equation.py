@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from functools import partial
-from typing import Any, Callable, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence, Union
 import time
 
 import jax
@@ -10,9 +10,11 @@ import jax.numpy as jnp
 from pathlib import Path
 import os
 
+from jax_spectral_dns.domain import Domain
 from jax_spectral_dns.field import Field, FourierField
 from jax_spectral_dns.fixed_parameters import FixedParameters
 
+jnp_int_array = jnp.ndarray
 
 NoneType = type(None)
 
@@ -69,18 +71,19 @@ class Equation:
     def initialize(cls, cleanup=True):
         Field.initialize(cleanup)
 
-    def get_dt(self):
+    def get_dt(self) -> float:
         return self.fixed_parameters.dt
 
-    def get_domain(self):
+    def get_domain(self) -> Domain:
         return self.fixed_parameters.domain
 
-    def get_field(self, name, index=None):
+    def get_field(self, name: str, index: Optional[int]=None) -> Union[Field, list[Field]]:
         try:
-            if type(index) == NoneType:
+            if index is None:
                 return self.fields[name]
             else:
                 out = self.fields[name][index]
+                assert isinstance(out, Field)
                 if index >= 0:
                     out.set_time_step(index)
                 else:
@@ -120,47 +123,47 @@ class Equation:
             self.fields[name] = [field]
             self.fields[name][0].name = name + "_0"
 
-    def activate_jit(self):
+    def activate_jit(self) -> None:
         Field.activate_jit_ = True
 
-    def deactivate_jit(self):
+    def deactivate_jit(self) -> None:
         Field.activate_jit_ = False
 
-    def all_dimensions_jnp(self):
+    def all_dimensions_jnp(self) -> jnp_int_array:
         return jnp.arange(self.get_domain().number_of_dimensions)
 
-    def all_dimensions(self):
+    def all_dimensions(self) -> Sequence[int]:
         return range(self.get_domain().number_of_dimensions)
 
-    def all_periodic_dimensions(self):
+    def all_periodic_dimensions(self) -> list[int]:
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
             if self.get_domain().periodic_directions[d]
         ]
 
-    def all_nonperiodic_dimensions(self):
+    def all_nonperiodic_dimensions(self) -> list[int]:
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
             if not self.get_domain().periodic_directions[d]
         ]
 
-    def all_periodic_dimensions_jnp(self):
-        return [
+    def all_periodic_dimensions_jnp(self) -> jnp_int_array:
+        return jnp.array([
             self.all_dimensions_jnp()[d]
             for d in self.all_dimensions_jnp()
             if self.get_domain().periodic_directions[d]
-        ]
+        ])
 
-    def all_nonperiodic_dimensions_jnp(self):
-        return [
+    def all_nonperiodic_dimensions_jnp(self) -> jnp_int_array:
+        return jnp.array([
             self.all_dimensions_jnp()[d]
             for d in self.all_dimensions_jnp()
             if not self.get_domain().periodic_directions[d]
-        ]
+        ])
 
-    def done(self):
+    def done(self) -> bool:
         iteration_done = False
         time_done = False
         if type(self.max_iter) != NoneType:
@@ -169,36 +172,36 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _=None):
+    def perform_time_step(self, _=None) -> Any:
         raise NotImplementedError()
 
-    def before_time_step(self):
+    def before_time_step(self) -> None:
         if type(self.before_time_step_fn) != NoneType:
             assert self.before_time_step_fn is not None
             self.before_time_step_fn(self)
 
-    def after_time_step(self):
+    def after_time_step(self) -> None:
         if type(self.after_time_step_fn) != NoneType:
             assert self.after_time_step_fn is not None
             self.after_time_step_fn(self)
 
-    def post_process(self):
+    def post_process(self) -> None:
         if type(self.post_process_fn) != NoneType:
             raise NotImplementedError()
 
-    def prepare(self):
+    def prepare(self) -> None:
         pass
 
-    def update_time(self):
+    def update_time(self) -> None:
         self.time += self.get_dt()
         self.time_step += 1
         # for _, field in self.fields.items():
         #     field[-1].time_step = self.time_step
 
-    def solve_scan(self):
+    def solve_scan(self) -> Any:
         raise NotImplementedError()
 
-    def solve(self):
+    def solve(self) -> Any:
         self.prepare()
 
         if Field.activate_jit_:

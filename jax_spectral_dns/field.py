@@ -104,15 +104,15 @@ class Field(ABC):
         """Return the name of the field."""
         return self.name
 
-    def set_name(self, name):
+    def set_name(self, name: str) -> None:
         """Set the name of the field."""
         self.name = name
 
-    def get_time_step(self):
+    def get_time_step(self) -> float:
         """Return the current time step of the field."""
         return self.time_step
 
-    def set_time_step(self, time_step):
+    def set_time_step(self, time_step: float) -> None:
         """Set the current time step of the field."""
         self.time_step = time_step
 

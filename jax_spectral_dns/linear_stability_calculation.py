@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
+from typing import Callable, Union
 import numpy as np
+import numpy.typing as npt
 import jax.numpy as jnp
 from numpy.linalg import  svd
 import scipy # type: ignore
@@ -15,6 +17,7 @@ from jax_spectral_dns.field import PhysicalField, VectorField
 
 NoneType = type(None)
 
+np_complex_array = npt.NDArray[np.complex64]
 
 class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, beta=0.0, n=50):
@@ -43,7 +46,7 @@ class LinearStabilityCalculation:
         self.symm = False
         # self.symm = True
 
-        self.make_field_file_name_mode = (
+        self.make_field_file_name_mode: Callable[[PhysicalDomain, str, int], str] = (
             lambda domain_, field_name, mode: field_name
             + "_"
             + str(self.Re)
@@ -69,7 +72,7 @@ class LinearStabilityCalculation:
         )
         # Equation.initialize()
 
-    def assemble_matrix_fast(self):
+    def assemble_matrix_fast(self) -> np_complex_array:
         alpha = self.alpha
         beta = self.beta
         Re = self.Re
@@ -84,13 +87,13 @@ class LinearStabilityCalculation:
 
         I = 0 + 1j
 
-        def local_to_global_index(j, k, eq, var):
+        def local_to_global_index(j: int, k: int, eq: int, var: int) -> tuple[int, int]:
             jj = j + eq * n
             kk = k + var * n
             return (jj, kk)
 
-        u_fun = lambda y: (1 - y**2)
-        du_fun = lambda y: -2 * y
+        u_fun: Callable[[float], float] = lambda y: (1 - y**2)
+        du_fun:  Callable[[float], float] = lambda y: -2 * y
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
@@ -98,7 +101,7 @@ class LinearStabilityCalculation:
             dU = du_fun(y)
             for k in range(n):
 
-                def setMat(mat, eq, var, value):
+                def setMat(mat: np_complex_array, eq: int, var: int, value: Union[float, complex]) -> None:
                     jj, kk = local_to_global_index(j, k, eq, var)
                     mat[jj, kk] = value
 
@@ -130,6 +133,7 @@ class LinearStabilityCalculation:
                     dp = cheb(k, 1, y)
 
                 # eq 1 (momentum x)
+                assert type(u) is float
                 setMat(B, 0, 0, u)
 
                 setMat(A, 0, 0, -I * alpha * U * u + 1 / Re * (d2u - kSq * u))
@@ -137,18 +141,21 @@ class LinearStabilityCalculation:
                 setMat(A, 0, 3, -I * alpha * p)
 
                 # eq 2 (momentum y)
+                assert type(v) is float
                 setMat(B, 1, 1, v)
 
                 setMat(A, 1, 1, -I * alpha * U * v + 1 / Re * (d2v - kSq * v))
                 setMat(A, 1, 3, -dp)
 
                 # eq 3 (momentum z)
+                assert type(w) is float
                 setMat(B, 2, 2, w)
 
                 setMat(A, 2, 2, -I * alpha * U * w + 1 / Re * (d2w - kSq * w))
                 setMat(A, 2, 3, -I * beta * p)
 
                 # eq 4 (continuity)
+                assert type(dv) is float
                 setMat(A, 3, 0, I * alpha * u)
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
@@ -160,7 +167,7 @@ class LinearStabilityCalculation:
     def read_mat(self, file, key):
         return scipy.io.loadmat(file)[key]
 
-    def calculate_eigenvalues(self, save=False):
+    def calculate_eigenvalues(self, save: bool=False) -> tuple[np_complex_array, list[np_complex_array]]:
         try:
             if None in [self.A, self.B]:
                 self.assemble_matrix_fast()
@@ -235,11 +242,11 @@ class LinearStabilityCalculation:
 
     def velocity_field(
             self,
-            domain,
-            evec,
-            factor=1.0,
-            symm=False
-    ):
+            domain: PhysicalDomain,
+            evec: np_complex_array,
+            factor: float=1.0,
+            symm: bool=False
+    ) -> VectorField:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
         u_vec, v_vec, w_vec, _ = jnp.split(evec, 4)
@@ -284,10 +291,10 @@ class LinearStabilityCalculation:
 
     def velocity_field_from_y_slice(
             self,
-            domain,
-            y_slice,
-            factor=1.0
-    ):
+            domain: PhysicalDomain,
+            y_slice: np_complex_array,
+            factor: float=1.0
+    ) -> VectorField:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
         u_vec = y_slice[0]
