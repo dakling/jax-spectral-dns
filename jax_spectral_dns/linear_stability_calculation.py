@@ -219,7 +219,7 @@ class LinearStabilityCalculation:
                     self.make_field_file_name_mode(domain, "w", mode),
                     name="velocity_pert_z",
                 )
-                u = VectorField([u_field, v_field, w_field])
+                u: VectorField[PhysicalField] = VectorField([u_field, v_field, w_field])
             else:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
@@ -241,7 +241,7 @@ class LinearStabilityCalculation:
             evec: np_complex_array,
             factor: float=1.0,
             symm: bool=False
-    ) -> VectorField:
+    ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
         u_vec, v_vec, w_vec, _ = jnp.split(evec, 4)
@@ -289,7 +289,7 @@ class LinearStabilityCalculation:
             domain: PhysicalDomain,
             y_slice: tuple[jnp_array, jnp_array, jnp_array],
             factor: jsd_float=1.0
-    ) -> VectorField:
+    ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
         u_vec: jnp_array = y_slice[0]
@@ -458,7 +458,7 @@ class LinearStabilityCalculation:
 
     def calculate_transient_growth_initial_condition_from_coefficients(
         self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool=True
-    ) -> VectorField:
+    ) -> VectorField[PhysicalField]:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for eigenvalues/-vectors,
         however, recompute=True forces recomputation."""
@@ -510,7 +510,7 @@ class LinearStabilityCalculation:
                     self.make_field_file_name(domain, "w"),
                     name="velocity_pert_z",
                 )
-                u = VectorField([u_, v_, w_])
+                u: VectorField[PhysicalField] = VectorField([u_, v_, w_])
             else:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:

@@ -15,9 +15,9 @@ from matplotlib import colors
 from scipy.interpolate import RegularGridInterpolator # type: ignore
 import functools
 import dataclasses
-from typing import Callable, Iterable, Optional, Sequence, Union
+from typing import Callable, Generic, Iterable, Optional, Sequence, TypeVar, Union
 from typing_extensions import Self
-from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array
+from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, AnyVectorField, AnyScalarField
 
 
 import numpy as np
@@ -228,9 +228,11 @@ class Field(ABC):
         out.time_step = self.time_step
         return out
 
+# T = TypeVar('T', bound=AnyScalarField)
+T = TypeVar('T', bound=Field)
 
-class VectorField:
-    def __init__(self, elements: Sequence[Field], name: Optional[str]=None):
+class VectorField(Generic[T]):
+    def __init__(self, elements: Sequence[T], name: Optional[str]=None):
         self.elements = elements
         self.name = name
         self.domain = elements[0].get_domain()
@@ -245,16 +247,7 @@ class VectorField:
         dim = domain.number_of_dimensions
         return cls([field_cls(domain, data[i]) for i in range(dim)])
 
-    # def __getattr__(self, attr):
-    #     def on_all(*args, **kwargs):
-    #         acc = []
-    #         for obj in self.elements:
-    #             acc += [getattr(obj, attr)(*args, **kwargs)]
-    #         return acc
-
-    #     return on_all
-
-    def __getitem__(self, index: int) -> Field:
+    def __getitem__(self, index: int) -> T:
         return self.elements[index]
 
     def __iter__(self):
@@ -269,30 +262,37 @@ class VectorField:
             out += str(elem)
         return out
 
-    def __add__(self, other: Union[VectorField, jnp.ndarray]) -> VectorField:
+    def __add__(self, other: Union[VectorField[T], jnp_array]) -> VectorField[T]:
         out = []
         for i in range(len(self)):
-            out.append(self[i] + other[i])
+            f: T = self[i]
+            other_i: Union[T, jnp_array] = other[i]
+            out_: T = f + other_i # type: ignore[assignment]
+            out.append(out_)
         return VectorField(out)
 
-    def __sub__(self, other: Union[VectorField, jnp.ndarray]) -> VectorField:
+    def __sub__(self, other: Union[VectorField[T], jnp_array]) -> VectorField[T]:
         return self + (-1) * other
 
-    def __mul__(self, other: Union[VectorField, jnp.ndarray, jsd_float]) -> VectorField:
+    def __mul__(self, other: Union[VectorField[T], jnp_array, jsd_float]) -> VectorField[T]:
         out = []
         if isinstance(other, VectorField):
             for i in range(len(self)):
-                out.append(self[i] * other[i])
+                f: T = self[i]
+                out_: T = f * other[i] # type: ignore[assignment]
+                out.append(out_)
         else:
             for i in range(len(self)):
                 assert isinstance(other, Field) or type(other) is float
-                out.append(self[i] * other)
+                f = self[i]
+                out_ = f * other # type: ignore[assignment]
+                out.append(out_)
         return VectorField(out)
 
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: jsd_float) -> VectorField:
+    def __truediv__(self, other: jsd_float) -> VectorField[T]:
         out = []
         for i in range(len(self)):
             out.append(self[i] / other)
@@ -400,7 +400,7 @@ class VectorField:
         assert type(out) is int
         return out
 
-    def set_time_step(self, time_step):
+    def set_time_step(self, time_step: int) -> None:
         self.time_step = time_step
         for j in range(len(self)):
             self[j].time_step = time_step
@@ -440,10 +440,10 @@ class VectorField:
         # assert type(out) is list[int]
         return out
 
-    def hat(self) -> VectorField:
+    def hat(self) -> VectorField[PhysicalField]:
         return VectorField([f.hat() for f in self])
 
-    def no_hat(self) -> VectorField:
+    def no_hat(self) -> VectorField[FourierField]:
         return VectorField([f.no_hat() for f in self])
 
     def plot(self, *other_fields):
@@ -458,7 +458,7 @@ class VectorField:
             assert type(f) is PhysicalField, "plot_3d only implemented for PhysicalField."
             f.plot_3d(direction)
 
-    def cross_product(self, other: VectorField) -> VectorField:
+    def cross_product(self, other: AnyVectorField) -> AnyVectorField:
         out_0 = self[1] * other[2] - self[2] * other[1]
         out_1 = self[2] * other[0] - self[0] * other[2]
         out_2 = self[0] * other[1] - self[1] * other[0]
@@ -470,7 +470,7 @@ class VectorField:
 
         return VectorField(out)
 
-    def curl(self) -> VectorField:
+    def curl(self) -> AnyVectorField:
         assert len(self) == 3, "rotation only defined in 3 dimensions"
         for f in self:
             assert (
@@ -798,11 +798,14 @@ class PhysicalField(Field):
             return ret
 
     @classmethod
-    def FromFunc(cls, domain: PhysicalDomain, func: Optional[Callable[[Sequence[jsd_float]], jsd_float]]=None, name: str="field") -> Self:
+    def FromFunc(cls, domain: PhysicalDomain, func: Optional[Vel_fn_type]=None, name: str="field") -> Self:
         """Construct from function func depending on the independent variables described by domain."""
         if not func:
-            func = lambda x: 0.0 * math.prod(x)
-        field = jnp.array(list(map(lambda *x: func(x), *domain.mgrid)))
+            func_: Vel_fn_type = lambda x: 0.0 * math.prod(x)
+        else:
+            assert func is not None
+            func_ = func
+        field = jnp.array(list(map(lambda *x: func_(x), *domain.mgrid)))
         return cls(domain, field, name)
 
     @classmethod

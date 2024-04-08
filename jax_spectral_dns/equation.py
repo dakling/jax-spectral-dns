@@ -53,7 +53,7 @@ class Equation:
         self.time: jsd_float = 0.0
         self.before_time_step_fn = None
         self.after_time_step_fn = None
-        self.post_process_fn = None
+        self.post_process_fn: Optional[Callable[[Equation, int], None]] = None
         try:
             self.end_time = params["end_time"]
         except KeyError:
@@ -105,6 +105,9 @@ class Equation:
     def get_latest_field(self, name: str) -> AnyField:
         out = self.get_field_(name, -1)
         return out
+
+    def get_number_of_fields(self, name: str) -> int:
+        return len(self.get_fields_(name))
 
     def set_field(self, name: str, index: int, field: AnyField):
         try:
@@ -181,7 +184,7 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _=None) -> None:
+    def perform_time_step(self, _=None) -> Any:
         raise NotImplementedError()
 
     def before_time_step(self) -> None:

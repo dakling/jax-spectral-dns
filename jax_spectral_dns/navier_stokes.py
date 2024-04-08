@@ -25,12 +25,12 @@ from jax_spectral_dns.equation import Equation, print_verb
 from jax_spectral_dns.fixed_parameters import NavierStokesVelVortFixedParameters
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns._typing import (
-    jsd_array,
     np_float_array,
     np_complex_array,
     jsd_float,
     jnp_array,
     np_jnp_array,
+    Vel_fn_type
 )
 
 
@@ -160,13 +160,13 @@ class NavierStokesVelVort(Equation):
 
     @classmethod
     def FromDomain(cls, domain: PhysicalDomain, **params: Any) -> Self:
-        velocity_field = VectorField.Zeros(PhysicalField, domain)
+        velocity_field: VectorField[PhysicalField] = VectorField.Zeros(PhysicalField, domain)
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
         return cls(velocity_field_hat, **params)
 
     @classmethod
-    def FromVelocityField(cls, velocity_field: VectorField, **params: Any) -> Self:
+    def FromVelocityField(cls, velocity_field: VectorField[PhysicalField], **params: Any) -> Self:
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
         return cls(velocity_field_hat, **params)
@@ -552,7 +552,7 @@ class NavierStokesVelVort(Equation):
         u_w = [jnp.moveaxis(v, 1, 2) for v in out]
         return [u_w[0], vel_y, u_w[1]]
 
-    def perform_runge_kutta_step(self, vel_hat_data):
+    def perform_runge_kutta_step(self, vel_hat_data: jnp_array) -> jnp_array:
         # if not Field.activate_jit_:
         # self.dt = self.get_time_step()
         # Re = self.Re_tau
@@ -1020,7 +1020,7 @@ class NavierStokesVelVort(Equation):
         return vel_new_hat_field
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,))
-    def perform_time_step(self, vel_hat_data=None):
+    def perform_time_step(self, vel_hat_data: Optional[jnp_array]=None) -> jnp_array:
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
         else:
@@ -1056,7 +1056,7 @@ class NavierStokesVelVort(Equation):
             )
             return out, out
 
-        def median_factor(n):
+        def median_factor(n: int) -> int:
             """Return the median integer factor of n."""
             factors = reduce(
                 list.__add__,
@@ -1136,7 +1136,7 @@ class NavierStokesVelVort(Equation):
     def post_process(self):
         if type(self.post_process_fn) != NoneType:
             assert self.post_process_fn is not None
-            for i in range(len(self.get_field("velocity_hat"))):
+            for i in range(self.get_number_of_fields("velocity_hat")):
                 self.post_process_fn(self, i)
 
 
@@ -1164,19 +1164,19 @@ def solve_navier_stokes_laminar(
     # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
     u_max_over_u_tau = 1.0
 
-    vel_x_fn_ana = (
+    vel_x_fn_ana: Vel_fn_type = (
         lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
     vel_x_ana = PhysicalField.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
-    vel_x_fn = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
+    vel_x_fn: Vel_fn_type = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
         perturbation_factor
         * jnp.cos(X[1] * jnp.pi / 2)
         * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
     ) + (1 - perturbation_factor) * vel_x_fn_ana(X)
 
     # add small perturbation in y and z to see if it decays
-    vel_y_fn = (
+    vel_y_fn: Vel_fn_type = (
         lambda X: 0.1
         * perturbation_factor
         * u_max_over_u_tau
@@ -1189,7 +1189,7 @@ def solve_navier_stokes_laminar(
             * jnp.cos(4 * X[2])
         )
     )
-    vel_z_fn = (
+    vel_z_fn: Vel_fn_type = (
         lambda X: 0.1
         * jnp.pi
         / 3
@@ -1205,15 +1205,14 @@ def solve_navier_stokes_laminar(
     nse = NavierStokesVelVort.FromVelocityField(vel, Re=Re, **params)
     nse.end_time = end_time
     nse.max_iter = max_iter
-    vel_0 = nse.get_initial_field("velocity_hat").no_hat()
 
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    def post_process(nse_, i):
-        n_steps = len(nse_.get_field("velocity_hat"))
-        vel_hat = nse_.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
+    def post_process(nse_: NavierStokesVelVort, i: int) -> None:
+        n_steps = nse_.get_number_of_fields("velocity_hat")
+        vel_hat: VectorField = nse_.get_field("velocity_hat", i) # type: ignore[assignment]
+        vel: VectorField = vel_hat.no_hat()
 
         vort = vel.curl()
         vel.set_time_step(i)
