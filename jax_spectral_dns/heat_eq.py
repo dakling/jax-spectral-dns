@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from typing import Any, Callable, Sequence
 import jax
 import jax.numpy as jnp
 
@@ -9,17 +10,23 @@ import sys
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import PhysicalField
 from jax_spectral_dns.equation import Equation
+from jax_spectral_dns._typing import jsd_float
 
 
 class Heat_Eq(Equation):
-    name = "heat equation"
+    name: str = "heat equation"
 
-    def __init__(self, domain, *fields):
+    def __init__(self, domain: PhysicalDomain, *fields: PhysicalField, **params: Any):
         super().__init__(domain, *fields)
         u = self.get_initial_field("u")
         u.update_boundary_conditions()
+        self.dt : jsd_float = params["dt"]
+        self.number_of_steps : int = params["number_of_steps"]
+        self.i : int = 0
 
-    def perform_explicit_euler_step(self, dt, i):
+    def perform_explicit_euler_step(self) -> None:
+        dt = self.dt
+        i = self.i
         u = self.get_latest_field("u")
         eq = u.laplacian()
         new_u = u + eq * dt
@@ -27,37 +34,41 @@ class Heat_Eq(Equation):
         new_u.name = "u_" + str(i)
         # self.fields["u"].append(new_u)
         self.fields["u"][-1] = new_u
-        return self.fields["u"]
 
-    def perform_implicit_euler_step(self, dt, i):
+    def perform_implicit_euler_step(self) -> None:
         # only for 1D!
+        dt = self.dt
+        i = self.i
         u = self.get_latest_field("u")
+        assert isinstance(u, PhysicalField)
         D2 = self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(0)
         I = jnp.eye(D2.shape[0])
-        new_u = PhysicalField(u.domain, jnp.linalg.inv(I - dt * D2) @ u.data, name=u.name)
+        new_u = PhysicalField(u.get_domain(), jnp.linalg.inv(I - dt * D2) @ u.data, name=u.name)
         new_u.update_boundary_conditions()
         new_u.name = "u_" + str(i)
         # self.fields["u"].append(new_u)
         self.fields["u"][-1] = new_u
-        return self.fields["u"]
+        out = self.fields["u"]
 
-    def perform_time_step(self, dt, i):
-        return self.perform_explicit_euler_step(dt, i)
+    def perform_time_step(self, _=None) -> None:
+        self.perform_explicit_euler_step()
+        self.i += 1
         # return self.perform_implicit_euler_step(dt, i)
 
-    def solve(self, dt, number_of_steps):
-        for i in jnp.arange(1, number_of_steps + 1):
-            self.perform_time_step(dt, i)
-        return self.fields["u"]
+    def solve(self) -> list[PhysicalField]:
+        for i in jnp.arange(1, self.number_of_steps + 1):
+            self.perform_time_step()
+        out: list[PhysicalField] = self.get_fields_("u") #type: ignore[assignment]
+        return out
 
-    def plot(self):
+    def plot(self) -> None:
         if self.get_domain().number_of_dimensions <= 2:
-            u_0 = self.get_initial_field("u")
-            u_fin = self.get_latest_field("u")
+            u_0: PhysicalField = self.get_initial_field("u") #type: ignore[assignment]
+            u_fin: PhysicalField = self.get_latest_field("u") #type: ignore[assignment]
             u_0.plot(u_fin)
         elif self.get_domain().number_of_dimensions == 3:
-            u_0 = self.get_initial_field("u")
-            u_fin = self.get_latest_field("u")
+            u_0 = self.get_initial_field("u") #type: ignore[assignment]
+            u_fin = self.get_latest_field("u") #type: ignore[assignment]
             for i in self.all_dimensions():
                 u_0.plot_center(i, u_fin)
 
@@ -65,19 +76,19 @@ class Heat_Eq(Equation):
 def solve_heat_eq_1D():
     # Nx = 100000
     Nx = 100
+    dt = 5e-9
+    Nt = 3000
 
     domain = PhysicalDomain.create((Nx,), (False,))
 
-    u_fn = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u_fn: Callable[[Sequence[jsd_float]], jsd_float] = lambda X: jnp.cos(X[0] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
-    heat_eq = Heat_Eq(domain, u)
+    heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
 
-    Nt = 3000
-    dt = 5e-9
     # def before_time_step(heat_eq):
     #     print("step", heat_eq.time_step)
     # heat_eq.before_time_step_fn = before_time_step
-    heat_eq.solve(dt, Nt)
+    heat_eq.solve()
     heat_eq.plot()
     v_final = heat_eq.get_latest_field("u")
     e0 = u.energy()
@@ -92,11 +103,11 @@ def optimize_heat_eq_1D():
         u = PhysicalField(domain, v0, name="u")
         e0 = u.energy()
 
-        heat_eq = Heat_Eq(domain, u)
-
         Nt = 3000
         dt = 5e-9
-        heat_eq.solve(dt, Nt)
+        heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
+
+        heat_eq.solve()
         v_final = heat_eq.get_latest_field("u")
         return v_final.energy() / e0
 
@@ -130,17 +141,17 @@ def optimize_heat_eq_1D():
 def solve_heat_eq_2D():
     Nx = 24
     Ny = Nx
+    Nt = 5000
+    dt = 5e-5
 
     domain = PhysicalDomain.create((Nx, Ny), (True, False))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[1] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
 
-    heat_eq = Heat_Eq(domain, u)
+    heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
 
-    Nt = 5000
-    dt = 5e-5
-    heat_eq.solve(dt, Nt)
+    heat_eq.solve()
     heat_eq.plot()
 
 
@@ -148,19 +159,19 @@ def solve_heat_eq_3D():
     Nx = 100
     Ny = 100
     Nz = 100
+    Nt = 3000
+    dt = 5e-9
 
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 
     u_fn = lambda X: jnp.cos(X[0]) * jnp.cos(X[2]) * jnp.cos(X[1] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
-    heat_eq = Heat_Eq(domain, u)
+    heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
 
-    Nt = 3000
-    dt = 5e-9
     # def before_time_step(heat_eq):
     #     print("step", heat_eq.time_step)
     # heat_eq.before_time_step_fn = before_time_step
-    heat_eq.solve(dt, Nt)
+    heat_eq.solve()
     heat_eq.plot()
     v_final = heat_eq.get_latest_field("u")
     e0 = u.energy()
@@ -173,15 +184,15 @@ def optimize_heat_eq_3D():
     Nz = Nx
     def run(v0):
         domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
+        Nt = 3000
+        dt = 5e-9
 
         u = PhysicalField(domain, v0, name="u")
         e0 = u.energy()
 
-        heat_eq = Heat_Eq(domain, u)
+        heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
 
-        Nt = 3000
-        dt = 5e-9
-        heat_eq.solve(dt, Nt)
+        heat_eq.solve()
         v_final = heat_eq.get_latest_field("u")
         return v_final.energy() / e0
 

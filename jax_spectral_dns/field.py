@@ -123,16 +123,16 @@ class Field(ABC):
     def __sub__(self, _: Union[Self, jnp.ndarray]) -> Field:
         raise NotImplementedError()
 
-    def __mul__(self, _: Union[Self, jnp.ndarray, float]) -> Field:
+    def __mul__(self, _: Union[Self, jnp.ndarray, jsd_float]) -> Field:
         raise NotImplementedError()
 
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, _: float) -> Self:
+    def __truediv__(self, _: jsd_float) -> Self:
         raise NotImplementedError()
 
-    def shift(self, value: float) -> Self:
+    def shift(self, value: jsd_float) -> Self:
         raise NotImplementedError()
 
     def __repr__(self):
@@ -162,7 +162,7 @@ class Field(ABC):
         # TODO use integration or something more sophisticated
         return jnp.linalg.norm(self.data) / self.number_of_dofs()
 
-    def energy(self) -> float:
+    def energy(self) -> jsd_float:
         raise NotImplementedError()
 
     def normalize_by_energy(self) -> Self:
@@ -278,7 +278,7 @@ class VectorField:
     def __sub__(self, other: Union[VectorField, jnp.ndarray]) -> VectorField:
         return self + (-1) * other
 
-    def __mul__(self, other: Union[VectorField, jnp.ndarray, float]) -> VectorField:
+    def __mul__(self, other: Union[VectorField, jnp.ndarray, jsd_float]) -> VectorField:
         out = []
         if isinstance(other, VectorField):
             for i in range(len(self)):
@@ -292,7 +292,7 @@ class VectorField:
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: float) -> VectorField:
+    def __truediv__(self, other: jsd_float) -> VectorField:
         out = []
         for i in range(len(self)):
             out.append(self[i] / other)
@@ -335,7 +335,7 @@ class VectorField:
             out += abs(f)
         return out
 
-    def energy(self) -> float:
+    def energy(self) -> jsd_float:
         en = 0
         for f in self:
             en += f.energy()
@@ -748,7 +748,7 @@ class PhysicalField(Field):
         ), "Attempted to subtract a Field and a Fourier Field."
         return self + other * (-1.0) # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> PhysicalField:
+    def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> PhysicalField:
         if isinstance(other, FourierField):
             raise Exception("Attempted to multiply physical field and Fourier field")
         elif isinstance(other, Field):
@@ -787,7 +787,7 @@ class PhysicalField(Field):
     __lmul__ = __mul__
 
     def __truediv__(
-        self, other: float
+        self, other: jsd_float
     ) -> PhysicalField:
         if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
@@ -798,7 +798,7 @@ class PhysicalField(Field):
             return ret
 
     @classmethod
-    def FromFunc(cls, domain: PhysicalDomain, func: Optional[Callable[[Sequence[float]], float]]=None, name: str="field") -> Self:
+    def FromFunc(cls, domain: PhysicalDomain, func: Optional[Callable[[Sequence[jsd_float]], jsd_float]]=None, name: str="field") -> Self:
         """Construct from function func depending on the independent variables described by domain."""
         if not func:
             func = lambda x: 0.0 * math.prod(x)
@@ -902,14 +902,14 @@ class PhysicalField(Field):
         out = int.definite_integral(dims[-1])
         return out
 
-    def energy(self):
+    def energy(self) -> jsd_float:
         energy = 0.5 * self * self
         domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return energy.volume_integral() / domain_volume
 
-    def update_boundary_conditions(self):
+    def update_boundary_conditions(self) -> None:
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
         for dim in self.all_nonperiodic_dimensions():
             self.data = jnp.take(
@@ -958,7 +958,7 @@ class PhysicalField(Field):
             out += (other_values[dim] - base_value) * weights[dim]
         return out
 
-    def plot_center(self, dimension, *other_fields):
+    def plot_center(self, dimension: int, *other_fields: PhysicalField):
         if not self.activate_jit_:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
@@ -1604,7 +1604,7 @@ class FourierField(Field):
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
         return self + other * (-1.0) # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> FourierField:
+    def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> FourierField:
         if isinstance(other, Field):
             assert isinstance(
                 other, FourierField
@@ -1645,7 +1645,7 @@ class FourierField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: float) -> FourierField:
+    def __truediv__(self, other: jsd_float) -> FourierField:
         out = super().__truediv__(other)
         return FourierField(self.physical_domain, out.data, name=out.name)
 
@@ -1940,7 +1940,7 @@ class FourierFieldSlice(FourierField):
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierFieldSlice:
         return self + other * (-1.0) # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, float]) -> FourierFieldSlice:
+    def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> FourierFieldSlice:
         if isinstance(other, Field):
             if self.activate_jit_:
                 new_name = ""
@@ -1984,7 +1984,7 @@ class FourierFieldSlice(FourierField):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: float) -> FourierFieldSlice:
+    def __truediv__(self, other: jsd_float) -> FourierFieldSlice:
         if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
         else:
@@ -2011,6 +2011,6 @@ class FourierFieldSlice(FourierField):
                 ks_int=self.ks_int,
             )
 
-    def shift(self, value: float) -> FourierFieldSlice:
+    def shift(self, value: jsd_float) -> FourierFieldSlice:
         out_field = self.data + value
         return FourierFieldSlice(self.fourier_domain, self.non_periodic_direction, out_field, name=self.name)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from functools import partial
-from typing import Any, Callable, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union
 import time
 
 import jax
@@ -11,7 +11,7 @@ from pathlib import Path
 import os
 
 from jax_spectral_dns.domain import Domain
-from jax_spectral_dns.field import Field, FourierField
+from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
 from jax_spectral_dns._typing import jsd_float
 
@@ -45,7 +45,7 @@ class Equation:
     # 3: even more additional output from the solver that is usually nonessential
     verbosity_level:int = 1
 
-    def __init__(self, domain, *fields, **params):
+    def __init__(self, domain: Domain, *fields: Field, **params: Any):
         dt: jsd_float = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
@@ -78,25 +78,33 @@ class Equation:
     def get_domain(self) -> Domain:
         return self.fixed_parameters.domain
 
+    def get_fields_(self, name: str) -> list[Field]:
+        return self.fields[name]
+
+    def get_field_(self, name: str, index: int) -> Field:
+        out: Field = self.fields[name][index]
+        if index >= 0:
+            out.set_time_step(index)
+        else:
+            out.set_time_step(len(self.fields[name]) + index)
+        return out
+
     def get_field(self, name: str, index: Optional[int]=None) -> Union[Field, list[Field]]:
         try:
             if index is None:
-                return self.fields[name]
+                return self.get_fields_(name)
             else:
-                out: Field = self.fields[name][index]
-                if index >= 0:
-                    out.set_time_step(index)
-                else:
-                    out.set_time_step(len(self.fields[name]) + index)
-                return out
+                return self.get_field_(name, index)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def get_initial_field(self, name):
-        return self.get_field(name, 0)
+    def get_initial_field(self, name: str) -> Field:
+        out = self.get_field_(name, 0)
+        return out
 
-    def get_latest_field(self, name):
-        return self.get_field(name, -1)
+    def get_latest_field(self, name: str) -> Field:
+        out = self.get_field_(name, -1)
+        return out
 
     def set_field(self, name, index, field):
         try:
@@ -172,7 +180,7 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _=None) -> Any:
+    def perform_time_step(self, _=None) -> None:
         raise NotImplementedError()
 
     def before_time_step(self) -> None:
