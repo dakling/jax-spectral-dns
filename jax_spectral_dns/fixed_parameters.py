@@ -5,7 +5,7 @@ import numpy.typing as npt
 import dataclasses
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
-from jax_spectral_dns._typing import jsd_float, np_float_array
+from jax_spectral_dns._typing import jsd_float, np_complex_array
 
 
 @dataclasses.dataclass(frozen=True)
@@ -17,13 +17,13 @@ class FixedParameters():
 @dataclasses.dataclass(frozen=True)
 class NavierStokesVelVortFixedParameters():
     physical_domain: PhysicalDomain
-    poisson_mat: np_float_array
-    rk_mats_rhs: np_float_array
-    rk_mats_lhs_inv: np_float_array
-    rk_rhs_inhom: np_float_array
-    rk_mats_lhs_inv_inhom: np_float_array
-    rk_mats_rhs_ns: np_float_array
-    rk_mats_lhs_inv_ns: np_float_array
+    poisson_mat: np_complex_array
+    rk_mats_rhs: np_complex_array
+    rk_mats_lhs_inv: np_complex_array
+    rk_rhs_inhom: np_complex_array
+    rk_mats_lhs_inv_inhom: np_complex_array
+    rk_mats_rhs_ns: np_complex_array
+    rk_mats_lhs_inv_ns: np_complex_array
     Re_tau: float
     max_cfl: float = 0.3
     dt_update_frequency: int = (

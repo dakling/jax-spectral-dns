@@ -13,7 +13,7 @@ import os
 from jax_spectral_dns.domain import Domain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
-from jax_spectral_dns._typing import jsd_float
+from jax_spectral_dns._typing import jsd_float, AnyField
 
 jnp_int_array = jnp.ndarray
 
@@ -45,7 +45,7 @@ class Equation:
     # 3: even more additional output from the solver that is usually nonessential
     verbosity_level:int = 1
 
-    def __init__(self, domain: Domain, *fields: Field, **params: Any):
+    def __init__(self, domain: Domain, *fields: AnyField, **params: Any):
         dt: jsd_float = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
@@ -63,9 +63,9 @@ class Equation:
         except KeyError:
             self.max_iter = None
         for field in fields:
-            f_name = field.name
+            f_name: str = field.get_name()
             self.fields[f_name] = [field]
-            self.fields[f_name][0].name = f_name + "_0"
+            self.fields[f_name][0].set_name(f_name + "_0")
         # self.initialize()
 
     @classmethod
@@ -78,18 +78,18 @@ class Equation:
     def get_domain(self) -> Domain:
         return self.fixed_parameters.domain
 
-    def get_fields_(self, name: str) -> list[Field]:
+    def get_fields_(self, name: str) -> list[AnyField]:
         return self.fields[name]
 
-    def get_field_(self, name: str, index: int) -> Field:
-        out: Field = self.fields[name][index]
+    def get_field_(self, name: str, index: int) -> AnyField:
+        out: AnyField = self.fields[name][index]
         if index >= 0:
             out.set_time_step(index)
         else:
             out.set_time_step(len(self.fields[name]) + index)
         return out
 
-    def get_field(self, name: str, index: Optional[int]=None) -> Union[Field, list[Field]]:
+    def get_field(self, name: str, index: Optional[int]=None) -> Union[AnyField, list[AnyField]]:
         try:
             if index is None:
                 return self.get_fields_(name)
@@ -98,21 +98,21 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def get_initial_field(self, name: str) -> Field:
+    def get_initial_field(self, name: str) -> AnyField:
         out = self.get_field_(name, 0)
         return out
 
-    def get_latest_field(self, name: str) -> Field:
+    def get_latest_field(self, name: str) -> AnyField:
         out = self.get_field_(name, -1)
         return out
 
-    def set_field(self, name, index, field):
+    def set_field(self, name: str, index: int, field: AnyField):
         try:
             self.fields[name][index] = field
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def append_field(self, name, field, in_place=True):
+    def append_field(self, name: str, field: AnyField, in_place: bool=True) ->  None:
         try:
             if in_place and len(self.fields[name]) > 0:
                 self.fields[name][-1] = field
@@ -122,12 +122,13 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def add_field(self, name, field=None):
+    def add_field(self, name: str, field: Optional[AnyField]=None) -> None:
         assert name not in self.fields, "Field " + name + " already exists!"
         if type(field) == NoneType:
             self.fields[name] = []
         else:
             # self.fields[name] = jnp.array([field]) # TODO avoid the use of lists
+            assert field is not None
             self.fields[name] = [field]
             self.fields[name][0].name = name + "_0"
 

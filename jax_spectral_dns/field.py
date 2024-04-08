@@ -806,7 +806,7 @@ class PhysicalField(Field):
         return cls(domain, field, name)
 
     @classmethod
-    def FromRandom(cls, domain, seed=0, interval=(-0.1, 0.1), name="field"):
+    def FromRandom(cls, domain: PhysicalDomain, seed: jsd_float=0, interval: tuple[jsd_float, jsd_float]=(-0.1, 0.1), name: str="field") -> Self:
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
@@ -1437,7 +1437,7 @@ class PhysicalField(Field):
                 Field.initialize(False)
                 save()
 
-    def hat(self):
+    def hat(self) -> FourierField:
         out = FourierField.FromField(self)
         out.time_step = self.time_step
         return out
@@ -1459,7 +1459,7 @@ class PhysicalField(Field):
 
     def definite_integral(
         self, direction: int
-    ) -> Union[float, jsd_array, PhysicalField]:
+    ) -> Union[jsd_float, jsd_array, PhysicalField]:
         def reduce_add_along_axis(arr: jsd_array, axis: int) -> jnp_array:
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
@@ -1774,7 +1774,7 @@ class FourierField(Field):
         )
         return out_fourier
 
-    def no_hat(self):
+    def no_hat(self) -> PhysicalField:
         out = self.fourier_domain.no_hat(self.data)
         out_field = PhysicalField(
             self.physical_domain, out, name=(self.name).replace("_hat", "")
