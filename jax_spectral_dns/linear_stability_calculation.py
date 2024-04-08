@@ -14,12 +14,9 @@ from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import PhysicalField, VectorField
-from jax_spectral_dns._typing import jsd_complex
+from jax_spectral_dns._typing import jsd_complex, jsd_array, np_float_array, np_complex_array, jnp_array, jsd_float
 
 NoneType = type(None)
-
-np_complex = np.complex64
-np_complex_array = npt.NDArray[np.complex64]
 
 class LinearStabilityCalculation:
     def __init__(self, Re=180.0, alpha=3.25, beta=0.0, n=50):
@@ -61,7 +58,7 @@ class LinearStabilityCalculation:
             + "_mode_"
             + str(mode)
         )
-        self.make_field_file_name = (
+        self.make_field_file_name: Callable[[PhysicalDomain, str], str] = (
             lambda domain_, field_name: field_name
             + "_"
             + str(self.Re)
@@ -74,7 +71,7 @@ class LinearStabilityCalculation:
         )
         # Equation.initialize()
 
-    def assemble_matrix_fast(self) -> np_complex_array:
+    def assemble_matrix_fast(self) -> tuple[np_complex_array, np_complex_array]:
         alpha = self.alpha
         beta = self.beta
         Re = self.Re
@@ -266,7 +263,7 @@ class LinearStabilityCalculation:
 
         return self.velocity_field_from_y_slice(domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor)
 
-    def y_slice_to_3d_field(self, domain, y_slice_i, factor=1.0):
+    def y_slice_to_3d_field(self, domain: PhysicalDomain, y_slice_i: jnp_array, factor: jsd_complex=1.0) -> jnp_array:
         out = (
             factor
             * jnp.einsum(
@@ -290,14 +287,14 @@ class LinearStabilityCalculation:
     def velocity_field_from_y_slice(
             self,
             domain: PhysicalDomain,
-            y_slice: np_complex_array,
-            factor: float=1.0
+            y_slice: tuple[jnp_array, jnp_array, jnp_array],
+            factor: jsd_float=1.0
     ) -> VectorField:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
-        u_vec = y_slice[0]
-        v_vec = y_slice[1]
-        w_vec = y_slice[2]
+        u_vec: jnp_array = y_slice[0]
+        v_vec: jnp_array = y_slice[1]
+        w_vec: jnp_array = y_slice[2]
 
 
         u_field = PhysicalField(
@@ -366,8 +363,8 @@ class LinearStabilityCalculation:
         return (out, self.eigenvalues[mode])
 
     def calculate_transient_growth_svd(
-        self, domain, T, number_of_modes, save=False, recompute=False
-    ):
+        self, T: jsd_float, number_of_modes: int, save: bool=False, recompute: bool=False
+    ) -> tuple[np_float_array, np_complex_array]:
         if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
             try:
                 if recompute:
@@ -392,17 +389,17 @@ class LinearStabilityCalculation:
 
         n = self.n
 
-        def get_integral_coefficient(p, q):
+        def get_integral_coefficient(p: int, q: int) -> jsd_float:
             f = lambda y: phi(p, 0)(y) * phi(q, 0)(y)
+            out, _ = quad(f, -1, 1, limit=100)
+            return out
+
+        def get_integral_coefficient_symm(p: int, q: int) -> tuple[jsd_float, jsd_float]:
             f_s = lambda y: phi_s(p, 0)(y) * phi_s(q, 0)(y)
             f_a = lambda y: phi_a(p, 0)(y) * phi_a(q, 0)(y)
-            if self.symm:
-                out_s, _ = quad(f_s, -1, 1, limit=100)
-                out_a, _ = quad(f_a, -1, 1, limit=100)
-                return (out_s, out_a)
-            else:
-                out, _ = quad(f, -1, 1, limit=100)
-                return out
+            out_s, _ = quad(f_s, -1, 1, limit=100)
+            out_a, _ = quad(f_a, -1, 1, limit=100)
+            return (out_s, out_a)
 
         integ = np.zeros([n, n])
         integ_s = np.zeros([n, n])
@@ -410,7 +407,7 @@ class LinearStabilityCalculation:
         for p in range(n):
             for q in range(p, n):
                 if self.symm:
-                    integ_s[p, q], integ_a[p, q] = get_integral_coefficient(p, q)
+                    integ_s[p, q], integ_a[p, q] = get_integral_coefficient_symm(p, q)
                     integ_s[q, p] = integ_s[p, q]
                     integ_a[q, p] = integ_a[p, q]
                 else:
@@ -455,13 +452,13 @@ class LinearStabilityCalculation:
 
     def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
         S, _ = self.calculate_transient_growth_svd(
-            domain, T, number_of_modes, save=False
+            T, number_of_modes, save=False
         )
         return S[0] ** 2
 
     def calculate_transient_growth_initial_condition_from_coefficients(
-        self, domain, coeffs, recompute=True
-    ):
+        self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool=True
+    ) -> VectorField:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for eigenvalues/-vectors,
         however, recompute=True forces recomputation."""
@@ -519,7 +516,7 @@ class LinearStabilityCalculation:
         except FileNotFoundError:
             if recompute_full or type(self.V) == NoneType:
                 self.S, factors = self.calculate_transient_growth_svd(
-                    domain, T, number_of_modes, save=False, recompute=recompute_full
+                    T, number_of_modes, save=False, recompute=recompute_full
                 )
 
 
@@ -532,10 +529,10 @@ class LinearStabilityCalculation:
 
         return u
 
-    def print_welcome(self):
+    def print_welcome(self) -> None:
         print_verb("starting linear stability calculation", verbosity_level=2)
 
-    def post_process(self):
+    def post_process(self) -> None:
         pass
 
     def perform_calculation(self):

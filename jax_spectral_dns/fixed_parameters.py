@@ -5,13 +5,13 @@ import numpy.typing as npt
 import dataclasses
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
+from jax_spectral_dns._typing import jsd_float, np_float_array
 
-np_float_array = npt.NDArray[np.float64]
 
 @dataclasses.dataclass(frozen=True)
 class FixedParameters():
     domain: Domain
-    dt: float
+    dt: jsd_float
 
 
 @dataclasses.dataclass(frozen=True)

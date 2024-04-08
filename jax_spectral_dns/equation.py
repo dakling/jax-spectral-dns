@@ -13,6 +13,7 @@ import os
 from jax_spectral_dns.domain import Domain
 from jax_spectral_dns.field import Field, FourierField
 from jax_spectral_dns.fixed_parameters import FixedParameters
+from jax_spectral_dns._typing import jsd_float
 
 jnp_int_array = jnp.ndarray
 
@@ -45,11 +46,11 @@ class Equation:
     verbosity_level:int = 1
 
     def __init__(self, domain, *fields, **params):
-        dt = params.get("dt", 1e-2)
+        dt: jsd_float = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
-        self.time_step = 0
-        self.time = 0.0
+        self.time_step: int = 0
+        self.time: jsd_float = 0.0
         self.before_time_step_fn = None
         self.after_time_step_fn = None
         self.post_process_fn = None
@@ -71,7 +72,7 @@ class Equation:
     def initialize(cls, cleanup=True):
         Field.initialize(cleanup)
 
-    def get_dt(self) -> float:
+    def get_dt(self) -> jsd_float:
         return self.fixed_parameters.dt
 
     def get_domain(self) -> Domain:
@@ -82,8 +83,7 @@ class Equation:
             if index is None:
                 return self.fields[name]
             else:
-                out = self.fields[name][index]
-                # assert isinstance(out, Field) # TODO
+                out: Field = self.fields[name][index]
                 if index >= 0:
                     out.set_time_step(index)
                 else:

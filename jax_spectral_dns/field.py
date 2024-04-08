@@ -285,7 +285,7 @@ class VectorField:
                 out.append(self[i] * other[i])
         else:
             for i in range(len(self)):
-                assert isinstance(other, Field)
+                assert isinstance(other, Field) or type(other) is float
                 out.append(self[i] * other)
         return VectorField(out)
 

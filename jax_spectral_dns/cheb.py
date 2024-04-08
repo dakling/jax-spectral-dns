@@ -8,32 +8,38 @@ from jax_spectral_dns._typing import jsd_float
 def cheb(order: int, deriv: int) -> Chebyshev:
     unit_array = np.eye(order + 1)[order].flatten()
     ch: Chebyshev = Chebyshev(unit_array)
-    ch: Chebyshev = ch.deriv(deriv) #type: ignore
+    ch = ch.deriv(deriv) #type: ignore[no-untyped-call]
     return ch
 
 
 def phi(order: int, deriv: int) -> Chebyshev:
-    return cheb(order + 2, deriv) - cheb(order, deriv)
+    out: Chebyshev = cheb(order + 2, deriv) - cheb(order, deriv)
+    return out
 
 
 def phi_a(order: int, deriv: int) -> Chebyshev:
     order += 1  # compatibility with MATLAB indexing
-    return cheb(2 * order + 1, deriv) - cheb(2 * order - 1, deriv)
+    out: Chebyshev = cheb(2 * order + 1, deriv) - cheb(2 * order - 1, deriv)
+    return out
 
 
 def phi_s(order: int, deriv: int) -> Chebyshev:
     order += 1  # compatibility with MATLAB indexing
-    return cheb(2 * order, deriv) - cheb(2 * order - 2, deriv)
+    out: Chebyshev = cheb(2 * order, deriv) - cheb(2 * order - 2, deriv)
+    return out
 
 
 def phi_as(order: int, deriv: int, ySym: jsd_float) -> Chebyshev:
-    return ySym * phi_a(order, deriv) + (1 - ySym) * phi_s(order, deriv)
+    out: Chebyshev = ySym * phi_a(order, deriv) + (1 - ySym) * phi_s(order, deriv)
+    return out
 
 
 def phi_sa(order: int, deriv: int, ySym: jsd_float) -> Chebyshev:
-    return phi_as(order, deriv, 1 - ySym)
+    out: Chebyshev = phi_as(order, deriv, 1 - ySym)
+    return out
 
 
 def phi_pressure(order: int, deriv: int) -> Chebyshev:
     order += 1 # compatibility with MATLAB indexing
-    return cheb(2*order - 1, deriv)
+    out: Chebyshev = cheb(2*order - 1, deriv)
+    return out
