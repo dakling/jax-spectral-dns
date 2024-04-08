@@ -2448,7 +2448,7 @@ def run_ld_2020(
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
             for j in range(len(cheb_coeffs)):
-                U_mat[i, j] = cheb(j, 0, domain.grid[1][i])
+                U_mat[i, j] = cheb(j, 0)(domain.grid[1][i])
         U_y_slice = U_mat @ cheb_coeffs
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(
@@ -2525,11 +2525,18 @@ def run_ld_2020(
         vel.set_name("velocity")
         vort.set_time_step(i)
         vort.set_name("vorticity")
+
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
+        vel[2].plot_3d(2)
         vort[2].plot_3d(2)
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
+
+        vel[0].plot_3d(0)
+        vel[1].plot_3d(0)
+        vel[2].plot_3d(0)
+        vort[2].plot_3d(0)
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)

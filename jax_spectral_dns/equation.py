@@ -83,7 +83,7 @@ class Equation:
                 return self.fields[name]
             else:
                 out = self.fields[name][index]
-                assert isinstance(out, Field)
+                # assert isinstance(out, Field) # TODO
                 if index >= 0:
                     out.set_time_step(index)
                 else:

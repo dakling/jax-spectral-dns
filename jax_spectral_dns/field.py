@@ -17,18 +17,15 @@ import functools
 import dataclasses
 from typing import Callable, Iterable, Optional, Sequence, Union
 from typing_extensions import Self
+from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array
+
 
 import numpy as np
-import numpy.typing as npt
 
 from pathlib import Path
 import os
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
-
-np_float_array = npt.NDArray[np.float64]
-np_complex_array = npt.NDArray[np.complex64]
-jnp_float_array = jnp.ndarray
 
 NoneType = type(None)
 
@@ -47,7 +44,7 @@ class Field(ABC):
 
     field_dir = "./fields/"
 
-    def __init__(self, domain: Domain, data: jnp.ndarray, name: str):
+    def __init__(self, domain: Domain, data: jnp_array, name: str):
         self.domain = domain
         self.data = data
         self.name = name
@@ -55,7 +52,7 @@ class Field(ABC):
 
     @classmethod
     def Zeros(cls, domain, name="field") -> Self:
-        data: jnp.ndarray = jnp.zeros(domain.shape)
+        data: jnp_array = jnp.zeros(domain.shape)
         return cls(domain, data, name)
 
     @abstractmethod
@@ -67,7 +64,7 @@ class Field(ABC):
         ...
 
     @abstractmethod
-    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jnp_float_array]]:
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jsd_array]]:
         """Divide field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
         ...
@@ -135,6 +132,9 @@ class Field(ABC):
     def __truediv__(self, _: float) -> Self:
         raise NotImplementedError()
 
+    def shift(self, value: float) -> Self:
+        raise NotImplementedError()
+
     def __repr__(self):
         # self.plot()
         return str(self.data)
@@ -142,13 +142,13 @@ class Field(ABC):
     def __getitem__(self, index):
         return self.data[index]
 
-    def max(self) -> jnp_float_array:
+    def max(self) -> jsd_array:
         return jnp.max(self.data.flatten())
 
-    def min(self) -> jnp_float_array:
+    def min(self) -> jsd_array:
         return jnp.min(self.data.flatten())
 
-    def absmax(self) -> jnp_float_array:
+    def absmax(self) -> jsd_array:
         max = jnp.max(self.data.flatten())
         min = jnp.min(self.data.flatten())
         return jnp.max(jnp.array([max, -min]))
@@ -254,7 +254,7 @@ class VectorField:
 
     #     return on_all
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Field:
         return self.elements[index]
 
     def __iter__(self):
@@ -280,11 +280,12 @@ class VectorField:
 
     def __mul__(self, other: Union[VectorField, jnp.ndarray, float]) -> VectorField:
         out = []
-        if isinstance(other, Field):
+        if isinstance(other, VectorField):
             for i in range(len(self)):
                 out.append(self[i] * other[i])
         else:
             for i in range(len(self)):
+                assert isinstance(other, Field)
                 out.append(self[i] * other)
         return VectorField(out)
 
@@ -310,6 +311,24 @@ class VectorField:
     def min(self):
         return min([min(f) for f in self])
 
+    def get_physical_domain(self) -> PhysicalDomain:
+        f = self[0]
+        if type(f) is PhysicalField:
+            return f.get_domain()
+        elif type(f) is FourierField:
+            return f.get_physical_domain()
+        else:
+            raise Exception("Unable to return PhysicalDomain.")
+
+    def get_fourier_domain(self) -> FourierDomain:
+        f = self[0]
+        if type(f) is PhysicalField:
+            raise Exception("PhysicalField has no attribute FourierDomain.")
+        elif type(f) is FourierField:
+            return f.get_domain()
+        else:
+            raise Exception("Unable to return FourierDomain.")
+
     def __abs__(self):
         out = 0
         for f in self:
@@ -329,7 +348,7 @@ class VectorField:
             f.data = f.data / jnp.sqrt(en)
         return self
 
-    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, list[jnp_float_array]]]:
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, list[jsd_array]]]:
         """Divide each field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
         max = []
@@ -408,17 +427,17 @@ class VectorField:
 
     def all_dimensions(self) -> Sequence[int]:
         out = self[0].get_domain().all_dimensions()
-        assert type(out) is Sequence[int]
+        # assert type(out) is Sequence[int]
         return out
 
     def all_periodic_dimensions(self) -> list[int]:
         out = self[0].get_domain().all_periodic_dimensions()
-        assert type(out) is list[int]
+        # assert type(out) is list[int]
         return out
 
     def all_nonperiodic_dimensions(self) -> list[int]:
         out = self[0].get_domain().all_nonperiodic_dimensions()
-        assert type(out) is list[int]
+        # assert type(out) is list[int]
         return out
 
     def hat(self) -> VectorField:
@@ -430,11 +449,13 @@ class VectorField:
     def plot(self, *other_fields):
         for i in jnp.arange(len(self)):
             other_fields_i = [item[i] for item in other_fields]
-            self[i].plot(*other_fields_i)
+            f = self[i]
+            assert type(f) is PhysicalField, "plot only implemented for PhysicalField."
+            f.plot(*other_fields_i)
 
     def plot_3d(self, direction: Optional[int]=None) -> None:
         for f in self:
-            assert type(f) is PhysicalField, "plot_3d only defined for PhysicalField."
+            assert type(f) is PhysicalField, "plot_3d only implemented for PhysicalField."
             f.plot_3d(direction)
 
     def cross_product(self, other: VectorField) -> VectorField:
@@ -492,6 +513,9 @@ class VectorField:
         # vectorize = jax.devices()[0].platform == "gpu"  # True on GPUs and False on CPUs
         vectorize = False
 
+        physical_domain = self.get_physical_domain()
+        fourier_domain = self.get_fourier_domain()
+
         if jit:
             raise NotImplementedError()
             # time_1 = time.time()
@@ -512,13 +536,11 @@ class VectorField:
         else:
             time_1 = time.time()
             k1s = jnp.array(
-                self[0]
-                .fourier_domain.grid[self.all_periodic_dimensions()[0]]
+                fourier_domain.grid[self.all_periodic_dimensions()[0]]
                 .astype(int)
             )
             k2s = jnp.array(
-                self[0]
-                .fourier_domain.grid[self.all_periodic_dimensions()[1]]
+                fourier_domain.grid[self.all_periodic_dimensions()[1]]
                 .astype(int)
             )
             k1_ints = jnp.arange(len(k1s))
@@ -535,7 +557,7 @@ class VectorField:
                 )
                 out_field = [
                     FourierField(
-                        self[0].physical_domain,
+                        physical_domain,
                         jnp.moveaxis(
                             out_array[:, :, i, :],
                             -1,
@@ -550,7 +572,7 @@ class VectorField:
                 for i in range(number_of_other_fields):
                     other_field.append(
                         FourierField(
-                            self[0].physical_domain,
+                            physical_domain,
                             jnp.moveaxis(
                                 out_array[:, :, i + 3, :],
                                 -1,
@@ -569,7 +591,7 @@ class VectorField:
                 out_array = jnp.array(jit_fn_vec(K))
                 out_field = [
                     FourierField(
-                        self[0].physical_domain,
+                        physical_domain,
                         jnp.moveaxis(
                             out_array[i, :, :].reshape(Nx, Nz, Ny),
                             -1,
@@ -684,7 +706,7 @@ class PhysicalField(Field):
     def __init__(
         self,
         domain: PhysicalDomain,
-        data: jnp.ndarray,
+        data: jnp_array,
         name: str = "field",
         time_step: int = 0,
     ):
@@ -715,7 +737,6 @@ class PhysicalField(Field):
                 self.physical_domain, self.data + other.data, name=new_name
             )
         else:
-            print(type(other))
             assert isinstance(other, jnp.ndarray)
             ret = PhysicalField(self.physical_domain, self.data + other, name="field")
         ret.time_step = self.time_step
@@ -842,10 +863,10 @@ class PhysicalField(Field):
         out.data = jnp.array(field_array.tolist())
         return out
 
-    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jnp_float_array]]:
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jsd_array]]:
         """Divide field by the absolute value of its maximum, unless it is
         very small (this prevents divide-by-zero issues)."""
-        max = abs(self.absmax())
+        max: float = abs(self.absmax()) #type: ignore[assignment]
 
         self.data = jax.lax.cond(
             max > 1e-20,
@@ -869,17 +890,16 @@ class PhysicalField(Field):
         analytical_solution = PhysicalField.FromFunc(self.physical_domain, fn)
         return jnp.linalg.norm((self - analytical_solution).data, None)
 
-    def volume_integral(self) -> float:
+    def volume_integral(self) -> jsd_float:
         int = PhysicalField(self.physical_domain, self.data)
         dims = list(reversed(self.all_dimensions()))
         for i in dims[:-1]:
-            assert type(int) is PhysicalField
+            assert type(int) is PhysicalField, type(int)
             out_ = int.definite_integral(i)
-            assert type(out_) is PhysicalField
+            assert type(out_) is PhysicalField, type(out_)
             int = out_
-        assert type(int) is PhysicalField
+        assert type(int) is PhysicalField, type(int)
         out = int.definite_integral(dims[-1])
-        assert type(out) is float
         return out
 
     def energy(self):
@@ -907,7 +927,7 @@ class PhysicalField(Field):
                 constant_values=0.0,
             )
 
-    def eval(self, X: Sequence[float]) -> jnp_float_array:
+    def eval(self, X: Sequence[float]) -> jsd_array:
         """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
         grd = self.physical_domain.grid
         interpolant = []
@@ -1076,7 +1096,7 @@ class PhysicalField(Field):
             else:
                 raise Exception("Not implemented yet")
 
-    def plot(self, *other_fields):
+    def plot(self, *other_fields: PhysicalField) -> None:
         if not self.activate_jit_:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
@@ -1434,17 +1454,17 @@ class PhysicalField(Field):
         out_bc = self.physical_domain.integrate(
             self.data, direction, order, bc_left, bc_right
         )
-        assert type(out_bc) is jnp_float_array
+        # assert type(out_bc) is jsd_array
         return PhysicalField(self.physical_domain, out_bc, name=self.name + "_int")
 
     def definite_integral(
         self, direction: int
-    ) -> Union[float, jnp_float_array, PhysicalField]:
-        def reduce_add_along_axis(arr: jnp_float_array, axis: int) -> jnp_float_array:
+    ) -> Union[float, jsd_array, PhysicalField]:
+        def reduce_add_along_axis(arr: jsd_array, axis: int) -> jnp_array:
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
-            out_arr = functools.reduce(lambda a, b: a + b, arr)
-            assert type(out_arr) is jnp_float_array
+            out_arr = jnp.array(functools.reduce(lambda a, b: a + b, arr))
+            # assert type(out_arr) is jsd_array
             return out_arr
 
         if not self.is_periodic(direction):
@@ -1507,12 +1527,12 @@ class PhysicalField(Field):
                 reduced_domain = PhysicalDomain.create(
                     shape, periodic_directions, scale_factors=scale_factors, aliasing=self.get_domain().aliasing
                 )
-                field = (
+                data = (
                     self.physical_domain.scale_factors[direction]
                     / N
                     * reduce_add_along_axis(self.data, direction)
                 )
-                return PhysicalField(reduced_domain, field)
+                return PhysicalField(reduced_domain, data)
 
 
 # @register_pytree_node_class
@@ -1637,7 +1657,7 @@ class FourierField(Field):
         out.data = out.physical_domain.field_hat(field.data)
         return out
 
-    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jnp_float_array]]:
+    def normalize_by_max_value(self, return_max: bool=False) -> Union[Self, tuple[Self, jsd_array]]:
         raise Exception("This is not supported for Fourier Fields. Transform to PhysicalField, normalize, and transform back to FourierField instead.")
 
 
@@ -1674,7 +1694,7 @@ class FourierField(Field):
                 self.physical_domain
                 .integrate(self.data, direction, order, bc_right=bc_right, bc_left=bc_left)
             )
-            assert type(out_field_) is jnp_float_array
+            # assert type(out_field_) is jsd_array
             out_field = out_field_
 
         return FourierField(
@@ -1848,7 +1868,7 @@ class FourierFieldSlice(FourierField):
         I = np.eye(n)
         mat = factor * I + y_mat
         mat_inv = np.linalg.inv(mat)
-        assert type(mat_inv) is np_complex_array
+        # assert type(mat_inv) is np_complex_array
         return mat_inv
 
     def solve_poisson(self, mat=None):

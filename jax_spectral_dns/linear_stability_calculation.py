@@ -14,9 +14,11 @@ from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import PhysicalField, VectorField
+from jax_spectral_dns._typing import jsd_complex
 
 NoneType = type(None)
 
+np_complex = np.complex64
 np_complex_array = npt.NDArray[np.complex64]
 
 class LinearStabilityCalculation:
@@ -101,39 +103,38 @@ class LinearStabilityCalculation:
             dU = du_fun(y)
             for k in range(n):
 
-                def setMat(mat: np_complex_array, eq: int, var: int, value: Union[float, complex]) -> None:
+                def setMat(mat: np_complex_array, eq: int, var: int, value: jsd_complex) -> None:
                     jj, kk = local_to_global_index(j, k, eq, var)
                     mat[jj, kk] = value
 
                 if self.symm:
-                    u = phi_a(k, 0, y)
-                    d2u = phi_a(k, 2, y)
+                    u = phi_a(k, y)(y)
+                    d2u = phi_a(k, 2)(y)
 
                     v = u
-                    dv = phi_s(k, 1, y)
+                    dv = phi_s(k, 1)(y)
                     d2v = d2u
 
                     w = u
                     d2w = d2u
 
-                    p = phi_pressure(k, 0, y)
-                    dp = phi_pressure(k, 1, y)
+                    p = phi_pressure(k, 0)(y)
+                    dp = phi_pressure(k, 1)(y)
                 else:
-                    u = phi(k, 0, y)
-                    d2u = phi(k, 2, y)
+                    u = phi(k, 0)(y)
+                    d2u = phi(k, 2)(y)
 
                     v = u
-                    dv = phi(k, 1, y)
+                    dv = phi(k, 1)(y)
                     d2v = d2u
 
                     w = u
                     d2w = d2u
 
-                    p = cheb(k, 0, y)
-                    dp = cheb(k, 1, y)
+                    p = cheb(k, 0)(y)
+                    dp = cheb(k, 1)(y)
 
                 # eq 1 (momentum x)
-                assert type(u) is float
                 setMat(B, 0, 0, u)
 
                 setMat(A, 0, 0, -I * alpha * U * u + 1 / Re * (d2u - kSq * u))
@@ -141,21 +142,18 @@ class LinearStabilityCalculation:
                 setMat(A, 0, 3, -I * alpha * p)
 
                 # eq 2 (momentum y)
-                assert type(v) is float
                 setMat(B, 1, 1, v)
 
                 setMat(A, 1, 1, -I * alpha * U * v + 1 / Re * (d2v - kSq * v))
                 setMat(A, 1, 3, -dp)
 
                 # eq 3 (momentum z)
-                assert type(w) is float
                 setMat(B, 2, 2, w)
 
                 setMat(A, 2, 2, -I * alpha * U * w + 1 / Re * (d2w - kSq * w))
                 setMat(A, 2, 3, -I * beta * p)
 
                 # eq 4 (continuity)
-                assert type(dv) is float
                 setMat(A, 3, 0, I * alpha * u)
                 setMat(A, 3, 1, dv)
                 setMat(A, 3, 2, I * beta * w)
@@ -260,11 +258,11 @@ class LinearStabilityCalculation:
         if not symm:
             for i in range(N_domain):
                 for k in range(n):
-                    phi_mat = phi_mat.at[i, k].set(phi(k, 0, ys[i]))
+                    phi_mat = phi_mat.at[i, k].set(phi(k, 0)(ys[i]))
         else:
             for i in range(N_domain):
                 for k in range(n):
-                    phi_mat = phi_mat.at[i, k].set(phi_s(k, 0, ys[i]))
+                    phi_mat = phi_mat.at[i, k].set(phi_s(k, 0)(ys[i]))
 
         return self.velocity_field_from_y_slice(domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor)
 
@@ -395,9 +393,9 @@ class LinearStabilityCalculation:
         n = self.n
 
         def get_integral_coefficient(p, q):
-            f = lambda y: phi(p, 0, y) * phi(q, 0, y)
-            f_s = lambda y: phi_s(p, 0, y) * phi_s(q, 0, y)
-            f_a = lambda y: phi_a(p, 0, y) * phi_a(q, 0, y)
+            f = lambda y: phi(p, 0)(y) * phi(q, 0)(y)
+            f_s = lambda y: phi_s(p, 0)(y) * phi_s(q, 0)(y)
+            f_a = lambda y: phi_a(p, 0)(y) * phi_a(q, 0)(y)
             if self.symm:
                 out_s, _ = quad(f_s, -1, 1, limit=100)
                 out_a, _ = quad(f_a, -1, 1, limit=100)
