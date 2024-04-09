@@ -17,7 +17,7 @@ import functools
 import dataclasses
 from typing import Any, Callable, Generic, Iterable, Optional, Sequence, TypeVar, Union, cast
 from typing_extensions import Self
-from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type
+from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array
 
 
 import numpy as np
@@ -1453,7 +1453,7 @@ class PhysicalField(Field):
         out.time_step = self.time_step
         return out
 
-    def diff(self, direction, order=1):
+    def diff(self, direction:int , order:int =1) -> PhysicalField:
         name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
         return PhysicalField(
             self.physical_domain,
@@ -1679,9 +1679,9 @@ class FourierField(Field):
         raise Exception("This is not supported for Fourier Fields. Transform to PhysicalField, normalize, and transform back to FourierField instead.")
 
 
-    def diff(self, direction, order=1):
+    def diff(self, direction: int, order: int=1) -> FourierField:
         if direction in self.all_periodic_dimensions():
-            out_field = (1j * self.fourier_domain.mgrid[direction]) ** order * self.data
+            out_field: jnp_array = jnp.array((1j * self.fourier_domain.mgrid[direction]) ** order * self.data)
         else:
             out_field = self.physical_domain.diff(self.data, direction, order)
         return FourierField(
@@ -1690,7 +1690,7 @@ class FourierField(Field):
             name=self.name + "_diff_" + str(order),
         )
 
-    def integrate(self, direction, order=1, bc_right=None, bc_left=None):
+    def integrate(self, direction, order:int=1, bc_right:Optional[float]=None, bc_left:Optional[float]=None) -> FourierField:
         if direction in self.all_periodic_dimensions():
             mgrid = self.fourier_domain.mgrid[direction]
             field = self.data
@@ -1769,17 +1769,20 @@ class FourierField(Field):
         )
         return mat
 
-    def solve_poisson(self, mat=None):
+    def solve_poisson(self, mat: Optional[np_complex_array]=None) -> FourierField:
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
         ), "Poisson solution not implemented for the general case."
         rhs_hat = self.data
         if type(mat) == NoneType:
-            mat = self.assemble_poisson_matrix()
+            mat_ = self.assemble_poisson_matrix()
+        else:
+            assert mat is not None
+            mat_ = mat
         field = rhs_hat
         out_field = jnp.pad(
-            jnp.einsum("ijkl,ilj->ikj", mat, field),
+            jnp.einsum("ijkl,ilj->ikj", mat_, field),
             [
                 (0, 0) if i in self.all_periodic_dimensions() else (0, 0)
                 for i in self.all_dimensions()
@@ -1800,7 +1803,7 @@ class FourierField(Field):
         out_field.time_step = self.time_step
         return out_field
 
-    def reconstruct_from_wavenumbers(self, fn, vectorize=False):
+    def reconstruct_from_wavenumbers(self, fn: Callable[[int, int], jnp_array], vectorize:bool =False) -> FourierField:
         if vectorize:
             print("vectorisation not implemented yet, using unvectorized version")
         assert self.number_of_dimensions() == 3, "Only 3D implemented."
@@ -1889,10 +1892,11 @@ class FourierFieldSlice(FourierField):
         # assert type(mat_inv) is np_complex_array
         return mat_inv
 
-    def solve_poisson(self, mat=None):
+    def solve_poisson(self, mat:Optional[np_complex_array]=None) -> FourierFieldSlice:
         if type(mat) == NoneType:
             mat_inv = self.assemble_poisson_matrix()
         else:
+            assert mat is not None
             k1 = self.ks_int[self.all_periodic_dimensions()[0]]
             k2 = self.ks_int[self.all_periodic_dimensions()[1]]
             mat_inv = mat[k1, k2, :, :]

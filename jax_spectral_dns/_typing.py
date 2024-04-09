@@ -27,3 +27,4 @@ if TYPE_CHECKING:
     AnyVectorField = Union[VectorField[PhysicalField], VectorField[FourierField]]
     AnyField = Union[AnyVectorField, AnyScalarField]
     AnyFieldList = Union[List[PhysicalField], List[FourierField], List[VectorField[PhysicalField]], List[VectorField[FourierField]]]
+    pseudo_2d_perturbation_return_type = tuple[list[float], list[float], list[float], list[float], list[float], list[float], list[float], VectorField[PhysicalField]]

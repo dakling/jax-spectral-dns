@@ -8,7 +8,7 @@ from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from functools import partial
-from typing import Callable, cast
+from typing import Callable, Optional, Union, cast
 import time
 
 from jax_spectral_dns.cheb import cheb
@@ -22,7 +22,7 @@ from jax_spectral_dns.navier_stokes_perturbation import (
 )
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.optimiser import Optimiser, OptimiserNonFourier, OptimiserPertAndBase
-from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array
+from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array, pseudo_2d_perturbation_return_type
 
 NoneType = type(None)
 
@@ -580,22 +580,22 @@ def run_dummy_velocity_field():
 
 
 def run_pseudo_2d_perturbation(
-    Re=3000.0,
-    alpha=1.02056,
-    end_time=1.0,
-    dt=1e-2,
-    Nx=4,
-    Ny=96,
-    Nz=2,
-    eps=1e-0,
-    linearize=True,
-    plot=True,
-    save=True,
-    v0=None,
-    aliasing=1.0,
-    rotated=False,
-    jit=True,
-):
+    Re: float=3000.0,
+    alpha: float=1.02056,
+    end_time: float=1.0,
+    dt: float=1e-2,
+    Nx: int=4,
+    Ny: int=96,
+    Nz: int=2,
+    eps: float=1e-0,
+    linearize: bool=True,
+    plot: bool=True,
+    save: bool=True,
+    v0: Optional[jnp_array]=None,
+    aliasing: float=1.0,
+    rotated: bool=False,
+    jit: bool=True,
+) -> pseudo_2d_perturbation_return_type:
     Re = float(Re)
     alpha = float(alpha)
     end_time = float(end_time)
@@ -642,6 +642,7 @@ def run_pseudo_2d_perturbation(
     if type(v0) == NoneType:
         U = lsc.velocity_field_single_mode(nse.get_physical_domain(), save=save)
     else:
+        assert v0 is not None
         # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField(
             [PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)]
@@ -839,17 +840,17 @@ def run_jimenez_1990(start_time=0):
 
 
 def run_transient_growth_nonpert(
-    Re=3000.0,
-    T=15.0,
-    alpha=1.0,
-    beta=0.0,
-    end_time=None,
-    eps=1e-3,
-    Nx=4,
-    Ny=50,
-    Nz=4,
-    plot=True,
-):
+    Re: float=3000.0,
+    T: float=15.0,
+    alpha: float=1.0,
+    beta: float=0.0,
+    end_time: Optional[float]=None,
+    eps: float=1e-3,
+    Nx: int=4,
+    Ny: int=50,
+    Nz: int=4,
+    plot: bool=True,
+) -> tuple[float, float, list[list[float]], list[float]]:
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -866,6 +867,7 @@ def run_transient_growth_nonpert(
     if end_time is None:
         end_time = T
     else:
+        assert end_time is not None
         end_time = float(end_time)
     number_of_modes = 60
 
@@ -1013,18 +1015,18 @@ def run_transient_growth_nonpert(
 
 
 def run_transient_growth(
-    Re=3000.0,
-    T=15.0,
-    alpha=1.0,
-    beta=0.0,
-    end_time=None,
-    eps=1e-5,
-    Nx=4,
-    Ny=50,
-    Nz=4,
-    linearize=True,
-    plot=True,
-):
+    Re: float=3000.0,
+    T: float=15.0,
+    alpha: float=1.0,
+    beta: float=0.0,
+    end_time: Optional[float]=None,
+    eps: float=1e-5,
+    Nx: int=4,
+    Ny: int=50,
+    Nz: int=4,
+    linearize: Union[bool, str]=True,
+    plot: bool=True,
+) -> tuple[float, float, list[list[float]], list[float]]:
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -1032,7 +1034,9 @@ def run_transient_growth(
     alpha = float(alpha)
     beta = float(beta)
     if type(linearize) == str:
-        linearize = linearize == "True"
+        linearize_ = linearize == "True"
+    else:
+        linearize_ = cast(bool, linearize)
 
     eps = float(eps)
 
@@ -1043,6 +1047,7 @@ def run_transient_growth(
     if end_time is None:
         end_time = T
     else:
+        assert end_time is not None
         end_time = float(end_time)
     number_of_modes = 60
 
@@ -1059,7 +1064,7 @@ def run_transient_growth(
     )
     # nse.initialize()
 
-    nse.set_linearize(linearize)
+    nse.set_linearize(linearize_)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
 
