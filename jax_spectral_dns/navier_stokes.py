@@ -2,7 +2,7 @@
 
 NoneType = type(None)
 from operator import rshift
-from typing import Any, Callable, Optional, Self, Union
+from typing import Any, Callable, List, Optional, Self, Union, cast
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -96,7 +96,7 @@ def update_nonlinear_terms_high_performance(
 class NavierStokesVelVort(Equation):
     name = "Navier Stokes equation (velocity-vorticity formulation)"
 
-    def __init__(self, velocity_field, **params):
+    def __init__(self, velocity_field: VectorField[FourierField], **params: Any):
         if "physical_domain" in params:
             physical_domain = params["physical_domain"]
             domain = physical_domain.hat()
@@ -187,6 +187,21 @@ class NavierStokesVelVort(Equation):
     def get_physical_domain(self) -> PhysicalDomain:
         return self.nse_fixed_parameters.physical_domain
 
+    def get_field(self, name: str, index: int) -> 'VectorField[FourierField]':
+        out = cast(VectorField[FourierField], super().get_field(name, index))
+        return out
+
+    def get_fields(self, name: str) -> list['VectorField[FourierField]']:
+        return cast(List[VectorField[FourierField]], super().get_fields(name))
+
+    def get_initial_field(self, name: str) -> 'VectorField[FourierField]':
+        out = cast(VectorField[FourierField], super().get_initial_field(name))
+        return out
+
+    def get_latest_field(self, name: str) -> 'VectorField[FourierField]':
+        out = cast(VectorField[FourierField], super().get_latest_field(name))
+        return out
+
     def get_poisson_mat(self) -> np_complex_array:
         return self.nse_fixed_parameters.poisson_mat
 
@@ -220,11 +235,11 @@ class NavierStokesVelVort(Equation):
     def get_u_max_over_u_tau(self) -> jsd_float:
         return self.nse_fixed_parameters.u_max_over_u_tau
 
-    def init_velocity(self, velocity_hat: VectorField) -> None:
+    def init_velocity(self, velocity_hat: VectorField[FourierField]) -> None:
         self.set_field("velocity_hat", 0, velocity_hat)
 
     def get_vorticity_and_helicity(self):
-        velocity_field_hat: VectorField = self.get_latest_field("velocity_hat")  # type: ignore[assignment]
+        velocity_field_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
         vort_hat = velocity_field_hat.curl()
         for i in jnp.arange(3):
             vort_hat[i].name = "vort_hat_" + str(i)
@@ -235,8 +250,8 @@ class NavierStokesVelVort(Equation):
         return (vort_hat, hel_hat)
 
     def get_flow_rate(self) -> jsd_float:
-        vel_hat: VectorField = self.get_latest_field("velocity_hat")  # type: ignore[assignment]
-        vel_hat_0: FourierField = vel_hat[0]  # type: ignore[assignment]
+        vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
+        vel_hat_0: FourierField = vel_hat[0]
         int: PhysicalField = vel_hat_0.no_hat().definite_integral(1)  # type: ignore[assignment]
         return int[0, 0]
 
@@ -251,10 +266,10 @@ class NavierStokesVelVort(Equation):
         ).hat()
 
     def update_nonlinear_terms(
-        self, velocity_field: Optional[FourierField] = None, in_place: bool = True
+        self, velocity_field: Optional[VectorField[FourierField]] = None, in_place: bool = True
     ) -> Union[
         tuple[jnp_array, jnp_array, jnp_array, jnp_array],
-        tuple[FourierField, FourierField, VectorField, VectorField],
+        tuple[FourierField, FourierField, VectorField[FourierField], VectorField[FourierField]],
     ]:
         if type(velocity_field) == NoneType:
             velocity_field_ = self.get_latest_field("velocity_hat")
@@ -448,8 +463,8 @@ class NavierStokesVelVort(Equation):
 
     @classmethod
     def vort_yvel_to_vel(
-        cls, physical_domain, vort, vel_y, vel_x_00, vel_z_00, two_d=False
-    ):
+        cls, physical_domain: PhysicalDomain, vort: Optional[jnp_array], vel_y: jnp_array, vel_x_00: jnp_array, vel_z_00: Optional[jnp_array], two_d: bool=False
+    ) -> jnp_array:
         domain = physical_domain.hat()
         # compute velocities in x and z directions
         number_of_input_arguments = 2
@@ -460,6 +475,8 @@ class NavierStokesVelVort(Equation):
         if two_d:
             vort = jnp.zeros_like(vel_y)
             vel_z_00 = jnp.zeros_like(vel_x_00)
+        assert vort is not None
+        assert vel_z_00 is not None
 
         def rk_00() -> tuple[jnp_array, ...]:
             return (vel_x_00 * (1 + 0j), vel_z_00 * (1 + 0j))
@@ -550,7 +567,7 @@ class NavierStokesVelVort(Equation):
         )
         out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
         u_w = [jnp.moveaxis(v, 1, 2) for v in out]
-        return [u_w[0], vel_y, u_w[1]]
+        return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(self, vel_hat_data: jnp_array) -> jnp_array:
         # if not Field.activate_jit_:
@@ -1024,6 +1041,7 @@ class NavierStokesVelVort(Equation):
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
         else:
+            assert vel_hat_data is not None
             vel_hat_data_ = vel_hat_data
         vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_)
         if type(vel_hat_data) == NoneType:
@@ -1133,7 +1151,7 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", velocity_final, in_place=False)
             return (velocity_final, len(ts))
 
-    def post_process(self):
+    def post_process(self) -> None:
         if type(self.post_process_fn) != NoneType:
             assert self.post_process_fn is not None
             for i in range(self.get_number_of_fields("velocity_hat")):
@@ -1141,19 +1159,17 @@ class NavierStokesVelVort(Equation):
 
 
 def solve_navier_stokes_laminar(
-    Re=1.8e2,
-    end_time=1e1,
-    max_iter=10000,
-    Nx=6,
-    Ny=40,
-    Nz=None,
-    perturbation_factor=0.1,
-    scale_factors=(1.87, 1.0, 0.93),
-    aliasing=1.0,
-    **params
-):
-    Ny = Ny
-    Nz = Nz or Nx + 4
+    Re: float=1.8e2,
+    end_time: float=1e1,
+    max_iter: int=10000,
+    Nx: int=8,
+    Ny: int=40,
+    Nz: int=8,
+    perturbation_factor: float=0.1,
+    scale_factors: tuple[float, float, float]=(1.87, 1.0, 0.93),
+    aliasing: float=1.0,
+    **params: Any
+) -> NavierStokesVelVort:
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -1167,7 +1183,6 @@ def solve_navier_stokes_laminar(
     vel_x_fn_ana: Vel_fn_type = (
         lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     )
-    vel_x_ana = PhysicalField.FromFunc(domain, vel_x_fn_ana, name="vel_x_ana")
 
     vel_x_fn: Vel_fn_type = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
         perturbation_factor
@@ -1209,10 +1224,10 @@ def solve_navier_stokes_laminar(
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    def post_process(nse_: NavierStokesVelVort, i: int) -> None:
+    def post_process(nse_: Equation, i: int) -> None:
         n_steps = nse_.get_number_of_fields("velocity_hat")
-        vel_hat: VectorField = nse_.get_field("velocity_hat", i) # type: ignore[assignment]
-        vel: VectorField = vel_hat.no_hat()
+        vel_hat: VectorField[FourierField] = nse_.get_field("velocity_hat", i) # type: ignore[assignment]
+        vel: VectorField[PhysicalField] = vel_hat.no_hat()
 
         vort = vel.curl()
         vel.set_time_step(i)
@@ -1234,8 +1249,8 @@ def solve_navier_stokes_laminar(
         energy_t = []
         for j in range(n_steps):
             time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse_.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
+            vel_hat_: VectorField[FourierField] = cast(VectorField[FourierField], nse_.get_field("velocity_hat", j))
+            vel_: VectorField[PhysicalField] = vel_hat_.no_hat()
             vel_energy_ = vel_.energy()
             ts.append(time_)
             energy_t.append(vel_energy_)
@@ -1251,7 +1266,6 @@ def solve_navier_stokes_laminar(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         gain = energy_t[-1] / energy_t[0]
-        return gain
 
     nse.post_process_fn = post_process
 

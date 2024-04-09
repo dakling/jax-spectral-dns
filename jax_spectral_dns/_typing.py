@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 import jax._src.typing as jt
 import jax.numpy as jnp
 import numpy as np
 import numpy.typing as npt
-from typing import Callable, Iterable, Optional, Sequence, Union
+from typing import Any, Callable, Iterable, Optional, Sequence, List, Union, TYPE_CHECKING
 
-from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
-# from typing_extensions import Self
+if TYPE_CHECKING:
+    from jax_spectral_dns.field import PhysicalField, FourierField, VectorField
 
 
 np_float_array = npt.NDArray[np.float64]
@@ -17,7 +18,12 @@ jsd_complex = Union[jsd_float, complex, np.complex64, jnp.complex64]
 jnp_array = jt.Array
 jsd_array = jt.ArrayLike
 np_jnp_array = Union[np_float_array, np_complex_array, jnp_array]
-AnyScalarField = Union[PhysicalField, FourierField]
-AnyVectorField = VectorField[AnyScalarField]
-AnyField = Union[AnyVectorField, AnyScalarField]
 Vel_fn_type = Callable[[Union[list[jsd_float], tuple[jsd_float,...], np_jnp_array]], jsd_float]
+parameter_type = tuple[jnp_array, ...]
+input_type = Any
+
+if TYPE_CHECKING:
+    AnyScalarField = Union[PhysicalField, FourierField]
+    AnyVectorField = Union[VectorField[PhysicalField], VectorField[FourierField]]
+    AnyField = Union[AnyVectorField, AnyScalarField]
+    AnyFieldList = Union[List[PhysicalField], List[FourierField], List[VectorField[PhysicalField]], List[VectorField[FourierField]]]

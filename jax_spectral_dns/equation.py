@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Union, TYPE_CHECKING, cast
 import time
 
 import jax
@@ -13,7 +14,10 @@ import os
 from jax_spectral_dns.domain import Domain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
-from jax_spectral_dns._typing import jsd_float, AnyField
+from jax_spectral_dns._typing import jsd_float
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import AnyField, AnyFieldList
 
 jnp_int_array = jnp.ndarray
 
@@ -45,14 +49,14 @@ class Equation:
     # 3: even more additional output from the solver that is usually nonessential
     verbosity_level:int = 1
 
-    def __init__(self, domain: Domain, *fields: AnyField, **params: Any):
+    def __init__(self, domain: Domain, *fields: 'AnyField', **params: Any):
         dt: jsd_float = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step: int = 0
         self.time: jsd_float = 0.0
-        self.before_time_step_fn = None
-        self.after_time_step_fn = None
+        self.before_time_step_fn: Optional[Callable[[Equation], None]] = None
+        self.after_time_step_fn: Optional[Callable[[Equation], None]] = None
         self.post_process_fn: Optional[Callable[[Equation, int], None]] = None
         try:
             self.end_time = params["end_time"]
@@ -69,7 +73,7 @@ class Equation:
         # self.initialize()
 
     @classmethod
-    def initialize(cls, cleanup=True):
+    def initialize(cls, cleanup: bool=True) -> None:
         Field.initialize(cleanup)
 
     def get_dt(self) -> jsd_float:
@@ -78,44 +82,41 @@ class Equation:
     def get_domain(self) -> Domain:
         return self.fixed_parameters.domain
 
-    def get_fields_(self, name: str) -> list[AnyField]:
-        return self.fields[name]
-
-    def get_field_(self, name: str, index: int) -> AnyField:
-        out: AnyField = self.fields[name][index]
-        if index >= 0:
-            out.set_time_step(index)
-        else:
-            out.set_time_step(len(self.fields[name]) + index)
-        return out
-
-    def get_field(self, name: str, index: Optional[int]=None) -> Union[AnyField, list[AnyField]]:
+    def get_field(self, name: str, index: int) -> 'AnyField':
         try:
-            if index is None:
-                return self.get_fields_(name)
+            out: 'AnyField' = self.fields[name][index]
+            if index >= 0:
+                out.set_time_step(index)
             else:
-                return self.get_field_(name, index)
+                out.set_time_step(len(self.fields[name]) + index)
+            return out
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def get_initial_field(self, name: str) -> AnyField:
-        out = self.get_field_(name, 0)
+    def get_fields(self, name: str) -> AnyFieldList:
+        try:
+            return cast(AnyFieldList, self.fields[name])
+        except KeyError:
+            raise KeyError("Expected field named " + name + " in " + self.name + ".")
+
+    def get_initial_field(self, name: str) -> 'AnyField':
+        out = self.get_field(name, 0)
         return out
 
-    def get_latest_field(self, name: str) -> AnyField:
-        out = self.get_field_(name, -1)
+    def get_latest_field(self, name: str) -> 'AnyField':
+        out = self.get_field(name, -1)
         return out
 
     def get_number_of_fields(self, name: str) -> int:
-        return len(self.get_fields_(name))
+        return len(self.get_fields(name))
 
-    def set_field(self, name: str, index: int, field: AnyField):
+    def set_field(self, name: str, index: int, field: 'AnyField'):
         try:
             self.fields[name][index] = field
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def append_field(self, name: str, field: AnyField, in_place: bool=True) ->  None:
+    def append_field(self, name: str, field: 'AnyField', in_place: bool=True) ->  None:
         try:
             if in_place and len(self.fields[name]) > 0:
                 self.fields[name][-1] = field
@@ -125,7 +126,7 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def add_field(self, name: str, field: Optional[AnyField]=None) -> None:
+    def add_field(self, name: str, field: Optional['AnyField']=None) -> None:
         assert name not in self.fields, "Field " + name + " already exists!"
         if type(field) == NoneType:
             self.fields[name] = []

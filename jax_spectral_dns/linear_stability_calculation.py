@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Callable, Union
+from typing import Callable, Union, Optional, cast
 import numpy as np
 import numpy.typing as npt
 import jax.numpy as jnp
@@ -19,31 +19,30 @@ from jax_spectral_dns._typing import jsd_complex, jsd_array, np_float_array, np_
 NoneType = type(None)
 
 class LinearStabilityCalculation:
-    def __init__(self, Re=180.0, alpha=3.25, beta=0.0, n=50):
+    def __init__(self, Re: float=180.0, alpha: float=3.25, beta: float=0.0, n: int=50):
         self.Re = Re
         self.alpha = alpha
         self.beta = beta
         self.n = n  # chebychev resolution
 
-        self.A = None
-        self.B = None
-        self.eigenvalues = None
-        self.eigenvectors = None
+        self.A: Optional[np_complex_array] = None
+        self.B: Optional[np_complex_array] = None
+        self.eigenvalues: Optional[np_complex_array] = None
+        self.eigenvectors: Optional[list[np_complex_array]] = None
 
-        self.C = None
-        self.growth = []
+        self.C: Optional[np_complex_array] = None
 
-        domain = PhysicalDomain.create((n,), (False,))
-        self.ys = domain.grid[0]
+        domain: PhysicalDomain = PhysicalDomain.create((n,), (False,))
+        self.ys: np_float_array = domain.grid[0]
 
-        self.velocity_field_ = None
+        self.velocity_field_: Optional[VectorField[PhysicalField]] = None
 
-        self.S = None
-        self.V = None
-        self.U = None
+        self.S: Optional[np_float_array] = None
+        self.V: Optional[np_complex_array] = None
+        self.U: Optional[np_complex_array] = None
 
-        self.symm = False
-        # self.symm = True
+        self.symm: bool = False
+        # self.symm: bool = True
 
         self.make_field_file_name_mode: Callable[[PhysicalDomain, str, int], str] = (
             lambda domain_, field_name, mode: field_name
@@ -194,13 +193,13 @@ class LinearStabilityCalculation:
 
     def velocity_field_single_mode(
             self,
-            domain,
-            mode=0,
-            factor=1.0,
-            recompute_partial=False,
-            recompute_full=False,
-            save=False,
-    ):
+            domain: PhysicalDomain,
+            mode: int=0,
+            factor: float=1.0,
+            recompute_partial: bool=False,
+            recompute_full: bool=False,
+            save: bool=False,
+    ) -> VectorField[PhysicalField]:
         recompute_partial = recompute_partial or recompute_full
         try:
             if recompute_partial == False:
@@ -310,7 +309,7 @@ class LinearStabilityCalculation:
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return self.velocity_field_
 
-    def energy_over_time(self, domain, mode=0, eps=1.0):
+    def energy_over_time(self, domain: PhysicalDomain, mode:int=0, eps:float=1.0) -> tuple[Callable[[jsd_float, Optional[int]], float], jsd_complex]:
         if type(self.velocity_field_) == NoneType:
             try:
                 u = PhysicalField.FromFile(
@@ -343,22 +342,23 @@ class LinearStabilityCalculation:
 
         assert self.eigenvalues is not None
 
-        def out(t, dim=None):
+        def out(t: jsd_float, dim: Optional[int]=None) -> float:
             assert self.velocity_field_ is not None
             assert self.eigenvalues is not None
             if type(dim) == NoneType:
-                energy = 0
+                energy: jsd_float = 0.0
                 for d in domain.all_dimensions():
                     energy += (
                         self.velocity_field_[d]
                         * (jnp.exp(self.eigenvalues[mode].real * t))
                     ).energy()
             else:
+                assert dim is not None
                 energy = (
                     self.velocity_field_[dim]
                     * (jnp.exp(self.eigenvalues[mode].real * t))
                 ).energy()
-            return eps**2 * energy
+            return cast(float, eps**2 * energy)
 
         return (out, self.eigenvalues[mode])
 
@@ -450,11 +450,11 @@ class LinearStabilityCalculation:
 
         return (S, coeffs)
 
-    def calculate_transient_growth_max_energy(self, domain, T, number_of_modes):
+    def calculate_transient_growth_max_energy(self, T: float, number_of_modes: int) -> float:
         S, _ = self.calculate_transient_growth_svd(
             T, number_of_modes, save=False
         )
-        return S[0] ** 2
+        return cast(float, S[0] ** 2)
 
     def calculate_transient_growth_initial_condition_from_coefficients(
         self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool=True
@@ -478,13 +478,13 @@ class LinearStabilityCalculation:
 
     def calculate_transient_growth_initial_condition(
         self,
-        domain,
-        T,
-        number_of_modes,
-        recompute_partial=True,
-        recompute_full=True,
-        save_final=False,
-    ):
+        domain: PhysicalDomain,
+        T: float,
+        number_of_modes: int,
+        recompute_partial: bool=True,
+        recompute_full: bool=True,
+        save_final: bool=False,
+    ) -> VectorField[PhysicalField]:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for velocity fields and eigenvalues/-vectors,
         however, recompute_partial=True forces recomputation of the velocity

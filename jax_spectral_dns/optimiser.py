@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
 
 import time
+from typing import Any, Callable, Optional, TYPE_CHECKING, cast
 import jax
 import jax.numpy as jnp
 import pickle
 
+from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import jsd_float, AnyVectorField, parameter_type, input_type, jnp_array
 
 try:
     import optax # type: ignore
@@ -23,17 +28,17 @@ class Optimiser:
 
     def __init__(
         self,
-        domain,
-        run_fn,
-        run_input_initial,
-        minimise=False,
-        force_2d=False,
-        max_iter=20,
-        use_optax=False,
-        min_optax_iter=0,
-        add_noise=True,
-        noise_amplitude=1e-1,
-        **params
+        domain: PhysicalDomain,
+        run_fn: Callable[[input_type, bool], jsd_float],
+        run_input_initial: input_type,
+        minimise: bool=False,
+        force_2d: bool=False,
+        max_iter: int=20,
+        use_optax: bool=False,
+        min_optax_iter: int=0,
+        add_noise: bool=True,
+        noise_amplitude: float=1e-1,
+        **params: Any
     ):
 
         self.parameters_to_run_input_fn = params.get("parameters_to_run_input_fn")
@@ -53,15 +58,15 @@ class Optimiser:
             else:
                 run_input = run_input_initial
             self.parameters = self.run_input_to_parameters(run_input)
-        self.old_value = None
-        self.current_iteration = 0
-        self.max_iter = max_iter
-        self.min_optax_iter = min_optax_iter
+        self.old_value: Optional[jsd_float] = None
+        self.current_iteration: int = 0
+        self.max_iter: int = max_iter
+        self.min_optax_iter: int = min_optax_iter
         if minimise:
-            self.inv_fn = lambda x: x
+            self.inv_fn: Callable[[jsd_float], jsd_float] = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn = lambda v, out=False: self.inv_fn(
+        self.run_fn: Callable[[parameter_type, bool], jsd_float] = lambda v, out=False: self.inv_fn( # type: ignore[misc]
             run_fn(self.parameters_to_run_input(v), out)
         )
         if use_optax:
@@ -80,13 +85,13 @@ class Optimiser:
         self.value = self.inv_fn(self.state.value)
         print_verb(self.objective_fn_name + ":", self.value)
 
-    def parameters_to_run_input(self, parameters):
+    def parameters_to_run_input(self, parameters: parameter_type) -> input_type:
         if self.parameters_to_run_input_fn == None:
             if self.force_2d:
-                vort_hat = None
-                v1_hat = parameters[0]
-                v0_00 = parameters[1]
-                v2_00 = None
+                vort_hat: Optional[jnp_array] = None
+                v1_hat: jnp_array = parameters[0]
+                v0_00: jnp_array = parameters[1]
+                v2_00: Optional[jnp_array] = None
             else:
                 vort_hat = parameters[0]
                 v1_hat = parameters[1]
@@ -96,34 +101,36 @@ class Optimiser:
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
                 domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
             )
-            input = VectorField.FromData(FourierField, domain, U_hat_data)
+            input: VectorField[FourierField] = VectorField.FromData(FourierField, domain, U_hat_data)
         else:
             assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
 
-        def set_time_step_rec(inp):
+        def set_time_step_rec(inp: Any) -> None:
             if isinstance(inp, Field) or isinstance(inp, VectorField):
                 inp.set_time_step(self.current_iteration)
             else:
-                [set_time_step_rec(inp_i) for inp_i in inp]
+                for inp_i in inp:
+                    set_time_step_rec(inp_i)
 
         set_time_step_rec(input)
         return input
 
-    def parameters_from_file(self):
+    def parameters_from_file(self) -> parameter_type:
         """Load paramters from file filename."""
         print_verb("loading parameters from", self.parameter_file_name)
         with open(Field.field_dir + self.parameter_file_name, "rb") as file:
             self.parameters = pickle.load(file)
         return self.parameters
 
-    def parameters_to_file(self):
+    def parameters_to_file(self) -> None:
         """Save paramters to file filename."""
         with open(Field.field_dir + self.parameter_file_name, "wb") as file:
             pickle.dump(self.parameters, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def run_input_to_parameters(self, input):
+    def run_input_to_parameters(self, input: AnyVectorField) -> parameter_type:
         if self.run_input_to_parameters_fn == None:
+            cast(VectorField[FourierField], input)
             if self.force_2d:
                 v0_1 = input[1].data * (1 + 0j)
                 v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
@@ -139,13 +146,13 @@ class Optimiser:
             self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
 
-    def get_parameters_norm(self):
+    def get_parameters_norm(self) -> jsd_float:
         return jnp.linalg.norm(
             jnp.concatenate([jnp.array(v.flatten()) for v in self.parameters])
         )
 
-    def make_noisy(self, parameters, noise_amplitude=1e-1):
-        parameters_no_hat = parameters.no_hat()
+    def make_noisy(self, input: input_type, noise_amplitude: jsd_float=1e-1) -> input_type:
+        parameters_no_hat = input.no_hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         return VectorField(
@@ -154,11 +161,11 @@ class Optimiser:
                 + FourierField.FromRandom(
                     self.domain, seed=37, interval=(-interval_bound, interval_bound)
                 )
-                for f in parameters
+                for f in input
             ]
         )
 
-    def get_optax_solver(self, learning_rate=1e-2, scale_by_norm=True):
+    def get_optax_solver(self, learning_rate: jsd_float=1e-2, scale_by_norm: bool=True) -> jaxopt.OptaxSolver:
         learning_rate_ = (
             learning_rate * self.get_parameters_norm()
             if scale_by_norm
@@ -170,7 +177,7 @@ class Optimiser:
         )
         return solver
 
-    def get_jaxopt_solver(self):
+    def get_jaxopt_solver(self) -> jaxopt.LBFGS:
         solver = jaxopt.LBFGS(
             jax.value_and_grad(self.run_fn),
             value_and_grad=True,
@@ -182,7 +189,7 @@ class Optimiser:
         )
         return solver
 
-    def post_process_iteration(self):
+    def post_process_iteration(self) -> None:
 
         i = self.current_iteration
         U_hat = self.parameters_to_run_input(self.parameters)
@@ -200,9 +207,10 @@ class Optimiser:
         v0_new[1].plot_center(1)
         self.parameters_to_file()
 
-    def switch_solver_maybe(self):
+    def switch_solver_maybe(self) -> None:
         i = self.current_iteration
         min_number_of_optax_steps = self.min_optax_iter
+        assert self.old_value is not None
         if (
             (not self.solver_switched)
             and i >= min_number_of_optax_steps
@@ -213,7 +221,7 @@ class Optimiser:
             self.solver_switched = True
             self.state = self.solver.init_state(self.parameters)
 
-    def perform_iteration(self):
+    def perform_iteration(self) -> None:
         start_time = time.time()
         i = self.current_iteration
         number_of_steps = self.max_iter
@@ -239,7 +247,7 @@ class Optimiser:
         print_verb("iteration took", time.time() - start_time, "seconds")
         print_verb("\n")
 
-    def optimise(self):
+    def optimise(self) -> None:
         for i in range(self.max_iter):
             self.current_iteration = i
             self.perform_iteration()
@@ -257,22 +265,22 @@ class Optimiser:
 
 class OptimiserNonFourier(Optimiser):
 
-    def make_noisy(self, parameters, noise_amplitude=1e-1):
-        e0 = parameters.energy()
+    def make_noisy(self, input: input_type, noise_amplitude: jsd_float=1e-1) -> input_type:
+        e0 = input.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         return VectorField(
             [
                 f
                 + FourierField.FromRandom(
-                    parameters.physical_domain,
+                    input.physical_domain,
                     seed=37,
                     interval=(-interval_bound, interval_bound),
                 ).no_hat()
-                for f in parameters
+                for f in input
             ]
         )
 
-    def parameters_to_run_input(self, parameters):
+    def parameters_to_run_input(self, parameters: parameter_type) -> input_type:
         if self.parameters_to_run_input_fn == None:
             if self.force_2d:
                 vort_hat = None
@@ -297,17 +305,19 @@ class OptimiserNonFourier(Optimiser):
             assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
 
-        def set_time_step_rec(inp):
+        def set_time_step_rec(inp: input_type) -> None:
             if isinstance(inp, Field) or isinstance(inp, VectorField):
                 inp.set_time_step(self.current_iteration)
             else:
-                [set_time_step_rec(inp_i) for inp_i in inp]
+                for inp_i in inp:
+                    set_time_step_rec(inp_i)
 
         set_time_step_rec(input)
         return input
 
-    def run_input_to_parameters(self, input):
+    def run_input_to_parameters(self, input: input_type) -> parameter_type:
         if self.run_input_to_parameters_fn == None:
+            cast(VectorField[PhysicalField], input)
             input_hat = input.hat()
             if self.force_2d:
                 v0_1 = input[1].data * (1 + 0j)
@@ -341,8 +351,8 @@ class OptimiserNonFourier(Optimiser):
 
 class OptimiserPertAndBase(Optimiser):
 
-    def make_noisy(self, parameters, noise_amplitude=1e-1):
-        parameters_no_hat = parameters[0].hat()
+    def make_noisy(self, input: input_type, noise_amplitude: jsd_float=1e-1) -> input_type:
+        parameters_no_hat = input[0].hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         # only add noise to perturbation field
@@ -351,14 +361,14 @@ class OptimiserPertAndBase(Optimiser):
                 [
                     f
                     + FourierField.FromRandom(
-                        parameters.physical_domain,
+                        input.physical_domain,
                         seed=37,
                         interval=(-interval_bound, interval_bound),
                     )
-                    for f in parameters[0]
+                    for f in input[0]
                 ]
             ),
-            parameters[1],
+            input[1],
         )
 
     def post_process_iteration(self):

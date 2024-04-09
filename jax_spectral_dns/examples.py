@@ -8,7 +8,7 @@ from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from functools import partial
-import typing
+from typing import Callable, cast
 import time
 
 from jax_spectral_dns.cheb import cheb
@@ -22,6 +22,7 @@ from jax_spectral_dns.navier_stokes_perturbation import (
 )
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.optimiser import Optimiser, OptimiserNonFourier, OptimiserPertAndBase
+from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array
 
 NoneType = type(None)
 
@@ -86,7 +87,7 @@ def run_navier_stokes_turbulent_pseudo_2d():
     nse.write_intermediate_output = True
     nse.solve()
 
-    n_steps = len(nse.get_field("velocity_hat"))
+    n_steps = nse.get_number_of_fields("velocity_hat")
 
     def post_process(nse, i):
         time = (i / (n_steps - 1)) * end_time
@@ -238,7 +239,7 @@ def run_navier_stokes_turbulent():
     nse.write_intermediate_output = True
     nse.solve()
 
-    n_steps = len(nse.get_field("velocity_hat"))
+    n_steps = nse.get_number_of_fields("velocity_hat")
 
     def post_process(nse, i):
         time = (i / (n_steps - 1)) * end_time
@@ -342,33 +343,35 @@ def run_pseudo_2d():
     )
 
     u = lsc.velocity_field_single_mode(nse.get_physical_domain())
-    vel_x_hat = nse.get_initial_field("velocity_hat")
+    vel_x_hat: VectorField[FourierField] = nse.get_initial_field("velocity_hat")
 
     eps = 5e-3
     nse.init_velocity(vel_x_hat + (u * eps).hat())
 
     energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.get_physical_domain())
-    energy_over_time_fn = lambda t: eps**2 * energy_over_time_fn_raw(t)
-    energy_x_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(
+    energy_over_time_fn: Callable[[jsd_float], jsd_float] = lambda t: eps**2 * energy_over_time_fn_raw(t, None)
+    energy_x_over_time_fn: Callable[[jsd_float], jsd_float] = lambda t: eps**2 * lsc.energy_over_time(
         nse.get_physical_domain()
     )[0](t, 0)
-    energy_y_over_time_fn = lambda t: eps**2 * lsc.energy_over_time(
+    energy_y_over_time_fn: Callable[[jsd_float], jsd_float] = lambda t: eps**2 * lsc.energy_over_time(
         nse.get_physical_domain()
     )[0](t, 1)
     print_verb("eigenvalue: ", ev)
     plot_interval = 10
 
-    vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
+    vel_pert_0_hat = nse.get_initial_field("velocity_hat")[1]
+    vel_pert_0: PhysicalField = vel_pert_0_hat.no_hat()
     vel_pert_0.name = "veloctity_y_0"
-    ts = []
-    energy_t = []
-    energy_x_t = []
-    energy_y_t = []
-    energy_t_ana = []
-    energy_x_t_ana = []
-    energy_y_t_ana = []
+    ts: list[float] = []
+    energy_t: list[float] = []
+    energy_x_t: list[float] = []
+    energy_y_t: list[float] = []
+    energy_t_ana: list[float] = []
+    energy_x_t_ana: list[float] = []
+    energy_y_t_ana: list[float] = []
 
-    def before_time_step(nse):
+    def before_time_step(nse_: Equation) -> None:
+        nse = cast(NavierStokesVelVort, nse_)
         i = nse.time_step
         if i % plot_interval == 0:
             # vel_hat = nse.get_field("velocity_hat", i)
@@ -376,7 +379,7 @@ def run_pseudo_2d():
             vel = vel_hat.no_hat()
             vel_x_max = vel[0].max()
             print_verb("vel_x_max: ", vel_x_max)
-            vel_x_fn_ana = (
+            vel_x_fn_ana: Vel_fn_type = (
                 lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
             )
             vel_x_ana = PhysicalField.FromFunc(
@@ -397,13 +400,11 @@ def run_pseudo_2d():
             # vel_pert_old = VectorField(
             #     [vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]]
             # )
-            vel_pert_energy = 0
+            vel_pert_energy: jsd_float = 0.0
             v_1_lap_p = nse.get_latest_field("v_1_lap_hat_p").no_hat()
             v_1_lap_p_0 = nse.get_initial_field("v_1_lap_hat_p").no_hat()
             v_1_lap_p.time_step = i
             v_1_lap_p.plot_3d(2)
-            v_1_lap_p.plot_center(0)
-            v_1_lap_p.plot_center(1, v_1_lap_p_0)
             for j in range(2):
                 vel[j].time_step = i
                 vel_pert[j].time_step = i
@@ -454,13 +455,13 @@ def run_pseudo_2d():
             #     "velocity perturbation energy z change: ",
             #     vel_pert[2].energy() - vel_pert_old[2].energy(),
             # )
-            ts.append(nse.time)
-            energy_t.append(vel_pert_energy)
-            energy_x_t.append(vel_pert[0].energy())
-            energy_y_t.append(vel_pert[1].energy())
-            energy_t_ana.append(energy_over_time_fn(nse.time))
-            energy_x_t_ana.append(energy_x_over_time_fn(nse.time))
-            energy_y_t_ana.append(energy_y_over_time_fn(nse.time))
+            ts.append(float(nse.time))
+            energy_t.append(float(vel_pert_energy))
+            energy_x_t.append(float(vel_pert[0].energy()))
+            energy_y_t.append(float(vel_pert[1].energy()))
+            energy_t_ana.append(float(energy_over_time_fn(nse.time)))
+            energy_x_t_ana.append(float(energy_x_over_time_fn(nse.time)))
+            energy_y_t_ana.append(float(energy_y_over_time_fn(nse.time)))
             # if i > plot_interval * 3:
             if True:
                 fig = figure.Figure()
@@ -575,7 +576,7 @@ def run_dummy_velocity_field():
     nse.after_time_step_fn = after_time_step
     # nse.after_time_step_fn = None
     nse.solve()
-    return nse.get_latest_field("velocity_hat").no_hat().field
+    return nse.get_latest_field("velocity_hat").no_hat().get_data()
 
 
 def run_pseudo_2d_perturbation(
@@ -681,22 +682,13 @@ def run_pseudo_2d_perturbation(
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
-    ts = []
-    energy_t = []
-    energy_x_t = []
-    energy_y_t = []
-    energy_t_ana = []
-    energy_x_t_ana = []
-    energy_y_t_ana = []
-
-    def save_array(arr, filename):
-        if save:
-            f = Path(filename)
-            try:
-                f.unlink()
-            except FileNotFoundError:
-                pass
-            np.array(arr).dump(filename)
+    ts: list[float] = []
+    energy_t: list[float] = []
+    energy_x_t: list[float] = []
+    energy_y_t: list[float] = []
+    energy_t_ana: list[float] = []
+    energy_x_t_ana: list[float] = []
+    energy_y_t_ana: list[float] = []
 
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
@@ -709,7 +701,7 @@ def run_pseudo_2d_perturbation(
     nse.solve()
     nse.deactivate_jit()
 
-    n_steps = len(nse.get_field("velocity_hat"))
+    n_steps = nse.get_number_of_fields("velocity_hat")
     for i in range(n_steps):
         time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
@@ -726,13 +718,13 @@ def run_pseudo_2d_perturbation(
         vel[1].plot_3d(2)
         vort[2].plot_3d(2)
         vel_pert_energy = vel.energy()
-        ts.append(time)
-        energy_t.append(vel_pert_energy)
-        energy_x_t.append(vel[0].energy())
-        energy_y_t.append(vel[1].energy())
-        energy_t_ana.append(energy_over_time_fn(time))
-        energy_x_t_ana.append(energy_over_time_fn(time, 0))
-        energy_y_t_ana.append(energy_over_time_fn(time, 1))
+        ts.append((time))
+        energy_t.append((vel_pert_energy))
+        energy_x_t.append((vel[0].energy()))
+        energy_y_t.append((vel[1].energy()))
+        energy_t_ana.append((energy_over_time_fn(time, None)))
+        energy_x_t_ana.append((energy_over_time_fn(time, 0)))
+        energy_y_t_ana.append((energy_over_time_fn(time, 1)))
 
     vel_pert = nse.get_latest_field("velocity_hat").no_hat()
     # vel_pert_old = nse.get_field("velocity_hat", nse.time_step - 3).no_hat()
@@ -928,7 +920,7 @@ def run_transient_growth_nonpert(
     nse.init_velocity(U_hat)
 
     e_max = lsc.calculate_transient_growth_max_energy(
-        nse.get_physical_domain(), T, number_of_modes
+        T, number_of_modes
     )
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
@@ -1085,7 +1077,7 @@ def run_transient_growth(
     nse.init_velocity(U_hat * eps_)
 
     e_max = lsc.calculate_transient_growth_max_energy(
-        nse.get_physical_domain(), T, number_of_modes
+        T, number_of_modes
     )
 
     vel_pert = nse.get_initial_field("velocity_hat").no_hat()
@@ -1648,7 +1640,7 @@ def run_optimisation_transient_growth_y_profile(
         U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
             domain, None, v1_hat, v0_00, None, two_d=True
         )
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
+        U_hat: VectorField[FourierField] = VectorField.FromData(FourierField, domain, U_hat_data)
         return U_hat
 
     optimiser = Optimiser(
@@ -2277,8 +2269,8 @@ def run_optimisation_transient_growth_mean_y_profile(
         v0_base_yslice = jnp.array(list(map(lambda y: (1 - y**(m))**(1/n), domain.grid[1])))
         v0_base_hat =  domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
 
-        U_hat = VectorField.FromData(FourierField, domain, U_hat_data)
-        U_base = VectorField.FromData(FourierField, domain, [v0_base_hat, jnp.zeros_like(v0_base_hat), jnp.zeros_like(v0_base_hat)])
+        U_hat: VectorField[FourierField] = VectorField.FromData(FourierField, domain, U_hat_data)
+        U_base: VectorField[FourierField] = VectorField.FromData(FourierField, domain, jnp.array([v0_base_hat, jnp.zeros_like(v0_base_hat), jnp.zeros_like(v0_base_hat)]))
         return (U_hat, U_base)
 
     optimiser = OptimiserPertAndBase(
@@ -2379,7 +2371,6 @@ def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
                 vel[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             # vel_pert_energy_old = vel_pert_old.energy()
-            vel_pert_energy_norm = vel_pert.energy_norm(1)
             print_verb("\n\n")
             print_verb(
                 "velocity perturbation energy: ",
@@ -2444,7 +2435,7 @@ def run_ld_2020(
     )
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
 
-    def get_vel_field(domain, cheb_coeffs):
+    def get_vel_field(domain: PhysicalDomain, cheb_coeffs: np_jnp_array) -> tuple[VectorField[PhysicalField], np_jnp_array, jsd_float]:
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
             for j in range(len(cheb_coeffs)):
@@ -2467,7 +2458,7 @@ def run_ld_2020(
     if turb:
         print_verb("using turbulent base profile")
         vel_base, _, max = get_vel_field(domain, avg_vel_coeffs)
-        vel_base = vel_base.normalize_by_max_value()
+        vel_base = cast(VectorField[PhysicalField], vel_base.normalize_by_max_value())
         vel_base.set_name("velocity_base")
         u_max_over_u_tau = max
     else:
@@ -2520,6 +2511,9 @@ def run_ld_2020(
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
+        vel_base_hat = nse.get_field("velocity_baser_hat", i)
+        vel_base = vel_base_hat.no_hat()
+
         vort = vel.curl()
         vel.set_time_step(i)
         vel.set_name("velocity")
@@ -2533,10 +2527,9 @@ def run_ld_2020(
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
 
-        vel[0].plot_3d(0)
-        vel[1].plot_3d(0)
-        vel[2].plot_3d(0)
-        vort[2].plot_3d(0)
+        vel_total = vel + vel_base
+        vel_total.set_name("velocity_total")
+        vel_total[0].plot_3d(0)
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)

@@ -7,6 +7,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
+from typing import Any, cast
 
 # from importlib import reload
 import sys
@@ -15,6 +16,14 @@ from jax_spectral_dns.navier_stokes import NavierStokesVelVort
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from jax_spectral_dns.equation import Equation
+from jax_spectral_dns._typing import (
+    np_float_array,
+    np_complex_array,
+    jsd_float,
+    jnp_array,
+    np_jnp_array,
+    Vel_fn_type
+)
 
 
 @partial(jax.jit, static_argnums=(0,1))
@@ -67,7 +76,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     )
 
     # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
-    hel_new =  jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_ + hel_new_a + hel_new_b
+    hel_new =  jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_ + hel_new_a + hel_new_b # type: ignore[no-untyped-call]
     conv_ns_new = -hel_new
 
     h_v_new = (
@@ -94,7 +103,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     # max_dt = 1e10
     max_dt = 2e-2
 
-    def __init__(self, velocity_field, **params):
+    def __init__(self, velocity_field: VectorField[FourierField], **params: Any):
 
         super().__init__(velocity_field, **params)
 
@@ -122,7 +131,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             velocity_base_hat.set_name("velocity_base_hat")
         self.add_field("velocity_base_hat", velocity_base_hat)
 
-        self.linearize = params.get("linearize", False)
+        self.linearize: bool = params.get("linearize", False)
         self.set_linearize(self.linearize)
 
     def update_flow_rate(self):
@@ -134,9 +143,9 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
         ).hat()
 
-    def set_linearize(self, lin):
+    def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
-        velocity_base_hat = self.get_latest_field("velocity_base_hat")
+        velocity_base_hat: VectorField[FourierField] = self.get_latest_field("velocity_base_hat")
         self.nonlinear_update_fn = (
             lambda vel: update_nonlinear_terms_high_performance_perturbation(
                 self.get_physical_domain(),
@@ -163,8 +172,10 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             dY = self.get_physical_domain().grid[1][1:] - self.get_physical_domain().grid[1][:-1]
             dZ = self.get_physical_domain().grid[2][1:] - self.get_physical_domain().grid[2][:-1]
             DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
-            vel = self.get_latest_field("velocity_hat").no_hat()
-            vel_base = self.get_latest_field("velocity_base_hat").no_hat()
+            vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
+            vel: VectorField[PhysicalField] = vel_hat.no_hat()
+            vel_base_hat: VectorField[FourierField] = self.get_latest_field("velocity_base_hat")
+            vel_base: VectorField[PhysicalField] = vel_base_hat.no_hat()
             U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
             V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
             W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
@@ -177,21 +188,19 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
 
 def solve_navier_stokes_perturbation(
-        Re=1.8e2,
-        end_time=1e1,
-        max_iter=1e8,
-        Nx=6,
-        Ny=40,
-        Nz=None,
-        perturbation_factor=0.1,
-        scale_factors=(1.87, 1.0, 0.93),
-        dt=1e-2,
-        u_max_over_u_tau=1.0,
-        aliasing=1.0,
-        rotated=False
-):
-    Ny = Ny
-    Nz = Nz or Nx + 4
+        Re: float=1.8e2,
+        end_time: float=1e1,
+        max_iter: int=10000,
+        Nx: int=8,
+        Ny: int=40,
+        Nz: int=8,
+        perturbation_factor: float=0.1,
+        scale_factors: tuple[float, float, float]=(1.87, 1.0, 0.93),
+        dt: float=1e-2,
+        u_max_over_u_tau: jsd_float=1.0,
+        aliasing: float=1.0,
+        rotated: bool=False
+) -> NavierStokesVelVortPerturbation:
 
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
 
