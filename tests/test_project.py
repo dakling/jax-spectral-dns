@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import unittest
 import jax
@@ -9,7 +10,7 @@ from matplotlib.axes import Axes
 
 jax.config.update("jax_enable_x64", True) # type: ignore[no-untyped-call]
 
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, PhysicalField, FourierFieldSlice, VectorField
@@ -18,7 +19,10 @@ from jax_spectral_dns.navier_stokes import NavierStokesVelVort, solve_navier_sto
 from jax_spectral_dns.navier_stokes_perturbation import solve_navier_stokes_perturbation
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.examples import run_pseudo_2d_perturbation, run_transient_growth, run_transient_growth_nonpert
-from jax_spectral_dns._typing import np_float_array, jnp_array, np_jnp_array, jsd_float, pseudo_2d_perturbation_return_type
+from jax_spectral_dns._typing import np_float_array, jnp_array, np_jnp_array, jsd_float
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import pseudo_2d_perturbation_return_type
 
 NoneType = type(None)
 
@@ -1087,7 +1091,7 @@ class TestProject(unittest.TestCase):
 
     def test_2d_growth_rates_quantitatively(self):
 
-        def run_re(Re: float, rotated: bool=False, use_antialiasing: bool=True) -> pseudo_2d_perturbation_return_type:
+        def run_re(Re: float, rotated: bool=False, use_antialiasing: bool=True) -> 'pseudo_2d_perturbation_return_type':
             end_time = 6e-1
             if use_antialiasing:
                 N = 4

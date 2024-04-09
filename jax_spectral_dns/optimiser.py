@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import time
 from typing import Any, Callable, Optional, TYPE_CHECKING, cast
@@ -11,8 +12,9 @@ from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
+from jax_spectral_dns._typing import jsd_float, parameter_type, input_type, jnp_array
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import jsd_float, AnyVectorField, parameter_type, input_type, jnp_array
+    from jax_spectral_dns._typing import  AnyVectorField
 
 try:
     import optax # type: ignore
@@ -128,7 +130,7 @@ class Optimiser:
         with open(Field.field_dir + self.parameter_file_name, "wb") as file:
             pickle.dump(self.parameters, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def run_input_to_parameters(self, input: AnyVectorField) -> parameter_type:
+    def run_input_to_parameters(self, input: 'AnyVectorField') -> parameter_type:
         if self.run_input_to_parameters_fn == None:
             cast(VectorField[FourierField], input)
             if self.force_2d:

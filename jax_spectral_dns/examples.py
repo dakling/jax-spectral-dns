@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 import sys
 import jax
@@ -8,7 +9,7 @@ from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from functools import partial
-from typing import Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Callable, Optional, Union, cast
 import time
 
 from jax_spectral_dns.cheb import cheb
@@ -22,7 +23,10 @@ from jax_spectral_dns.navier_stokes_perturbation import (
 )
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.optimiser import Optimiser, OptimiserNonFourier, OptimiserPertAndBase
-from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array, pseudo_2d_perturbation_return_type
+from jax_spectral_dns._typing import jsd_float, jnp_array, Vel_fn_type, np_jnp_array
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import pseudo_2d_perturbation_return_type
 
 NoneType = type(None)
 
@@ -595,7 +599,7 @@ def run_pseudo_2d_perturbation(
     aliasing: float=1.0,
     rotated: bool=False,
     jit: bool=True,
-) -> pseudo_2d_perturbation_return_type:
+) -> 'pseudo_2d_perturbation_return_type':
     Re = float(Re)
     alpha = float(alpha)
     end_time = float(end_time)
