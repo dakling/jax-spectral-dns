@@ -7,10 +7,12 @@ import jax.numpy as jnp
 from importlib import reload
 import sys
 
+from typing import List, cast
+
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import PhysicalField
 from jax_spectral_dns.equation import Equation
-from jax_spectral_dns._typing import jsd_float
+from jax_spectral_dns._typing import jsd_float, Vel_fn_type
 
 
 class Heat_Eq(Equation):
@@ -23,6 +25,21 @@ class Heat_Eq(Equation):
         self.dt : jsd_float = params["dt"]
         self.number_of_steps : int = params["number_of_steps"]
         self.i : int = 0
+
+    def get_field(self, name: str, index: int) -> 'PhysicalField':
+        out = cast(PhysicalField, super().get_field(name, index))
+        return out
+
+    def get_fields(self, name: str) -> list['PhysicalField']:
+        return cast(List[PhysicalField], super().get_fields(name))
+
+    def get_initial_field(self, name: str) -> 'PhysicalField':
+        out = cast(PhysicalField, super().get_initial_field(name))
+        return out
+
+    def get_latest_field(self, name: str) -> 'PhysicalField':
+        out = cast(PhysicalField, super().get_latest_field(name))
+        return out
 
     def perform_explicit_euler_step(self) -> None:
         dt = self.dt
@@ -58,17 +75,17 @@ class Heat_Eq(Equation):
     def solve(self) -> list[PhysicalField]:
         for i in jnp.arange(1, self.number_of_steps + 1):
             self.perform_time_step()
-        out: list[PhysicalField] = self.get_fields_("u") #type: ignore[assignment]
+        out: list[PhysicalField] = self.get_fields("u")
         return out
 
     def plot(self) -> None:
         if self.get_domain().number_of_dimensions <= 2:
-            u_0: PhysicalField = self.get_initial_field("u") #type: ignore[assignment]
-            u_fin: PhysicalField = self.get_latest_field("u") #type: ignore[assignment]
+            u_0: PhysicalField = self.get_initial_field("u")
+            u_fin: PhysicalField = self.get_latest_field("u")
             u_0.plot(u_fin)
         elif self.get_domain().number_of_dimensions == 3:
-            u_0 = self.get_initial_field("u") #type: ignore[assignment]
-            u_fin = self.get_latest_field("u") #type: ignore[assignment]
+            u_0 = self.get_initial_field("u")
+            u_fin = self.get_latest_field("u")
             for i in self.all_dimensions():
                 u_0.plot_center(i, u_fin)
 
@@ -81,7 +98,7 @@ def solve_heat_eq_1D():
 
     domain = PhysicalDomain.create((Nx,), (False,))
 
-    u_fn: Callable[[Sequence[jsd_float]], jsd_float] = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u_fn: Vel_fn_type = lambda X: jnp.cos(X[0] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
     heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import jax
-jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True) # type: ignore[no-untyped-call]
 # import warnings
 # warnings.filterwarnings('error')
 # import jax.profiler
@@ -23,7 +23,7 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 import sys
 from jax_spectral_dns.examples import *
 
-def print_welcome():
+def print_welcome() -> None:
     vl=0
     print("")
     print("")
@@ -33,7 +33,7 @@ def print_welcome():
     print("")
     print("")
 
-def print_goodbye():
+def print_goodbye() -> None:
     vl=0
     print("")
     print("")

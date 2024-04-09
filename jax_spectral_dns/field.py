@@ -801,6 +801,10 @@ class PhysicalField(Field):
             ret.time_step = self.time_step
             return ret
 
+    def laplacian(self) -> PhysicalField:
+        out = cast(PhysicalField, super().laplacian())
+        return out
+
     @classmethod
     def FromFunc(cls, domain: PhysicalDomain, func: Optional[Vel_fn_type]=None, name: str="field") -> Self:
         """Construct from function func depending on the independent variables described by domain."""
@@ -1658,6 +1662,10 @@ class FourierField(Field):
     def shift(self, value: jsd_float) -> FourierField:
         out_field = self.data + value
         return FourierField(self.get_physical_domain(), out_field, name=self.name)
+
+    def laplacian(self) -> FourierField:
+        out = cast(FourierField, super().laplacian())
+        return out
 
     @classmethod
     def FromField(cls, field: PhysicalField) -> FourierField:
