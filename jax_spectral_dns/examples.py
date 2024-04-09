@@ -938,7 +938,7 @@ def run_transient_growth_nonpert(
         rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
         vel_pert = vel - velocity_base
@@ -1098,7 +1098,7 @@ def run_transient_growth(
         rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
         time = (i / (n_steps - 1)) * end_time
@@ -1302,7 +1302,7 @@ def run_optimisation_transient_growth(
     v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1434,7 +1434,7 @@ def run_optimisation_transient_growth_nonfourier(
     v0_0_norm *= e_0
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1565,7 +1565,7 @@ def run_optimisation_transient_growth_y_profile(
     v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1717,7 +1717,7 @@ def run_optimisation_transient_growth_nonlinear(
     v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -1858,7 +1858,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
 
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -2001,7 +2001,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
 
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -2159,7 +2159,7 @@ def run_optimisation_transient_growth_mean_y_profile(
         if i == 0:
             vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
             vel_base.plot_3d(2)
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -2515,7 +2515,7 @@ def run_ld_2020(
 
 
     def post_process(nse, i):
-        n_steps = len(nse.get_field("velocity_hat"))
+        n_steps = nse.get_number_of_fields("velocity_hat")
         # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
