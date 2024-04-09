@@ -93,9 +93,9 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def get_fields(self, name: str) -> AnyFieldList:
+    def get_fields(self, name: str) -> 'AnyFieldList':
         try:
-            return cast(AnyFieldList, self.fields[name])
+            return cast('AnyFieldList', self.fields[name])
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 

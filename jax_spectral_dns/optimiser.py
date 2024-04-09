@@ -204,6 +204,7 @@ class Optimiser:
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
+        v0_new.plot_3d(0)
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
