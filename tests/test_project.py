@@ -8,17 +8,24 @@ import numpy as np
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 
-jax.config.update("jax_enable_x64", True) # type: ignore[no-untyped-call]
+jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 from typing import TYPE_CHECKING, cast
 
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, PhysicalField, FourierFieldSlice, VectorField
 from jax_spectral_dns.equation import Equation, print_verb
-from jax_spectral_dns.navier_stokes import NavierStokesVelVort, solve_navier_stokes_laminar
+from jax_spectral_dns.navier_stokes import (
+    NavierStokesVelVort,
+    solve_navier_stokes_laminar,
+)
 from jax_spectral_dns.navier_stokes_perturbation import solve_navier_stokes_perturbation
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
-from jax_spectral_dns.examples import run_pseudo_2d_perturbation, run_transient_growth, run_transient_growth_nonpert
+from jax_spectral_dns.examples import (
+    run_pseudo_2d_perturbation,
+    run_transient_growth,
+    run_transient_growth_nonpert,
+)
 from jax_spectral_dns._typing import np_float_array, jnp_array, np_jnp_array, jsd_float
 
 if TYPE_CHECKING:
@@ -30,7 +37,7 @@ NoneType = type(None)
 class TestProject(unittest.TestCase):
     def setUp(self) -> None:
         Equation.initialize()
-        Equation.verbosity_level = 0 # suppress output
+        Equation.verbosity_level = 0  # suppress output
 
     def test_1D_cheb(self) -> None:
         Nx = 48
@@ -102,7 +109,9 @@ class TestProject(unittest.TestCase):
         # Ny = Nx
         Ny = 24
         scale_factor = 1.0
-        domain = PhysicalDomain.create((Nx, Ny), (True, False), scale_factors=(scale_factor, 1.0))
+        domain = PhysicalDomain.create(
+            (Nx, Ny), (True, False), scale_factors=(scale_factor, 1.0)
+        )
 
         u_fn = lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor) * jnp.cos(
             X[1] * jnp.pi / 2
@@ -275,13 +284,17 @@ class TestProject(unittest.TestCase):
             / scale_factor
             # lambda X: jnp.cos(X[0]) / scale_factor * jnp.exp(jnp.sin(X[0] / scale_factor))
         )
-        u_diff_ana = PhysicalField.FromFunc(domain, func=u_diff_fn, name="u_1d_diff_ana")
+        u_diff_ana = PhysicalField.FromFunc(
+            domain, func=u_diff_fn, name="u_1d_diff_ana"
+        )
 
         u_diff_fn_2 = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor)
             * (2 * jnp.pi / scale_factor) ** 2
         )
-        u_diff_ana_2 = PhysicalField.FromFunc(domain, func=u_diff_fn_2, name="u_1d_diff_2_ana")
+        u_diff_ana_2 = PhysicalField.FromFunc(
+            domain, func=u_diff_fn_2, name="u_1d_diff_2_ana"
+        )
 
         u_int_fn = lambda X: jnp.sin(X[0] * 2 * jnp.pi / scale_factor) * (
             2 * jnp.pi / scale_factor
@@ -291,7 +304,9 @@ class TestProject(unittest.TestCase):
         u_int_fn_2 = lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor) * (
             2 * jnp.pi / scale_factor
         ) ** (-2)
-        u_int_ana_2 = PhysicalField.FromFunc(domain, func=u_int_fn_2, name="u_1d_int_2_ana")
+        u_int_ana_2 = PhysicalField.FromFunc(
+            domain, func=u_int_fn_2, name="u_1d_int_2_ana"
+        )
 
         u_hat_int = u_hat.integrate(0)
         u_int = u_hat_int.no_hat()
@@ -377,26 +392,34 @@ class TestProject(unittest.TestCase):
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_x) ** (-1)
         )
-        u_int_x_ana = PhysicalField.FromFunc(domain, func=u_int_x_fn, name="u_2d_int_x_ana")
+        u_int_x_ana = PhysicalField.FromFunc(
+            domain, func=u_int_x_fn, name="u_2d_int_x_ana"
+        )
         u_int_xx_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_x) ** (-2)
         )
-        u_int_xx_ana = PhysicalField.FromFunc(domain, func=u_int_xx_fn, name="u_2d_int_xx_ana")
+        u_int_xx_ana = PhysicalField.FromFunc(
+            domain, func=u_int_xx_fn, name="u_2d_int_xx_ana"
+        )
 
         u_int_y_fn = (
             lambda X: jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.sin(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_y) ** (-1)
         )
-        u_int_y_ana = PhysicalField.FromFunc(domain, func=u_int_y_fn, name="u_2d_int_y_ana")
+        u_int_y_ana = PhysicalField.FromFunc(
+            domain, func=u_int_y_fn, name="u_2d_int_y_ana"
+        )
         u_int_yy_fn = (
             lambda X: -jnp.cos(X[0] * 2 * jnp.pi / scale_factor_x)
             * jnp.cos(X[1] * 2 * jnp.pi / scale_factor_y)
             * (2 * jnp.pi / scale_factor_y) ** (-2)
         )
-        u_int_yy_ana = PhysicalField.FromFunc(domain, func=u_int_yy_fn, name="u_2d_int_yy_ana")
+        u_int_yy_ana = PhysicalField.FromFunc(
+            domain, func=u_int_yy_fn, name="u_2d_int_yy_ana"
+        )
 
         u_hat = u.hat()
 
@@ -571,11 +594,15 @@ class TestProject(unittest.TestCase):
         u_fn_int_1 = lambda X: jnp.cos(X[0]) * (2 / jnp.pi) * jnp.sin(
             X[1] * jnp.pi / 2
         ) + (2 / jnp.pi) * jnp.cos(X[0])
-        u_int_1_ana = PhysicalField.FromFunc(domain, func=u_fn_int_1, name="u_2d_int_1_ana")
+        u_int_1_ana = PhysicalField.FromFunc(
+            domain, func=u_fn_int_1, name="u_2d_int_1_ana"
+        )
         u_fn_int_2 = (
             lambda X: -jnp.cos(X[0]) * (2 / jnp.pi) ** 2 * jnp.cos(X[1] * jnp.pi / 2)
         )
-        u_int_2_ana = PhysicalField.FromFunc(domain, func=u_fn_int_2, name="u_2d_int_2_ana")
+        u_int_2_ana = PhysicalField.FromFunc(
+            domain, func=u_fn_int_2, name="u_2d_int_2_ana"
+        )
         u_int_1 = u.integrate(1, order=1, bc_left=0.0)
         u_int_2 = u.integrate(1, order=2, bc_left=0.0, bc_right=0.0)
         u_int_1.name = "u_int_1"
@@ -625,31 +652,57 @@ class TestProject(unittest.TestCase):
             domain_1D_fourier, u_fn_1d_fourier, name="u_1d_fourier"
         )
         self.assertTrue(
-            abs(cast(float, u_1d_fourier.definite_integral(0)) - 1.2660658777520084) < tol
+            abs(cast(float, u_1d_fourier.definite_integral(0)) - 1.2660658777520084)
+            < tol
         )
         # Chebyshev
         domain_1D_cheb = PhysicalDomain.create((Nx,), (False,))
         u_fn_1d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - 1
-        u_1d_cheb = PhysicalField.FromFunc(domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb")
+        u_1d_cheb = PhysicalField.FromFunc(
+            domain_1D_cheb, u_fn_1d_cheb, name="u_1d_cheb"
+        )
         print_verb(u_1d_cheb.definite_integral(0), verbosity_level=3)
-        print_verb(abs(cast(float, u_1d_cheb.definite_integral(0)) - 0.5321317555), verbosity_level=3)
-        self.assertTrue(abs(cast(float, u_1d_cheb.definite_integral(0)) - 0.5321317555) < tol)
+        print_verb(
+            abs(cast(float, u_1d_cheb.definite_integral(0)) - 0.5321317555),
+            verbosity_level=3,
+        )
+        self.assertTrue(
+            abs(cast(float, u_1d_cheb.definite_integral(0)) - 0.5321317555) < tol
+        )
         # 2D
         # Fourier
         Ny = 64
         sc_y = 2.0
-        domain_2D_fourier = PhysicalDomain.create((Nx, Ny), (True, True), scale_factors=(sc_x, sc_y))
+        domain_2D_fourier = PhysicalDomain.create(
+            (Nx, Ny), (True, True), scale_factors=(sc_x, sc_y)
+        )
         u_fn_2d_fourier = lambda X: jnp.exp(
             jnp.sin(X[0] * 2 * jnp.pi / sc_x)
         ) - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2)
         u_2d_fourier = PhysicalField.FromFunc(
             domain_2D_fourier, u_fn_2d_fourier, name="u_2d_fourier"
         )
-        print_verb(abs(cast(float, cast(PhysicalField, u_2d_fourier.definite_integral(1)).definite_integral(0)) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812), verbosity_level=3)
+        print_verb(
+            abs(
+                cast(
+                    float,
+                    cast(
+                        PhysicalField, u_2d_fourier.definite_integral(1)
+                    ).definite_integral(0),
+                )
+                - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+            ),
+            verbosity_level=3,
+        )
         self.assertTrue(
             (
                 abs(
-                    cast(float, cast(PhysicalField, u_2d_fourier.definite_integral(1)).definite_integral(0))
+                    cast(
+                        float,
+                        cast(
+                            PhysicalField, u_2d_fourier.definite_integral(1)
+                        ).definite_integral(0),
+                    )
                     - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
                 )
             )
@@ -669,13 +722,42 @@ class TestProject(unittest.TestCase):
         u_fn_2d_cheb = lambda X: jnp.exp(jnp.sin(X[0] * 2 * jnp.pi / sc_x)) - jnp.exp(
             jnp.sin(X[1] * 2 * jnp.pi / sc_y) ** 2
         )
-        u_2d_cheb = PhysicalField.FromFunc(domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb")
-        print_verb(abs(cast(float, cast(PhysicalField, u_2d_cheb.definite_integral(1)).definite_integral(0)) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812), verbosity_level=3)
-        print_verb((cast(float, cast(PhysicalField, u_2d_cheb.definite_integral(1)).definite_integral(0)) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962), verbosity_level=3)
+        u_2d_cheb = PhysicalField.FromFunc(
+            domain_2D_cheb, u_fn_2d_cheb, name="u_2d_cheb"
+        )
+        print_verb(
+            abs(
+                cast(
+                    float,
+                    cast(
+                        PhysicalField, u_2d_cheb.definite_integral(1)
+                    ).definite_integral(0),
+                )
+                - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+            ),
+            verbosity_level=3,
+        )
+        print_verb(
+            (
+                cast(
+                    float,
+                    cast(
+                        PhysicalField, u_2d_cheb.definite_integral(1)
+                    ).definite_integral(0),
+                )
+                - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
+            ),
+            verbosity_level=3,
+        )
         self.assertTrue(
             (
                 abs(
-                    cast(float, cast(PhysicalField, u_2d_cheb.definite_integral(1)).definite_integral(0))
+                    cast(
+                        float,
+                        cast(
+                            PhysicalField, u_2d_cheb.definite_integral(1)
+                        ).definite_integral(0),
+                    )
                     - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
                 )
             )
@@ -691,13 +773,33 @@ class TestProject(unittest.TestCase):
             < tol
         )
         # Mixed
-        domain_2D_mixed = PhysicalDomain.create((Nx, Ny), (False, True), scale_factors=(1.0, sc_y))
-        u_2d_mixed = PhysicalField.FromFunc(domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed")
-        print_verb(abs(cast(float, cast(PhysicalField, u_2d_mixed.definite_integral(1)).definite_integral(0)) - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962), verbosity_level=3)
+        domain_2D_mixed = PhysicalDomain.create(
+            (Nx, Ny), (False, True), scale_factors=(1.0, sc_y)
+        )
+        u_2d_mixed = PhysicalField.FromFunc(
+            domain_2D_mixed, u_fn_2d_cheb, name="u_2d_mixed"
+        )
+        print_verb(
+            abs(
+                cast(
+                    float,
+                    cast(
+                        PhysicalField, u_2d_mixed.definite_integral(1)
+                    ).definite_integral(0),
+                )
+                - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
+            ),
+            verbosity_level=3,
+        )
         self.assertTrue(
             (
                 abs(
-                    cast(float, cast(PhysicalField, u_2d_mixed.definite_integral(1)).definite_integral(0))
+                    cast(
+                        float,
+                        cast(
+                            PhysicalField, u_2d_mixed.definite_integral(1)
+                        ).definite_integral(0),
+                    )
                     - -1.949287106500328240494806919989493133738434465663124816597170852019867576675856194477028450123270962
                 )
             )
@@ -712,15 +814,33 @@ class TestProject(unittest.TestCase):
             )
             < tol
         )
-        domain_2D_mixed_2 = PhysicalDomain.create((Nx, Ny), (True, False), scale_factors=(sc_x, 1.0))
+        domain_2D_mixed_2 = PhysicalDomain.create(
+            (Nx, Ny), (True, False), scale_factors=(sc_x, 1.0)
+        )
         u_2d_mixed_2 = PhysicalField.FromFunc(
             domain_2D_mixed_2, u_fn_2d_cheb, name="u_2d_mixed_2"
         )
-        print_verb(abs(cast(float, cast(PhysicalField, u_2d_mixed_2.definite_integral(1)).definite_integral(0)) - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812), verbosity_level=3)
+        print_verb(
+            abs(
+                cast(
+                    float,
+                    cast(
+                        PhysicalField, u_2d_mixed_2.definite_integral(1)
+                    ).definite_integral(0),
+                )
+                - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
+            ),
+            verbosity_level=3,
+        )
         self.assertTrue(
             (
                 abs(
-                    cast(float, cast(PhysicalField, u_2d_mixed_2.definite_integral(1)).definite_integral(0))
+                    cast(
+                        float,
+                        cast(
+                            PhysicalField, u_2d_mixed_2.definite_integral(1)
+                        ).definite_integral(0),
+                    )
                     - -0.9746435532501641202474034599947465668692172328315624082985854260099337883379280972385142250616354812
                 )
             )
@@ -752,17 +872,17 @@ class TestProject(unittest.TestCase):
         u_3d_fourier = PhysicalField.FromFunc(
             domain_3D_fourier, u_fn_3d_fourier, name="u_3d_fourier"
         )
-        u_3d_fourier_int = cast(float, cast(PhysicalField, cast(PhysicalField, u_3d_fourier.definite_integral(2)).definite_integral(1)).definite_integral(0))
-        print_verb(u_3d_fourier_int, verbosity_level=3)
-        self.assertTrue(
-            (
-                abs(
-                    u_3d_fourier_int
-                    - -10.84981433261992
-                )
-            )
-            < tol
+        u_3d_fourier_int = cast(
+            float,
+            cast(
+                PhysicalField,
+                cast(
+                    PhysicalField, u_3d_fourier.definite_integral(2)
+                ).definite_integral(1),
+            ).definite_integral(0),
         )
+        print_verb(u_3d_fourier_int, verbosity_level=3)
+        self.assertTrue((abs(u_3d_fourier_int - -10.84981433261992)) < tol)
         self.assertTrue(
             (abs(u_3d_fourier.volume_integral() - -10.84981433261992)) < tol
         )
@@ -773,18 +893,20 @@ class TestProject(unittest.TestCase):
             - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
             + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi) ** 2)
         )
-        u_3d_cheb = PhysicalField.FromFunc(domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb")
-        u_3d_cheb_int = cast(float, cast(PhysicalField, cast(PhysicalField, u_3d_cheb.definite_integral(2)).definite_integral(1)).definite_integral(0))
-        print_verb(u_3d_cheb_int, verbosity_level=3)
-        self.assertTrue(
-            (
-                abs(
-                    u_3d_cheb_int
-                    - 10.128527022082872
-                )
-            )
-            < tol
+        u_3d_cheb = PhysicalField.FromFunc(
+            domain_3D_cheb, u_fn_3d_cheb, name="u_3d_cheb"
         )
+        u_3d_cheb_int = cast(
+            float,
+            cast(
+                PhysicalField,
+                cast(PhysicalField, u_3d_cheb.definite_integral(2)).definite_integral(
+                    1
+                ),
+            ).definite_integral(0),
+        )
+        print_verb(u_3d_cheb_int, verbosity_level=3)
+        self.assertTrue((abs(u_3d_cheb_int - 10.128527022082872)) < tol)
         self.assertTrue((abs(u_3d_cheb.volume_integral() - 10.128527022082872)) < tol)
         # Mixed
         domain_3D_mixed = PhysicalDomain.create(
@@ -795,18 +917,20 @@ class TestProject(unittest.TestCase):
             - jnp.exp(jnp.sin(X[1] * 2 * jnp.pi) ** 2)
             + jnp.exp(jnp.cos(X[2] * 2 * jnp.pi / sc_z) ** 2)
         )
-        u_3d_mixed = PhysicalField.FromFunc(domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed")
-        u_3d_mixed_int = cast(float, cast(PhysicalField, cast(PhysicalField, u_3d_mixed.definite_integral(2)).definite_integral(1)).definite_integral(0))
-        print_verb(u_3d_mixed_int, verbosity_level=3)
-        self.assertTrue(
-            (
-                abs(
-                    u_3d_mixed_int
-                    - 7.596395266449558
-                )
-            )
-            < tol
+        u_3d_mixed = PhysicalField.FromFunc(
+            domain_3D_mixed, u_fn_3d_mixed, name="u_3d_mixed"
         )
+        u_3d_mixed_int = cast(
+            float,
+            cast(
+                PhysicalField,
+                cast(PhysicalField, u_3d_mixed.definite_integral(2)).definite_integral(
+                    1
+                ),
+            ).definite_integral(0),
+        )
+        print_verb(u_3d_mixed_int, verbosity_level=3)
+        self.assertTrue((abs(u_3d_mixed_int - 7.596395266449558)) < tol)
         self.assertTrue((abs(u_3d_mixed.volume_integral() - 7.596395266449558)) < tol)
 
     def test_poisson_slices(self) -> None:
@@ -927,7 +1051,9 @@ class TestProject(unittest.TestCase):
         print_verb(abs(u_ana - out), verbosity_level=3)
         self.assertTrue(abs(u_ana - out) < tol)
 
-    def test_navier_stokes_laminar(self, Ny: int=96, perturbation_factor: float=0.01) -> None:
+    def test_navier_stokes_laminar(
+        self, Ny: int = 96, perturbation_factor: float = 0.01
+    ) -> None:
         for activate_jit in [True, False]:
             Re = 1.5e0
 
@@ -942,6 +1068,7 @@ class TestProject(unittest.TestCase):
                 dt=2e-2,
                 perturbation_factor=perturbation_factor,
             )
+
             def before_time_step(nse_: Equation) -> None:
                 nse = cast(NavierStokesVelVort, nse_)
                 u = nse.get_latest_field("velocity_hat").no_hat()
@@ -963,7 +1090,9 @@ class TestProject(unittest.TestCase):
                 lambda X: -1 * nse.get_u_max_over_u_tau() * (X[1] + 1) * (X[1] - 1)
                 + 0.0 * X[0] * X[2]
             )
-            vel_x_ana = PhysicalField.FromFunc(nse.get_physical_domain() , vel_x_fn_ana, name="vel_x_ana")
+            vel_x_ana = PhysicalField.FromFunc(
+                nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
+            )
 
             print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
@@ -1018,7 +1147,9 @@ class TestProject(unittest.TestCase):
         # print_verb(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 
-    def test_perturbation_laminar(self, Ny: int=48, perturbation_factor: float=0.01) -> None:
+    def test_perturbation_laminar(
+        self, Ny: int = 48, perturbation_factor: float = 0.01
+    ) -> None:
         for activate_jit in [True, False]:
             Re = 1.5e0
 
@@ -1091,26 +1222,49 @@ class TestProject(unittest.TestCase):
     #     )
 
     def test_2d_growth_rates_quantitatively(self) -> None:
-
-        def run_re(Re: float, rotated: bool=False, use_antialiasing: bool=True) -> 'pseudo_2d_perturbation_return_type':
+        def run_re(
+            Re: float, rotated: bool = False, use_antialiasing: bool = True
+        ) -> "pseudo_2d_perturbation_return_type":
             end_time = 6e-1
             if use_antialiasing:
                 N = 4
-                aliasing = 3/2
+                aliasing = 3 / 2
             else:
                 N = 6
                 aliasing = 1
             if rotated:
                 return run_pseudo_2d_perturbation(
-                    Re=Re, end_time=end_time, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, rotated=True, aliasing=aliasing
+                    Re=Re,
+                    end_time=end_time,
+                    Nx=N,
+                    Ny=64,
+                    Nz=N,
+                    linearize=True,
+                    plot=True,
+                    save=False,
+                    eps=1.0,
+                    dt=1e-2,
+                    rotated=True,
+                    aliasing=aliasing,
                 )
             else:
                 return run_pseudo_2d_perturbation(
-                    Re=Re, end_time=end_time, Nx=N, Ny=64, Nz=N, linearize=True, plot=True, save=False, eps=1.0, dt=1e-2, aliasing=aliasing
+                    Re=Re,
+                    end_time=end_time,
+                    Nx=N,
+                    Ny=64,
+                    Nz=N,
+                    linearize=True,
+                    plot=True,
+                    save=False,
+                    eps=1.0,
+                    dt=1e-2,
+                    aliasing=aliasing,
                 )
 
-
-        def run(rotated: bool=False, use_antialiasing: bool=False) -> tuple[list[list[float]], jnp_array, jnp_array]:
+        def run(
+            rotated: bool = False, use_antialiasing: bool = False
+        ) -> tuple[list[list[float]], jnp_array, jnp_array]:
             ts = []
             energy = []
             energy_ana = []
@@ -1121,63 +1275,107 @@ class TestProject(unittest.TestCase):
                 energy_ana.append(out[3])
             return (ts, jnp.array(energy), jnp.array(energy_ana))
 
-        def calculate_growth_rates(ts: list[list[float]], energy: jnp_array, energy_ana: jnp_array) -> None:
-            start_index = 1 # don't start at 0 to allow for some initial transient
+        def calculate_growth_rates(
+            ts: list[list[float]], energy: jnp_array, energy_ana: jnp_array
+        ) -> None:
+            start_index = 1  # don't start at 0 to allow for some initial transient
             time = ts[0][-1] - ts[0][start_index]
             print_verb("Re = 5500:")
-            growth_rate = (energy[0][-1] - energy[0][start_index]) / (time * energy_ana[0][start_index])
-            growth_rate_ana = (energy_ana[0][-1] - energy_ana[0][start_index]) / (time * energy_ana[0][start_index])
+            growth_rate = (energy[0][-1] - energy[0][start_index]) / (
+                time * energy_ana[0][start_index]
+            )
+            growth_rate_ana = (energy_ana[0][-1] - energy_ana[0][start_index]) / (
+                time * energy_ana[0][start_index]
+            )
             print_verb("growth rate: ", growth_rate)
             print_verb("growth rate (analytical): ", growth_rate_ana)
             print_verb("difference: ", abs(growth_rate_ana - growth_rate))
-            rel_error_5500 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
+            rel_error_5500 = abs(
+                (growth_rate_ana - growth_rate)
+                / (0.5 * (growth_rate_ana + growth_rate))
+            )
             print_verb("relative error: ", rel_error_5500)
             assert rel_error_5500 < 1e-3
 
             print_verb("Re = 5772.22:")
-            growth_rate = (energy[1][-1] - energy[1][start_index]) / (time * energy_ana[1][start_index])
-            growth_rate_ana = (energy_ana[1][-1] - energy_ana[1][start_index]) / (time * energy_ana[1][start_index])
+            growth_rate = (energy[1][-1] - energy[1][start_index]) / (
+                time * energy_ana[1][start_index]
+            )
+            growth_rate_ana = (energy_ana[1][-1] - energy_ana[1][start_index]) / (
+                time * energy_ana[1][start_index]
+            )
             print_verb("growth rate: ", growth_rate)
             print_verb("growth rate (analytical): ", growth_rate_ana)
             print_verb("difference: ", abs(growth_rate_ana - growth_rate))
-            rel_error_5772 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
+            rel_error_5772 = abs(
+                (growth_rate_ana - growth_rate)
+                / (0.5 * (growth_rate_ana + growth_rate))
+            )
             print_verb("relative error: ", rel_error_5772)
-            assert rel_error_5772 < 2 # (this can be quite large as the denominator is almost zero)
+            assert (
+                rel_error_5772 < 2
+            )  # (this can be quite large as the denominator is almost zero)
             assert abs(growth_rate) < 2e-6
 
             print_verb("Re = 6000:")
-            growth_rate = (energy[2][-1] - energy[2][start_index]) / (time * energy_ana[2][start_index])
-            growth_rate_ana = (energy_ana[2][-1] - energy_ana[2][start_index]) / (time * energy_ana[2][start_index])
+            growth_rate = (energy[2][-1] - energy[2][start_index]) / (
+                time * energy_ana[2][start_index]
+            )
+            growth_rate_ana = (energy_ana[2][-1] - energy_ana[2][start_index]) / (
+                time * energy_ana[2][start_index]
+            )
             print_verb("growth rate: ", growth_rate)
             print_verb("growth rate (analytical): ", growth_rate_ana)
             print_verb("difference: ", abs(growth_rate_ana - growth_rate))
-            rel_error_6000 = abs((growth_rate_ana - growth_rate) / (0.5 * (growth_rate_ana + growth_rate)))
+            rel_error_6000 = abs(
+                (growth_rate_ana - growth_rate)
+                / (0.5 * (growth_rate_ana + growth_rate))
+            )
             print_verb("relative error: ", rel_error_6000)
             assert rel_error_6000 < 1e-3
 
-
-
-        def plot(ts: list[list[float]], dataset: jnp_array, dataset_ana: jnp_array) -> None:
+        def plot(
+            ts: list[list[float]], dataset: jnp_array, dataset_ana: jnp_array
+        ) -> None:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
-            ax.plot(ts[0], dataset_ana[0]/dataset_ana[0][0], "b-", label="Re_5500 (linear theory)")
-            ax.plot(ts[0], dataset[0]/dataset_ana[0][0], "b.", label="Re_5500 (DNS)")
-            ax.plot(ts[1], dataset_ana[1]/dataset_ana[1][0], "y", label="Re_5772 (linear theory)")
-            ax.plot(ts[1], dataset[1]/dataset_ana[1][0], "y", label="Re_5772 (DNS)")
-            ax.plot(ts[2], dataset_ana[2]/dataset_ana[2][0], "g-", label="Re_6000 (linear theory)")
-            ax.plot(ts[2], dataset[2]/dataset_ana[2][0], "g.", label="Re_6000 (DNS)")
+            ax.plot(
+                ts[0],
+                dataset_ana[0] / dataset_ana[0][0],
+                "b-",
+                label="Re_5500 (linear theory)",
+            )
+            ax.plot(ts[0], dataset[0] / dataset_ana[0][0], "b.", label="Re_5500 (DNS)")
+            ax.plot(
+                ts[1],
+                dataset_ana[1] / dataset_ana[1][0],
+                "y",
+                label="Re_5772 (linear theory)",
+            )
+            ax.plot(ts[1], dataset[1] / dataset_ana[1][0], "y", label="Re_5772 (DNS)")
+            ax.plot(
+                ts[2],
+                dataset_ana[2] / dataset_ana[2][0],
+                "g-",
+                label="Re_6000 (linear theory)",
+            )
+            ax.plot(ts[2], dataset[2] / dataset_ana[2][0], "g.", label="Re_6000 (DNS)")
             ax.set_xlabel("$t$")
             ax.set_ylabel("$G$")
             fig.legend()
-            fig.savefig(
-                "plots/" + "energy" + ".png"
-            )
+            fig.savefig("plots/" + "energy" + ".png")
 
         def main() -> None:
             for use_antialiasing in [False, True]:
                 for rotated in [False, True]:
-                    print_verb("testing growth rates in " + ("rotated" if rotated else "normal") + " domain " + ("with" if use_antialiasing else "without") + " antialiasing")
+                    print_verb(
+                        "testing growth rates in "
+                        + ("rotated" if rotated else "normal")
+                        + " domain "
+                        + ("with" if use_antialiasing else "without")
+                        + " antialiasing"
+                    )
                     ts, energy, energy_ana = run(rotated, use_antialiasing)
                     plot(ts, energy, energy_ana)
                     calculate_growth_rates(ts, energy, energy_ana)
@@ -1185,16 +1383,20 @@ class TestProject(unittest.TestCase):
         main()
 
     def test_transient_growth(self) -> None:
-        for (Re, t) in [(600, 2), (3000, 15)]:
-            gain, expected_gain, _, _ = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
+        for Re, t in [(600, 2), (3000, 15)]:
+            gain, expected_gain, _, _ = run_transient_growth(
+                Re, t, alpha=1, beta=0, plot=False
+            )
             rel_error = abs((gain - expected_gain) / expected_gain)
             print_verb(rel_error, verbosity_level=3)
-            assert rel_error <  5e-5
-        for (Re, t) in [(600, 2), (3000, 15)]:
-            gain, expected_gain, _, _ = run_transient_growth_nonpert(Re, t, alpha=1, beta=0, eps=1e-3, plot=False)
+            assert rel_error < 5e-5
+        for Re, t in [(600, 2), (3000, 15)]:
+            gain, expected_gain, _, _ = run_transient_growth_nonpert(
+                Re, t, alpha=1, beta=0, eps=1e-3, plot=False
+            )
             rel_error = abs((gain - expected_gain) / expected_gain)
             print_verb(rel_error, verbosity_level=1)
-            assert rel_error <  5e-3
+            assert rel_error < 5e-3
 
 
 if __name__ == "__main__":

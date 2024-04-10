@@ -1190,7 +1190,7 @@ def solve_navier_stokes_laminar(
     perturbation_factor: float = 0.1,
     scale_factors: tuple[float, float, float] = (1.87, 1.0, 0.93),
     aliasing: float = 1.0,
-    **params: Any
+    **params: Any,
 ) -> NavierStokesVelVort:
 
     domain = PhysicalDomain.create(

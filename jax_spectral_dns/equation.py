@@ -23,16 +23,17 @@ jnp_int_array = jnp.ndarray
 
 NoneType = type(None)
 
-def print_verb(*in_str: Any, verbosity_level:int=1, debug:bool=False) -> None:
-    pref = "[" + time.ctime() + "]  " + '  ' * verbosity_level
+
+def print_verb(*in_str: Any, verbosity_level: int = 1, debug: bool = False) -> None:
+    pref = "[" + time.ctime() + "]  " + "  " * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
-            print(pref, end=' ')
+            print(pref, end=" ")
             for st in in_str:
                 if type(st) is str:
-                    print(st, end='')
+                    print(st, end="")
                 else:
-                    jax.debug.callback(lambda x: print(x, end=''), st)
+                    jax.debug.callback(lambda x: print(x, end=""), st)
             print()
         else:
             print(pref, *in_str)
@@ -47,9 +48,9 @@ class Equation:
     # 1: mostly output from examples.py informing the user about what is being done
     # 2: additional helpful output from the solver
     # 3: even more additional output from the solver that is usually nonessential
-    verbosity_level:int = 1
+    verbosity_level: int = 1
 
-    def __init__(self, domain: Domain, *fields: 'AnyField', **params: Any):
+    def __init__(self, domain: Domain, *fields: "AnyField", **params: Any):
         dt: jsd_float = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
@@ -73,7 +74,7 @@ class Equation:
         # self.initialize()
 
     @classmethod
-    def initialize(cls, cleanup: bool=True) -> None:
+    def initialize(cls, cleanup: bool = True) -> None:
         Field.initialize(cleanup)
 
     def get_dt(self) -> jsd_float:
@@ -82,9 +83,9 @@ class Equation:
     def get_domain(self) -> Domain:
         return self.fixed_parameters.domain
 
-    def get_field(self, name: str, index: int) -> 'AnyField':
+    def get_field(self, name: str, index: int) -> "AnyField":
         try:
-            out: 'AnyField' = self.fields[name][index]
+            out: "AnyField" = self.fields[name][index]
             if index >= 0:
                 out.set_time_step(index)
             else:
@@ -93,30 +94,30 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def get_fields(self, name: str) -> 'AnyFieldList':
+    def get_fields(self, name: str) -> "AnyFieldList":
         try:
-            return cast('AnyFieldList', self.fields[name])
+            return cast("AnyFieldList", self.fields[name])
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def get_initial_field(self, name: str) -> 'AnyField':
+    def get_initial_field(self, name: str) -> "AnyField":
         out = self.get_field(name, 0)
         return out
 
-    def get_latest_field(self, name: str) -> 'AnyField':
+    def get_latest_field(self, name: str) -> "AnyField":
         out = self.get_field(name, -1)
         return out
 
     def get_number_of_fields(self, name: str) -> int:
         return len(self.get_fields(name))
 
-    def set_field(self, name: str, index: int, field: 'AnyField') -> None:
+    def set_field(self, name: str, index: int, field: "AnyField") -> None:
         try:
             self.fields[name][index] = field
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def append_field(self, name: str, field: 'AnyField', in_place: bool=True) ->  None:
+    def append_field(self, name: str, field: "AnyField", in_place: bool = True) -> None:
         try:
             if in_place and len(self.fields[name]) > 0:
                 self.fields[name][-1] = field
@@ -126,7 +127,7 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
-    def add_field(self, name: str, field: Optional['AnyField']=None) -> None:
+    def add_field(self, name: str, field: Optional["AnyField"] = None) -> None:
         assert name not in self.fields, "Field " + name + " already exists!"
         if type(field) == NoneType:
             self.fields[name] = []
@@ -163,18 +164,22 @@ class Equation:
         ]
 
     def all_periodic_dimensions_jnp(self) -> jnp_int_array:
-        return jnp.array([
-            self.all_dimensions_jnp()[d]
-            for d in self.all_dimensions_jnp()
-            if self.get_domain().periodic_directions[d]
-        ])
+        return jnp.array(
+            [
+                self.all_dimensions_jnp()[d]
+                for d in self.all_dimensions_jnp()
+                if self.get_domain().periodic_directions[d]
+            ]
+        )
 
     def all_nonperiodic_dimensions_jnp(self) -> jnp_int_array:
-        return jnp.array([
-            self.all_dimensions_jnp()[d]
-            for d in self.all_dimensions_jnp()
-            if not self.get_domain().periodic_directions[d]
-        ])
+        return jnp.array(
+            [
+                self.all_dimensions_jnp()[d]
+                for d in self.all_dimensions_jnp()
+                if not self.get_domain().periodic_directions[d]
+            ]
+        )
 
     def done(self) -> bool:
         iteration_done = False
@@ -185,7 +190,7 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _: Optional[Any]=None) -> Any:
+    def perform_time_step(self, _: Optional[Any] = None) -> Any:
         raise NotImplementedError()
 
     def before_time_step(self) -> None:
@@ -218,11 +223,13 @@ class Equation:
         self.prepare()
 
         if Field.activate_jit_:
-            msg = "Solving using jit/scan - this offers high performance but "\
-                  "intermediate results won't be available until after the "\
-                  "calculation finishes. To disable "\
-                  "high-performance mode, use the deactivate_jit()-method of the "\
-                  "Equation class."
+            msg = (
+                "Solving using jit/scan - this offers high performance but "
+                "intermediate results won't be available until after the "
+                "calculation finishes. To disable "
+                "high-performance mode, use the deactivate_jit()-method of the "
+                "Equation class."
+            )
 
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
@@ -235,16 +242,18 @@ class Equation:
                 + " time steps ("
                 + "{:.3e}".format((time.time() - start_time) / number_of_time_steps)
                 + " s/TS).",
-                verbosity_level=1
+                verbosity_level=1,
             )
             self.deactivate_jit()
 
         else:
-            msg = "WARNING: Solving without jit/scan - performance will be "\
-                  "significantly lower but intermediate results will be available "\
-                  "for printing and plotting. Only recommended for testing. "\
-                  "To enable high-performance mode, use the "\
-                  "activate_jit()-method of the Equation class."
+            msg = (
+                "WARNING: Solving without jit/scan - performance will be "
+                "significantly lower but intermediate results will be available "
+                "for printing and plotting. Only recommended for testing. "
+                "To enable high-performance mode, use the "
+                "activate_jit()-method of the Equation class."
+            )
             print_verb(msg, verbosity_level=0)
             while not self.done():
                 i = self.time_step

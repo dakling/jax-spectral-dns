@@ -394,15 +394,15 @@ def run_pseudo_2d() -> None:
     nse.init_velocity(vel_x_hat + (u * eps).hat())
 
     energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.get_physical_domain())
-    energy_over_time_fn: Callable[
-        [jsd_float], jsd_float
-    ] = lambda t: eps**2 * energy_over_time_fn_raw(t, None)
-    energy_x_over_time_fn: Callable[
-        [jsd_float], jsd_float
-    ] = lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](t, 0)
-    energy_y_over_time_fn: Callable[
-        [jsd_float], jsd_float
-    ] = lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](t, 1)
+    energy_over_time_fn: Callable[[jsd_float], jsd_float] = (
+        lambda t: eps**2 * energy_over_time_fn_raw(t, None)
+    )
+    energy_x_over_time_fn: Callable[[jsd_float], jsd_float] = (
+        lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](t, 0)
+    )
+    energy_y_over_time_fn: Callable[[jsd_float], jsd_float] = (
+        lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](t, 1)
+    )
     print_verb("eigenvalue: ", ev)
     plot_interval = 10
 
