@@ -30,7 +30,9 @@ from jax_spectral_dns.navier_stokes_perturbation import (
     NavierStokesVelVortPerturbation,
     solve_navier_stokes_perturbation,
 )
-from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
+from jax_spectral_dns.linear_stability_calculation import (
+    LinearStabilityCalculation,
+)
 from jax_spectral_dns.optimiser import (
     Optimiser,
     OptimiserNonFourier,
@@ -88,15 +90,22 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
         + 0 * X[2]
     )
     v_fn = (
-        lambda X: 0.1 * (-jnp.cos(X[0]) * (1 - X[1] ** 2) * jnp.cos(jnp.pi / 2 * X[1]))
+        lambda X: 0.1
+        * (-jnp.cos(X[0]) * (1 - X[1] ** 2) * jnp.cos(jnp.pi / 2 * X[1]))
         + 0 * X[2]
     )
 
     w_fn = lambda X: 0 * X[2]
 
-    vel_x = PhysicalField.FromFunc(nse.get_physical_domain(), u_fn, name="velocity_x")
-    vel_y = PhysicalField.FromFunc(nse.get_physical_domain(), v_fn, name="velocity_y")
-    vel_z = PhysicalField.FromFunc(nse.get_physical_domain(), w_fn, name="velocity_z")
+    vel_x = PhysicalField.FromFunc(
+        nse.get_physical_domain(), u_fn, name="velocity_x"
+    )
+    vel_y = PhysicalField.FromFunc(
+        nse.get_physical_domain(), v_fn, name="velocity_y"
+    )
+    vel_z = PhysicalField.FromFunc(
+        nse.get_physical_domain(), w_fn, name="velocity_z"
+    )
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
     vel_hat = vel.hat()
     vel_hat.set_name("velocity_hat")
@@ -115,7 +124,9 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
     vel_base_z = PhysicalField.FromFunc(
         nse.get_physical_domain(), w_base_fn, name="velocity_base_z"
     )
-    vel_base = VectorField([vel_base_x, vel_base_y, vel_base_z], name="velocity_base")
+    vel_base = VectorField(
+        [vel_base_x, vel_base_y, vel_base_z], name="velocity_base"
+    )
 
     ts = []
     energy_t = []
@@ -246,11 +257,20 @@ def run_navier_stokes_turbulent() -> None:
         * (-jnp.cos(X[0]) * (1 - X[1] ** 2) * jnp.cos(jnp.pi / 2 * X[1]))
         * jnp.sin(X[2])
     )
-    w_fn = lambda X: 0.05 * jnp.cos(jnp.pi / 2 * X[1]) * jnp.sin(2 * X[0]) + 0 * X[2]
+    w_fn = (
+        lambda X: 0.05 * jnp.cos(jnp.pi / 2 * X[1]) * jnp.sin(2 * X[0])
+        + 0 * X[2]
+    )
 
-    vel_x = PhysicalField.FromFunc(nse.get_physical_domain(), u_fn, name="velocity_x")
-    vel_y = PhysicalField.FromFunc(nse.get_physical_domain(), v_fn, name="velocity_y")
-    vel_z = PhysicalField.FromFunc(nse.get_physical_domain(), w_fn, name="velocity_z")
+    vel_x = PhysicalField.FromFunc(
+        nse.get_physical_domain(), u_fn, name="velocity_x"
+    )
+    vel_y = PhysicalField.FromFunc(
+        nse.get_physical_domain(), v_fn, name="velocity_y"
+    )
+    vel_z = PhysicalField.FromFunc(
+        nse.get_physical_domain(), w_fn, name="velocity_z"
+    )
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
     vel_hat = vel.hat()
     vel_hat.set_name("velocity_hat")
@@ -269,7 +289,9 @@ def run_navier_stokes_turbulent() -> None:
     vel_base_z = PhysicalField.FromFunc(
         nse.get_physical_domain(), w_base_fn, name="velocity_base_z"
     )
-    vel_base = VectorField([vel_base_x, vel_base_y, vel_base_z], name="velocity_base")
+    vel_base = VectorField(
+        [vel_base_x, vel_base_y, vel_base_z], name="velocity_base"
+    )
 
     ts = []
     energy_t = []
@@ -339,7 +361,9 @@ def run_navier_stokes_turbulent() -> None:
             label="dedalus (small dt)",
         )
     except FileNotFoundError:
-        print_verb("No dedalus small dt data to compare results with were found.")
+        print_verb(
+            "No dedalus small dt data to compare results with were found."
+        )
     ax[0].plot(ts, energy_t_arr, "o", label="jax")
     try:
         ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
@@ -352,7 +376,9 @@ def run_navier_stokes_turbulent() -> None:
             "--",
         )
     except Exception:
-        print_verb("No dedalus small dt data to compare results with were found.")
+        print_verb(
+            "No dedalus small dt data to compare results with were found."
+        )
     ax[1].plot(ts, energy_t_arr / energy_t_arr[0], "o")
     ax[1].set_xlabel("$t$")
     ax[0].set_ylabel("$E$")
@@ -391,15 +417,21 @@ def run_pseudo_2d() -> None:
     eps = 5e-3
     nse.init_velocity(vel_x_hat + (u * eps).hat())
 
-    energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.get_physical_domain())
-    energy_over_time_fn: Callable[[jsd_float], jsd_float] = (
-        lambda t: eps**2 * energy_over_time_fn_raw(t, None)
+    energy_over_time_fn_raw, ev = lsc.energy_over_time(
+        nse.get_physical_domain()
     )
-    energy_x_over_time_fn: Callable[[jsd_float], jsd_float] = (
-        lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](t, 0)
+    energy_over_time_fn: Callable[
+        [jsd_float], jsd_float
+    ] = lambda t: eps**2 * energy_over_time_fn_raw(t, None)
+    energy_x_over_time_fn: Callable[
+        [jsd_float], jsd_float
+    ] = lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](
+        t, 0
     )
-    energy_y_over_time_fn: Callable[[jsd_float], jsd_float] = (
-        lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](t, 1)
+    energy_y_over_time_fn: Callable[
+        [jsd_float], jsd_float
+    ] = lambda t: eps**2 * lsc.energy_over_time(nse.get_physical_domain())[0](
+        t, 1
     )
     print_verb("eigenvalue: ", ev)
     plot_interval = 10
@@ -425,7 +457,8 @@ def run_pseudo_2d() -> None:
             vel_x_max = vel[0].max()
             print_verb("vel_x_max: ", vel_x_max)
             vel_x_fn_ana: Vel_fn_type = (
-                lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+                lambda X: -vel_x_max * (X[1] + 1) * (X[1] - 1)
+                + 0.0 * X[0] * X[2]
             )
             vel_x_ana = PhysicalField.FromFunc(
                 nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
@@ -722,7 +755,9 @@ def run_pseudo_2d_perturbation(
     U_hat = U.hat()
     nse.init_velocity(U_hat * eps)
 
-    energy_over_time_fn, _ = lsc.energy_over_time(nse.get_physical_domain(), eps=eps)
+    energy_over_time_fn, _ = lsc.energy_over_time(
+        nse.get_physical_domain(), eps=eps
+    )
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
@@ -955,7 +990,9 @@ def run_transient_growth_nonpert(
         lambda X: 0.0 * X[0] * X[1] * X[2],
         name="velocity_z_base",
     )
-    velocity_base = VectorField([velocity_x_base, velocity_y_base, velocity_z_base])
+    velocity_base = VectorField(
+        [velocity_x_base, velocity_y_base, velocity_z_base]
+    )
     velocity_base.set_name("velocity_base")
 
     eps_ = eps / jnp.sqrt(U_pert.energy())
@@ -1258,7 +1295,9 @@ def run_transient_growth_time_study(
 
         ts_list.append(ts)
         energy_t_list.append(energy_t)
-        ax.plot(ts, energy_t / energy_t[0], ".", label="gain (T = " + str(T) + ")")
+        ax.plot(
+            ts, energy_t / energy_t[0], ".", label="gain (T = " + str(T) + ")"
+        )
         ax.plot(
             rh_93_data[0],
             rh_93_data[1],
@@ -1321,7 +1360,9 @@ def run_optimisation_transient_growth(
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-2
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    number_of_modes = (
+        20  # deliberately low value so that there is room for improvement
+    )
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3 / 2
@@ -1389,14 +1430,18 @@ def run_optimisation_transient_growth(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(
+        U_hat: VectorField[FourierField], out: bool = False
+    ) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, dt=dt, Re=Re
+        )
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1456,7 +1501,9 @@ def run_optimisation_transient_growth_nonfourier(
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-2
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    number_of_modes = (
+        20  # deliberately low value so that there is room for improvement
+    )
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3 / 2
@@ -1529,7 +1576,9 @@ def run_optimisation_transient_growth_nonfourier(
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, dt=dt, Re=Re
+        )
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1589,7 +1638,9 @@ def run_optimisation_transient_growth_y_profile(
 
     Equation.initialize()
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    number_of_modes = (
+        20  # deliberately low value so that there is room for improvement
+    )
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     aliasing = 3 / 2
 
@@ -1657,13 +1708,17 @@ def run_optimisation_transient_growth_y_profile(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(
+        U_hat: VectorField[FourierField], out: bool = False
+    ) -> jsd_float:
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, dt=dt, Re=Re
+        )
         nse.end_time = end_time
 
         # nse.set_linearize(False)
@@ -1811,14 +1866,18 @@ def run_optimisation_transient_growth_nonlinear(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(
+        U_hat: VectorField[FourierField], out: bool = False
+    ) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, dt=dt, Re=Re
+        )
         nse.end_time = end_time
 
         nse.set_linearize(False)
@@ -1953,14 +2012,18 @@ def run_optimisation_transient_growth_nonlinear_3d(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(
+        U_hat: VectorField[FourierField], out: bool = False
+    ) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, dt=dt, Re=Re
+        )
         nse.end_time = end_time
 
         nse.set_linearize(False)
@@ -2103,7 +2166,9 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
 
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, dt=dt, Re=Re
+        )
         nse.end_time = end_time
 
         nse.set_linearize(False)
@@ -2162,7 +2227,9 @@ def run_optimisation_transient_growth_mean_y_profile(
 
     Equation.initialize()
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    number_of_modes = (
+        20  # deliberately low value so that there is room for improvement
+    )
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     aliasing = 3 / 2
 
@@ -2205,7 +2272,9 @@ def run_optimisation_transient_growth_mean_y_profile(
         lambda X: 0.0 * X[0] * X[1] * X[2],
         name="velocity_z_base",
     )
-    velocity_base = VectorField([velocity_x_base, velocity_y_base, velocity_z_base])
+    velocity_base = VectorField(
+        [velocity_x_base, velocity_y_base, velocity_z_base]
+    )
     velocity_base_hat = velocity_base.hat()
     velocity_base_hat.set_name("velocity_base_hat")
 
@@ -2341,7 +2410,9 @@ def run_optimisation_transient_growth_mean_y_profile(
         v0_base_yslice = jnp.array(
             list(map(lambda y: (1 - y ** (m)) ** (1 / n), domain.grid[1]))
         )
-        v0_base_hat = domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
+        v0_base_hat = domain.field_hat(
+            lsc0.y_slice_to_3d_field(domain, v0_base_yslice)
+        )
 
         U_hat: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
@@ -2350,7 +2421,11 @@ def run_optimisation_transient_growth_mean_y_profile(
             FourierField,
             domain,
             jnp.array(
-                [v0_base_hat, jnp.zeros_like(v0_base_hat), jnp.zeros_like(v0_base_hat)]
+                [
+                    v0_base_hat,
+                    jnp.zeros_like(v0_base_hat),
+                    jnp.zeros_like(v0_base_hat),
+                ]
             ),
         )
         return (U_hat, U_base)
@@ -2462,7 +2537,9 @@ def run_ld_2020(
 
     if init_file is None:
         number_of_modes = 60
-        lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny)
+        lsc = LinearStabilityCalculation(
+            Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny
+        )
 
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             domain,
@@ -2531,13 +2608,17 @@ def run_ld_2020(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(
+        U_hat: VectorField[FourierField], out: bool = False
+    ) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re=Re, dt=dt)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, Re=Re, dt=dt
+        )
         energy_0_ = U_norm.energy()
         nse.activate_jit()
         nse.end_time = end_time_
