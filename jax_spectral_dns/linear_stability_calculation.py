@@ -81,7 +81,6 @@ class LinearStabilityCalculation:
         )
         # Equation.initialize()
 
-    @numba.jit
     def assemble_matrix_fast(self) -> tuple[np_complex_array, np_complex_array]:
         alpha = self.alpha
         beta = self.beta
@@ -175,7 +174,6 @@ class LinearStabilityCalculation:
     def read_mat(self, file: str, key: str) -> Any:
         return scipy.io.loadmat(file)[key]
 
-    @numba.jit
     def calculate_eigenvalues(
         self, save: bool = False
     ) -> tuple[np_complex_array, list[np_complex_array]]:
@@ -207,7 +205,6 @@ class LinearStabilityCalculation:
             )
         return self.eigenvalues, self.eigenvectors
 
-    @numba.jit
     def velocity_field_single_mode(
         self,
         domain: PhysicalDomain,
@@ -251,7 +248,6 @@ class LinearStabilityCalculation:
                 u[2].save_to_file(self.make_field_file_name_mode(domain, "w", mode))
         return u
 
-    @numba.jit
     def velocity_field(
         self,
         domain: PhysicalDomain,
@@ -282,7 +278,6 @@ class LinearStabilityCalculation:
             domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor
         )
 
-    @numba.jit
     def y_slice_to_3d_field(
         self, domain: PhysicalDomain, y_slice_i: jnp_array, factor: jsd_complex = 1.0
     ) -> jnp_array:
@@ -303,7 +298,6 @@ class LinearStabilityCalculation:
 
         return out
 
-    @numba.jit
     def velocity_field_from_y_slice(
         self,
         domain: PhysicalDomain,
@@ -335,7 +329,6 @@ class LinearStabilityCalculation:
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return self.velocity_field_
 
-    @numba.jit
     def energy_over_time(
         self, domain: PhysicalDomain, mode: int = 0, eps: float = 1.0
     ) -> tuple[Callable[[jsd_float, Optional[int]], float], jsd_complex]:
@@ -494,7 +487,6 @@ class LinearStabilityCalculation:
         S, _ = self.calculate_transient_growth_svd(T, number_of_modes, save=False)
         return cast(float, S[0] ** 2)
 
-    @numba.jit
     def calculate_transient_growth_initial_condition_from_coefficients(
         self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool = True
     ) -> VectorField[PhysicalField]:
@@ -515,7 +507,6 @@ class LinearStabilityCalculation:
 
         return u
 
-    @numba.jit
     def calculate_transient_growth_initial_condition(
         self,
         domain: PhysicalDomain,
