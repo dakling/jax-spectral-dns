@@ -15,6 +15,7 @@ setup(
         "numpy",
         "scipy",
         "matplotlib",
+        "scikit-image",
         "jaxopt",
         "optax",
         "pytest",

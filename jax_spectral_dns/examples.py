@@ -2397,8 +2397,6 @@ def run_ld_2020(
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     # aliasing = 3 / 2
     aliasing = 1
-    Nx = int(Nx * ((3 / 2) / aliasing))
-    Nz = int(Nz * ((3 / 2) / aliasing))
     e_0 = float(e_0)
 
     Equation.initialize()
