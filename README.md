@@ -165,7 +165,7 @@ strictness, is also part of the repository (`mypy.ini`).
 ### Code formatting
 
 Code autoformatting is implemented using black and pre-commit. The configuration
-for pre-commit and blac is in `./.pre-commit.yaml` To enable autoformatting
+for pre-commit and black is in `./.pre-commit.yaml` To enable formatting
 being run automatically upon a commit, run 
 ```
 pre-commit install
