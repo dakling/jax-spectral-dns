@@ -17,7 +17,7 @@
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
 default:
-    image: docker pull ghcr.io/nvidia/jax:jax-2024-04-09
+    image: docker pull ghcr.io/nvidia/jax:jax
     before_script:
         - pip install mypy
         - pip install .
