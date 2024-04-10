@@ -17,7 +17,7 @@
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
 default:
-    image: ghcr.io/nvidia/jax:jax
+    image: python
     before_script:
         - pip install mypy
         - pip install .
