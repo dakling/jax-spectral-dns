@@ -25,9 +25,13 @@ default:
 
 test:   # This job runs in the test stage.
     script:
-        - echo "Running unit tests..."
+        - echo "Running formatting tests..."
+        - black run --check jax_spectral_dns
+        - black run --check tests/test_project.sh
+        - echo "Running mypy type tests..."
         - mypy jax_spectral_dns/
         - mypy tests/test_project.py
-        - pytest
+        - echo "Running unit tests..."
+        - pytest -n auto
     rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"

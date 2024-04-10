@@ -19,6 +19,7 @@ setup(
         "jaxopt",
         "optax",
         "pytest",
+        "pytest-xdist",
         "black",
         "pre-commit",  # for automatic formatting
     ],

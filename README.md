@@ -170,3 +170,5 @@ being run automatically upon a commit, run
 ```
 pre-commit install
 ```
+Doing this is recommended as code formatting is enforced by the pipeline, so
+poorly formatted code will be rejected automatically.
