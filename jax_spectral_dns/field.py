@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from _typeshed import SupportsIter
 import time
 
 from abc import ABC, abstractmethod

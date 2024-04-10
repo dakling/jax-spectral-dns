@@ -1066,7 +1066,7 @@ class NavierStokesVelVort(Equation):
 
         def step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, jnp_array]:
             out, _ = jax.lax.scan(
-                jax.checkpoint(inner_step_fn),
+                jax.checkpoint(inner_step_fn), # type: ignore[attr-defined]
                 u0,
                 xs=None,
                 length=number_of_inner_steps,
