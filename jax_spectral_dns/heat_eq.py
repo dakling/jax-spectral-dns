@@ -12,7 +12,7 @@ from typing import List, Optional, cast
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import PhysicalField
 from jax_spectral_dns.equation import Equation
-from jax_spectral_dns._typing import jsd_float, Vel_fn_type
+from jax_spectral_dns._typing import jsd_float, jnp_array, Vel_fn_type
 
 
 class Heat_Eq(Equation):
@@ -90,7 +90,7 @@ class Heat_Eq(Equation):
                 u_0.plot_center(i, u_fin)
 
 
-def solve_heat_eq_1D():
+def solve_heat_eq_1D() -> None:
     # Nx = 100000
     Nx = 100
     dt = 5e-9
@@ -112,9 +112,9 @@ def solve_heat_eq_1D():
     print(e0)
     print(v_final.energy())
 
-def optimize_heat_eq_1D():
+def optimize_heat_eq_1D() -> None:
     Nx = 100
-    def run(v0):
+    def run(v0: jnp_array) -> jsd_float:
         domain = PhysicalDomain.create((Nx,), (False,))
 
         u = PhysicalField(domain, v0, name="u")
@@ -155,7 +155,7 @@ def optimize_heat_eq_1D():
         v0_new.set_name("u_0_" + str(i))
         v0_new.plot()
 
-def solve_heat_eq_2D():
+def solve_heat_eq_2D() -> None:
     Nx = 24
     Ny = Nx
     Nt = 5000
@@ -172,7 +172,7 @@ def solve_heat_eq_2D():
     heat_eq.plot()
 
 
-def solve_heat_eq_3D():
+def solve_heat_eq_3D() -> None:
     Nx = 100
     Ny = 100
     Nz = 100
@@ -195,11 +195,11 @@ def solve_heat_eq_3D():
     print(e0)
     print(v_final.energy())
 
-def optimize_heat_eq_3D():
+def optimize_heat_eq_3D() -> None:
     Nx = 100
     Ny = Nx
     Nz = Nx
-    def run(v0):
+    def run(v0: jnp_array) -> jsd_float:
         domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
         Nt = 3000
         dt = 5e-9

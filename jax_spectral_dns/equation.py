@@ -263,5 +263,5 @@ class Equation:
                 self.after_time_step()
                 print_verb("Took " + str(time.time() - start_time) + " seconds")
 
-    def plot(self):
+    def plot(self) -> None:
         raise NotImplementedError()

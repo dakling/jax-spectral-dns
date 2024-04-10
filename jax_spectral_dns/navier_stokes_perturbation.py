@@ -13,7 +13,7 @@ from typing import Any, cast
 import sys
 
 from jax_spectral_dns.navier_stokes import NavierStokesVelVort
-from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.domain import PhysicalDomain, FourierDomain
 from jax_spectral_dns.field import PhysicalField, VectorField, FourierField, FourierFieldSlice
 from jax_spectral_dns.equation import Equation
 from jax_spectral_dns._typing import (
@@ -29,8 +29,8 @@ from jax_spectral_dns._typing import (
 @partial(jax.jit, static_argnums=(0,1))
 # @partial(jax.checkpoint, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
-        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize=False
-):
+        physical_domain: PhysicalDomain, fourier_domain: FourierDomain, vel_hat_new: jnp_array, vel_base_hat: jnp_array, linearize:bool =False
+) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
     vel_new = jnp.array(
         [
             # domain.no_hat(vel_hat_new.at[i].get())
@@ -93,8 +93,7 @@ def update_nonlinear_terms_high_performance_perturbation(
         physical_domain.field_hat(conv_ns_new[i]) for i in physical_domain.all_dimensions()
     ]
 
-    return (h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
-    # return (jnp.zeros_like(h_v_hat_new), jnp.zeros_like(h_g_hat_new), [jnp.zeros_like(vort_hat_new[i]) for i in range(3)], [jnp.zeros_like(conv_ns_hat_new[i]) for i in range(3)])
+    return (h_v_hat_new, h_g_hat_new, jnp.array(vort_hat_new), jnp.array(conv_ns_hat_new))
 
 
 class NavierStokesVelVortPerturbation(NavierStokesVelVort):
@@ -134,7 +133,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         self.linearize: bool = params.get("linearize", False)
         self.set_linearize(self.linearize)
 
-    def update_flow_rate(self):
+    def update_flow_rate(self) -> None:
         self.flow_rate = 0.0
         self.dpdx = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
@@ -179,9 +178,9 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
             V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
             W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
-            u_cfl = (abs(DX) / abs(U)).min().real
-            v_cfl = (abs(DY) / abs(V)).min().real
-            w_cfl = (abs(DZ) / abs(W)).min().real
+            u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
+            v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
+            w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
             self.dt: float = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
             assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
         return self.dt
@@ -274,8 +273,9 @@ def solve_navier_stokes_perturbation(
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    def post_process(nse_, i):
-        n_steps = len(nse_.get_field("velocity_hat"))
+    def post_process(nse__: Equation, i: int) -> None:
+        nse_ = cast(NavierStokesVelVortPerturbation, nse__)
+        n_steps = nse_.get_number_of_fields("velocity_hat")
         vel_hat = nse_.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 

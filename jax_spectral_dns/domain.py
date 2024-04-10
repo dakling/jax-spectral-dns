@@ -11,7 +11,7 @@ import dataclasses
 from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any
 from typing_extensions import Self
 
-from jax_spectral_dns._typing import np_float_array, jnp_array, np_jnp_array, jsd_float
+from jax_spectral_dns._typing import np_float_array, np_complex_array, jnp_array, np_jnp_array, jsd_float
 
 
 NoneType = type(None)
@@ -422,7 +422,7 @@ class Domain(ABC):
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(
             (
                 self.number_of_dimensions,
@@ -433,7 +433,7 @@ class PhysicalDomain(Domain):
             )
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) is hash(other)
 
     def hat(self) -> "FourierDomain":
@@ -471,7 +471,7 @@ class PhysicalDomain(Domain):
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(
             (
                 self.number_of_dimensions,
@@ -482,7 +482,7 @@ class FourierDomain(Domain):
             )
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return hash(self) is hash(other)
 
     @classmethod
@@ -490,7 +490,7 @@ class FourierDomain(Domain):
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
-        def fftshift(inp, i):
+        def fftshift(inp: np_float_array, i: int) -> np_float_array:
             if physical_domain.periodic_directions[i]:
                 N = len(inp)
                 return (
@@ -527,7 +527,7 @@ class FourierDomain(Domain):
         )
         return out
 
-    def assemble_poisson_matrix(self):
+    def assemble_poisson_matrix(self) -> np_complex_array:
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1

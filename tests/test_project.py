@@ -28,11 +28,11 @@ NoneType = type(None)
 
 
 class TestProject(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         Equation.initialize()
         Equation.verbosity_level = 0 # suppress output
 
-    def test_1D_cheb(self):
+    def test_1D_cheb(self) -> None:
         Nx = 48
         domain = PhysicalDomain.create((Nx,), (False,))
 
@@ -66,7 +66,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
 
-    def test_1D_periodic(self):
+    def test_1D_periodic(self) -> None:
         Nx = 24
         scale_factor = 1.0
         domain = PhysicalDomain.create((Nx,), (True,), scale_factors=(scale_factor,))
@@ -97,7 +97,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_x - u_x_ana) < tol)
         self.assertTrue(abs(u_xx - u_xx_ana) < tol)
 
-    def test_2D(self):
+    def test_2D(self) -> None:
         Nx = 20
         # Ny = Nx
         Ny = 24
@@ -158,7 +158,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_y - u_y_ana) < tol)
         self.assertTrue(abs(u_yy - u_yy_ana) < tol)
 
-    def test_3D(self):
+    def test_3D(self) -> None:
         Nx = 24
         Ny = 40
         Nz = 20
@@ -256,7 +256,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_z - u_z_ana) < tol)
         self.assertTrue(abs(u_zz - u_zz_ana) < tol)
 
-    def test_fourier_1D(self):
+    def test_fourier_1D(self) -> None:
         Nx = 24
         scale_factor = 1.0
         # scale_factor = 2 * jnp.pi
@@ -325,7 +325,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_dom_diff - u_diff_ana) < tol)
         self.assertTrue(abs(u_dom_diff_2 - u_diff_ana_2) < tol)
 
-    def test_fourier_2D(self):
+    def test_fourier_2D(self) -> None:
         Nx = 24
         Ny = Nx + 4
         scale_factor_x = 1.0
@@ -445,7 +445,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_int_y - u_int_y_ana) < tol)
         self.assertTrue(abs(u_int_yy - u_int_yy_ana) < tol)
 
-    def test_fourier_simple_3D(self):
+    def test_fourier_simple_3D(self) -> None:
         Nx = 24
         Ny = Nx + 4
         Nz = 20
@@ -543,7 +543,7 @@ class TestProject(unittest.TestCase):
         # self.assertTrue(abs(u_int_hat_zz.no_hat() - u_int_zz) < tol)
         # TODO test integration
 
-    def test_cheb_integration_1D(self):
+    def test_cheb_integration_1D(self) -> None:
         Nx = 24
         domain = PhysicalDomain.create((Nx,), (False,))
 
@@ -560,7 +560,7 @@ class TestProject(unittest.TestCase):
         print_verb(abs(u_int - u_int_ana), verbosity_level=3)
         self.assertTrue(abs(u_int - u_int_ana) < tol)
 
-    def test_cheb_integration_2D(self):
+    def test_cheb_integration_2D(self) -> None:
         Nx = 24
         Ny = Nx + 4
         domain = PhysicalDomain.create((Nx, Ny), (True, False))
@@ -589,7 +589,7 @@ class TestProject(unittest.TestCase):
         self.assertTrue(abs(u_int_1 - u_int_1_ana) < tol)
         self.assertTrue(abs(u_int_2 - u_int_2_ana) < tol)
 
-    def test_cheb_integration_3D(self):
+    def test_cheb_integration_3D(self) -> None:
         Nx = 24
         Ny = Nx + 4
         Nz = Nx - 4
@@ -613,7 +613,7 @@ class TestProject(unittest.TestCase):
         print_verb(abs(u_int - u_int_ana), verbosity_level=3)
         self.assertTrue(abs(u_int - u_int_ana) < tol)
 
-    def test_definite_integral(self):
+    def test_definite_integral(self) -> None:
         tol = 1e-10
         # 1D
         # Fourier
@@ -809,7 +809,7 @@ class TestProject(unittest.TestCase):
         )
         self.assertTrue((abs(u_3d_mixed.volume_integral() - 7.596395266449558)) < tol)
 
-    def test_poisson_slices(self):
+    def test_poisson_slices(self) -> None:
         Nx = 24
         Ny = Nx + 4
         Nz = Nx - 4
@@ -849,7 +849,7 @@ class TestProject(unittest.TestCase):
 
         mat = rhs_hat.assemble_poisson_matrix()
 
-        def solve_poisson_for_single_wavenumber(kx, kz):
+        def solve_poisson_for_single_wavenumber(kx: int, kz: int) -> jnp_array:
             # kx, kz = int(kx_), int(kz_)
             if kx == 0 or kz == 0:
                 # assumes homogeneneous Dirichlet boundary conditions
@@ -882,7 +882,7 @@ class TestProject(unittest.TestCase):
         print_verb(abs(u_ana - out), verbosity_level=3)
         self.assertTrue(abs(u_ana - out) < tol)
 
-    def test_poisson_no_slices(self):
+    def test_poisson_no_slices(self) -> None:
         Nx = 20
         Ny = 28
         Nz = 24
@@ -927,7 +927,7 @@ class TestProject(unittest.TestCase):
         print_verb(abs(u_ana - out), verbosity_level=3)
         self.assertTrue(abs(u_ana - out) < tol)
 
-    def test_navier_stokes_laminar(self, Ny=96, perturbation_factor=0.01):
+    def test_navier_stokes_laminar(self, Ny: int=96, perturbation_factor: float=0.01) -> None:
         for activate_jit in [True, False]:
             Re = 1.5e0
 
@@ -942,7 +942,8 @@ class TestProject(unittest.TestCase):
                 dt=2e-2,
                 perturbation_factor=perturbation_factor,
             )
-            def before_time_step(nse):
+            def before_time_step(nse_: Equation) -> None:
+                nse = cast(NavierStokesVelVort, nse_)
                 u = nse.get_latest_field("velocity_hat").no_hat()
                 u.set_time_step(nse.time_step)
                 u.plot_3d(2)
@@ -1004,7 +1005,7 @@ class TestProject(unittest.TestCase):
     #     result = optimization.curve_fit(fittingFunc, Nys, errorsLog)
     #     print_verb(result)
 
-    def test_linear_stability(self):
+    def test_linear_stability(self) -> None:
         n = 50
         # n = 4
         Re = 5772.22
@@ -1017,7 +1018,7 @@ class TestProject(unittest.TestCase):
         # print_verb(evecs[0])
         self.assertTrue(evs[0].real <= 0.0 and evs[0].real >= -1e-8)
 
-    def test_perturbation_laminar(self, Ny=48, perturbation_factor=0.01):
+    def test_perturbation_laminar(self, Ny: int=48, perturbation_factor: float=0.01) -> None:
         for activate_jit in [True, False]:
             Re = 1.5e0
 
@@ -1089,7 +1090,7 @@ class TestProject(unittest.TestCase):
     #         (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-6
     #     )
 
-    def test_2d_growth_rates_quantitatively(self):
+    def test_2d_growth_rates_quantitatively(self) -> None:
 
         def run_re(Re: float, rotated: bool=False, use_antialiasing: bool=True) -> 'pseudo_2d_perturbation_return_type':
             end_time = 6e-1
@@ -1183,7 +1184,7 @@ class TestProject(unittest.TestCase):
 
         main()
 
-    def test_transient_growth(self):
+    def test_transient_growth(self) -> None:
         for (Re, t) in [(600, 2), (3000, 15)]:
             gain, expected_gain, _, _ = run_transient_growth(Re, t, alpha=1, beta=0, plot=False)
             rel_error = abs((gain - expected_gain) / expected_gain)

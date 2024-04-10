@@ -12,6 +12,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Callable, Optional, Union, cast
 import time
 
+from jax_spectral_dns import navier_stokes_perturbation
 from jax_spectral_dns.cheb import cheb
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import FourierField, PhysicalField, FourierFieldSlice, VectorField
@@ -23,14 +24,14 @@ from jax_spectral_dns.navier_stokes_perturbation import (
 )
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.optimiser import Optimiser, OptimiserNonFourier, OptimiserPertAndBase
-from jax_spectral_dns._typing import jsd_float, jnp_array, Vel_fn_type, np_jnp_array
+from jax_spectral_dns._typing import jsd_float, jnp_array, Vel_fn_type, np_jnp_array, parameter_type, input_type
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import pseudo_2d_perturbation_return_type
 
 NoneType = type(None)
 
-def run_navier_stokes_turbulent_pseudo_2d():
+def run_navier_stokes_turbulent_pseudo_2d() -> None:
     Re = 5000
 
     end_time = 5
@@ -93,7 +94,8 @@ def run_navier_stokes_turbulent_pseudo_2d():
 
     n_steps = nse.get_number_of_fields("velocity_hat")
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVort, nse_)
         time = (i / (n_steps - 1)) * end_time
         vel = nse.get_field("velocity_hat", i).no_hat()
         vel_pert = vel - vel_base
@@ -169,7 +171,7 @@ def run_navier_stokes_turbulent_pseudo_2d():
     fig.legend()
     fig.savefig("plots/energy.png")
 
-def run_navier_stokes_turbulent():
+def run_navier_stokes_turbulent() -> None:
     Re = 3000
 
     end_time = 1
@@ -245,7 +247,8 @@ def run_navier_stokes_turbulent():
 
     n_steps = nse.get_number_of_fields("velocity_hat")
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVort, nse_)
         time = (i / (n_steps - 1)) * end_time
         vel = nse.get_field("velocity_hat", i).no_hat()
         vel_pert = vel - vel_base
@@ -322,7 +325,7 @@ def run_navier_stokes_turbulent():
     fig.savefig("plots/energy.png")
 
 
-def run_pseudo_2d():
+def run_pseudo_2d() -> None:
     Ny = 64
     # Ny = 24
     # Re = 5772.22
@@ -495,7 +498,7 @@ def run_pseudo_2d():
     nse.solve()
 
 
-def run_dummy_velocity_field():
+def run_dummy_velocity_field() -> None:
     Re = 1e5
 
     end_time = 50
@@ -543,16 +546,15 @@ def run_dummy_velocity_field():
 
     plot_interval = 1
 
-    vel = nse.get_initial_field("velocity_hat").no_hat()
     vel_x_fn_ana = lambda X: -1 * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
     vel_x_ana = PhysicalField.FromFunc(
         nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
     )
 
-    def after_time_step(nse):
+    def after_time_step(nse_: Equation) -> None:
+        nse = cast(NavierStokesVelVort, nse_)
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
-            # vel = nse.get_field("velocity_hat", i).no_hat()
             vel = nse.get_latest_field("velocity_hat").no_hat()
             vort_hat, _ = nse.get_vorticity_and_helicity()
             vort = vort_hat.no_hat()
@@ -569,8 +571,8 @@ def run_dummy_velocity_field():
             vel[0].plot_center(1)
             vel[1].plot_center(1)
             vel[2].plot_center(1)
-            vel_pert_energy = 0
-            vel_pert_abs = 0
+            vel_pert_energy: jsd_float = 0.0
+            vel_pert_abs: jsd_float = 0.0
             for j in range(3):
                 vel_pert_energy += vel_pert[j].energy()
                 vel_pert_abs += abs(vel_pert[j])
@@ -580,7 +582,6 @@ def run_dummy_velocity_field():
     nse.after_time_step_fn = after_time_step
     # nse.after_time_step_fn = None
     nse.solve()
-    return nse.get_latest_field("velocity_hat").no_hat().get_data()
 
 
 def run_pseudo_2d_perturbation(
@@ -755,7 +756,7 @@ def run_pseudo_2d_perturbation(
     )
 
 
-def run_jimenez_1990(start_time=0):
+def run_jimenez_1990(start_time: int=0) -> None:
     start_time = int(start_time)
     Re = 5000
     alpha = 1
@@ -813,7 +814,8 @@ def run_jimenez_1990(start_time=0):
 
     plot_interval = 50
 
-    def before_time_step(nse):
+    def before_time_step(nse_: Equation) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         i = nse.time_step
         if i % plot_interval == 0:
             vel_pert = nse.get_latest_field("velocity_hat").no_hat()
@@ -822,7 +824,7 @@ def run_jimenez_1990(start_time=0):
             vort = vel.curl()
             vort.set_name("vorticity")
             vort.set_time_step(i)
-            vel_moving_frame = vel.shift([-0.353, 0, 0])
+            vel_moving_frame = vel.shift(jnp.array([-0.353, 0, 0]))
             vel_moving_frame.set_name("velocity_moving_frame")
             vel_moving_frame.set_time_step(i)
             vel_moving_frame.plot_streamlines(2)
@@ -854,7 +856,7 @@ def run_transient_growth_nonpert(
     Ny: int=50,
     Nz: int=4,
     plot: bool=True,
-) -> tuple[float, float, list[list[float]], list[float]]:
+) -> tuple[float, float, list[float], list[float]]:
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -937,7 +939,8 @@ def run_transient_growth_nonpert(
     if plot and abs(Re - 3000) < 1e-3:
         rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVort, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1030,7 +1033,7 @@ def run_transient_growth(
     Nz: int=4,
     linearize: Union[bool, str]=True,
     plot: bool=True,
-) -> tuple[float, float, list[list[float]], list[float]]:
+) -> tuple[float, float, list[float], list[float]]:
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -1097,7 +1100,8 @@ def run_transient_growth(
     if plot and abs(Re - 3000) < 1e-3:
         rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1171,17 +1175,19 @@ def run_transient_growth(
         fig.legend()
         fig.savefig("plots/energy_t.png")
 
-    gain = energy_t_arr[-1] / energy_t_arr[0]
+    gain = cast(float, energy_t_arr[-1] / energy_t_arr[0])
     print_verb("final energy gain:", gain)
     print_verb("expected final energy gain:", e_max)
 
     return (gain, e_max, ts, energy_t)
 
 
-def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
+def run_transient_growth_time_study(transient_growth_fn_: Union[str, Callable[[float], tuple[float, float, list[float], list[float]]]]=run_transient_growth) -> None:
 
-    if type(transient_growth_fn) is str:
+    if type(transient_growth_fn_) is str:
         transient_growth_fn = globals()[sys.argv[2]]
+    else:
+        transient_growth_fn = transient_growth_fn_
     Re = 3000
 
     rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
@@ -1254,14 +1260,14 @@ def run_transient_growth_time_study(transient_growth_fn=run_transient_growth):
 
 
 def run_optimisation_transient_growth(
-    Re=3000.0,
-    T=15,
-    Nx=8,
-    Ny=90,
-    Nz=8,
-    number_of_steps=20,
-    min_number_of_optax_steps=-1,
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=8,
+    Ny: int=90,
+    Nz: int=8,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=-1,
+) -> None:
     Re = float(Re)
     T = float(T)
     alpha=1.0
@@ -1301,7 +1307,8 @@ def run_optimisation_transient_growth(
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1342,7 +1349,7 @@ def run_optimisation_transient_growth(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat, out=False):
+    def run_case(U_hat: VectorField[FourierField], out: bool=False) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
@@ -1387,14 +1394,14 @@ def run_optimisation_transient_growth(
     optimiser.optimise()
 
 def run_optimisation_transient_growth_nonfourier(
-    Re=3000.0,
-    T=15,
-    Nx=8,
-    Ny=90,
-    Nz=8,
-    number_of_steps=20,
-    min_number_of_optax_steps=-1,
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=8,
+    Ny: int=90,
+    Nz: int=8,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=-1,
+) -> None:
     Re = float(Re)
     T = float(T)
     alpha=1.0
@@ -1433,7 +1440,8 @@ def run_optimisation_transient_growth_nonfourier(
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1474,7 +1482,7 @@ def run_optimisation_transient_growth_nonfourier(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U, out=False):
+    def run_case(U: VectorField[PhysicalField], out: bool=False) -> jsd_float:
 
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
@@ -1518,14 +1526,14 @@ def run_optimisation_transient_growth_nonfourier(
     optimiser.optimise()
 
 def run_optimisation_transient_growth_y_profile(
-    Re=3000.0,
-    T=15,
-    Nx=8,
-    Ny=90,
-    Nz=8,
-    number_of_steps=20,
-    min_number_of_optax_steps=4,
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=8,
+    Ny: int=90,
+    Nz: int=8,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=4,
+) -> None:
     Re = float(Re)
     T = float(T)
     alpha=1.0
@@ -1564,7 +1572,8 @@ def run_optimisation_transient_growth_y_profile(
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1606,7 +1615,7 @@ def run_optimisation_transient_growth_y_profile(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(U_hat, out=False):
+    def run_case(U_hat: VectorField[FourierField], out: bool=False) -> jsd_float:
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
@@ -1636,13 +1645,13 @@ def run_optimisation_transient_growth_y_profile(
         gain = vel.energy() / vel_0.energy()
         return gain
 
-    def run_input_to_params(vel_hat):
+    def run_input_to_params(vel_hat: input_type) -> parameter_type:
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
         v0 = tuple([v0_1, v0_0_00_hat])
         return v0
 
-    def params_to_run_input(params):
+    def params_to_run_input(params: parameter_type) -> input_type:
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
@@ -1669,15 +1678,15 @@ def run_optimisation_transient_growth_y_profile(
 
 
 def run_optimisation_transient_growth_nonlinear(
-    Re=3000.0,
-    T=15,
-    Nx=48,
-    Ny=64,
-    Nz=8,
-    number_of_steps=20,
-    min_number_of_optax_steps=-1,
-        e_0=1e-3
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=48,
+    Ny: int=64,
+    Nz: int=8,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=-1,
+        e_0: float=1e-3
+) -> None:
     Re = float(Re)
     T = float(T)
     alpha=1.0
@@ -1716,7 +1725,8 @@ def run_optimisation_transient_growth_nonlinear(
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1757,7 +1767,7 @@ def run_optimisation_transient_growth_nonlinear(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat, out=False):
+    def run_case(U_hat: VectorField[FourierField], out: bool=False) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
@@ -1802,16 +1812,16 @@ def run_optimisation_transient_growth_nonlinear(
     optimiser.optimise()
 
 def run_optimisation_transient_growth_nonlinear_3d(
-    Re=3000.0,
-    T=15,
-    Nx=48,
-    Ny=64,
-    Nz=48,
-    number_of_steps=20,
-    min_number_of_optax_steps=-1,
-        e_0=1e-3,
-        init_file=None
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=48,
+    Ny: int=64,
+    Nz: int=48,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=-1,
+        e_0: float=1e-3,
+        init_file: Optional[str]=None
+) -> None:
     Re = float(Re)
     T = float(T)
     alpha=1.0
@@ -1857,7 +1867,8 @@ def run_optimisation_transient_growth_nonlinear_3d(
         v0_0_hat = None
 
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1898,7 +1909,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat, out=False):
+    def run_case(U_hat: VectorField[FourierField], out: bool=False) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()
@@ -1946,16 +1957,16 @@ def run_optimisation_transient_growth_nonlinear_3d(
     optimiser.optimise()
 
 def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
-    Re=3000.0,
-    T=15,
-    Nx=48,
-    Ny=64,
-    Nz=48,
-    number_of_steps=20,
-    min_number_of_optax_steps=-1,
-        e_0=1e-3,
-        init_file=None
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=48,
+    Ny: int=64,
+    Nz: int=48,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=-1,
+        e_0: float=1e-3,
+        init_file: Optional[str]=None
+) -> None:
     Re = float(Re)
     T = float(T)
     # alpha=1.0
@@ -2000,7 +2011,8 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         v0_0_norm = None
 
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -2041,7 +2053,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U, out=False):
+    def run_case(U: VectorField[PhysicalField], out: bool=False) -> jsd_float:
 
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
@@ -2085,14 +2097,14 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
     optimiser.optimise()
 
 def run_optimisation_transient_growth_mean_y_profile(
-    Re=3000.0,
-    T=15,
-    Nx=8,
-    Ny=90,
-    Nz=8,
-    number_of_steps=20,
-    min_number_of_optax_steps=-1,
-):
+    Re: float=3000.0,
+    T: float=15,
+    Nx: int=8,
+    Ny: int=90,
+    Nz: int=8,
+    number_of_steps: int=20,
+    min_number_of_optax_steps: int=-1,
+) -> None:
     Re = float(Re)
     T = float(T)
     alpha=1.0
@@ -2155,7 +2167,8 @@ def run_optimisation_transient_growth_mean_y_profile(
     velocity_base_hat = velocity_base.hat()
     velocity_base_hat.set_name("velocity_base_hat")
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         if i == 0:
             vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
             vel_base.plot_3d(2)
@@ -2200,7 +2213,7 @@ def run_optimisation_transient_growth_mean_y_profile(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(inp, out=False):
+    def run_case(inp: input_type, out: bool=False) -> jsd_float:
         U_hat, U_base_hat = inp
         U_base = U_base_hat.no_hat()
         U_base.normalize_by_max_value()
@@ -2234,7 +2247,7 @@ def run_optimisation_transient_growth_mean_y_profile(
         gain = vel.energy() / vel_0.energy()
         return gain
 
-    def run_input_to_params(inp):
+    def run_input_to_params(inp: input_type) -> parameter_type:
         vel_hat, vel_base = inp
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
@@ -2251,7 +2264,7 @@ def run_optimisation_transient_growth_mean_y_profile(
         v0 = tuple([v0_1, v0_0_00_hat, v0_base_hat_coeffs])
         return v0
 
-    def params_to_run_input(params):
+    def params_to_run_input(params: parameter_type) -> input_type:
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
@@ -2298,128 +2311,19 @@ def run_optimisation_transient_growth_mean_y_profile(
     optimiser.optimise()
 
 
-def run_dedalus(Re=3000.0, T=15.0, alpha=1.0, beta=0.0):
-    Re = float(Re)
-    T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
-
-    eps = 1e-5
-
-    Nx = 64
-    Ny = 90
-    Nz = 24
-    # Nx = 4
-    # Ny = 50
-    # Nz = 4
-    end_time = 1.01 * T
-
-    number_of_modes = 80
-
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-
-    nse = solve_navier_stokes_perturbation(
-        Re=Re,
-        Nx=Nx,
-        Ny=Ny,
-        Nz=Nz,
-        end_time=end_time,
-        perturbation_factor=0.0,
-        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
-    )
-
-    # nse.set_linearize(False)
-    nse.set_linearize(True)
-
-    U = lsc.calculate_transient_growth_initial_condition(
-        nse.get_physical_domain(), T, number_of_modes, recompute_full=True
-    )
-
-    eps_ = eps / jnp.sqrt(U.energy())
-    U_hat = U.hat() * eps_
-    print_verb("U energy norm: ", jnp.sqrt(U.energy()))
-    # print_verb("U energy norm (RH): ", jnp.sqrt(U.energy_norm(1)))
-
-    nse.init_velocity(U_hat)
-
-    U_ = U * eps_
-    energy0 = U_.energy()
-    print_verb("U energy norm (normalized): ", energy0)
-    # U_ = U
-    for i in range(3):
-        U_[i].name = "uvw"[i]
-        # U_hat[i].name = "uvw"[i]
-        U_[i].save_to_file("uvw"[i])
-        # print_verb(i, U_[i])
-        # U_hat[i].save_to_file("uvw"[i])
-    # U_.plot_streamlines(2)
-    U_[0].plot_3d(2)
-    U_[1].plot_3d(2)
-    U_[2].plot_3d(2)
-    U_.plot_streamlines(2)
-    U_.plot_vectors(2)
-
-    plot_interval = 5
-
-    def post_process(nse, i):
-        if i % plot_interval == 0:
-            vel_hat = nse.get_latest_field("velocity_hat")
-            vel = vel_hat.no_hat()
-            vel_pert = VectorField([vel[0], vel[1], vel[2]])
-            # vel_pert_old = nse.get_field("velocity_hat", max(0, i - 1)).no_hat()
-            vort = vel.curl()
-            for j in range(3):
-                vel[j].time_step = i
-                vort[j].time_step = i
-                vel[j].name = "velocity_" + "xyz"[j]
-                vort[j].name = "vorticity_" + "xyz"[j]
-                vel[j].plot_3d()
-                vel[j].plot_3d(2)
-                vort[j].plot_3d(2)
-                vel[j].plot_center(0)
-                vel[j].plot_center(1)
-            vel_pert_energy = vel_pert.energy()
-            # vel_pert_energy_old = vel_pert_old.energy()
-            print_verb("\n\n")
-            print_verb(
-                "velocity perturbation energy: ",
-                vel_pert_energy,
-            )
-            print_verb(
-                "velocity perturbation relative change: ",
-                vel_pert_energy / energy0,
-            )
-            print_verb(
-                "velocity perturbation energy change: ",
-                vel_pert_energy - energy0,
-            )
-
-    nse.before_time_step_fn = None
-    nse.post_process_fn = post_process
-
-    nse.solve()
-    nse.post_process()
-
-    U_ = nse.get_latest_field("velocity_hat").no_hat()
-    for i in range(3):
-        U_[i].name = "uvw"[i]
-        # U_hat[i].name = "uvw"[i]
-        U_[i].save_to_file("uvw"[i] + "_final")
-
-
 def run_ld_2020(
-    turb=True,
-    Re_tau=180,
-    Nx=60,
-    Ny=90,
-    Nz=48,
-    number_of_steps=10,
-    min_number_of_optax_steps=-1,
-        e_0=1e-3,
-        init_file=None
-):
+    turb: Union[bool, str]=True,
+    Re_tau: float=180,
+    Nx: int=60,
+    Ny: int=90,
+    Nz: int=48,
+    number_of_steps: int=10,
+    min_number_of_optax_steps: int=-1,
+        e_0: float=1e-3,
+        init_file: Optional[str]=None
+) -> None:
     Re_tau = float(Re_tau)
-    turb = str(turb) == "True"
+    turb_: bool = str(turb) == "True"
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
@@ -2464,10 +2368,10 @@ def run_ld_2020(
         )
         return vel_base, U_y_slice, max
 
-    if turb:
+    if turb_:
         print_verb("using turbulent base profile")
         vel_base, _, max = get_vel_field(domain, avg_vel_coeffs)
-        vel_base = cast(VectorField[PhysicalField], vel_base.normalize_by_max_value())
+        vel_base = vel_base.normalize_by_max_value()
         vel_base.set_name("velocity_base")
         u_max_over_u_tau = max
     else:
@@ -2514,7 +2418,8 @@ def run_ld_2020(
         vel_hat = None
 
 
-    def post_process(nse, i):
+    def post_process(nse_: Equation, i: int) -> None:
+        nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
         # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
@@ -2564,7 +2469,7 @@ def run_ld_2020(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(U_hat, out=False):
+    def run_case(U_hat: VectorField[FourierField], out: bool=False) -> jsd_float:
 
         U = U_hat.no_hat()
         U.update_boundary_conditions()

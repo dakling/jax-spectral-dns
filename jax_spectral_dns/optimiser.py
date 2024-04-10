@@ -337,7 +337,7 @@ class OptimiserNonFourier(Optimiser):
             self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
 
-    def post_process_iteration(self):
+    def post_process_iteration(self) -> None:
 
         i = self.current_iteration
         U = self.parameters_to_run_input(self.parameters)
@@ -374,7 +374,7 @@ class OptimiserPertAndBase(Optimiser):
             input[1],
         )
 
-    def post_process_iteration(self):
+    def post_process_iteration(self) -> None:
 
         i = self.current_iteration
         U_hat, U_base_hat = self.parameters_to_run_input(self.parameters)

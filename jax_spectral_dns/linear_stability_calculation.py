@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from typing import Callable, Union, Optional, cast
+from typing import Any, Callable, Union, Optional, cast
 import numpy as np
 import numpy.typing as npt
 import jax.numpy as jnp
@@ -14,12 +14,12 @@ from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import PhysicalField, VectorField
-from jax_spectral_dns._typing import jsd_complex, jsd_array, np_float_array, np_complex_array, jnp_array, jsd_float
+from jax_spectral_dns._typing import jsd_complex, jsd_array, np_float_array, np_complex_array, jnp_array, jsd_float, np_jnp_array
 
 NoneType = type(None)
 
 class LinearStabilityCalculation:
-    def __init__(self, Re: float=180.0, alpha: float=3.25, beta: float=0.0, n: int=50):
+    def __init__(self, Re: jsd_float=180.0, alpha: float=3.25, beta: float=0.0, n: int=50):
         self.Re = Re
         self.alpha = alpha
         self.beta = beta
@@ -158,7 +158,7 @@ class LinearStabilityCalculation:
         self.B = B
         return (A, B)
 
-    def read_mat(self, file, key):
+    def read_mat(self, file: str, key: str) -> Any:
         return scipy.io.loadmat(file)[key]
 
     def calculate_eigenvalues(self, save: bool=False) -> tuple[np_complex_array, list[np_complex_array]]:
@@ -237,7 +237,7 @@ class LinearStabilityCalculation:
     def velocity_field(
             self,
             domain: PhysicalDomain,
-            evec: np_complex_array,
+            evec: np_jnp_array,
             factor: float=1.0,
             symm: bool=False
     ) -> VectorField[PhysicalField]:
@@ -535,7 +535,7 @@ class LinearStabilityCalculation:
     def post_process(self) -> None:
         pass
 
-    def perform_calculation(self):
+    def perform_calculation(self) -> None:
         self.print_welcome()
         print_verb("Loading DNS data", verbosity_level=2)
         t0 = timeit.default_timer()

@@ -124,6 +124,7 @@ class NavierStokesVelVort(Equation):
         )
         super().__init__(domain, velocity_field, dt=dt)
 
+
         poisson_mat = domain.assemble_poisson_matrix()
         (
             rk_mats_rhs,
@@ -238,7 +239,7 @@ class NavierStokesVelVort(Equation):
     def init_velocity(self, velocity_hat: VectorField[FourierField]) -> None:
         self.set_field("velocity_hat", 0, velocity_hat)
 
-    def get_vorticity_and_helicity(self):
+    def get_vorticity_and_helicity(self) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
         velocity_field_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
         vort_hat = velocity_field_hat.curl()
         for i in jnp.arange(3):
@@ -253,7 +254,7 @@ class NavierStokesVelVort(Equation):
         vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
         vel_hat_0: FourierField = vel_hat[0]
         int: PhysicalField = vel_hat_0.no_hat().definite_integral(1)  # type: ignore[assignment]
-        return int[0, 0]
+        return cast(jsd_float, int[0, 0])
 
     def update_flow_rate(self) -> None:
         self.flow_rate = self.get_flow_rate()
@@ -452,7 +453,7 @@ class NavierStokesVelVort(Equation):
     #     lhs_mat = I - beta[i] * self.dt * L
     #     return (lhs_mat, rhs_mat)
 
-    def prepare(self):
+    def prepare(self) -> None:
         # if not Field.activate_jit_:
         #     self.dt = self.get_time_step()
         # self.poisson_mat = self.domain.assemble_poisson_matrix()
@@ -498,12 +499,12 @@ class NavierStokesVelVort(Equation):
                 vel_z_ = (-1j * kz_ * vel_1_y_ - 1j * kx_ * vort_) / minus_kx_kz_sq
             return (vel_x_, vel_z_)
 
-        def inner_map(kx):
-            def fn(kz_one_pt_state):
+        def inner_map(kx: jsd_float) -> Callable[[jnp_array], jnp_array]:
+            def fn(kz_one_pt_state: jnp_array) -> jnp_array:
                 if two_d:
-                    kz = 0
+                    kz: int = 0
                 else:
-                    kz = kz_one_pt_state[0].real.astype(int)
+                    kz = cast(int, kz_one_pt_state[0].real.astype(int))
                 fields_1d = jnp.split(
                     kz_one_pt_state[1:],
                     number_of_input_arguments,
@@ -519,10 +520,10 @@ class NavierStokesVelVort(Equation):
                         kz___,
                     ),  # type: ignore[no-untyped-call]
                     lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
-                    kx.real.astype(int),
+                    cast(jnp.float64, kx.real).astype(int),
                     kz,
                 )
-                return out
+                return cast(jnp_array, out)
 
             return fn
 
@@ -1058,13 +1059,12 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_
 
-    def solve_scan(self):
-        # @tree_math.wrap # TODO what does this do?
-        def inner_step_fn(u0, _):
+    def solve_scan(self) -> tuple[VectorField[FourierField], int]:
+        def inner_step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, None]:
             out = self.perform_time_step(u0)
             return (out, None)
 
-        def step_fn(u0, _):
+        def step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, jnp_array]:
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),
                 u0,
@@ -1224,9 +1224,10 @@ def solve_navier_stokes_laminar(
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    def post_process(nse_: Equation, i: int) -> None:
+    def post_process(nse__: Equation, i: int) -> None:
+        nse_ = cast(NavierStokesVelVort, nse__)
         n_steps = nse_.get_number_of_fields("velocity_hat")
-        vel_hat: VectorField[FourierField] = nse_.get_field("velocity_hat", i) # type: ignore[assignment]
+        vel_hat: VectorField[FourierField] = nse_.get_field("velocity_hat", i)
         vel: VectorField[PhysicalField] = vel_hat.no_hat()
 
         vort = vel.curl()
@@ -1249,7 +1250,7 @@ def solve_navier_stokes_laminar(
         energy_t = []
         for j in range(n_steps):
             time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_: VectorField[FourierField] = cast(VectorField[FourierField], nse_.get_field("velocity_hat", j))
+            vel_hat_: VectorField[FourierField] = nse_.get_field("velocity_hat", j)
             vel_: VectorField[PhysicalField] = vel_hat_.no_hat()
             vel_energy_ = vel_.energy()
             ts.append(time_)
