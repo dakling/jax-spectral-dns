@@ -4,22 +4,33 @@ from typing import Any, Callable, Union, Optional, cast
 import numpy as np
 import numpy.typing as npt
 import jax.numpy as jnp
-from numpy.linalg import  svd
-import scipy # type: ignore
-from scipy.linalg import eig, cholesky # type: ignore
-from scipy.integrate import quad # type: ignore
+from numpy.linalg import svd
+import scipy  # type: ignore
+from scipy.linalg import eig, cholesky  # type: ignore
+from scipy.integrate import quad  # type: ignore
 import timeit
 
 from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import PhysicalField, VectorField
-from jax_spectral_dns._typing import jsd_complex, jsd_array, np_float_array, np_complex_array, jnp_array, jsd_float, np_jnp_array
+from jax_spectral_dns._typing import (
+    jsd_complex,
+    jsd_array,
+    np_float_array,
+    np_complex_array,
+    jnp_array,
+    jsd_float,
+    np_jnp_array,
+)
 
 NoneType = type(None)
 
+
 class LinearStabilityCalculation:
-    def __init__(self, Re: jsd_float=180.0, alpha: float=3.25, beta: float=0.0, n: int=50):
+    def __init__(
+        self, Re: jsd_float = 180.0, alpha: float = 3.25, beta: float = 0.0, n: int = 50
+    ):
         self.Re = Re
         self.alpha = alpha
         self.beta = beta
@@ -70,6 +81,7 @@ class LinearStabilityCalculation:
         )
         # Equation.initialize()
 
+    @numba.jit
     def assemble_matrix_fast(self) -> tuple[np_complex_array, np_complex_array]:
         alpha = self.alpha
         beta = self.beta
@@ -91,7 +103,7 @@ class LinearStabilityCalculation:
             return (jj, kk)
 
         u_fun: Callable[[float], float] = lambda y: (1 - y**2)
-        du_fun:  Callable[[float], float] = lambda y: -2 * y
+        du_fun: Callable[[float], float] = lambda y: -2 * y
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
@@ -99,7 +111,9 @@ class LinearStabilityCalculation:
             dU = du_fun(y)
             for k in range(n):
 
-                def setMat(mat: np_complex_array, eq: int, var: int, value: jsd_complex) -> None:
+                def setMat(
+                    mat: np_complex_array, eq: int, var: int, value: jsd_complex
+                ) -> None:
                     jj, kk = local_to_global_index(j, k, eq, var)
                     mat[jj, kk] = value
 
@@ -161,7 +175,10 @@ class LinearStabilityCalculation:
     def read_mat(self, file: str, key: str) -> Any:
         return scipy.io.loadmat(file)[key]
 
-    def calculate_eigenvalues(self, save: bool=False) -> tuple[np_complex_array, list[np_complex_array]]:
+    @numba.jit
+    def calculate_eigenvalues(
+        self, save: bool = False
+    ) -> tuple[np_complex_array, list[np_complex_array]]:
         try:
             if None in [self.A, self.B]:
                 self.assemble_matrix_fast()
@@ -190,15 +207,15 @@ class LinearStabilityCalculation:
             )
         return self.eigenvalues, self.eigenvectors
 
-
+    @numba.jit
     def velocity_field_single_mode(
-            self,
-            domain: PhysicalDomain,
-            mode: int=0,
-            factor: float=1.0,
-            recompute_partial: bool=False,
-            recompute_full: bool=False,
-            save: bool=False,
+        self,
+        domain: PhysicalDomain,
+        mode: int = 0,
+        factor: float = 1.0,
+        recompute_partial: bool = False,
+        recompute_full: bool = False,
+        save: bool = False,
     ) -> VectorField[PhysicalField]:
         recompute_partial = recompute_partial or recompute_full
         try:
@@ -234,12 +251,13 @@ class LinearStabilityCalculation:
                 u[2].save_to_file(self.make_field_file_name_mode(domain, "w", mode))
         return u
 
+    @numba.jit
     def velocity_field(
-            self,
-            domain: PhysicalDomain,
-            evec: np_jnp_array,
-            factor: float=1.0,
-            symm: bool=False
+        self,
+        domain: PhysicalDomain,
+        evec: np_jnp_array,
+        factor: float = 1.0,
+        symm: bool = False,
     ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
@@ -260,19 +278,21 @@ class LinearStabilityCalculation:
                 for k in range(n):
                     phi_mat = phi_mat.at[i, k].set(phi_s(k, 0)(ys[i]))
 
-        return self.velocity_field_from_y_slice(domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor)
+        return self.velocity_field_from_y_slice(
+            domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor
+        )
 
-    def y_slice_to_3d_field(self, domain: PhysicalDomain, y_slice_i: jnp_array, factor: jsd_complex=1.0) -> jnp_array:
+    @numba.jit
+    def y_slice_to_3d_field(
+        self, domain: PhysicalDomain, y_slice_i: jnp_array, factor: jsd_complex = 1.0
+    ) -> jnp_array:
         out = (
             factor
             * jnp.einsum(
                 "ij,k->ijk",
                 jnp.einsum(
                     "i,j->ij",
-                    jnp.exp(
-                        1j
-                        * (self.alpha * domain.grid[0])
-                    ),
+                    jnp.exp(1j * (self.alpha * domain.grid[0])),
                     y_slice_i,
                 ),
                 jnp.exp(
@@ -283,11 +303,12 @@ class LinearStabilityCalculation:
 
         return out
 
+    @numba.jit
     def velocity_field_from_y_slice(
-            self,
-            domain: PhysicalDomain,
-            y_slice: tuple[jnp_array, jnp_array, jnp_array],
-            factor: jsd_float=1.0
+        self,
+        domain: PhysicalDomain,
+        y_slice: tuple[jnp_array, jnp_array, jnp_array],
+        factor: jsd_float = 1.0,
     ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
@@ -295,21 +316,29 @@ class LinearStabilityCalculation:
         v_vec: jnp_array = y_slice[1]
         w_vec: jnp_array = y_slice[2]
 
-
         u_field = PhysicalField(
-            domain, self.y_slice_to_3d_field(domain, u_vec, factor), name="velocity_pert_x"
+            domain,
+            self.y_slice_to_3d_field(domain, u_vec, factor),
+            name="velocity_pert_x",
         )
         v_field = PhysicalField(
-            domain, self.y_slice_to_3d_field(domain, v_vec, factor), name="velocity_pert_y"
+            domain,
+            self.y_slice_to_3d_field(domain, v_vec, factor),
+            name="velocity_pert_y",
         )
         w_field = PhysicalField(
-            domain, self.y_slice_to_3d_field(domain, w_vec, factor), name="velocity_pert_z"
+            domain,
+            self.y_slice_to_3d_field(domain, w_vec, factor),
+            name="velocity_pert_z",
         )
 
         self.velocity_field_ = VectorField([u_field, v_field, w_field])
         return self.velocity_field_
 
-    def energy_over_time(self, domain: PhysicalDomain, mode:int=0, eps:float=1.0) -> tuple[Callable[[jsd_float, Optional[int]], float], jsd_complex]:
+    @numba.jit
+    def energy_over_time(
+        self, domain: PhysicalDomain, mode: int = 0, eps: float = 1.0
+    ) -> tuple[Callable[[jsd_float, Optional[int]], float], jsd_complex]:
         if type(self.velocity_field_) == NoneType:
             try:
                 u = PhysicalField.FromFile(
@@ -329,7 +358,10 @@ class LinearStabilityCalculation:
                 )
                 self.velocity_field_ = VectorField([u, v, w])
             except FileNotFoundError:
-                print_verb("Fields not found, performing eigenvalue computation.", verbosity_level=2)
+                print_verb(
+                    "Fields not found, performing eigenvalue computation.",
+                    verbosity_level=2,
+                )
                 assert self.eigenvectors is not None
                 self.velocity_field(domain, self.eigenvectors[mode])
         try:
@@ -342,7 +374,7 @@ class LinearStabilityCalculation:
 
         assert self.eigenvalues is not None
 
-        def out(t: jsd_float, dim: Optional[int]=None) -> float:
+        def out(t: jsd_float, dim: Optional[int] = None) -> float:
             assert self.velocity_field_ is not None
             assert self.eigenvalues is not None
             if type(dim) == NoneType:
@@ -363,7 +395,11 @@ class LinearStabilityCalculation:
         return (out, self.eigenvalues[mode])
 
     def calculate_transient_growth_svd(
-        self, T: jsd_float, number_of_modes: int, save: bool=False, recompute: bool=False
+        self,
+        T: jsd_float,
+        number_of_modes: int,
+        save: bool = False,
+        recompute: bool = False,
     ) -> tuple[np_float_array, np_complex_array]:
         if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
             try:
@@ -394,7 +430,9 @@ class LinearStabilityCalculation:
             out, _ = quad(f, -1, 1, limit=100)
             return out
 
-        def get_integral_coefficient_symm(p: int, q: int) -> tuple[jsd_float, jsd_float]:
+        def get_integral_coefficient_symm(
+            p: int, q: int
+        ) -> tuple[jsd_float, jsd_float]:
             f_s = lambda y: phi_s(p, 0)(y) * phi_s(q, 0)(y)
             f_a = lambda y: phi_a(p, 0)(y) * phi_a(q, 0)(y)
             out_s, _ = quad(f_s, -1, 1, limit=100)
@@ -450,14 +488,15 @@ class LinearStabilityCalculation:
 
         return (S, coeffs)
 
-    def calculate_transient_growth_max_energy(self, T: float, number_of_modes: int) -> float:
-        S, _ = self.calculate_transient_growth_svd(
-            T, number_of_modes, save=False
-        )
+    def calculate_transient_growth_max_energy(
+        self, T: float, number_of_modes: int
+    ) -> float:
+        S, _ = self.calculate_transient_growth_svd(T, number_of_modes, save=False)
         return cast(float, S[0] ** 2)
 
+    @numba.jit
     def calculate_transient_growth_initial_condition_from_coefficients(
-        self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool=True
+        self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool = True
     ) -> VectorField[PhysicalField]:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for eigenvalues/-vectors,
@@ -476,14 +515,15 @@ class LinearStabilityCalculation:
 
         return u
 
+    @numba.jit
     def calculate_transient_growth_initial_condition(
         self,
         domain: PhysicalDomain,
         T: float,
         number_of_modes: int,
-        recompute_partial: bool=True,
-        recompute_full: bool=True,
-        save_final: bool=False,
+        recompute_partial: bool = True,
+        recompute_full: bool = True,
+        save_final: bool = False,
     ) -> VectorField[PhysicalField]:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for velocity fields and eigenvalues/-vectors,
@@ -519,8 +559,9 @@ class LinearStabilityCalculation:
                     T, number_of_modes, save=False, recompute=recompute_full
                 )
 
-
-            u = self.calculate_transient_growth_initial_condition_from_coefficients(domain, factors, recompute_full)
+            u = self.calculate_transient_growth_initial_condition_from_coefficients(
+                domain, factors, recompute_full
+            )
 
             if save_final:
                 for i in range(len(u)):

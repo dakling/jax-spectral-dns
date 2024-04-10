@@ -11,7 +11,13 @@ import dataclasses
 from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any
 from typing_extensions import Self
 
-from jax_spectral_dns._typing import np_float_array, np_complex_array, jnp_array, np_jnp_array, jsd_float
+from jax_spectral_dns._typing import (
+    np_float_array,
+    np_complex_array,
+    jnp_array,
+    np_jnp_array,
+    jsd_float,
+)
 
 
 NoneType = type(None)
@@ -90,7 +96,7 @@ class Domain(ABC):
         shape: Tuple[int, ...],
         periodic_directions: Tuple[bool, ...],
         scale_factors: Optional[Tuple[float, ...]] = None,
-        aliasing: float=3 / 2,
+        aliasing: float = 3 / 2,
     ) -> Self:
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
@@ -182,10 +188,14 @@ class Domain(ABC):
         )
         return f_diff
 
-    def diff_fourier_field_slice(self, field: jnp_array, direction: int, order: int=1) -> jnp_array:
+    def diff_fourier_field_slice(
+        self, field: jnp_array, direction: int, order: int = 1
+    ) -> jnp_array:
         """Calculate and return the derivative of given order for a Fourier
         field slice in direction."""
-        return jnp.array(np.linalg.matrix_power(self.diff_mats[direction], order) @ field)
+        return jnp.array(
+            np.linalg.matrix_power(self.diff_mats[direction], order) @ field
+        )
 
     def enforce_homogeneous_dirichlet(self, mat: np_float_array) -> np_float_array:
         """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
@@ -208,7 +218,11 @@ class Domain(ABC):
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
 
     def enforce_inhomogeneous_dirichlet(
-        self, mat: np_float_array, rhs: np_jnp_array, bc_left: jsd_float, bc_right: jsd_float
+        self,
+        mat: np_float_array,
+        rhs: np_jnp_array,
+        bc_left: jsd_float,
+        bc_right: jsd_float,
     ) -> tuple[np_float_array, np_float_array]:
         # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         # inhomogeneous dirichlet boundary conditions at both ends by setting the
@@ -266,14 +280,24 @@ class Domain(ABC):
             if bc_right == None:
                 return matr
             N = matr.shape[0]
-            out = jnp.block([([jnp.ones((1)), jnp.zeros((1, N - 1))]), ([jnp.zeros((N - 1, 1)), matr[1:, 1:]])])
+            out = jnp.block(
+                [
+                    ([jnp.ones((1)), jnp.zeros((1, N - 1))]),
+                    ([jnp.zeros((N - 1, 1)), matr[1:, 1:]]),
+                ]
+            )
             return out
 
         def set_last_mat_row_and_col_to_unit(matr: jnp_array) -> jnp_array:
             if bc_left == None:
                 return matr
             N = matr.shape[0]
-            out = jnp.block([([matr[:-1, :-1], jnp.zeros((N - 1, 1))]), ([jnp.zeros((1, N - 1)), jnp.ones((1))])])
+            out = jnp.block(
+                [
+                    ([matr[:-1, :-1], jnp.zeros((N - 1, 1))]),
+                    ([jnp.zeros((1, N - 1)), jnp.ones((1))]),
+                ]
+            )
             return out
 
         def set_first_of_field(
@@ -410,7 +434,7 @@ class Domain(ABC):
 
         return jnp.array([curl_0, curl_1, curl_2])
 
-    def cross_product(self, field_1: jnp_array, field_2: jnp_array) ->  jnp_array:
+    def cross_product(self, field_1: jnp_array, field_2: jnp_array) -> jnp_array:
         """Compute the cross (or vector) product of field_1 and field_2."""
         out_0 = field_1[1, ...] * field_2[2, ...] - field_1[2, ...] * field_2[1, ...]
         out_1 = field_1[2, ...] * field_2[0, ...] - field_1[0, ...] * field_2[2, ...]
@@ -562,7 +586,13 @@ class FourierDomain(Domain):
         return mat
 
     # @partial(jax.jit, static_argnums=(0,2,3))
-    def diff(self, field: jnp_array, direction: int, order: int=1, physical_domain: Optional[PhysicalDomain]=None) -> jnp_array:
+    def diff(
+        self,
+        field: jnp_array,
+        direction: int,
+        order: int = 1,
+        physical_domain: Optional[PhysicalDomain] = None,
+    ) -> jnp_array:
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
@@ -572,7 +602,9 @@ class FourierDomain(Domain):
             f_diff = physical_domain.diff(field, direction, order)
         return f_diff
 
-    def solve_poisson_fourier_field_slice(self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]) -> jnp_array:
+    def solve_poisson_fourier_field_slice(
+        self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]
+    ) -> jnp_array:
         """Solve the poisson equation with field as the right-hand side for a
         one-dimensional slice at the wavenumbers k1 and k2. Use the provided
         differentiation matrix mat."""

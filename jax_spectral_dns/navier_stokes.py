@@ -30,7 +30,7 @@ from jax_spectral_dns._typing import (
     jsd_float,
     jnp_array,
     np_jnp_array,
-    Vel_fn_type
+    Vel_fn_type,
 )
 
 
@@ -124,7 +124,6 @@ class NavierStokesVelVort(Equation):
         )
         super().__init__(domain, velocity_field, dt=dt)
 
-
         poisson_mat = domain.assemble_poisson_matrix()
         (
             rk_mats_rhs,
@@ -161,13 +160,17 @@ class NavierStokesVelVort(Equation):
 
     @classmethod
     def FromDomain(cls, domain: PhysicalDomain, **params: Any) -> Self:
-        velocity_field: VectorField[PhysicalField] = VectorField.Zeros(PhysicalField, domain)
+        velocity_field: VectorField[PhysicalField] = VectorField.Zeros(
+            PhysicalField, domain
+        )
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
         return cls(velocity_field_hat, **params)
 
     @classmethod
-    def FromVelocityField(cls, velocity_field: VectorField[PhysicalField], **params: Any) -> Self:
+    def FromVelocityField(
+        cls, velocity_field: VectorField[PhysicalField], **params: Any
+    ) -> Self:
         velocity_field_hat = velocity_field.hat()
         velocity_field_hat.name = "velocity_hat"
         return cls(velocity_field_hat, **params)
@@ -188,18 +191,18 @@ class NavierStokesVelVort(Equation):
     def get_physical_domain(self) -> PhysicalDomain:
         return self.nse_fixed_parameters.physical_domain
 
-    def get_field(self, name: str, index: int) -> 'VectorField[FourierField]':
+    def get_field(self, name: str, index: int) -> "VectorField[FourierField]":
         out = cast(VectorField[FourierField], super().get_field(name, index))
         return out
 
-    def get_fields(self, name: str) -> list['VectorField[FourierField]']:
+    def get_fields(self, name: str) -> list["VectorField[FourierField]"]:
         return cast(List[VectorField[FourierField]], super().get_fields(name))
 
-    def get_initial_field(self, name: str) -> 'VectorField[FourierField]':
+    def get_initial_field(self, name: str) -> "VectorField[FourierField]":
         out = cast(VectorField[FourierField], super().get_initial_field(name))
         return out
 
-    def get_latest_field(self, name: str) -> 'VectorField[FourierField]':
+    def get_latest_field(self, name: str) -> "VectorField[FourierField]":
         out = cast(VectorField[FourierField], super().get_latest_field(name))
         return out
 
@@ -239,8 +242,12 @@ class NavierStokesVelVort(Equation):
     def init_velocity(self, velocity_hat: VectorField[FourierField]) -> None:
         self.set_field("velocity_hat", 0, velocity_hat)
 
-    def get_vorticity_and_helicity(self) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
-        velocity_field_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
+    def get_vorticity_and_helicity(
+        self,
+    ) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
+        velocity_field_hat: VectorField[FourierField] = self.get_latest_field(
+            "velocity_hat"
+        )
         vort_hat = velocity_field_hat.curl()
         for i in jnp.arange(3):
             vort_hat[i].name = "vort_hat_" + str(i)
@@ -267,10 +274,17 @@ class NavierStokesVelVort(Equation):
         ).hat()
 
     def update_nonlinear_terms(
-        self, velocity_field: Optional[VectorField[FourierField]] = None, in_place: bool = True
+        self,
+        velocity_field: Optional[VectorField[FourierField]] = None,
+        in_place: bool = True,
     ) -> Union[
         tuple[jnp_array, jnp_array, jnp_array, jnp_array],
-        tuple[FourierField, FourierField, VectorField[FourierField], VectorField[FourierField]],
+        tuple[
+            FourierField,
+            FourierField,
+            VectorField[FourierField],
+            VectorField[FourierField],
+        ],
     ]:
         if type(velocity_field) == NoneType:
             velocity_field_ = self.get_latest_field("velocity_hat")
@@ -464,7 +478,13 @@ class NavierStokesVelVort(Equation):
 
     @classmethod
     def vort_yvel_to_vel(
-        cls, physical_domain: PhysicalDomain, vort: Optional[jnp_array], vel_y: jnp_array, vel_x_00: jnp_array, vel_z_00: Optional[jnp_array], two_d: bool=False
+        cls,
+        physical_domain: PhysicalDomain,
+        vort: Optional[jnp_array],
+        vel_y: jnp_array,
+        vel_x_00: jnp_array,
+        vel_z_00: Optional[jnp_array],
+        two_d: bool = False,
     ) -> jnp_array:
         domain = physical_domain.hat()
         # compute velocities in x and z directions
@@ -643,7 +663,7 @@ class NavierStokesVelVort(Equation):
                 if type(h_v_hat_old_sw) == NoneType:
                     N_p_old: jnp_array = N_p_new
                 else:
-                    N_p_old = h_v_hat_old_sw # type: ignore[assignment]
+                    N_p_old = h_v_hat_old_sw  # type: ignore[assignment]
 
                 rhs_p = (
                     rhs_mat_p @ phi_hat_lap
@@ -734,7 +754,7 @@ class NavierStokesVelVort(Equation):
                 if type(h_g_hat_old_sw == NoneType):
                     N_vort_old = N_vort_new
                 else:
-                    N_vort_old = h_g_hat_old_sw # type: ignore[assignment]
+                    N_vort_old = h_g_hat_old_sw  # type: ignore[assignment]
 
                 rhs_vort = (
                     rhs_mat_vort @ phi_vort_hat
@@ -927,7 +947,9 @@ class NavierStokesVelVort(Equation):
 
                     return fn
 
-                def inner_map(kx: np_jnp_array) -> Callable[[np_jnp_array], list[jnp_array]]:
+                def inner_map(
+                    kx: np_jnp_array,
+                ) -> Callable[[np_jnp_array], list[jnp_array]]:
                     def fn(kz_one_pt_state: np_jnp_array) -> list[jnp_array]:
                         kz = kz_one_pt_state[0]
                         fields_1d = jnp.split(
@@ -935,8 +957,8 @@ class NavierStokesVelVort(Equation):
                             number_of_input_arguments,
                             axis=0,
                         )
-                        kx_int: int = kx.real.astype(int) # type: ignore[assignment]
-                        kz_int: int = kz.real.astype(int) # type: ignore[assignment]
+                        kx_int: int = kx.real.astype(int)  # type: ignore[assignment]
+                        kz_int: int = kz.real.astype(int)  # type: ignore[assignment]
                         (
                             v_0_new_field,
                             v_1_hat_new,
@@ -951,7 +973,7 @@ class NavierStokesVelVort(Equation):
                             conv_ns_hat_2_00,
                             conv_ns_hat_0_00_old,
                             conv_ns_hat_2_00_old,
-                        ) # type: ignore[call-arg]
+                        )  # type: ignore[call-arg]
                         return [v_0_new_field, v_1_hat_new, v_2_new_field]
 
                     return fn
@@ -982,7 +1004,7 @@ class NavierStokesVelVort(Equation):
                 ):  # TODO maybe do some reshaping to use maximum number of devices
                     out = jax.pmap(outer_map(kz_arr))(kx_state)
                 else:
-                    out = jax.lax.map(outer_map(kz_arr), kx_state) # type: ignore[no-untyped-call]
+                    out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
                 return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
 
             Nx = self.get_domain().number_of_cells(0)
@@ -1038,7 +1060,7 @@ class NavierStokesVelVort(Equation):
         return vel_new_hat_field
 
     # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,))
-    def perform_time_step(self, vel_hat_data: Optional[jnp_array]=None) -> jnp_array:
+    def perform_time_step(self, vel_hat_data: Optional[jnp_array] = None) -> jnp_array:
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
         else:
@@ -1066,7 +1088,7 @@ class NavierStokesVelVort(Equation):
 
         def step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, jnp_array]:
             out, _ = jax.lax.scan(
-                jax.checkpoint(inner_step_fn), # type: ignore[attr-defined]
+                jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
                 xs=None,
                 length=number_of_inner_steps,
@@ -1159,15 +1181,15 @@ class NavierStokesVelVort(Equation):
 
 
 def solve_navier_stokes_laminar(
-    Re: float=1.8e2,
-    end_time: float=1e1,
-    max_iter: int=10000,
-    Nx: int=8,
-    Ny: int=40,
-    Nz: int=8,
-    perturbation_factor: float=0.1,
-    scale_factors: tuple[float, float, float]=(1.87, 1.0, 0.93),
-    aliasing: float=1.0,
+    Re: float = 1.8e2,
+    end_time: float = 1e1,
+    max_iter: int = 10000,
+    Nx: int = 8,
+    Ny: int = 40,
+    Nz: int = 8,
+    perturbation_factor: float = 0.1,
+    scale_factors: tuple[float, float, float] = (1.87, 1.0, 0.93),
+    aliasing: float = 1.0,
     **params: Any
 ) -> NavierStokesVelVort:
 

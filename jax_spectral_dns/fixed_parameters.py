@@ -9,13 +9,13 @@ from jax_spectral_dns._typing import jsd_float, np_complex_array
 
 
 @dataclasses.dataclass(frozen=True)
-class FixedParameters():
+class FixedParameters:
     domain: Domain
     dt: jsd_float
 
 
 @dataclasses.dataclass(frozen=True)
-class NavierStokesVelVortFixedParameters():
+class NavierStokesVelVortFixedParameters:
     physical_domain: PhysicalDomain
     poisson_mat: np_complex_array
     rk_mats_rhs: np_complex_array

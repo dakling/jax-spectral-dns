@@ -10,18 +10,43 @@ import jax
 import jax.numpy as jnp
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from mpl_toolkits.mplot3d.axes3d import Axes3D # type: ignore
+from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
 from matplotlib import colors
-from scipy.interpolate import RegularGridInterpolator # type: ignore
+from scipy.interpolate import RegularGridInterpolator  # type: ignore
 import functools
 import dataclasses
-from typing import TYPE_CHECKING, Any, Callable, Generic, Iterable, Iterator, Optional, Sequence, SupportsIndex, TypeVar, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    SupportsIndex,
+    TypeVar,
+    Union,
+    cast,
+)
 from typing_extensions import Self
-from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array
+from jax_spectral_dns._typing import (
+    jsd_array,
+    np_float_array,
+    np_complex_array,
+    jsd_float,
+    jnp_array,
+    Vel_fn_type,
+    np_jnp_array,
+)
+
+try:
+    from skimage import measure
+except ModuleNotFoundError:
+    print("WARNING: module skimage not found, some plotting features may not work.")
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import AnyScalarField, AnyVectorField
-
 
 
 import numpy as np
@@ -55,17 +80,15 @@ class Field(ABC):
         raise NotImplementedError("Trying to initialize an abstract class")
 
     @classmethod
-    def Zeros(cls, domain: PhysicalDomain, name: str="field") -> Self:
+    def Zeros(cls, domain: PhysicalDomain, name: str = "field") -> Self:
         data: jnp_array = jnp.zeros(domain.shape)
         return cls(domain, data, name)
 
     @abstractmethod
-    def get_domain(self) -> Domain:
-        ...
+    def get_domain(self) -> Domain: ...
 
     @abstractmethod
-    def get_physical_domain(self) -> PhysicalDomain:
-        ...
+    def get_physical_domain(self) -> PhysicalDomain: ...
 
     @abstractmethod
     def normalize_by_max_value(self) -> Self:
@@ -80,8 +103,8 @@ class Field(ABC):
         ...
 
     @classmethod
-    def initialize(cls, cleanup: bool=True) -> None:
-        jax.config.update("jax_enable_x64", True) #type: ignore[no-untyped-call]
+    def initialize(cls, cleanup: bool = True) -> None:
+        jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
         newpaths = [Field.field_dir, Field.plotting_dir]
         for newpath in newpaths:
             if not os.path.exists(newpath):
@@ -122,27 +145,22 @@ class Field(ABC):
     #     cls.activate_jit_ = True
 
     @abstractmethod
-    def __add__(self: Self, _: Union[Self, jnp.ndarray]) -> Field:
-        ...
+    def __add__(self: Self, _: Union[Self, jnp.ndarray]) -> Field: ...
 
     @abstractmethod
-    def __sub__(self, _: Union[Self, jnp.ndarray]) -> Field:
-        ...
+    def __sub__(self, _: Union[Self, jnp.ndarray]) -> Field: ...
 
     @abstractmethod
-    def __mul__(self, _: Union[Self, jnp.ndarray, jsd_float]) -> Field:
-        ...
+    def __mul__(self, _: Union[Self, jnp.ndarray, jsd_float]) -> Field: ...
 
     __rmul__ = __mul__
     __lmul__ = __mul__
 
     @abstractmethod
-    def __truediv__(self, _: jsd_float) -> Self:
-        ...
+    def __truediv__(self, _: jsd_float) -> Self: ...
 
     @abstractmethod
-    def shift(self, value: jsd_float) -> Self:
-        ...
+    def shift(self, value: jsd_float) -> Self: ...
 
     def volume_integral(self) -> jsd_float:
         raise NotImplementedError()
@@ -177,9 +195,9 @@ class Field(ABC):
 
     def normalize_by_energy(self) -> Self:
         en = self.energy()
-        self.data = jax.lax.cond(en > 1e-20,
-                                 lambda: self.data / en,
-                                 lambda: self.data) # type: ignore[no-untyped-call]
+        self.data = jax.lax.cond(
+            en > 1e-20, lambda: self.data / en, lambda: self.data
+        )  # type: ignore[no-untyped-call]
         return self
 
     def number_of_dimensions(self) -> int:
@@ -201,20 +219,21 @@ class Field(ABC):
         return self.get_domain().all_nonperiodic_dimensions()
 
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> np_float_array:
-        return self.get_physical_domain().get_cheb_mat_2_homogeneous_dirichlet(direction)
+        return self.get_physical_domain().get_cheb_mat_2_homogeneous_dirichlet(
+            direction
+        )
 
     @abstractmethod
-    def diff(self, direction: int, order: int = 1) -> 'AnyScalarField':
-        ...
+    def diff(self, direction: int, order: int = 1) -> "AnyScalarField": ...
 
-    def nabla(self) -> 'AnyVectorField':
+    def nabla(self) -> "AnyVectorField":
         out = [self.diff(0)]
         out[0].name = "nabla_" + self.name + "_" + str(0)
         for dim in self.all_dimensions()[1:]:
             out.append(self.diff(dim))
             out[dim].name = "nabla_" + self.name + "_" + str(dim)
             out[dim].time_step = self.time_step
-        return cast('AnyVectorField', VectorField(out))
+        return cast("AnyVectorField", VectorField(out))
 
     def laplacian(self) -> Field:
         out: Field = self.diff(0, 2)
@@ -225,22 +244,35 @@ class Field(ABC):
         out.time_step = self.time_step
         return out
 
-T = TypeVar('T', bound=Field)
+
+T = TypeVar("T", bound=Field)
+
 
 class VectorField(Generic[T]):
-    def __init__(self, elements: Sequence[T], name: Optional[str]=None):
+    def __init__(self, elements: Sequence[T], name: Optional[str] = None):
         self.elements = elements
         self.name = name
         self.domain = elements[0].get_domain()
 
     @classmethod
-    def Zeros(cls, field_cls: type['AnyScalarField'], domain: PhysicalDomain, name: str ="field") -> Self:
+    def Zeros(
+        cls,
+        field_cls: type["AnyScalarField"],
+        domain: PhysicalDomain,
+        name: str = "field",
+    ) -> Self:
         dim = domain.number_of_dimensions
         fs = cast(list[T], [field_cls.Zeros(domain) for _ in range(dim)])
         return cls(fs, name)
 
     @classmethod
-    def FromData(cls, field_cls: type['AnyScalarField'], domain: PhysicalDomain, data: jnp_array, name: str="field") -> Self:
+    def FromData(
+        cls,
+        field_cls: type["AnyScalarField"],
+        domain: PhysicalDomain,
+        data: jnp_array,
+        name: str = "field",
+    ) -> Self:
         dim = domain.number_of_dimensions
         fs = cast(list[T], [field_cls(domain, data[i]) for i in range(dim)])
         return cls(fs, name)
@@ -265,14 +297,16 @@ class VectorField(Generic[T]):
         for i in range(len(self)):
             f: T = self[i]
             other_i: Union[T, jnp_array] = other[i]
-            out_: T = cast(T, f + other_i )
+            out_: T = cast(T, f + other_i)
             out.append(out_)
         return VectorField(out)
 
     def __sub__(self, other: Union[VectorField[T], jnp_array]) -> VectorField[T]:
         return self + (-1) * other
 
-    def __mul__(self, other: Union[VectorField[T], jnp_array, jsd_float]) -> VectorField[T]:
+    def __mul__(
+        self, other: Union[VectorField[T], jnp_array, jsd_float]
+    ) -> VectorField[T]:
         out = []
         if isinstance(other, VectorField):
             for i in range(len(self)):
@@ -442,10 +476,19 @@ class VectorField(Generic[T]):
             assert type(f) is PhysicalField, "plot only implemented for PhysicalField."
             f.plot(*other_fields_i)
 
-    def plot_3d(self, direction: Optional[int]=None) -> None:
+    def plot_3d(self, direction: Optional[int] = None) -> None:
         for f in self:
-            assert type(f) is PhysicalField, "plot_3d only implemented for PhysicalField."
+            assert (
+                type(f) is PhysicalField
+            ), "plot_3d only implemented for PhysicalField."
             f.plot_3d(direction)
+
+    def plot_isosurfaces(self, iso_val: float = 0.4) -> None:
+        for f in self:
+            assert (
+                type(f) is PhysicalField
+            ), "plot_3d only implemented for PhysicalField."
+            f.plot_isosurfaces(iso_val)
 
     def cross_product(self, other: VectorField[T]) -> VectorField[T]:
         out_0: T = cast(T, self[1] * other[2] - self[2] * other[1])
@@ -493,7 +536,9 @@ class VectorField(Generic[T]):
             out = cast(T, out + cast(T, self[dim].diff(dim)))
         return out
 
-    def reconstruct_from_wavenumbers(self, fn: Callable[[int, int], jnp_array], number_of_other_fields: int=0) -> tuple[VectorField[FourierField], int]:
+    def reconstruct_from_wavenumbers(
+        self, fn: Callable[[int, int], jnp_array], number_of_other_fields: int = 0
+    ) -> tuple[VectorField[FourierField], int]:
 
         # jit = True
         # vectorize = True
@@ -525,12 +570,10 @@ class VectorField(Generic[T]):
         else:
             time_1 = time.time()
             k1s = jnp.array(
-                fourier_domain.grid[self.all_periodic_dimensions()[0]]
-                .astype(int)
+                fourier_domain.grid[self.all_periodic_dimensions()[0]].astype(int)
             )
             k2s = jnp.array(
-                fourier_domain.grid[self.all_periodic_dimensions()[1]]
-                .astype(int)
+                fourier_domain.grid[self.all_periodic_dimensions()[1]].astype(int)
             )
             k1_ints = jnp.arange(len(k1s))
             k2_ints = jnp.arange(len(k2s))
@@ -615,6 +658,7 @@ class VectorField(Generic[T]):
                 ax.streamplot(xi, yi, Ui, Vi, broken_streamlines=False, linewidth=0.4)
             except TypeError:  # compatibilty with older matplotlib versions
                 ax.streamplot(xi, yi, Ui, Vi, linewidth=0.4)
+
             def save() -> None:
                 fig.savefig(
                     self[0].plotting_dir
@@ -631,6 +675,7 @@ class VectorField(Generic[T]):
                     + "_latest"
                     + self[0].plotting_format
                 )
+
             try:
                 save()
             except FileNotFoundError:
@@ -657,6 +702,7 @@ class VectorField(Generic[T]):
             Vi = np.array([[interp_v([[x_, y_]])[0] for x_ in xi] for y_ in yi])
 
             ax.quiver(xi, yi, Ui, Vi)
+
             def save() -> None:
                 fig.savefig(
                     self[0].plotting_dir
@@ -673,6 +719,7 @@ class VectorField(Generic[T]):
                     + "_latest"
                     + self[0].plotting_format
                 )
+
             try:
                 save()
             except FileNotFoundError:
@@ -729,13 +776,13 @@ class PhysicalField(Field):
             assert isinstance(other, jnp.ndarray)
             ret = PhysicalField(self.physical_domain, self.data + other, name="field")
         ret.time_step = self.time_step
-        return ret 
+        return ret
 
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> PhysicalField:
         assert not isinstance(
             other, FourierField
         ), "Attempted to subtract a Field and a Fourier Field."
-        return self + other * (-1.0) # type: ignore
+        return self + other * (-1.0)  # type: ignore
 
     def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> PhysicalField:
         if isinstance(other, FourierField):
@@ -752,7 +799,7 @@ class PhysicalField(Field):
                 self.physical_domain, self.data * other.data, name=new_name
             )
             ret.time_step = self.time_step
-            return ret 
+            return ret
         else:
             if self.activate_jit_:
                 new_name = ""
@@ -775,9 +822,7 @@ class PhysicalField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(
-        self, other: jsd_float
-    ) -> PhysicalField:
+    def __truediv__(self, other: jsd_float) -> PhysicalField:
         if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
         else:
@@ -791,7 +836,12 @@ class PhysicalField(Field):
         return out
 
     @classmethod
-    def FromFunc(cls, domain: PhysicalDomain, func: Optional[Vel_fn_type]=None, name: str="field") -> Self:
+    def FromFunc(
+        cls,
+        domain: PhysicalDomain,
+        func: Optional[Vel_fn_type] = None,
+        name: str = "field",
+    ) -> Self:
         """Construct from function func depending on the independent variables described by domain."""
         if not func:
             func_: Vel_fn_type = lambda x: 0.0 * math.prod(x)
@@ -802,7 +852,13 @@ class PhysicalField(Field):
         return cls(domain, field, name)
 
     @classmethod
-    def FromRandom(cls, domain: PhysicalDomain, seed: jsd_float=0, interval: tuple[jsd_float, jsd_float]=(-0.1, 0.1), name: str="field") -> Self:
+    def FromRandom(
+        cls,
+        domain: PhysicalDomain,
+        seed: jsd_float = 0,
+        interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
+        name: str = "field",
+    ) -> Self:
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
@@ -851,7 +907,9 @@ class PhysicalField(Field):
         return PhysicalField(domain, out_arr, field.name + "_projected")
 
     @classmethod
-    def FromFile(cls, domain: PhysicalDomain, filename: str, name: str="field") -> PhysicalField:
+    def FromFile(
+        cls, domain: PhysicalDomain, filename: str, name: str = "field"
+    ) -> PhysicalField:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
         out = PhysicalField.Zeros(domain, name=name)
@@ -865,11 +923,8 @@ class PhysicalField(Field):
         max: float = cast(float, abs(self.absmax()))
 
         self.data = jax.lax.cond(
-            max > 1e-20,
-            lambda: self.data / max,
-            lambda: self.data
-
-        ) # type: ignore[no-untyped-call]
+            max > 1e-20, lambda: self.data / max, lambda: self.data
+        )  # type: ignore[no-untyped-call]
         return self
 
     def get_domain(self) -> PhysicalDomain:
@@ -966,6 +1021,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
+
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
@@ -983,6 +1039,7 @@ class PhysicalField(Field):
                         + "{:06}".format(self.time_step)
                         + self.plotting_format
                     )
+
                 try:
                     save()
                 except FileNotFoundError:
@@ -1009,6 +1066,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
+
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
@@ -1029,6 +1087,7 @@ class PhysicalField(Field):
                         + "{:06}".format(self.time_step)
                         + self.plotting_format
                     )
+
                 try:
                     save()
                 except FileNotFoundError:
@@ -1061,6 +1120,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
+
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
@@ -1081,6 +1141,7 @@ class PhysicalField(Field):
                         + "{:06}".format(self.time_step)
                         + self.plotting_format
                     )
+
                 try:
                     save()
                 except FileNotFoundError:
@@ -1108,6 +1169,7 @@ class PhysicalField(Field):
                         label=other_field.name,
                     )
                 fig.legend()
+
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
@@ -1124,6 +1186,7 @@ class PhysicalField(Field):
                         + "{:06}".format(self.time_step)
                         + self.plotting_format
                     )
+
                 try:
                     save()
                 except FileNotFoundError:
@@ -1162,6 +1225,7 @@ class PhysicalField(Field):
                             other_field.data,
                         )
                     fig.legend()
+
                     def save() -> None:
                         fig.savefig(
                             self.plotting_dir
@@ -1178,6 +1242,7 @@ class PhysicalField(Field):
                             + "{:06}".format(self.time_step)
                             + self.plotting_format
                         )
+
                     try:
                         save()
                     except FileNotFoundError:
@@ -1211,6 +1276,7 @@ class PhysicalField(Field):
                             label=other_field.name,
                         )
                 fig.legend()
+
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
@@ -1227,6 +1293,7 @@ class PhysicalField(Field):
                         + "{:06}".format(self.time_step)
                         + self.plotting_format
                     )
+
                 try:
                     save()
                 except FileNotFoundError:
@@ -1235,7 +1302,7 @@ class PhysicalField(Field):
             else:
                 raise Exception("Not implemented yet")
 
-    def plot_3d(self, direction: Optional[int]=None) -> None:
+    def plot_3d(self, direction: Optional[int] = None) -> None:
         if not self.activate_jit_:
             if direction is not None:
                 self.plot_3d_single(direction)
@@ -1287,12 +1354,13 @@ class PhysicalField(Field):
                     ax[dim].set_xlabel("xyz"[other_dim[1]])
                     ax[dim].set_ylabel("xyz"[other_dim[0]])
                 # Find the min and max of all colors for use in setting the color scale.
-                vmin = min(image.get_array().min() for image in ims) # type: ignore[union-attr]
-                vmax = max(image.get_array().max() for image in ims) # type: ignore[union-attr]
+                vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+                vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
                 for im in ims:
                     im.set_norm(norm)
                 fig.colorbar(ims[0], ax=ax, label=self.name)
+
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
@@ -1309,6 +1377,7 @@ class PhysicalField(Field):
                         + "{:06}".format(self.time_step)
                         + self.plotting_format
                     )
+
                 try:
                     save()
                 except FileNotFoundError:
@@ -1341,12 +1410,13 @@ class PhysicalField(Field):
             ax.set_xlabel("xyz"[other_dim[0]])
             ax.set_ylabel("xyz"[other_dim[1]])
             # Find the min and max of all colors for use in setting the color scale.
-            vmin = min(image.get_array().min() for image in ims) # type: ignore[union-attr]
-            vmax = max(image.get_array().max() for image in ims) # type: ignore[union-attr]
+            vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+            vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+
             def save() -> None:
                 fig.savefig(
                     self.plotting_dir
@@ -1367,13 +1437,16 @@ class PhysicalField(Field):
                     + "{:06}".format(self.time_step)
                     + self.plotting_format
                 )
+
             try:
                 save()
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
 
-    def plot_isolines(self, normal_direction: int, isolines: Optional[list[jsd_float]]=None) -> None:
+    def plot_isolines(
+        self, normal_direction: int, isolines: Optional[list[jsd_float]] = None
+    ) -> None:
         if not self.activate_jit_:
             if type(isolines) == NoneType:
                 isolines = [0, 1.5, 2.5, 3.5]
@@ -1391,7 +1464,7 @@ class PhysicalField(Field):
             X, Y = jnp.meshgrid(x, y)
             N_c = self.physical_domain.number_of_cells(normal_direction) // 2
             f = self.data.take(indices=N_c, axis=normal_direction).T
-            cmap = colors.ListedColormap((("gray", 0.3), "white")) # type: ignore[arg-type]
+            cmap = colors.ListedColormap((("gray", 0.3), "white"))  # type: ignore[arg-type]
             bounds = [-1e10, 0, 1e10]
             norm = colors.BoundaryNorm(bounds, cmap.N)
             ax.imshow(
@@ -1404,6 +1477,7 @@ class PhysicalField(Field):
             )
             CS = ax.contour(X, Y, f, isolines)
             ax.clabel(CS, inline=True, fontsize=10)
+
             def save() -> None:
                 fig.savefig(
                     self.plotting_dir
@@ -1424,18 +1498,57 @@ class PhysicalField(Field):
                     + "_latest"
                     + self.plotting_format
                 )
+
             try:
                 save()
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
 
+    def plot_isosurfaces(self, iso_val: float = 0.4) -> None:
+        verts, faces, _, _ = measure.marching_cubes(np.array(self.data, copy=False), iso_val, spacing=(0.1, 0.1, 0.1))  # type: ignore[no-untyped-call]
+        fig = figure.Figure()
+        ax = fig.add_subplot(111, projection="3d")
+        assert type(ax) is Axes3D
+        ax.plot_trisurf(
+            verts[:, 0], verts[:, 1], faces, verts[:, 2], cmap="Spectral", lw=1
+        )
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+        ax.set_ylim(min(verts[:, 1]), max(verts[:, 1] / 2))
+
+        def save() -> None:
+            fig.savefig(
+                self.plotting_dir
+                + "plot_isosurfaces_"
+                + "_"
+                + self.name
+                + "_t_"
+                + "{:06}".format(self.time_step)
+                + self.plotting_format
+            )
+            fig.savefig(
+                self.plotting_dir
+                + "plot_isosurfaces_"
+                + "_"
+                + self.name
+                + "_latest"
+                + self.plotting_format
+            )
+
+        try:
+            save()
+        except FileNotFoundError:
+            Field.initialize(False)
+            save()
+
     def hat(self) -> FourierField:
         out = FourierField.FromField(self)
         out.time_step = self.time_step
         return out
 
-    def diff(self, direction:int , order:int =1) -> PhysicalField:
+    def diff(self, direction: int, order: int = 1) -> PhysicalField:
         name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
         return PhysicalField(
             self.physical_domain,
@@ -1443,7 +1556,13 @@ class PhysicalField(Field):
             self.name + "_" + name_suffix,
         )
 
-    def integrate(self, direction: int, order: int=1, bc_left: Optional[float]=None, bc_right: Optional[float]=None) -> PhysicalField:
+    def integrate(
+        self,
+        direction: int,
+        order: int = 1,
+        bc_left: Optional[float] = None,
+        bc_right: Optional[float] = None,
+    ) -> PhysicalField:
         out_bc = self.physical_domain.integrate(
             self.data, direction, order, bc_left, bc_right
         )
@@ -1473,9 +1592,7 @@ class PhysicalField(Field):
                 )
                 periodic_directions = tuple(
                     (
-                        np.array(self.physical_domain.periodic_directions)[
-                            tuple(inds),
-                        ]
+                        np.array(self.physical_domain.periodic_directions)[tuple(inds),]
                     ).tolist()
                 )
                 scale_factors = tuple(
@@ -1484,7 +1601,10 @@ class PhysicalField(Field):
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
-                    shape, periodic_directions, scale_factors=scale_factors, aliasing=self.get_domain().aliasing
+                    shape,
+                    periodic_directions,
+                    scale_factors=scale_factors,
+                    aliasing=self.get_domain().aliasing,
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
                     int.data, indices=N - 1, axis=direction
@@ -1506,9 +1626,7 @@ class PhysicalField(Field):
                 )
                 periodic_directions = tuple(
                     (
-                        np.array(self.physical_domain.periodic_directions)[
-                            tuple(inds),
-                        ]
+                        np.array(self.physical_domain.periodic_directions)[tuple(inds),]
                     ).tolist()
                 )
                 scale_factors = tuple(
@@ -1517,7 +1635,10 @@ class PhysicalField(Field):
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
-                    shape, periodic_directions, scale_factors=scale_factors, aliasing=self.get_domain().aliasing
+                    shape,
+                    periodic_directions,
+                    scale_factors=scale_factors,
+                    aliasing=self.get_domain().aliasing,
                 )
                 data = (
                     self.physical_domain.scale_factors[direction]
@@ -1558,7 +1679,13 @@ class FourierField(Field):
         self.data = data
 
     @classmethod
-    def FromRandom(cls, domain: PhysicalDomain, seed: int=0, interval: tuple[float, float]=(-0.1, 0.1), name:str ="field") -> FourierField:
+    def FromRandom(
+        cls,
+        domain: PhysicalDomain,
+        seed: int = 0,
+        interval: tuple[float, float] = (-0.1, 0.1),
+        name: str = "field",
+    ) -> FourierField:
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
@@ -1594,7 +1721,7 @@ class FourierField(Field):
         return ret
 
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
-        return self + other * (-1.0) # type: ignore
+        return self + other * (-1.0)  # type: ignore
 
     def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> FourierField:
         if isinstance(other, Field):
@@ -1658,12 +1785,15 @@ class FourierField(Field):
         return out
 
     def normalize_by_max_value(self) -> Self:
-        raise Exception("This is not supported for Fourier Fields. Transform to PhysicalField, normalize, and transform back to FourierField instead.")
+        raise Exception(
+            "This is not supported for Fourier Fields. Transform to PhysicalField, normalize, and transform back to FourierField instead."
+        )
 
-
-    def diff(self, direction: int, order: int=1) -> FourierField:
+    def diff(self, direction: int, order: int = 1) -> FourierField:
         if direction in self.all_periodic_dimensions():
-            out_field: jnp_array = jnp.array((1j * self.fourier_domain.mgrid[direction]) ** order * self.data)
+            out_field: jnp_array = jnp.array(
+                (1j * self.fourier_domain.mgrid[direction]) ** order * self.data
+            )
         else:
             out_field = self.physical_domain.diff(self.data, direction, order)
         return FourierField(
@@ -1672,7 +1802,13 @@ class FourierField(Field):
             name=self.name + "_diff_" + str(order),
         )
 
-    def integrate(self, direction: int, order:int=1, bc_right:Optional[float]=None, bc_left:Optional[float]=None) -> FourierField:
+    def integrate(
+        self,
+        direction: int,
+        order: int = 1,
+        bc_right: Optional[float] = None,
+        bc_left: Optional[float] = None,
+    ) -> FourierField:
         if direction in self.all_periodic_dimensions():
             mgrid = self.fourier_domain.mgrid[direction]
             field = self.data
@@ -1690,9 +1826,8 @@ class FourierField(Field):
                 constant_values=out_0,
             )
         else:
-            out_field_ = (
-                self.physical_domain
-                .integrate(self.data, direction, order, bc_right=bc_right, bc_left=bc_left)
+            out_field_ = self.physical_domain.integrate(
+                self.data, direction, order, bc_right=bc_right, bc_left=bc_left
             )
             # assert type(out_field_) is jsd_array
             out_field = out_field_
@@ -1709,7 +1844,9 @@ class FourierField(Field):
     #     out.time_step = self.time_step
     #     return out
 
-    def definite_integral(self, direction: int) -> Union[jsd_float, jsd_array, PhysicalField]:
+    def definite_integral(
+        self, direction: int
+    ) -> Union[jsd_float, jsd_array, PhysicalField]:
         raise NotImplementedError()
 
     def update_boundary_conditions(self) -> None:
@@ -1751,7 +1888,7 @@ class FourierField(Field):
         )
         return mat
 
-    def solve_poisson(self, mat: Optional[np_complex_array]=None) -> FourierField:
+    def solve_poisson(self, mat: Optional[np_complex_array] = None) -> FourierField:
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
@@ -1785,7 +1922,9 @@ class FourierField(Field):
         out_field.time_step = self.time_step
         return out_field
 
-    def reconstruct_from_wavenumbers(self, fn: Callable[[int, int], jnp_array], vectorize:bool =False) -> FourierField:
+    def reconstruct_from_wavenumbers(
+        self, fn: Callable[[int, int], jnp_array], vectorize: bool = False
+    ) -> FourierField:
         if vectorize:
             print("vectorisation not implemented yet, using unvectorized version")
         assert self.number_of_dimensions() == 3, "Only 3D implemented."
@@ -1807,7 +1946,13 @@ class FourierField(Field):
 
 class FourierFieldSlice(FourierField):
     def __init__(
-        self, domain: FourierDomain, non_periodic_direction: int, data: jnp_array, name: str="field_hat_slice", *ks: int, **params: Any
+        self,
+        domain: FourierDomain,
+        non_periodic_direction: int,
+        data: jnp_array,
+        name: str = "field_hat_slice",
+        *ks: int,
+        **params: Any,
     ):
         # self.physical_domain = domain
         self.fourier_domain = domain
@@ -1833,7 +1978,7 @@ class FourierFieldSlice(FourierField):
     def all_nonperiodic_dimensions(self) -> list[int]:
         return [self.non_periodic_direction]
 
-    def diff(self, direction: int, order: int=1) -> 'FourierFieldSlice':
+    def diff(self, direction: int, order: int = 1) -> "FourierFieldSlice":
         if direction in self.all_periodic_dimensions():
             out_field = (1j * self.ks[direction]) ** order * self.data
         else:
@@ -1847,7 +1992,13 @@ class FourierFieldSlice(FourierField):
             ks_int=self.ks_int,
         )
 
-    def integrate(self, direction: int, order: int=1, _: Optional[jsd_array]=None, __: Optional[jsd_array]=None) -> 'FourierFieldSlice':
+    def integrate(
+        self,
+        direction: int,
+        order: int = 1,
+        _: Optional[jsd_array] = None,
+        __: Optional[jsd_array] = None,
+    ) -> "FourierFieldSlice":
         if direction in self.all_periodic_dimensions():
             out_field = self.data / (1j * self.ks[direction]) ** order
         else:
@@ -1873,7 +2024,9 @@ class FourierFieldSlice(FourierField):
         mat_inv = np.linalg.inv(mat)
         return mat_inv
 
-    def solve_poisson(self, mat:Optional[np_complex_array]=None) -> FourierFieldSlice:
+    def solve_poisson(
+        self, mat: Optional[np_complex_array] = None
+    ) -> FourierFieldSlice:
         if type(mat) == NoneType:
             mat_inv = self.assemble_poisson_matrix()
         else:
@@ -1941,7 +2094,7 @@ class FourierFieldSlice(FourierField):
             )
 
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierFieldSlice:
-        return self + other * (-1.0) # type: ignore
+        return self + other * (-1.0)  # type: ignore
 
     def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> FourierFieldSlice:
         if isinstance(other, Field):
@@ -2016,4 +2169,6 @@ class FourierFieldSlice(FourierField):
 
     def shift(self, value: jsd_float) -> FourierFieldSlice:
         out_field = self.data + value
-        return FourierFieldSlice(self.fourier_domain, self.non_periodic_direction, out_field, name=self.name)
+        return FourierFieldSlice(
+            self.fourier_domain, self.non_periodic_direction, out_field, name=self.name
+        )

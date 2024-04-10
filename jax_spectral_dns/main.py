@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import jax
-jax.config.update("jax_enable_x64", True) # type: ignore[no-untyped-call]
+
+jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 # import warnings
 # warnings.filterwarnings('error')
 # import jax.profiler
@@ -23,8 +24,9 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 import sys
 from jax_spectral_dns.examples import *
 
+
 def print_welcome() -> None:
-    vl=0
+    vl = 0
     print("")
     print("")
     print_verb("#############################", verbosity_level=vl)
@@ -33,8 +35,9 @@ def print_welcome() -> None:
     print("")
     print("")
 
+
 def print_goodbye() -> None:
-    vl=0
+    vl = 0
     print("")
     print("")
     print_verb("######################", verbosity_level=vl)
@@ -43,9 +46,12 @@ def print_goodbye() -> None:
     print("")
     print("")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     if len(sys.argv) == 1:
-        raise Exception("Please indicate a function from examples.py that should be run.")
+        raise Exception(
+            "Please indicate a function from examples.py that should be run."
+        )
     else:
         print_welcome()
         args = sys.argv[2:]

@@ -22,22 +22,22 @@ class Heat_Eq(Equation):
         super().__init__(domain, *fields)
         u = self.get_initial_field("u")
         u.update_boundary_conditions()
-        self.dt : jsd_float = params["dt"]
-        self.number_of_steps : int = params["number_of_steps"]
-        self.i : int = 0
+        self.dt: jsd_float = params["dt"]
+        self.number_of_steps: int = params["number_of_steps"]
+        self.i: int = 0
 
-    def get_field(self, name: str, index: int) -> 'PhysicalField':
+    def get_field(self, name: str, index: int) -> "PhysicalField":
         out = cast(PhysicalField, super().get_field(name, index))
         return out
 
-    def get_fields(self, name: str) -> list['PhysicalField']:
+    def get_fields(self, name: str) -> list["PhysicalField"]:
         return cast(List[PhysicalField], super().get_fields(name))
 
-    def get_initial_field(self, name: str) -> 'PhysicalField':
+    def get_initial_field(self, name: str) -> "PhysicalField":
         out = cast(PhysicalField, super().get_initial_field(name))
         return out
 
-    def get_latest_field(self, name: str) -> 'PhysicalField':
+    def get_latest_field(self, name: str) -> "PhysicalField":
         out = cast(PhysicalField, super().get_latest_field(name))
         return out
 
@@ -60,14 +60,16 @@ class Heat_Eq(Equation):
         assert isinstance(u, PhysicalField)
         D2 = self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(0)
         I = jnp.eye(D2.shape[0])
-        new_u = PhysicalField(u.get_domain(), jnp.linalg.inv(I - dt * D2) @ u.data, name=u.name)
+        new_u = PhysicalField(
+            u.get_domain(), jnp.linalg.inv(I - dt * D2) @ u.data, name=u.name
+        )
         new_u.update_boundary_conditions()
         new_u.name = "u_" + str(i)
         # self.fields["u"].append(new_u)
         self.fields["u"][-1] = new_u
         out = self.fields["u"]
 
-    def perform_time_step(self, _: Optional[Any]=None) -> None:
+    def perform_time_step(self, _: Optional[Any] = None) -> None:
         self.perform_explicit_euler_step()
         self.i += 1
         # return self.perform_implicit_euler_step(dt, i)
@@ -112,8 +114,10 @@ def solve_heat_eq_1D() -> None:
     print(e0)
     print(v_final.energy())
 
+
 def optimize_heat_eq_1D() -> None:
     Nx = 100
+
     def run(v0: jnp_array) -> jsd_float:
         domain = PhysicalDomain.create((Nx,), (False,))
 
@@ -127,8 +131,6 @@ def optimize_heat_eq_1D() -> None:
         heat_eq.solve()
         v_final = heat_eq.get_latest_field("u")
         return v_final.energy() / e0
-
-
 
     domain = PhysicalDomain.create((Nx,), (False,))
 
@@ -154,6 +156,7 @@ def optimize_heat_eq_1D() -> None:
         v0_new = PhysicalField(domain, v0s[-1])
         v0_new.set_name("u_0_" + str(i))
         v0_new.plot()
+
 
 def solve_heat_eq_2D() -> None:
     Nx = 24
@@ -195,10 +198,12 @@ def solve_heat_eq_3D() -> None:
     print(e0)
     print(v_final.energy())
 
+
 def optimize_heat_eq_3D() -> None:
     Nx = 100
     Ny = Nx
     Nz = Nx
+
     def run(v0: jnp_array) -> jsd_float:
         domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
         Nt = 3000
@@ -212,8 +217,6 @@ def optimize_heat_eq_3D() -> None:
         heat_eq.solve()
         v_final = heat_eq.get_latest_field("u")
         return v_final.energy() / e0
-
-
 
     domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
 

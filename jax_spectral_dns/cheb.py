@@ -5,10 +5,11 @@ import numpy as np
 from numpy.polynomial.chebyshev import Chebyshev
 from jax_spectral_dns._typing import jsd_float
 
+
 def cheb(order: int, deriv: int) -> Chebyshev:
     unit_array = np.eye(order + 1)[order].flatten()
     ch: Chebyshev = Chebyshev(unit_array)
-    ch = ch.deriv(deriv) #type: ignore[no-untyped-call]
+    ch = ch.deriv(deriv)  # type: ignore[no-untyped-call]
     return ch
 
 
@@ -40,6 +41,6 @@ def phi_sa(order: int, deriv: int, ySym: jsd_float) -> Chebyshev:
 
 
 def phi_pressure(order: int, deriv: int) -> Chebyshev:
-    order += 1 # compatibility with MATLAB indexing
-    out: Chebyshev = cheb(2*order - 1, deriv)
+    order += 1  # compatibility with MATLAB indexing
+    out: Chebyshev = cheb(2 * order - 1, deriv)
     return out

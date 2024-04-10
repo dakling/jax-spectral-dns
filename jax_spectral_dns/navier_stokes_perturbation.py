@@ -14,7 +14,12 @@ import sys
 
 from jax_spectral_dns.navier_stokes import NavierStokesVelVort
 from jax_spectral_dns.domain import PhysicalDomain, FourierDomain
-from jax_spectral_dns.field import PhysicalField, VectorField, FourierField, FourierFieldSlice
+from jax_spectral_dns.field import (
+    PhysicalField,
+    VectorField,
+    FourierField,
+    FourierFieldSlice,
+)
 from jax_spectral_dns.equation import Equation
 from jax_spectral_dns._typing import (
     np_float_array,
@@ -22,19 +27,23 @@ from jax_spectral_dns._typing import (
     jsd_float,
     jnp_array,
     np_jnp_array,
-    Vel_fn_type
+    Vel_fn_type,
 )
 
 
-@partial(jax.jit, static_argnums=(0,1))
+@partial(jax.jit, static_argnums=(0, 1))
 # @partial(jax.checkpoint, static_argnums=(0,))
 def update_nonlinear_terms_high_performance_perturbation(
-        physical_domain: PhysicalDomain, fourier_domain: FourierDomain, vel_hat_new: jnp_array, vel_base_hat: jnp_array, linearize:bool =False
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: jnp_array,
+    vel_base_hat: jnp_array,
+    linearize: bool = False,
 ) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
     vel_new = jnp.array(
         [
             # domain.no_hat(vel_hat_new.at[i].get())
-            fourier_domain.no_hat(vel_hat_new[i,...])
+            fourier_domain.no_hat(vel_hat_new[i, ...])
             for i in physical_domain.all_dimensions()
         ]
     )
@@ -42,14 +51,14 @@ def update_nonlinear_terms_high_performance_perturbation(
 
     vel_new_sq = jnp.zeros_like(vel_new[0, ...])
     for j in physical_domain.all_dimensions():
-        vel_new_sq += vel_new[j,...] * vel_new[j,...]
+        vel_new_sq += vel_new[j, ...] * vel_new[j, ...]
     vel_new_sq_nabla = []
     for i in physical_domain.all_dimensions():
         vel_new_sq_nabla.append(physical_domain.diff(vel_new_sq, i))
 
-    hel_new_ = jnp.array(physical_domain.cross_product(vel_new, vort_new)) - 1 / 2 * jnp.array(
-        vel_new_sq_nabla
-    )
+    hel_new_ = jnp.array(
+        physical_domain.cross_product(vel_new, vort_new)
+    ) - 1 / 2 * jnp.array(vel_new_sq_nabla)
 
     # a-term
     vel_base = jnp.array(
@@ -64,23 +73,25 @@ def update_nonlinear_terms_high_performance_perturbation(
     vel_new_sq_nabla_a = []
     for i in physical_domain.all_dimensions():
         vel_new_sq_nabla_a.append(physical_domain.diff(vel_new_sq_a, i))
-    hel_new_a = jnp.array(physical_domain.cross_product(vel_base, vort_new)) - 1 / 2 * jnp.array(
-        vel_new_sq_nabla_a
-    )
+    hel_new_a = jnp.array(
+        physical_domain.cross_product(vel_base, vort_new)
+    ) - 1 / 2 * jnp.array(vel_new_sq_nabla_a)
 
     # b-term
     vort_base = physical_domain.curl(vel_base)
     vel_new_sq_nabla_b = vel_new_sq_nabla_a
-    hel_new_b = jnp.array(physical_domain.cross_product(vel_new, vort_base)) - 1 / 2 * jnp.array(
-        vel_new_sq_nabla_b
-    )
+    hel_new_b = jnp.array(
+        physical_domain.cross_product(vel_new, vort_base)
+    ) - 1 / 2 * jnp.array(vel_new_sq_nabla_b)
 
     # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
-    hel_new =  jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_ + hel_new_a + hel_new_b # type: ignore[no-untyped-call]
+    hel_new = jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_ + hel_new_a + hel_new_b  # type: ignore[no-untyped-call]
     conv_ns_new = -hel_new
 
     h_v_new = (
-        -physical_domain.diff(physical_domain.diff(hel_new[0], 0) + physical_domain.diff(hel_new[2], 2), 1)
+        -physical_domain.diff(
+            physical_domain.diff(hel_new[0], 0) + physical_domain.diff(hel_new[2], 2), 1
+        )
         + physical_domain.diff(hel_new[1], 0, 2)
         + physical_domain.diff(hel_new[1], 2, 2)
     )
@@ -88,12 +99,20 @@ def update_nonlinear_terms_high_performance_perturbation(
 
     h_v_hat_new = physical_domain.field_hat(h_v_new)
     h_g_hat_new = physical_domain.field_hat(h_g_new)
-    vort_hat_new = [physical_domain.field_hat(vort_new[i]) for i in physical_domain.all_dimensions()]
+    vort_hat_new = [
+        physical_domain.field_hat(vort_new[i]) for i in physical_domain.all_dimensions()
+    ]
     conv_ns_hat_new = [
-        physical_domain.field_hat(conv_ns_new[i]) for i in physical_domain.all_dimensions()
+        physical_domain.field_hat(conv_ns_new[i])
+        for i in physical_domain.all_dimensions()
     ]
 
-    return (h_v_hat_new, h_g_hat_new, jnp.array(vort_hat_new), jnp.array(conv_ns_hat_new))
+    return (
+        h_v_hat_new,
+        h_g_hat_new,
+        jnp.array(vort_hat_new),
+        jnp.array(conv_ns_hat_new),
+    )
 
 
 class NavierStokesVelVortPerturbation(NavierStokesVelVort):
@@ -111,7 +130,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         except KeyError:
             velocity_x_base = PhysicalField.FromFunc(
                 self.get_physical_domain(),
-                lambda X: self.get_u_max_over_u_tau() * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
+                lambda X: self.get_u_max_over_u_tau() * (1 - X[1] ** 2)
+                + 0.0 * X[0] * X[2],
                 name="velocity_x_base",
             )
             velocity_y_base = PhysicalField.FromFunc(
@@ -144,7 +164,9 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
-        velocity_base_hat: VectorField[FourierField] = self.get_latest_field("velocity_base_hat")
+        velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
+            "velocity_base_hat"
+        )
         self.nonlinear_update_fn = (
             lambda vel: update_nonlinear_terms_high_performance_perturbation(
                 self.get_physical_domain(),
@@ -158,7 +180,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                     ]
                 ),
                 linearize=self.linearize,
-            ))
+            )
+        )
         # if self.physical_domain.number_of_cells(0) * self.physical_domain.number_of_cells(2) > 100:
         #     print("checkpointing activated")
         #     # self.nonlinear_update_fn = jax.checkpoint(self.nonlinear_update_fn, static_argnums=(0,), policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
@@ -167,13 +190,24 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     def get_time_step(self) -> float:
         # return self.max_dt
         if self.time_step % self.get_dt_update_frequency() == 0:
-            dX = self.get_physical_domain().grid[0][1:] - self.get_physical_domain().grid[0][:-1]
-            dY = self.get_physical_domain().grid[1][1:] - self.get_physical_domain().grid[1][:-1]
-            dZ = self.get_physical_domain().grid[2][1:] - self.get_physical_domain().grid[2][:-1]
+            dX = (
+                self.get_physical_domain().grid[0][1:]
+                - self.get_physical_domain().grid[0][:-1]
+            )
+            dY = (
+                self.get_physical_domain().grid[1][1:]
+                - self.get_physical_domain().grid[1][:-1]
+            )
+            dZ = (
+                self.get_physical_domain().grid[2][1:]
+                - self.get_physical_domain().grid[2][:-1]
+            )
             DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
             vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
             vel: VectorField[PhysicalField] = vel_hat.no_hat()
-            vel_base_hat: VectorField[FourierField] = self.get_latest_field("velocity_base_hat")
+            vel_base_hat: VectorField[FourierField] = self.get_latest_field(
+                "velocity_base_hat"
+            )
             vel_base: VectorField[PhysicalField] = vel_base_hat.no_hat()
             U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
             V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
@@ -182,26 +216,33 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
             w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
             self.dt: float = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
-            assert self.dt > 1e-8, "Breaking due to small timestep, which indicates an issue with the calculation."
+            assert (
+                self.dt > 1e-8
+            ), "Breaking due to small timestep, which indicates an issue with the calculation."
         return self.dt
 
 
 def solve_navier_stokes_perturbation(
-        Re: float=1.8e2,
-        end_time: float=1e1,
-        max_iter: int=10000,
-        Nx: int=8,
-        Ny: int=40,
-        Nz: int=8,
-        perturbation_factor: float=0.1,
-        scale_factors: tuple[float, float, float]=(1.87, 1.0, 0.93),
-        dt: float=1e-2,
-        u_max_over_u_tau: jsd_float=1.0,
-        aliasing: float=1.0,
-        rotated: bool=False
+    Re: float = 1.8e2,
+    end_time: float = 1e1,
+    max_iter: int = 10000,
+    Nx: int = 8,
+    Ny: int = 40,
+    Nz: int = 8,
+    perturbation_factor: float = 0.1,
+    scale_factors: tuple[float, float, float] = (1.87, 1.0, 0.93),
+    dt: float = 1e-2,
+    u_max_over_u_tau: jsd_float = 1.0,
+    aliasing: float = 1.0,
+    rotated: bool = False,
 ) -> NavierStokesVelVortPerturbation:
 
-    domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True), scale_factors=scale_factors, aliasing=aliasing)
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=scale_factors,
+        aliasing=aliasing,
+    )
 
     vel_x_fn = lambda X: (
         0.1
@@ -266,7 +307,9 @@ def solve_navier_stokes_perturbation(
     if not rotated:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re=Re, dt=dt)
     else:
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            vel, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
+        )
     nse.end_time = end_time
     nse.max_iter = max_iter
 
@@ -315,6 +358,7 @@ def solve_navier_stokes_perturbation(
         )
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+
     nse.post_process_fn = post_process
 
     return nse

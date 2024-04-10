@@ -13,15 +13,16 @@ from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorFie
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 from jax_spectral_dns._typing import jsd_float, parameter_type, input_type, jnp_array
+
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import  AnyVectorField
+    from jax_spectral_dns._typing import AnyVectorField
 
 try:
-    import optax # type: ignore
+    import optax  # type: ignore
 except ModuleNotFoundError:
     print("optax not found")
 try:
-    import jaxopt # type: ignore
+    import jaxopt  # type: ignore
 except ModuleNotFoundError:
     print("jaxopt not found")
 
@@ -33,14 +34,14 @@ class Optimiser:
         domain: PhysicalDomain,
         run_fn: Callable[[input_type, bool], jsd_float],
         run_input_initial: input_type,
-        minimise: bool=False,
-        force_2d: bool=False,
-        max_iter: int=20,
-        use_optax: bool=False,
-        min_optax_iter: int=0,
-        add_noise: bool=True,
-        noise_amplitude: float=1e-1,
-        **params: Any
+        minimise: bool = False,
+        force_2d: bool = False,
+        max_iter: int = 20,
+        use_optax: bool = False,
+        min_optax_iter: int = 0,
+        add_noise: bool = True,
+        noise_amplitude: float = 1e-1,
+        **params: Any,
     ):
 
         self.parameters_to_run_input_fn = params.get("parameters_to_run_input_fn")
@@ -68,7 +69,7 @@ class Optimiser:
             self.inv_fn: Callable[[jsd_float], jsd_float] = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn: Callable[[parameter_type, bool], jsd_float] = lambda v, out=False: self.inv_fn( # type: ignore[misc]
+        self.run_fn: Callable[[parameter_type, bool], jsd_float] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
             run_fn(self.parameters_to_run_input(v), out)
         )
         if use_optax:
@@ -103,7 +104,9 @@ class Optimiser:
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
                 domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
             )
-            input: VectorField[FourierField] = VectorField.FromData(FourierField, domain, U_hat_data)
+            input: VectorField[FourierField] = VectorField.FromData(
+                FourierField, domain, U_hat_data
+            )
         else:
             assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
@@ -130,7 +133,7 @@ class Optimiser:
         with open(Field.field_dir + self.parameter_file_name, "wb") as file:
             pickle.dump(self.parameters, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def run_input_to_parameters(self, input: 'AnyVectorField') -> parameter_type:
+    def run_input_to_parameters(self, input: "AnyVectorField") -> parameter_type:
         if self.run_input_to_parameters_fn == None:
             cast(VectorField[FourierField], input)
             if self.force_2d:
@@ -153,7 +156,9 @@ class Optimiser:
             jnp.concatenate([jnp.array(v.flatten()) for v in self.parameters])
         )
 
-    def make_noisy(self, input: input_type, noise_amplitude: jsd_float=1e-1) -> input_type:
+    def make_noisy(
+        self, input: input_type, noise_amplitude: jsd_float = 1e-1
+    ) -> input_type:
         parameters_no_hat = input.no_hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
@@ -167,7 +172,9 @@ class Optimiser:
             ]
         )
 
-    def get_optax_solver(self, learning_rate: jsd_float=1e-2, scale_by_norm: bool=True) -> jaxopt.OptaxSolver:
+    def get_optax_solver(
+        self, learning_rate: jsd_float = 1e-2, scale_by_norm: bool = True
+    ) -> jaxopt.OptaxSolver:
         learning_rate_ = (
             learning_rate * self.get_parameters_norm()
             if scale_by_norm
@@ -208,6 +215,7 @@ class Optimiser:
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
+        v0_new[0].plot_isosurfaces(0.4)
         self.parameters_to_file()
 
     def switch_solver_maybe(self) -> None:
@@ -268,7 +276,9 @@ class Optimiser:
 
 class OptimiserNonFourier(Optimiser):
 
-    def make_noisy(self, input: input_type, noise_amplitude: jsd_float=1e-1) -> input_type:
+    def make_noisy(
+        self, input: input_type, noise_amplitude: jsd_float = 1e-1
+    ) -> input_type:
         e0 = input.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         return VectorField(
@@ -349,12 +359,15 @@ class OptimiserNonFourier(Optimiser):
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
+        v0_new[0].plot_isosurfaces(0.4)
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
 
 class OptimiserPertAndBase(Optimiser):
 
-    def make_noisy(self, input: input_type, noise_amplitude: jsd_float=1e-1) -> input_type:
+    def make_noisy(
+        self, input: input_type, noise_amplitude: jsd_float = 1e-1
+    ) -> input_type:
         parameters_no_hat = input[0].hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
@@ -387,6 +400,7 @@ class OptimiserPertAndBase(Optimiser):
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
+        v0_new[0].plot_isosurfaces(0.4)
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
         U_base = U_base_hat.no_hat()
