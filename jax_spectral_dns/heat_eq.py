@@ -7,7 +7,7 @@ import jax.numpy as jnp
 from importlib import reload
 import sys
 
-from typing import List, cast
+from typing import List, Optional, cast
 
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import PhysicalField
@@ -67,7 +67,7 @@ class Heat_Eq(Equation):
         self.fields["u"][-1] = new_u
         out = self.fields["u"]
 
-    def perform_time_step(self, _=None) -> None:
+    def perform_time_step(self, _: Optional[Any]=None) -> None:
         self.perform_explicit_euler_step()
         self.i += 1
         # return self.perform_implicit_euler_step(dt, i)

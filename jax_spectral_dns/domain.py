@@ -90,7 +90,7 @@ class Domain(ABC):
         shape: Tuple[int, ...],
         periodic_directions: Tuple[bool, ...],
         scale_factors: Optional[Tuple[float, ...]] = None,
-        aliasing=3 / 2,
+        aliasing: float=3 / 2,
     ) -> Self:
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:

@@ -15,9 +15,13 @@ from matplotlib import colors
 from scipy.interpolate import RegularGridInterpolator # type: ignore
 import functools
 import dataclasses
-from typing import Any, Callable, Generic, Iterable, Optional, Sequence, TypeVar, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Generic, Iterable, Optional, Sequence, TypeVar, Union, cast
 from typing_extensions import Self
 from jax_spectral_dns._typing import jsd_array, np_float_array, np_complex_array, jsd_float, jnp_array, Vel_fn_type, np_jnp_array
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import AnyScalarField
+
 
 
 import numpy as np
@@ -51,7 +55,7 @@ class Field(ABC):
         raise NotImplementedError("Trying to initialize an abstract class")
 
     @classmethod
-    def Zeros(cls, domain, name="field") -> Self:
+    def Zeros(cls, domain: PhysicalDomain, name: str="field") -> Self:
         data: jnp_array = jnp.zeros(domain.shape)
         return cls(domain, data, name)
 
@@ -186,7 +190,7 @@ class Field(ABC):
     def all_dimensions(self) -> Sequence[int]:
         return self.get_domain().all_dimensions()
 
-    def is_periodic(self, direction) -> bool:
+    def is_periodic(self, direction: int) -> bool:
         return self.get_domain().is_periodic(direction)
 
     def all_periodic_dimensions(self) -> list[int]:
@@ -233,7 +237,6 @@ class Field(ABC):
         out.time_step = self.time_step
         return out
 
-# T = TypeVar('T', bound=AnyScalarField)
 T = TypeVar('T', bound=Field)
 
 class VectorField(Generic[T]):
@@ -243,14 +246,16 @@ class VectorField(Generic[T]):
         self.domain = elements[0].get_domain()
 
     @classmethod
-    def Zeros(cls, field_cls, domain: Domain, name:str ="field") -> Self:
+    def Zeros(cls, field_cls: type['AnyScalarField'], domain: PhysicalDomain, name: str ="field") -> Self:
         dim = domain.number_of_dimensions
-        return cls([field_cls.Zeros(domain) for _ in range(dim)], name)
+        fs = cast(list[T], [field_cls.Zeros(domain) for _ in range(dim)])
+        return cls(fs, name)
 
     @classmethod
-    def FromData(cls, field_cls: Any, domain: PhysicalDomain, data: jnp_array, name: str="field") -> Self:
+    def FromData(cls, field_cls: type['AnyScalarField'], domain: PhysicalDomain, data: jnp_array, name: str="field") -> Self:
         dim = domain.number_of_dimensions
-        return cls([field_cls(domain, data[i]) for i in range(dim)])
+        fs = cast(list[T], [field_cls(domain, data[i]) for i in range(dim)])
+        return cls(fs, name)
 
     def __getitem__(self, index: int) -> T:
         return self.elements[index]
@@ -969,7 +974,7 @@ class PhysicalField(Field):
             out += (other_values[dim] - base_value) * weights[dim]
         return out
 
-    def plot_center(self, dimension: int, *other_fields: PhysicalField):
+    def plot_center(self, dimension: int, *other_fields: PhysicalField) -> None:
         if not self.activate_jit_:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
@@ -1690,7 +1695,7 @@ class FourierField(Field):
             name=self.name + "_diff_" + str(order),
         )
 
-    def integrate(self, direction, order:int=1, bc_right:Optional[float]=None, bc_left:Optional[float]=None) -> FourierField:
+    def integrate(self, direction: int, order:int=1, bc_right:Optional[float]=None, bc_left:Optional[float]=None) -> FourierField:
         if direction in self.all_periodic_dimensions():
             mgrid = self.fourier_domain.mgrid[direction]
             field = self.data
@@ -1825,7 +1830,7 @@ class FourierField(Field):
 
 class FourierFieldSlice(FourierField):
     def __init__(
-        self, domain, non_periodic_direction, data, name: str="field_hat_slice", *ks, **params
+        self, domain: FourierDomain, non_periodic_direction: int, data: jnp_array, name: str="field_hat_slice", *ks: int, **params: Any
     ):
         # self.physical_domain = domain
         self.fourier_domain = domain
@@ -1889,7 +1894,6 @@ class FourierFieldSlice(FourierField):
         I = np.eye(n)
         mat = factor * I + y_mat
         mat_inv = np.linalg.inv(mat)
-        # assert type(mat_inv) is np_complex_array
         return mat_inv
 
     def solve_poisson(self, mat:Optional[np_complex_array]=None) -> FourierFieldSlice:
@@ -1905,7 +1909,7 @@ class FourierFieldSlice(FourierField):
         out_fourier = FourierFieldSlice(
             self.fourier_domain,
             self.non_periodic_direction,
-            out_field,
+            jnp.array(out_field),
             self.name + "_poisson",
             *self.ks_raw,
             ks_int=self.ks_int[jnp.array(self.all_periodic_dimensions())],

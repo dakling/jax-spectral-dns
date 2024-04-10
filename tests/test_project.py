@@ -824,7 +824,7 @@ class TestProject(unittest.TestCase):
             (True, False, True),
             scale_factors=(scale_factor_x, 1.0, scale_factor_z),
         )
-        domain_y = PhysicalDomain.create((Ny,), (False,))
+        domain_y = PhysicalDomain.create((Ny,), (False,)).hat()
 
         rhs_fn = (
             lambda X: -(

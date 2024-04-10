@@ -23,7 +23,7 @@ jnp_int_array = jnp.ndarray
 
 NoneType = type(None)
 
-def print_verb(*in_str: Any, verbosity_level:int=1, debug:bool=False):
+def print_verb(*in_str: Any, verbosity_level:int=1, debug:bool=False) -> None:
     pref = "[" + time.ctime() + "]  " + '  ' * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
@@ -110,7 +110,7 @@ class Equation:
     def get_number_of_fields(self, name: str) -> int:
         return len(self.get_fields(name))
 
-    def set_field(self, name: str, index: int, field: 'AnyField'):
+    def set_field(self, name: str, index: int, field: 'AnyField') -> None:
         try:
             self.fields[name][index] = field
         except KeyError:
@@ -185,7 +185,7 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _=None) -> Any:
+    def perform_time_step(self, _: Optional[Any]=None) -> Any:
         raise NotImplementedError()
 
     def before_time_step(self) -> None:

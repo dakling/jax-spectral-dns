@@ -131,3 +131,33 @@ also matches up nicely, at least qualitatively.
 |![Simulation using the optimised initial condition]( ./img/Re_3000_transient_growth_optimiser.gif )|
 |:--:| 
 |*Simulation using the final optimised initial condition*|
+
+## Contributing 
+
+The `main` branch is protected, so in order to push there, one needs to open a
+merge request in gitlab. This automatically triggers the test pipeline, ensuring
+that code on `main` always works (at least as far as testing coverage can
+ensure).
+
+One can run the test suite manually as described above (alternatively, refer to
+`.gitlab-ci.yml`) to see what is done exactly.
+
+When adding any new functionality, please also add one or more corresponding
+tests to `tests/test_project.py`.
+
+In addition to the test suite, `mypy` is run to catch type errors, meaning that
+any new code is required to have appropriate type annotations (see [the mypy
+documentation](https://mypy.readthedocs.io/en/stable/)). Some convenient type
+definitions are provided in `jax_spectral_dns/_typing.py`. Please also add any
+new type definitions there.
+
+To run `mypy`'s tests manually, run
+```
+mypy jax_spectral_dns/
+```
+for the code base itself and 
+```
+mypy tests/test_project.py
+```
+for the test suite. The `mypy` configuration file, which determines the level of
+strictness, is also part of the repository (`mypy.ini`).
