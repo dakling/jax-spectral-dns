@@ -273,74 +273,6 @@ class NavierStokesVelVort(Equation):
             self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
         ).hat()
 
-    def update_nonlinear_terms(
-        self,
-        velocity_field: Optional[VectorField[FourierField]] = None,
-        in_place: bool = True,
-    ) -> Union[
-        tuple[jnp_array, jnp_array, jnp_array, jnp_array],
-        tuple[
-            FourierField,
-            FourierField,
-            VectorField[FourierField],
-            VectorField[FourierField],
-        ],
-    ]:
-        if type(velocity_field) == NoneType:
-            velocity_field_ = self.get_latest_field("velocity_hat")
-        else:
-            assert velocity_field is not None
-            velocity_field_ = velocity_field
-        (
-            h_v_hat,
-            h_g_hat,
-            vort_hat,
-            conv_ns_hat,
-        ) = self.nonlinear_update_fn(
-            # velocity_field_
-            jnp.array(
-                [
-                    velocity_field_[0].data,
-                    velocity_field_[1].data,
-                    velocity_field_[2].data,
-                ]
-            ),
-        )
-        h_v_hat_field = FourierField(
-            self.get_physical_domain(), h_v_hat, name="h_v_hat"
-        )
-        h_g_hat_field = FourierField(
-            self.get_physical_domain(), h_g_hat, name="h_g_hat"
-        )
-        vort_hat_field = VectorField(
-            [
-                FourierField(
-                    self.get_physical_domain(), vort_hat[i], name="vort_hat_" + "xyz"[i]
-                )
-                for i in self.get_physical_domain().all_dimensions()
-            ]
-        )
-        vort_hat_field.set_name("vort_hat")
-        conv_ns_hat_field = VectorField(
-            [
-                FourierField(
-                    self.get_physical_domain(),
-                    conv_ns_hat[i],
-                    name="conv_ns_hat_" + "xyz"[i],
-                )
-                for i in self.get_physical_domain().all_dimensions()
-            ]
-        )
-        conv_ns_hat_field.set_name("conv_ns_hat")
-        try:
-            self.append_field("h_v_hat", h_v_hat_field, in_place=in_place)
-            self.append_field("h_g_hat", h_g_hat_field, in_place=in_place)
-            self.append_field("vort_hat", vort_hat_field, in_place=in_place)
-            self.append_field("conv_ns_hat", conv_ns_hat_field, in_place=in_place)
-            return (h_v_hat, h_g_hat, vort_hat, conv_ns_hat)
-        except AttributeError:
-            return (h_v_hat_field, h_g_hat_field, vort_hat_field, conv_ns_hat_field)
-
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> np_float_array:
         return self.get_initial_field("velocity_hat")[
             0
@@ -456,25 +388,8 @@ class NavierStokesVelVort(Equation):
             rk_mats_lhs_inv_ns,
         )
 
-    # def assemble_rk_matrices(self, Ly, kx, kz, i):
-    #     alpha, beta, _, _ = self.get_rk_parameters()
-    #     n = Ly.shape[0]
-    #     I = np.eye(n)
-    #     L = (
-    #         Ly + I * (-(kx**2 + kz**2)) / self.Re_tau
-    #     )
-    #     rhs_mat = I + alpha[i] * self.dt * L
-    #     lhs_mat = I - beta[i] * self.dt * L
-    #     return (lhs_mat, rhs_mat)
-
     def prepare(self) -> None:
-        # if not Field.activate_jit_:
-        #     self.dt = self.get_time_step()
-        # self.poisson_mat = self.domain.assemble_poisson_matrix()
-        # self.prepare_assemble_rk_matrices()
-        for field_name in ["h_v_hat", "h_g_hat", "vort_hat", "conv_ns_hat"]:
-            self.add_field(field_name)
-        self.update_nonlinear_terms()
+        pass
 
     @classmethod
     def vort_yvel_to_vel(
