@@ -58,6 +58,8 @@ from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
 
 NoneType = type(None)
 
+T = TypeVar("T", bound="Field")
+
 
 class Field(ABC):
     """Class that holds the information needed to describe a dependent variable
@@ -145,22 +147,22 @@ class Field(ABC):
     #     cls.activate_jit_ = True
 
     @abstractmethod
-    def __add__(self: Self, _: Union[Self, jnp.ndarray]) -> Field: ...
+    def __add__(self: T, _: Union[T, jnp.ndarray]) -> T: ...
 
     @abstractmethod
-    def __sub__(self, _: Union[Self, jnp.ndarray]) -> Field: ...
+    def __sub__(self: T, _: Union[T, jnp.ndarray]) -> T: ...
 
     @abstractmethod
-    def __mul__(self, _: Union[Self, jnp.ndarray, jsd_float]) -> Field: ...
+    def __mul__(self: T, _: Union[T, jnp.ndarray, jsd_float]) -> T: ...
 
     __rmul__ = __mul__
     __lmul__ = __mul__
 
     @abstractmethod
-    def __truediv__(self, _: jsd_float) -> Self: ...
+    def __truediv__(self: T, _: jsd_float) -> T: ...
 
     @abstractmethod
-    def shift(self, value: jsd_float) -> Self: ...
+    def shift(self: T, value: jsd_float) -> T: ...
 
     def volume_integral(self) -> jsd_float:
         raise NotImplementedError()
@@ -224,7 +226,7 @@ class Field(ABC):
         )
 
     @abstractmethod
-    def diff(self, direction: int, order: int = 1) -> "AnyScalarField": ...
+    def diff(self: T, direction: int, order: int = 1) -> T: ...
 
     def nabla(self) -> "AnyVectorField":
         out = [self.diff(0)]
@@ -243,9 +245,6 @@ class Field(ABC):
         out.name = "lap_" + self.name
         out.time_step = self.time_step
         return out
-
-
-T = TypeVar("T", bound=Field)
 
 
 class VectorField(Generic[T]):
@@ -297,7 +296,7 @@ class VectorField(Generic[T]):
         for i in range(len(self)):
             f: T = self[i]
             other_i: Union[T, jnp_array] = other[i]
-            out_: T = cast(T, f + other_i)
+            out_: T = f + other_i
             out.append(out_)
         return VectorField(out)
 
@@ -311,12 +310,12 @@ class VectorField(Generic[T]):
         if isinstance(other, VectorField):
             for i in range(len(self)):
                 f: T = self[i]
-                out_: T = cast(T, f * other[i])
+                out_: T = f * other[i]
                 out.append(out_)
         else:
             for i in range(len(self)):
                 f = self[i]
-                out_ = cast(T, f * other)
+                out_ = f * other
                 out.append(out_)
         return VectorField(out)
 
@@ -386,7 +385,7 @@ class VectorField(Generic[T]):
             f = f.normalize_by_max_value()
         return self
 
-    def energy_norm(self, k: float) -> jsd_float:
+    def energy_norm(self: VectorField[PhysicalField], k: float) -> jsd_float:
         energy = k**2 * self[1] * self[1]
         energy += self[1].diff(1) * self[1].diff(1)
         vort = self.curl()
@@ -491,9 +490,9 @@ class VectorField(Generic[T]):
             f.plot_isosurfaces(iso_val)
 
     def cross_product(self, other: VectorField[T]) -> VectorField[T]:
-        out_0: T = cast(T, self[1] * other[2] - self[2] * other[1])
-        out_1: T = cast(T, self[2] * other[0] - self[0] * other[2])
-        out_2: T = cast(T, self[0] * other[1] - self[1] * other[0])
+        out_0: T = self[1] * other[2] - self[2] * other[1]
+        out_1: T = self[2] * other[0] - self[0] * other[2]
+        out_2: T = self[0] * other[1] - self[1] * other[0]
 
         time_step = self.get_time_step()
         out = [out_0, out_1, out_2]
@@ -508,16 +507,16 @@ class VectorField(Generic[T]):
             assert (
                 f.number_of_dimensions() == 3
             ), "rotation only defined in 3 dimensions"
-        u_y = cast(T, self[0].diff(1))
-        u_z = cast(T, self[0].diff(2))
-        v_x = cast(T, self[1].diff(0))
-        v_z = cast(T, self[1].diff(2))
-        w_x = cast(T, self[2].diff(0))
-        w_y = cast(T, self[2].diff(1))
+        u_y = self[0].diff(1)
+        u_z = self[0].diff(2)
+        v_x = self[1].diff(0)
+        v_z = self[1].diff(2)
+        w_x = self[2].diff(0)
+        w_y = self[2].diff(1)
 
-        curl_0: T = cast(T, w_y - v_z)
-        curl_1: T = cast(T, u_z - w_x)
-        curl_2: T = cast(T, v_x - u_y)
+        curl_0: T = w_y - v_z
+        curl_1: T = u_z - w_x
+        curl_2: T = v_x - u_y
 
         time_step = self.get_time_step()
         out = [curl_0, curl_1, curl_2]
@@ -527,13 +526,13 @@ class VectorField(Generic[T]):
         return VectorField(out)
 
     def div(self) -> T:
-        out = cast(T, self[0].diff(0))
+        out = self[0].diff(0)
         if self.name is not None:
             out.name = "div_" + self.name + "_" + str(0)
         else:
             out.name = "div_field"
         for dim in self.all_dimensions()[1:]:
-            out = cast(T, out + cast(T, self[dim].diff(dim)))
+            out = out + self[dim].diff(dim)
         return out
 
     def reconstruct_from_wavenumbers(
