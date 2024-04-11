@@ -44,11 +44,10 @@ from jax_spectral_dns._typing import (
     Vel_fn_type,
     np_jnp_array,
     parameter_type,
-    input_type,
 )
 
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import pseudo_2d_perturbation_return_type
+    from jax_spectral_dns._typing import pseudo_2d_perturbation_return_type, input_type
 
 NoneType = type(None)
 
@@ -1391,9 +1390,9 @@ def run_optimisation_transient_growth(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(U_hat: "input_type", out: bool = False) -> jsd_float:
 
-        U = U_hat.no_hat()
+        U = cast(VectorField[FourierField], U_hat).no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
@@ -1525,10 +1524,11 @@ def run_optimisation_transient_growth_nonfourier(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U: VectorField[PhysicalField], out: bool = False) -> jsd_float:
+    def run_case(U: "input_type", out: bool = False) -> jsd_float:
 
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
+        U_ = cast(VectorField[PhysicalField], U)
+        U_.update_boundary_conditions()
+        U_norm = U_.normalize_by_energy()
         U_norm *= e_0
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
@@ -1659,8 +1659,8 @@ def run_optimisation_transient_growth_y_profile(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
-        U = U_hat.no_hat()
+    def run_case(U_hat: "input_type", out: bool = False) -> jsd_float:
+        U = cast(VectorField[FourierField], U_hat).no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
@@ -1689,13 +1689,14 @@ def run_optimisation_transient_growth_y_profile(
         gain = vel.energy() / vel_0.energy()
         return gain
 
-    def run_input_to_params(vel_hat: input_type) -> parameter_type:
-        v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
-        v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
+    def run_input_to_params(vel_hat: "input_type") -> parameter_type:
+        vel_hat_ = cast(VectorField[FourierField], vel_hat)
+        v0_1 = vel_hat_[1].data[1, :, 0] * (1 + 0j)
+        v0_0_00_hat = vel_hat_[0].data[0, :, 0] * (1 + 0j)
         v0 = tuple([v0_1, v0_0_00_hat])
         return v0
 
-    def params_to_run_input(params: parameter_type) -> input_type:
+    def params_to_run_input(params: parameter_type) -> "input_type":
         v1_yslice = params[0]
         v1_hat = domain.field_hat(lsc.y_slice_to_3d_field(domain, v1_yslice))
         v0_00 = params[1]
@@ -1813,9 +1814,9 @@ def run_optimisation_transient_growth_nonlinear(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(U_hat: "input_type", out: bool = False) -> jsd_float:
 
-        U = U_hat.no_hat()
+        U = cast(VectorField[FourierField], U_hat).no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
@@ -1913,6 +1914,9 @@ def run_optimisation_transient_growth_nonlinear_3d(
     else:
         v0_0_hat = None
 
+    run_input_initial = init_file or v0_0_hat
+    assert run_input_initial is not None
+
     def post_process(nse_: Equation, i: int) -> None:
         nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -1955,9 +1959,9 @@ def run_optimisation_transient_growth_nonlinear_3d(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(U_hat: "input_type", out: bool = False) -> jsd_float:
 
-        U = U_hat.no_hat()
+        U = cast(VectorField[FourierField], U_hat).no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
@@ -1989,7 +1993,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
     optimiser = Optimiser(
         domain,
         run_case,
-        init_file or v0_0_hat,
+        run_input_initial,
         minimise=False,
         force_2d=False,
         max_iter=number_of_steps,
@@ -2099,10 +2103,10 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U: VectorField[PhysicalField], out: bool = False) -> jsd_float:
-
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
+    def run_case(U: "input_type", out: bool = False) -> jsd_float:
+        U_ = cast(VectorField[PhysicalField], U)
+        U_.update_boundary_conditions()
+        U_norm = U_.normalize_by_energy()
         U_norm *= e_0
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
@@ -2257,12 +2261,12 @@ def run_optimisation_transient_growth_mean_y_profile(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(inp: input_type, out: bool = False) -> jsd_float:
+    def run_case(inp: "input_type", out: bool = False) -> jsd_float:
         U_hat, U_base_hat = inp
-        U_base = U_base_hat.no_hat()
+        U_base = cast(VectorField[FourierField], U_base_hat).no_hat()
         U_base.normalize_by_max_value()
         U_base_hat = U_base.hat()
-        U = U_hat.no_hat()
+        U = cast(VectorField[FourierField], U_hat).no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
@@ -2293,8 +2297,10 @@ def run_optimisation_transient_growth_mean_y_profile(
         gain = vel.energy() / vel_0.energy()
         return gain
 
-    def run_input_to_params(inp: input_type) -> parameter_type:
-        vel_hat, vel_base = inp
+    def run_input_to_params(inp: "input_type") -> parameter_type:
+        vel_hat_, vel_base_ = inp
+        vel_hat = cast(VectorField[FourierField], vel_hat_)
+        vel_base = cast(VectorField[FourierField], vel_base_)
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
 
@@ -2482,6 +2488,9 @@ def run_ld_2020(
     else:
         vel_hat = None
 
+    run_input_initial = init_file or vel_hat
+    assert run_input_initial is not None
+
     def post_process(nse_: Equation, i: int) -> None:
         nse = cast(NavierStokesVelVortPerturbation, nse_)
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -2535,9 +2544,10 @@ def run_ld_2020(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> jsd_float:
+    def run_case(U_hat: "input_type", out: bool = False) -> jsd_float:
 
-        U = U_hat.no_hat()
+        U_hat_ = cast(VectorField[FourierField], U_hat)
+        U = U_hat_.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
@@ -2560,7 +2570,7 @@ def run_ld_2020(
     optimiser = Optimiser(
         domain,
         run_case,
-        vel_hat or init_file,
+        run_input_initial,
         minimise=False,
         force_2d=False,
         max_iter=number_of_steps,

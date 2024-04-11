@@ -31,7 +31,6 @@ Vel_fn_type = Callable[
     [Union[list[jsd_float], tuple[jsd_float, ...], np_jnp_array]], jsd_float
 ]
 parameter_type = tuple[jnp_array, ...]
-input_type = Any
 
 if TYPE_CHECKING:
     AnyScalarField = Union[PhysicalField, FourierField]
@@ -52,4 +51,9 @@ if TYPE_CHECKING:
         list[float],
         list[float],
         VectorField[PhysicalField],
+    ]
+    input_type = Union[
+        VectorField[FourierField],
+        VectorField[PhysicalField],
+        tuple[VectorField[FourierField], VectorField[FourierField]],
     ]
