@@ -27,7 +27,7 @@ test:   # This job runs in the test stage.
     script:
         - echo "Running formatting tests..."
         - black --check jax_spectral_dns
-        - black --check tests/test_project.sh
+        - black --check tests/test_project.py
         - echo "Running mypy type tests..."
         - mypy jax_spectral_dns/
         - mypy tests/test_project.py
