@@ -228,19 +228,18 @@ class Field(ABC):
     @abstractmethod
     def diff(self: T, direction: int, order: int = 1) -> T: ...
 
-    def nabla(self) -> "AnyVectorField":
+    def nabla(self: T) -> VectorField[T]:
         out = [self.diff(0)]
         out[0].name = "nabla_" + self.name + "_" + str(0)
         for dim in self.all_dimensions()[1:]:
             out.append(self.diff(dim))
             out[dim].name = "nabla_" + self.name + "_" + str(dim)
             out[dim].time_step = self.time_step
-        return cast("AnyVectorField", VectorField(out))
+        return VectorField(out)
 
-    def laplacian(self) -> Field:
-        out: Field = self.diff(0, 2)
+    def laplacian(self: T) -> T:
+        out = self.diff(0, 2)
         for dim in self.all_dimensions()[1:]:
-            assert isinstance(out, Field)
             out += self.diff(dim, 2)
         out.name = "lap_" + self.name
         out.time_step = self.time_step
@@ -462,11 +461,11 @@ class VectorField(Generic[T]):
         # assert type(out) is list[int]
         return out
 
-    def hat(self) -> VectorField[FourierField]:
-        return VectorField([cast(PhysicalField, f).hat() for f in self])
+    def hat(self: VectorField[PhysicalField]) -> VectorField[FourierField]:
+        return VectorField([f.hat() for f in self])
 
-    def no_hat(self) -> VectorField[PhysicalField]:
-        return VectorField([cast(FourierField, f).no_hat() for f in self])
+    def no_hat(self: VectorField[FourierField]) -> VectorField[PhysicalField]:
+        return VectorField([f.no_hat() for f in self])
 
     def plot(self, *other_fields: VectorField[PhysicalField]) -> None:
         for i in jnp.arange(len(self)):
@@ -829,10 +828,6 @@ class PhysicalField(Field):
             ret = PhysicalField(self.physical_domain, self.data * other, name=new_name)
             ret.time_step = self.time_step
             return ret
-
-    def laplacian(self) -> PhysicalField:
-        out = cast(PhysicalField, super().laplacian())
-        return out
 
     @classmethod
     def FromFunc(
@@ -1770,10 +1765,6 @@ class FourierField(Field):
     def shift(self, value: jsd_float) -> FourierField:
         out_field = self.data + value
         return FourierField(self.get_physical_domain(), out_field, name=self.name)
-
-    def laplacian(self) -> FourierField:
-        out = cast(FourierField, super().laplacian())
-        return out
 
     @classmethod
     def FromField(cls, field: PhysicalField) -> FourierField:

@@ -386,7 +386,7 @@ class OptimiserPertAndBase(Optimiser):
         input_ = cast(
             tuple[VectorField[FourierField], VectorField[FourierField]], input
         )
-        parameters_no_hat = input_[0].hat()
+        parameters_no_hat = input_[0].no_hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         # only add noise to perturbation field

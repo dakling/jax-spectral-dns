@@ -2,7 +2,17 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Any, Callable, Dict, Optional, Sequence, Union, TYPE_CHECKING, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+    TYPE_CHECKING,
+    cast,
+)
 import time
 
 import jax
@@ -39,6 +49,9 @@ def print_verb(*in_str: Any, verbosity_level: int = 1, debug: bool = False) -> N
             print(pref, *in_str)
 
 
+E = TypeVar("E", bound="Equation")
+
+
 class Equation:
     name = "equation"
     write_intermediate_output = False
@@ -50,15 +63,15 @@ class Equation:
     # 3: even more additional output from the solver that is usually nonessential
     verbosity_level: int = 1
 
-    def __init__(self, domain: Domain, *fields: "AnyField", **params: Any):
+    def __init__(self: E, domain: Domain, *fields: "AnyField", **params: Any):
         dt: jsd_float = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step: int = 0
         self.time: jsd_float = 0.0
-        self.before_time_step_fn: Optional[Callable[[Equation], None]] = None
-        self.after_time_step_fn: Optional[Callable[[Equation], None]] = None
-        self.post_process_fn: Optional[Callable[[Equation, int], None]] = None
+        self.before_time_step_fn: Optional[Callable[[E], None]] = None
+        self.after_time_step_fn: Optional[Callable[[E], None]] = None
+        self.post_process_fn: Optional[Callable[[E, int], None]] = None
         try:
             self.end_time = params["end_time"]
         except KeyError:
@@ -193,17 +206,26 @@ class Equation:
     def perform_time_step(self, _: Optional[Any] = None) -> Any:
         raise NotImplementedError()
 
-    def before_time_step(self) -> None:
+    def set_before_time_step_fn(self: E, fn: Optional[Callable[[E], None]]) -> None:
+        self.before_time_step_fn = fn
+
+    def set_after_time_step_fn(self: E, fn: Optional[Callable[[E], None]]) -> None:
+        self.after_time_step_fn = fn
+
+    def set_post_process_fn(self: E, fn: Optional[Callable[[E, int], None]]) -> None:
+        self.post_process_fn = fn
+
+    def before_time_step(self: E) -> None:
         if type(self.before_time_step_fn) != NoneType:
             assert self.before_time_step_fn is not None
             self.before_time_step_fn(self)
 
-    def after_time_step(self) -> None:
+    def after_time_step(self: E) -> None:
         if type(self.after_time_step_fn) != NoneType:
             assert self.after_time_step_fn is not None
             self.after_time_step_fn(self)
 
-    def post_process(self) -> None:
+    def post_process(self: E) -> None:
         if type(self.post_process_fn) != NoneType:
             raise NotImplementedError()
 

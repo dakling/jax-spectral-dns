@@ -122,16 +122,15 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
     energy_t = []
 
     nse.initialize()
-    nse.before_time_step_fn = None
-    nse.after_time_step_fn = None
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
     nse.activate_jit()
     nse.write_intermediate_output = True
     nse.solve()
 
     n_steps = nse.get_number_of_fields("velocity_hat")
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVort, nse_)
+    def post_process(nse: NavierStokesVelVort, i: int) -> None:
         time = (i / (n_steps - 1)) * end_time
         vel = nse.get_field("velocity_hat", i).no_hat()
         vel_pert = vel - vel_base
@@ -157,7 +156,7 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
         energy_t.append(energy)
         print_verb(time, ",", energy)
 
-    nse.post_process_fn = post_process
+    nse.set_post_process_fn(post_process)
     nse.post_process()
 
     energy_t_arr = np.array(energy_t)
@@ -276,16 +275,15 @@ def run_navier_stokes_turbulent() -> None:
     energy_t = []
 
     nse.initialize()
-    nse.before_time_step_fn = None
-    nse.after_time_step_fn = None
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
     nse.activate_jit()
     nse.write_intermediate_output = True
     nse.solve()
 
     n_steps = nse.get_number_of_fields("velocity_hat")
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVort, nse_)
+    def post_process(nse: NavierStokesVelVort, i: int) -> None:
         time = (i / (n_steps - 1)) * end_time
         vel = nse.get_field("velocity_hat", i).no_hat()
         vel_pert = vel - vel_base
@@ -311,7 +309,7 @@ def run_navier_stokes_turbulent() -> None:
         energy_t.append(energy)
         print_verb(time, ",", energy)
 
-    nse.post_process_fn = post_process
+    nse.set_post_process_fn(post_process)
     nse.post_process()
 
     energy_t_arr = np.array(energy_t)
@@ -416,8 +414,7 @@ def run_pseudo_2d() -> None:
     energy_x_t_ana: list[float] = []
     energy_y_t_ana: list[float] = []
 
-    def before_time_step(nse_: Equation) -> None:
-        nse = cast(NavierStokesVelVort, nse_)
+    def before_time_step(nse: NavierStokesVelVort) -> None:
         i = nse.time_step
         if i % plot_interval == 0:
             # vel_hat = nse.get_field("velocity_hat", i)
@@ -530,9 +527,8 @@ def run_pseudo_2d() -> None:
                 fig.savefig("plots/energy_y_t.png")
         # input("carry on?")
 
-    nse.after_time_step_fn = None
-    nse.before_time_step_fn = before_time_step
-    # nse.before_time_step_fn = None
+    nse.set_before_time_step_fn(before_time_step)
+    nse.set_after_time_step_fn(None)
 
     nse.solve()
 
@@ -590,8 +586,7 @@ def run_dummy_velocity_field() -> None:
         nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
     )
 
-    def after_time_step(nse_: Equation) -> None:
-        nse = cast(NavierStokesVelVort, nse_)
+    def after_time_step(nse: NavierStokesVelVort) -> None:
         i = nse.time_step
         if (i - 1) % plot_interval == 0:
             vel = nse.get_latest_field("velocity_hat").no_hat()
@@ -618,8 +613,7 @@ def run_dummy_velocity_field() -> None:
             print_verb("velocity perturbation energy: ", vel_pert_energy)
             print_verb("velocity perturbation abs: ", vel_pert_abs)
 
-    nse.after_time_step_fn = after_time_step
-    # nse.after_time_step_fn = None
+    nse.set_after_time_step_fn(after_time_step)
     nse.solve()
 
 
@@ -735,8 +729,8 @@ def run_pseudo_2d_perturbation(
     energy_x_t_ana: list[float] = []
     energy_y_t_ana: list[float] = []
 
-    nse.before_time_step_fn = None
-    nse.after_time_step_fn = None
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
 
     if jit:
         nse.activate_jit()
@@ -853,8 +847,7 @@ def run_jimenez_1990(start_time: int = 0) -> None:
 
     plot_interval = 50
 
-    def before_time_step(nse_: Equation) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def before_time_step(nse: NavierStokesVelVortPerturbation) -> None:
         i = nse.time_step
         if i % plot_interval == 0:
             vel_pert = nse.get_latest_field("velocity_hat").no_hat()
@@ -882,7 +875,7 @@ def run_jimenez_1990(start_time: int = 0) -> None:
                 vort[j].plot_isolines(2)
                 # vel_moving_frame[j].plot_3d(2)
 
-    nse.before_time_step_fn = before_time_step
+    nse.set_before_time_step_fn(before_time_step)
     nse.solve()
 
 
@@ -978,8 +971,7 @@ def run_transient_growth_nonpert(
     if plot and abs(Re - 3000) < 1e-3:
         rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVort, nse_)
+    def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1027,10 +1019,9 @@ def run_transient_growth_nonpert(
         ts.append(time)
         energy_t.append(vel_pert_energy)
 
-    # nse.before_time_step_fn = lambda nse: post_process(nse, nse.time_step)
-    nse.before_time_step_fn = None
-    nse.after_time_step_fn = None
-    nse.post_process_fn = post_process
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
+    nse.set_post_process_fn(post_process)
 
     nse.activate_jit()
     nse.write_intermediate_output = plot
@@ -1082,7 +1073,8 @@ def run_transient_growth(
     if type(linearize) == str:
         linearize_ = linearize == "True"
     else:
-        linearize_ = cast(bool, linearize)
+        assert type(linearize) is bool
+        linearize_ = linearize
 
     eps = float(eps)
 
@@ -1137,8 +1129,7 @@ def run_transient_growth(
     if plot and abs(Re - 3000) < 1e-3:
         rh_93_data = np.genfromtxt("rh93_transient_growth.csv", delimiter=",").T
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1185,10 +1176,9 @@ def run_transient_growth(
         ts.append(time)
         energy_t.append(vel_energy)
 
-    # nse.before_time_step_fn = lambda nse: post_process(nse, nse.time_step)
-    nse.before_time_step_fn = None
-    nse.after_time_step_fn = None
-    nse.post_process_fn = post_process
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
+    nse.set_post_process_fn(post_process)
 
     nse.activate_jit()
     nse.write_intermediate_output = plot
@@ -1348,8 +1338,7 @@ def run_optimisation_transient_growth(
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1407,14 +1396,14 @@ def run_optimisation_transient_growth(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -1482,8 +1471,7 @@ def run_optimisation_transient_growth_nonfourier(
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1541,14 +1529,14 @@ def run_optimisation_transient_growth_nonfourier(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -1616,8 +1604,7 @@ def run_optimisation_transient_growth_y_profile(
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1675,14 +1662,14 @@ def run_optimisation_transient_growth_y_profile(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -1772,8 +1759,7 @@ def run_optimisation_transient_growth_nonlinear(
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1831,14 +1817,14 @@ def run_optimisation_transient_growth_nonlinear(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -1917,8 +1903,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
     run_input_initial = init_file or v0_0_hat
     assert run_input_initial is not None
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -1976,14 +1961,14 @@ def run_optimisation_transient_growth_nonlinear_3d(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -2061,8 +2046,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
     else:
         v0_0_norm = None
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -2118,14 +2102,14 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -2215,8 +2199,7 @@ def run_optimisation_transient_growth_mean_y_profile(
     velocity_base_hat = velocity_base.hat()
     velocity_base_hat.set_name("velocity_base_hat")
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         if i == 0:
             vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
             vel_base.plot_3d(2)
@@ -2283,14 +2266,14 @@ def run_optimisation_transient_growth_mean_y_profile(
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()
         vel = nse.get_latest_field("velocity_hat").no_hat()
 
-        nse.before_time_step_fn = None
-        nse.after_time_step_fn = None
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
         if out:
             nse.post_process()
 
@@ -2491,8 +2474,7 @@ def run_ld_2020(
     run_input_initial = init_file or vel_hat
     assert run_input_initial is not None
 
-    def post_process(nse_: Equation, i: int) -> None:
-        nse = cast(NavierStokesVelVortPerturbation, nse_)
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
@@ -2557,7 +2539,7 @@ def run_ld_2020(
         nse.end_time = end_time_
         if out:
             nse.write_intermediate_output = True
-            nse.post_process_fn = post_process
+            nse.set_post_process_fn(post_process)
         else:
             nse.write_intermediate_output = False
         nse.solve()

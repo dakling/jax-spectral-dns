@@ -311,8 +311,7 @@ def solve_navier_stokes_perturbation(
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    def post_process(nse__: Equation, i: int) -> None:
-        nse_ = cast(NavierStokesVelVortPerturbation, nse__)
+    def post_process(nse_: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse_.get_number_of_fields("velocity_hat")
         vel_hat = nse_.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
@@ -354,6 +353,6 @@ def solve_navier_stokes_perturbation(
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-    nse.post_process_fn = post_process
+    nse.set_post_process_fn(post_process)
 
     return nse

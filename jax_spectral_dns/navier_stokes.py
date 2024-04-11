@@ -21,7 +21,7 @@ from jax_spectral_dns.field import (
     FourierField,
     FourierFieldSlice,
 )
-from jax_spectral_dns.equation import Equation, print_verb
+from jax_spectral_dns.equation import Equation, E, print_verb
 from jax_spectral_dns.fixed_parameters import NavierStokesVelVortFixedParameters
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns._typing import (
@@ -1088,7 +1088,7 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", velocity_final, in_place=False)
             return (velocity_final, len(ts))
 
-    def post_process(self) -> None:
+    def post_process(self: E) -> None:
         if type(self.post_process_fn) != NoneType:
             assert self.post_process_fn is not None
             for i in range(self.get_number_of_fields("velocity_hat")):
@@ -1161,8 +1161,7 @@ def solve_navier_stokes_laminar(
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
 
-    def post_process(nse__: Equation, i: int) -> None:
-        nse_ = cast(NavierStokesVelVort, nse__)
+    def post_process(nse_: NavierStokesVelVort, i: int) -> None:
         n_steps = nse_.get_number_of_fields("velocity_hat")
         vel_hat: VectorField[FourierField] = nse_.get_field("velocity_hat", i)
         vel: VectorField[PhysicalField] = vel_hat.no_hat()
@@ -1205,6 +1204,6 @@ def solve_navier_stokes_laminar(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         gain = energy_t[-1] / energy_t[0]
 
-    nse.post_process_fn = post_process
+    nse.set_post_process_fn(post_process)
 
     return nse
