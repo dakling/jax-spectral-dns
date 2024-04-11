@@ -26,17 +26,8 @@ pip install .
 When using pip for installation as shown above, the python package dependencies
 are automatically installed. For those interested, they are still listed here:
 
-- python, obviously
-- some standard python libraries (mostly used for pre- and post-processing):
-    - numpy
-    - scipy
-    - matplotlib
-    - pytest (for running the test suite)
-- [jax](https://github.com/google/jax)
-- optional (for using optimiser.py):
-    - jaxopt
-    - optax
-- (notably, [jax-cfd](https://github.com/google/jax-cfd) is not needed.)
+- python 3.9+
+- some python libraries, which are installed by pip automatically (refer to [setup.py](./setup.py) for details)
 - optional (for postprocessing with `make-video.sh`):
     - bash or a similiar shell
     - imagemagick (to make gif-files)
@@ -140,15 +131,15 @@ that code on `main` always works (at least as far as testing coverage can
 ensure).
 
 One can run the test suite manually as described above (alternatively, refer to
-`.gitlab-ci.yml`) to see what is done exactly.
+[`.gitlab-ci.yml`](./.gitlab-ci.yml)) to see what is done exactly.
 
 When adding any new functionality, please also add one or more corresponding
-tests to `tests/test_project.py`.
+tests to [`tests/test_project.py`](./tests/test_project.py).
 
 In addition to the test suite, `mypy` is run to catch type errors, meaning that
 any new code is required to have appropriate type annotations (see [the mypy
 documentation](https://mypy.readthedocs.io/en/stable/)). Some convenient type
-definitions are provided in `jax_spectral_dns/_typing.py`. Please also add any
+definitions are provided in [`jax_spectral_dns/_typing.py`](./jax_spectral_dns/_typing.py). Please also add any
 new type definitions there.
 
 To run `mypy`'s tests manually, run
@@ -159,13 +150,13 @@ for the code base itself and
 ```
 mypy tests/test_project.py
 ```
-for the test suite. The `mypy` configuration file, which determines the level of
-strictness, is also part of the repository (`mypy.ini`).
+for the test suite. The [`mypy` configuration file](./mypy.ini), which determines the level of
+strictness, is also part of the repository.
 
 ### Code formatting
 
 Code autoformatting is implemented using black and pre-commit. The configuration
-for pre-commit and black is in `./.pre-commit.yaml` To enable formatting
+for pre-commit and black is in [`.pre-commit.yaml`](./.pre-commit.yaml) To enable formatting
 being run automatically upon a commit, run 
 ```
 pre-commit install

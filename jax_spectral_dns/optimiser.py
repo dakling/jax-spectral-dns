@@ -50,7 +50,16 @@ class Optimiser:
         self.domain = domain
         self.force_2d = force_2d
         if type(run_input_initial) is str:
-            self.parameter_file_name = run_input_initial
+            # we would like to be flexible with how the input is provided - see comments for details
+            if Field.field_dir in run_input_initial:  # e.g. "./fields/parameters"
+                self.parameter_file_name = run_input_initial.split(Field.field_dir)[-1]
+            elif Field.field_dir[2:] in run_input_initial:  # e.g. "fields/parameters"
+                assert (
+                    Field.field_dir[1:] not in run_input_initial
+                ), "Directory not found."  # checks that it is not e.g. "/fields/parameters"
+                self.parameter_file_name = run_input_initial.split(Field.field_dir)[-1]
+            else:  # e.g. just "parameters"
+                self.parameter_file_name = run_input_initial
             self.parameters = self.parameters_from_file()
         else:
             self.parameter_file_name = "parameters"
