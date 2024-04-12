@@ -189,18 +189,8 @@ class Field(ABC):
         ret.time_step = self.time_step
         return ret
 
-    def __abs__(self) -> jsd_float:
-        return jnp.linalg.norm(self.data) / self.number_of_dofs()
-
-    def energy(self) -> float:
-        raise NotImplementedError()
-
-    def normalize_by_energy(self) -> Self:
-        en = self.energy()
-        self.data = jax.lax.cond(
-            en > 1e-20, lambda: self.data / en, lambda: self.data
-        )  # type: ignore[no-untyped-call]
-        return self
+    def __abs__(self) -> float:
+        return cast(float, jnp.linalg.norm(self.data) / self.number_of_dofs())
 
     def number_of_dimensions(self) -> int:
         return len(self.all_dimensions())
@@ -261,6 +251,22 @@ class VectorField(Generic[T]):
     ) -> Self:
         dim = domain.number_of_dimensions
         fs = cast(list[T], [field_cls.Zeros(domain) for _ in range(dim)])
+        return cls(fs, name)
+
+    @classmethod
+    def FromRandom(
+        cls,
+        field_cls: type["AnyScalarField"],
+        domain: PhysicalDomain,
+        seed: jsd_float = 0,
+        interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
+        name: str = "field",
+    ) -> Self:
+        """Construct a random field depending on the independent variables described by domain."""
+        dim = domain.number_of_dimensions
+        fs = cast(
+            list[T], [field_cls.FromRandom(domain, seed, interval) for _ in range(dim)]
+        )
         return cls(fs, name)
 
     @classmethod
@@ -327,6 +333,14 @@ class VectorField(Generic[T]):
             out.append(self[i] / other)
         return VectorField(out)
 
+    def __pow__(
+        self: VectorField[PhysicalField], exponent: float
+    ) -> VectorField[PhysicalField]:
+        out = []
+        for i in range(len(self)):
+            out.append(self[i] ** exponent)
+        return VectorField(out)
+
     def shift(self, value: jnp_array) -> VectorField[T]:
         out = []
         assert len(value) == len(self), "Dimension mismatch."
@@ -359,18 +373,35 @@ class VectorField(Generic[T]):
             raise Exception("Unable to return FourierDomain.")
 
     def __abs__(self) -> float:
-        out: jsd_float = 0.0
+        out: float = 0.0
         for f in self:
             out += abs(f)
-        return cast(float, out)
+        return out
 
-    def energy(self) -> float:
-        en: jsd_float = 0.0
+    def energy(self: VectorField[PhysicalField]) -> float:
+        en: float = 0.0
         for f in self:
             en += f.energy()
-        return cast(float, en)
+        return en
 
-    def normalize_by_energy(self) -> Self:
+    def energy_p(self: VectorField[PhysicalField], p: float = 1.0) -> float:
+        energy_field = PhysicalField.Zeros(self.get_physical_domain())
+        for f in self:
+            energy_field += 0.5 * f * f
+
+        energy_field_p = energy_field**p
+        domain_volume: float = cast(
+            float,
+            2.0 ** (len(self[0].all_nonperiodic_dimensions()))
+            * jnp.prod(jnp.array(self.get_physical_domain().scale_factors)),
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return cast(
+            float, ((energy_field_p.volume_integral()) / domain_volume) ** (1.0 / p)
+        )
+
+    def normalize_by_energy(
+        self: VectorField[PhysicalField],
+    ) -> VectorField[PhysicalField]:
         """Divide each field by the energy of the Vector field."""
         en = self.energy()
         for f in self:
@@ -527,7 +558,7 @@ class VectorField(Generic[T]):
     def div(self) -> T:
         out = self[0].diff(0)
         if self.name is not None:
-            out.name = "div_" + self.name + "_" + str(0)
+            out.name = "div_" + self.name
         else:
             out.name = "div_field"
         for dim in self.all_dimensions()[1:]:
@@ -829,6 +860,12 @@ class PhysicalField(Field):
             ret.time_step = self.time_step
             return ret
 
+    def __pow__(self, exponent: float) -> PhysicalField:
+        out_data = self.data**exponent
+        return PhysicalField(
+            self.get_physical_domain(), out_data, name=self.name + "^" + str(exponent)
+        )
+
     @classmethod
     def FromFunc(
         cls,
@@ -852,19 +889,21 @@ class PhysicalField(Field):
         seed: jsd_float = 0,
         interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
         name: str = "field",
-    ) -> Self:
+    ) -> PhysicalField:
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
         key = jax.random.PRNGKey(seed)
         zero_field = PhysicalField.FromFunc(domain)
         rands = []
-        for i in jnp.arange(zero_field.number_of_dofs()):
+        for _ in jnp.arange(zero_field.number_of_dofs()):
             key, subkey = jax.random.split(key)
             rands.append(
                 jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
             )
         field = jnp.array(rands).reshape(zero_field.physical_domain.shape)
-        return cls(domain, field, name)
+        out = cls(domain, field, name)
+        out.update_boundary_conditions()
+        return out
 
     @classmethod
     def FromField(cls, domain: PhysicalDomain, field: PhysicalField) -> PhysicalField:
@@ -950,6 +989,27 @@ class PhysicalField(Field):
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return cast(float, energy.volume_integral() / domain_volume)
+
+    def energy_p(self, p: float = 1.0) -> float:
+        energy_p = (0.5 * self * self) ** p
+        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
+            jnp.array(self.physical_domain.scale_factors)
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return cast(float, ((energy_p.volume_integral()) / domain_volume) ** (1 / p))
+
+    def normalize_by_energy(self) -> Self:
+        en = self.energy()
+        self.data = jax.lax.cond(
+            en > 1e-20, lambda: self.data / en, lambda: self.data
+        )  # type: ignore[no-untyped-call]
+        return self
+
+    def normalize_by_energy_p(self, p: float = 1.0) -> Self:
+        en = self.energy_p(p)
+        self.data = jax.lax.cond(
+            en > 1e-20, lambda: self.data / en, lambda: self.data
+        )  # type: ignore[no-untyped-call]
+        return self
 
     def update_boundary_conditions(self) -> None:
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
@@ -1676,22 +1736,12 @@ class FourierField(Field):
     def FromRandom(
         cls,
         domain: PhysicalDomain,
-        seed: int = 0,
-        interval: tuple[float, float] = (-0.1, 0.1),
+        seed: jsd_float = 0.0,
+        interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
         name: str = "field",
     ) -> FourierField:
         """Construct a random field depending on the independent variables described by domain."""
-        # TODO generate "nice" random fields
-        key = jax.random.PRNGKey(seed)
-        zero_field = PhysicalField.FromFunc(domain)
-        rands = []
-        for _ in jnp.arange(zero_field.number_of_dofs()):
-            key, subkey = jax.random.split(key)
-            rands.append(
-                jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
-            )
-        field = jnp.array(rands).reshape(zero_field.physical_domain.shape)
-        return cls(domain, field, name)
+        return PhysicalField.FromRandom(domain, seed, interval, name).hat()
 
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain

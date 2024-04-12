@@ -20,7 +20,7 @@ from jax_spectral_dns.field import (
     FourierField,
     FourierFieldSlice,
 )
-from jax_spectral_dns.equation import Equation
+from jax_spectral_dns.equation import Equation, print_verb
 from jax_spectral_dns._typing import (
     np_float_array,
     np_complex_array,
@@ -125,8 +125,10 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         super().__init__(velocity_field, **params)
 
         try:
+            print_verb("Using provided velocity base profile")
             velocity_base_hat = params["velocity_base_hat"]
         except KeyError:
+            print_verb("Using default laminar velocity base profile")
             velocity_x_base = PhysicalField.FromFunc(
                 self.get_physical_domain(),
                 lambda X: self.get_u_max_over_u_tau() * (1 - X[1] ** 2)

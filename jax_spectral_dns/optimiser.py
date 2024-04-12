@@ -301,8 +301,11 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
 
-        cont_error = v0_new.div().energy() / v0_new.energy()
+        v0_div = v0_new.div()
+        cont_error = v0_div.energy() / v0_new.energy()
         print_verb("cont_error", cont_error)
+        if cont_error > 1e-1:
+            v0_div.plot_3d()
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)

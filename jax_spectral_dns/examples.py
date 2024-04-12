@@ -2295,7 +2295,7 @@ def run_optimisation_transient_growth_mean_y_profile(
 
 
 def run_ld_2020(
-    turb: Union[bool, str] = True,
+    turb: float = 1.0,
     Re_tau: float = 180,
     Nx: int = 60,
     Ny: int = 90,
@@ -2306,7 +2306,8 @@ def run_ld_2020(
     init_file: Optional[str] = None,
 ) -> None:
     Re_tau = float(Re_tau)
-    turb_: bool = str(turb) == "True"
+    turb = float(turb)
+    assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
     Nx = int(Nx)
     Ny = int(Ny)
     Nz = int(Nz)
@@ -2351,30 +2352,21 @@ def run_ld_2020(
         )
         return vel_base, U_y_slice, max
 
-    if turb_:
-        print_verb("using turbulent base profile")
-        vel_base, _, max = get_vel_field(domain, avg_vel_coeffs)
-        vel_base = vel_base.normalize_by_max_value()
-        vel_base.set_name("velocity_base")
-        u_max_over_u_tau = max
-    else:
-        print_verb("using laminar base profile")
-        vel_base = VectorField(
-            [
-                PhysicalField.FromFunc(
-                    domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]
-                ),
-                PhysicalField.FromFunc(
-                    domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
-                ),
-                PhysicalField.FromFunc(
-                    domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
-                ),
-            ]
-        )
+    vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb = vel_base_turb.normalize_by_max_value()
+    u_max_over_u_tau = max
+    vel_base_lam = VectorField(
+        [
+            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
+    )
 
-        vel_base.set_name("velocity_base")
-        u_max_over_u_tau = 18.5  # matches Vilda's profile
+    vel_base = (
+        turb * vel_base_turb + (1 - turb) * vel_base_lam
+    )  # continuously blend from turbulent to laminar mean profile
+    vel_base.set_name("velocity_base")
 
     Re = Re_tau * u_max_over_u_tau
     # end_time_ = end_time * u_max_over_u_tau
@@ -2382,16 +2374,17 @@ def run_ld_2020(
     print_verb("end time in LD2020 units:", end_time_ / u_max_over_u_tau)
 
     if init_file is None:
-        number_of_modes = 60
-        lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny)
+        # number_of_modes = 60
+        # lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny)
 
-        v0_0 = lsc.calculate_transient_growth_initial_condition(
-            domain,
-            end_time,
-            number_of_modes,
-            recompute_full=True,
-            save_final=False,
-        )
+        # v0_0 = lsc.calculate_transient_growth_initial_condition(
+        #     domain,
+        #     end_time,
+        #     number_of_modes,
+        #     recompute_full=True,
+        #     save_final=False,
+        # )
+        v0_0: VectorField[PhysicalField] = VectorField.FromRandom(PhysicalField, domain)
         v0_0_norm = v0_0.normalize_by_energy()
         v0_0_norm *= e_0
         vel_hat = v0_0_norm.hat()
@@ -2460,7 +2453,9 @@ def run_ld_2020(
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re=Re, dt=dt)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            U_norm, Re=Re, dt=dt, velocity_base_hat=vel_base.hat()
+        )
         energy_0_ = U_norm.energy()
         nse.activate_jit()
         nse.end_time = end_time_
