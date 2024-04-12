@@ -2,6 +2,7 @@
 
 from typing import Any, Callable, Sequence
 import jax
+from typeguard import check_type
 import jax.numpy as jnp
 
 from importlib import reload

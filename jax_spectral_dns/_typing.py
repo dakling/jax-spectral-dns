@@ -52,8 +52,3 @@ if TYPE_CHECKING:
         list[float],
         VectorField[PhysicalField],
     ]
-    input_type = Union[
-        VectorField[FourierField],
-        VectorField[PhysicalField],
-        tuple[VectorField[FourierField], VectorField[FourierField]],
-    ]

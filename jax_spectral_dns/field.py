@@ -358,11 +358,11 @@ class VectorField(Generic[T]):
         else:
             raise Exception("Unable to return FourierDomain.")
 
-    def __abs__(self) -> jsd_float:
+    def __abs__(self) -> float:
         out: jsd_float = 0.0
         for f in self:
             out += abs(f)
-        return out
+        return cast(float, out)
 
     def energy(self) -> float:
         en: jsd_float = 0.0
@@ -384,7 +384,7 @@ class VectorField(Generic[T]):
             f = f.normalize_by_max_value()
         return self
 
-    def energy_norm(self: VectorField[PhysicalField], k: float) -> jsd_float:
+    def energy_norm(self: VectorField[PhysicalField], k: float) -> float:
         energy = k**2 * self[1] * self[1]
         energy += self[1].diff(1) * self[1].diff(1)
         vort = self.curl()
@@ -932,7 +932,7 @@ class PhysicalField(Field):
         analytical_solution = PhysicalField.FromFunc(self.physical_domain, fn)
         return cast(jsd_array, jnp.linalg.norm((self - analytical_solution).data, None))
 
-    def volume_integral(self) -> jsd_float:
+    def volume_integral(self) -> float:
         int = PhysicalField(self.physical_domain, self.data)
         dims = list(reversed(self.all_dimensions()))
         for i in dims[:-1]:
@@ -942,7 +942,7 @@ class PhysicalField(Field):
             int = out_
         assert type(int) is PhysicalField, type(int)
         out = int.definite_integral(dims[-1])
-        return out
+        return cast(float, out)
 
     def energy(self) -> float:
         energy = 0.5 * self * self
@@ -1565,7 +1565,7 @@ class PhysicalField(Field):
 
     def definite_integral(
         self, direction: int
-    ) -> Union[jsd_float, jsd_array, PhysicalField]:
+    ) -> Union[float, jsd_array, PhysicalField]:
         def reduce_add_along_axis(arr: jsd_array, axis: int) -> jnp_array:
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
@@ -1577,7 +1577,7 @@ class PhysicalField(Field):
             int = self.integrate(direction, 1, bc_right=0.0)
             if self.number_of_dimensions() == 1:
                 out: jsd_float = cast(jsd_float, int[0]) - cast(jsd_float, int[-1])
-                return out
+                return cast(float, out)
             else:
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]

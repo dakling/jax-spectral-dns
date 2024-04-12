@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 import time
-from typing import Any, Callable, Optional, Union, TYPE_CHECKING, cast
+from typing import Any, Callable, Generic, Optional, TypeVar, Union, TYPE_CHECKING, cast
 import jax
 import jax.numpy as jnp
 import pickle
@@ -10,12 +11,13 @@ import pickle
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
+from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array
 
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import AnyVectorField, input_type
+    from jax_spectral_dns._typing import AnyVectorField
 
 try:
     import optax  # type: ignore
@@ -26,14 +28,16 @@ try:
 except ModuleNotFoundError:
     print("jaxopt not found")
 
+I = TypeVar("I")  # the type of the input to the run-function
 
-class Optimiser:
+
+class Optimiser(ABC, Generic[I]):
 
     def __init__(
         self,
         domain: PhysicalDomain,
-        run_fn: Callable[["input_type", bool], jsd_float],
-        run_input_initial: Union["input_type", str],
+        run_fn: Callable[[I, bool], jsd_float],
+        run_input_initial: Union[I, str],
         minimise: bool = False,
         force_2d: bool = False,
         max_iter: int = 20,
@@ -64,12 +68,12 @@ class Optimiser:
         else:
             self.parameter_file_name = "parameters"
             if add_noise:
-                run_input: "input_type" = self.make_noisy(
-                    cast(input_type, run_input_initial), noise_amplitude=noise_amplitude
+                run_input: I = self.make_noisy(
+                    cast(I, run_input_initial), noise_amplitude=noise_amplitude
                 )
             else:
-                run_input = cast(input_type, run_input_initial)
-            self.parameters = self.run_input_to_parameters(run_input)
+                run_input = cast(I, run_input_initial)
+            self.parameters = self.run_input_to_parameters_(run_input)
         self.old_value: Optional[jsd_float] = None
         self.current_iteration: int = 0
         self.max_iter: int = max_iter
@@ -79,7 +83,7 @@ class Optimiser:
         else:
             self.inv_fn = lambda x: -x
         self.run_fn: Callable[[parameter_type, bool], jsd_float] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
-            run_fn(self.parameters_to_run_input(v), out)
+            run_fn(self.parameters_to_run_input_(v), out)
         )
         if use_optax:
             learning_rate = params.get("learning_rate", 1e-2)
@@ -97,25 +101,9 @@ class Optimiser:
         self.value = self.inv_fn(self.state.value)
         print_verb(self.objective_fn_name + ":", self.value)
 
-    def parameters_to_run_input(self, parameters: parameter_type) -> input_type:
+    def parameters_to_run_input_(self, parameters: parameter_type) -> I:
         if self.parameters_to_run_input_fn == None:
-            if self.force_2d:
-                vort_hat: Optional[jnp_array] = None
-                v1_hat: jnp_array = parameters[0]
-                v0_00: jnp_array = parameters[1]
-                v2_00: Optional[jnp_array] = None
-            else:
-                vort_hat = parameters[0]
-                v1_hat = parameters[1]
-                v0_00 = parameters[2]
-                v2_00 = parameters[3]
-            domain = self.domain
-            U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
-                domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
-            )
-            input: VectorField[FourierField] = VectorField.FromData(
-                FourierField, domain, U_hat_data
-            )
+            input = self.parameters_to_run_input(parameters)
         else:
             assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
@@ -130,6 +118,23 @@ class Optimiser:
         set_time_step_rec(input)
         return input
 
+    def run_input_to_parameters_(self, input: I) -> parameter_type:
+        if self.run_input_to_parameters_fn == None:
+            self.parameters = self.run_input_to_parameters(input)
+        else:
+            assert self.run_input_to_parameters_fn is not None
+            self.parameters = self.run_input_to_parameters_fn(input)
+        return self.parameters
+
+    @abstractmethod
+    def parameters_to_run_input(self, parameters: parameter_type) -> I: ...
+
+    @abstractmethod
+    def run_input_to_parameters(self, input: I) -> parameter_type: ...
+
+    @abstractmethod
+    def make_noisy(self, input: I, noise_amplitude: jsd_float = 1e-1) -> I: ...
+
     def parameters_from_file(self) -> parameter_type:
         """Load paramters from file filename."""
         print_verb("loading parameters from", self.parameter_file_name)
@@ -142,44 +147,9 @@ class Optimiser:
         with open(Field.field_dir + self.parameter_file_name, "wb") as file:
             pickle.dump(self.parameters, file, protocol=pickle.HIGHEST_PROTOCOL)
 
-    def run_input_to_parameters(self, input: "input_type") -> parameter_type:
-        input_ = cast(VectorField[FourierField], input)
-        if self.run_input_to_parameters_fn == None:
-            if self.force_2d:
-                v0_1 = input_[1].data * (1 + 0j)
-                v0_0_00_hat = input_[0].data[0, :, 0] * (1 + 0j)
-                self.parameters = tuple([v0_1, v0_0_00_hat])
-            else:
-                vort_hat = input_.curl()[1].data * (1 + 0j)
-                v0_1 = input_[1].data * (1 + 0j)
-                v0_0_00_hat = input_[0].data[0, :, 0] * (1 + 0j)
-                v2_0_00_hat = input_[2].data[0, :, 0] * (1 + 0j)
-                self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
-        else:
-            assert self.run_input_to_parameters_fn is not None
-            self.parameters = self.run_input_to_parameters_fn(input_)
-        return self.parameters
-
     def get_parameters_norm(self) -> jsd_float:
         return jnp.linalg.norm(
             jnp.concatenate([jnp.array(v.flatten()) for v in self.parameters])
-        )
-
-    def make_noisy(
-        self, input: "input_type", noise_amplitude: jsd_float = 1e-1
-    ) -> "input_type":
-        input_ = cast(VectorField[FourierField], input)
-        parameters_no_hat = input_.no_hat()
-        e0 = parameters_no_hat.energy()
-        interval_bound = e0**0.5 * noise_amplitude / 2
-        return VectorField(
-            [
-                f
-                + FourierField.FromRandom(
-                    self.domain, seed=37, interval=(-interval_bound, interval_bound)
-                )
-                for f in input_
-            ]
         )
 
     def get_optax_solver(
@@ -208,27 +178,8 @@ class Optimiser:
         )
         return solver
 
-    def post_process_iteration(self) -> None:
-
-        i = self.current_iteration
-        U_hat = cast(
-            VectorField[FourierField], self.parameters_to_run_input(self.parameters)
-        )
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        v0_new = U.normalize_by_energy()
-
-        cont_error = v0_new.div().energy() / v0_new.energy()
-        print_verb("cont_error", cont_error)
-
-        v0_new.set_name("vel_0")
-        v0_new.set_time_step(i + 1)
-        v0_new.plot_3d(0)
-        v0_new.plot_3d(2)
-        v0_new[0].plot_center(1)
-        v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
-        self.parameters_to_file()
+    @abstractmethod
+    def post_process_iteration(self) -> None: ...
 
     def switch_solver_maybe(self) -> None:
         i = self.current_iteration
@@ -286,27 +237,105 @@ class Optimiser:
         print_verb()
 
 
-class OptimiserNonFourier(Optimiser):
+class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def make_noisy(
-        self, input: "input_type", noise_amplitude: jsd_float = 1e-1
-    ) -> "input_type":
-        input_ = cast(VectorField[PhysicalField], input)
-        e0 = input_.energy()
+        self, input: VectorField[FourierField], noise_amplitude: jsd_float = 1e-1
+    ) -> VectorField[FourierField]:
+        parameters_no_hat = input.no_hat()
+        e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         return VectorField(
             [
                 f
                 + FourierField.FromRandom(
-                    input_.get_physical_domain(),
-                    seed=37,
-                    interval=(-interval_bound, interval_bound),
-                ).no_hat()
-                for f in input_
+                    self.domain, seed=37, interval=(-interval_bound, interval_bound)
+                )
+                for f in input
             ]
         )
 
-    def parameters_to_run_input(self, parameters: parameter_type) -> "input_type":
+    def parameters_to_run_input(
+        self, parameters: parameter_type
+    ) -> VectorField[FourierField]:
+        if self.force_2d:
+            vort_hat: Optional[jnp_array] = None
+            v1_hat: jnp_array = parameters[0]
+            v0_00: jnp_array = parameters[1]
+            v2_00: Optional[jnp_array] = None
+        else:
+            vort_hat = parameters[0]
+            v1_hat = parameters[1]
+            v0_00 = parameters[2]
+            v2_00 = parameters[3]
+        domain = self.domain
+        U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
+            domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
+        )
+        input: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, U_hat_data
+        )
+
+        return input
+
+    def run_input_to_parameters(
+        self, input: VectorField[FourierField]
+    ) -> parameter_type:
+        if self.force_2d:
+            v0_1 = input[1].data * (1 + 0j)
+            v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
+            self.parameters = tuple([v0_1, v0_0_00_hat])
+        else:
+            vort_hat = input.curl()[1].data * (1 + 0j)
+            v0_1 = input[1].data * (1 + 0j)
+            v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
+            v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
+            self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
+        return self.parameters
+
+    def post_process_iteration(self) -> None:
+
+        i = self.current_iteration
+        U_hat = self.parameters_to_run_input_(self.parameters)
+        U = U_hat.no_hat()
+        U.update_boundary_conditions()
+        v0_new = U.normalize_by_energy()
+
+        cont_error = v0_new.div().energy() / v0_new.energy()
+        print_verb("cont_error", cont_error)
+
+        v0_new.set_name("vel_0")
+        v0_new.set_time_step(i + 1)
+        v0_new.plot_3d(0)
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
+        v0_new[0].plot_isosurfaces(0.4)
+        self.parameters_to_file()
+
+
+class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
+
+    def make_noisy(
+        self, input: "VectorField[PhysicalField]", noise_amplitude: jsd_float = 1e-1
+    ) -> "VectorField[PhysicalField]":
+        e0 = input.energy()
+        interval_bound = e0**0.5 * noise_amplitude / 2
+        return VectorField(
+            [
+                f
+                + FourierField.FromRandom(
+                    input.get_physical_domain(),
+                    seed=37,
+                    interval=(-interval_bound, interval_bound),
+                ).no_hat()
+                for f in input
+            ]
+        )
+
+    def parameters_to_run_input(
+        self, parameters: parameter_type
+    ) -> "VectorField[PhysicalField]":
         if self.parameters_to_run_input_fn == None:
             if self.force_2d:
                 vort_hat = None
@@ -331,7 +360,7 @@ class OptimiserNonFourier(Optimiser):
             assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
 
-        def set_time_step_rec(inp: "input_type") -> None:
+        def set_time_step_rec(inp: "VectorField[PhysicalField]") -> None:
             if isinstance(inp, Field) or isinstance(inp, VectorField):
                 inp.set_time_step(self.current_iteration)
             else:
@@ -341,31 +370,30 @@ class OptimiserNonFourier(Optimiser):
         set_time_step_rec(input)
         return input
 
-    def run_input_to_parameters(self, input: "input_type") -> parameter_type:
-        input_ = cast(VectorField[PhysicalField], input)
+    def run_input_to_parameters(
+        self, input: "VectorField[PhysicalField]"
+    ) -> parameter_type:
         if self.run_input_to_parameters_fn == None:
-            input_hat = input_.hat()
+            input_hat = input.hat()
             if self.force_2d:
-                v0_1 = input_[1].data * (1 + 0j)
+                v0_1 = input[1].data * (1 + 0j)
                 v0_0_00_hat = input_hat[0].data[0, :, 0] * (1 + 0j)
                 self.parameters = tuple([v0_1, v0_0_00_hat])
             else:
-                vort = input_.curl()[1].data * (1 + 0j)
-                v0_1 = input_[1].data * (1 + 0j)
+                vort = input.curl()[1].data * (1 + 0j)
+                v0_1 = input[1].data * (1 + 0j)
                 v0_0_00_hat = input_hat[0].data[0, :, 0]
                 v2_0_00_hat = input_hat[2].data[0, :, 0]
                 self.parameters = tuple([vort, v0_1, v0_0_00_hat, v2_0_00_hat])
         else:
             assert self.run_input_to_parameters_fn is not None
-            self.parameters = self.run_input_to_parameters_fn(input_)
+            self.parameters = self.run_input_to_parameters_fn(input)
         return self.parameters
 
     def post_process_iteration(self) -> None:
 
         i = self.current_iteration
-        U = cast(
-            VectorField[PhysicalField], self.parameters_to_run_input(self.parameters)
-        )
+        U = self.parameters_to_run_input_(self.parameters)
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
 
@@ -378,15 +406,16 @@ class OptimiserNonFourier(Optimiser):
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
 
-class OptimiserPertAndBase(Optimiser):
+class OptimiserPertAndBase(
+    Optimiser[tuple[VectorField[FourierField], VectorField[FourierField]]]
+):
 
     def make_noisy(
-        self, input: "input_type", noise_amplitude: jsd_float = 1e-1
-    ) -> "input_type":
-        input_ = cast(
-            tuple[VectorField[FourierField], VectorField[FourierField]], input
-        )
-        parameters_no_hat = input_[0].no_hat()
+        self,
+        input: "tuple[VectorField[FourierField], VectorField[FourierField]]",
+        noise_amplitude: jsd_float = 1e-1,
+    ) -> "tuple[VectorField[FourierField], VectorField[FourierField]]":
+        parameters_no_hat = input[0].no_hat()
         e0 = parameters_no_hat.energy()
         interval_bound = e0**0.5 * noise_amplitude / 2
         # only add noise to perturbation field
@@ -395,21 +424,21 @@ class OptimiserPertAndBase(Optimiser):
                 [
                     f
                     + FourierField.FromRandom(
-                        input_[0].get_physical_domain(),
+                        input[0].get_physical_domain(),
                         seed=37,
                         interval=(-interval_bound, interval_bound),
                     )
-                    for f in input_[0]
+                    for f in input[0]
                 ]
             ),
-            input_[1],
+            input[1],
         )
 
     def post_process_iteration(self) -> None:
 
         i = self.current_iteration
-        U_hat, U_base_hat = self.parameters_to_run_input(self.parameters)
-        U = cast(VectorField[FourierField], U_hat).no_hat()
+        U_hat, U_base_hat = self.parameters_to_run_input_(self.parameters)
+        U = U_hat.no_hat()
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
 
@@ -421,9 +450,92 @@ class OptimiserPertAndBase(Optimiser):
         v0_new[0].plot_isosurfaces(0.4)
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
-        U_base = cast(VectorField[FourierField], U_base_hat).no_hat()
+        U_base = U_base_hat.no_hat()
         U_base.set_name("vel_base")
         U_base.set_time_step(i + 1)
         U_base[0].plot_3d(2)
         U_base[0].plot_center(1)
         U_base[0].save_to_file("vel_base_" + str(i + 1))
+
+    def run_input_to_parameters(
+        self, inp: "tuple[VectorField[FourierField], VectorField[FourierField]]"
+    ) -> parameter_type:
+        vel_hat, vel_base = inp
+        v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
+        v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
+
+        # optimise entire slice
+        # v0_base_hat = vel_base[0].get_data()[0, :, 0]
+
+        # optimise using phi_s basis
+        # v0_base_hat_coeffs = jnp.array([-0.5+0j, 0.0+0j, 0.0+0j])
+
+        # optimise using parametric profile
+        v0_base_hat_coeffs = jnp.array([jnp.log(2.0 + 0j), jnp.log(1.0 + 0j)])
+
+        v0 = tuple([v0_1, v0_0_00_hat, v0_base_hat_coeffs])
+        return v0
+
+    def parameters_to_run_input(
+        self, parameters: parameter_type
+    ) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
+        domain = self.domain
+        if self.force_2d:
+            vort_hat: Optional[jnp_array] = None
+            v1_hat: jnp_array = parameters[0][0]
+            v0_00: jnp_array = parameters[0][1]
+            v2_00: Optional[jnp_array] = None
+        else:
+            vort_hat = parameters[0][0]
+            v1_hat = parameters[0][1]
+            v0_00 = parameters[0][2]
+            v2_00 = parameters[0][3]
+        U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
+            domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
+        )
+
+        # optimise entire slice
+        # v0_base_yslice = params[2]
+        # v0_base_hat = domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
+
+        # optimise using phi_s basis
+        lsc0 = LinearStabilityCalculation(
+            Re=1, alpha=0, beta=0, n=domain.number_of_cells(1)
+        )
+        v0_base_yslice_coeffs = parameters[2]
+        v0_base_zeros = jnp.zeros_like(v0_base_yslice_coeffs)
+        for _ in range(3):
+            v0_base_yslice_coeffs = jnp.concatenate(
+                (v0_base_yslice_coeffs, v0_base_zeros)
+            )
+        v0_base_hat = (
+            (lsc0.velocity_field(domain, v0_base_yslice_coeffs, symm=True))
+            .hat()[0]
+            .get_data()
+        )
+
+        # # optimise using parametric profile
+        # v0_base_yslice = parameters[2]
+        # m = jnp.exp(v0_base_yslice_coeffs[0].real)  # ensures > 0
+        # n = jnp.exp(v0_base_yslice_coeffs[1].real)  # ensures > 0
+        # print_verb("m, n:", m, n)
+        # v0_base_yslice = jnp.array(
+        #     list(map(lambda y: (1 - y ** (m)) ** (1 / n), domain.grid[1]))
+        # )
+        # v0_base_hat = domain.field_hat(lsc0.y_slice_to_3d_field(domain, v0_base_yslice))
+
+        U_hat: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, U_hat_data
+        )
+        U_base: VectorField[FourierField] = VectorField.FromData(
+            FourierField,
+            domain,
+            jnp.array(
+                [
+                    v0_base_hat,
+                    jnp.zeros_like(v0_base_hat),
+                    jnp.zeros_like(v0_base_hat),
+                ]
+            ),
+        )
+        return (U_hat, U_base)
