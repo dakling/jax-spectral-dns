@@ -2384,11 +2384,9 @@ def run_ld_2020(
         #     recompute_full=True,
         #     save_final=False,
         # )
-        v0_0: VectorField[PhysicalField] = VectorField.FromRandom(PhysicalField, domain)
-        v0_0_norm = v0_0.normalize_by_energy()
-        v0_0_norm *= e_0
-        vel_hat = v0_0_norm.hat()
-        vel_hat.set_name("velocity_hat")
+        vel_hat: Optional[VectorField[FourierField]] = VectorField.FromRandom(
+            FourierField, domain, energy_norm=e_0, name="velocity_hat"
+        )
     else:
         vel_hat = None
 

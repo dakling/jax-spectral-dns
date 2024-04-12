@@ -244,13 +244,9 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
     ) -> VectorField[FourierField]:
         parameters_no_hat = input.no_hat()
         e0 = parameters_no_hat.energy()
-        interval_bound = e0**0.5 * noise_amplitude / 2
         return VectorField(
             [
-                f
-                + FourierField.FromRandom(
-                    self.domain, seed=37, interval=(-interval_bound, interval_bound)
-                )
+                f + FourierField.FromRandom(self.domain, seed=37, energy_norm=e0)
                 for f in input
             ]
         )
@@ -323,14 +319,11 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
         self, input: "VectorField[PhysicalField]", noise_amplitude: jsd_float = 1e-1
     ) -> "VectorField[PhysicalField]":
         e0 = input.energy()
-        interval_bound = e0**0.5 * noise_amplitude / 2
         return VectorField(
             [
                 f
                 + FourierField.FromRandom(
-                    input.get_physical_domain(),
-                    seed=37,
-                    interval=(-interval_bound, interval_bound),
+                    input.get_physical_domain(), seed=37, energy_norm=e0
                 ).no_hat()
                 for f in input
             ]
@@ -420,16 +413,13 @@ class OptimiserPertAndBase(
     ) -> "tuple[VectorField[FourierField], VectorField[FourierField]]":
         parameters_no_hat = input[0].no_hat()
         e0 = parameters_no_hat.energy()
-        interval_bound = e0**0.5 * noise_amplitude / 2
         # only add noise to perturbation field
         return (
             VectorField(
                 [
                     f
                     + FourierField.FromRandom(
-                        input[0].get_physical_domain(),
-                        seed=37,
-                        interval=(-interval_bound, interval_bound),
+                        input[0].get_physical_domain(), seed=37, energy_norm=e0
                     )
                     for f in input[0]
                 ]

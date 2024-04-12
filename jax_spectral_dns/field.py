@@ -259,13 +259,14 @@ class VectorField(Generic[T]):
         field_cls: type["AnyScalarField"],
         domain: PhysicalDomain,
         seed: jsd_float = 0,
-        interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
+        energy_norm: float = 1.0,
         name: str = "field",
     ) -> Self:
         """Construct a random field depending on the independent variables described by domain."""
         dim = domain.number_of_dimensions
         fs = cast(
-            list[T], [field_cls.FromRandom(domain, seed, interval) for _ in range(dim)]
+            list[T],
+            [field_cls.FromRandom(domain, seed, energy_norm) for _ in range(dim)],
         )
         return cls(fs, name)
 
@@ -887,11 +888,12 @@ class PhysicalField(Field):
         cls,
         domain: PhysicalDomain,
         seed: jsd_float = 0,
-        interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
+        energy_norm: float = 1.0,
         name: str = "field",
     ) -> PhysicalField:
         """Construct a random field depending on the independent variables described by domain."""
         # TODO generate "nice" random fields
+        interval = (-1.0, 1.0)
         key = jax.random.PRNGKey(seed)
         zero_field = PhysicalField.FromFunc(domain)
         rands = []
@@ -903,6 +905,8 @@ class PhysicalField(Field):
         field = jnp.array(rands).reshape(zero_field.physical_domain.shape)
         out = cls(domain, field, name)
         out.update_boundary_conditions()
+        out.normalize_by_energy()
+        out *= energy_norm
         return out
 
     @classmethod
@@ -1737,11 +1741,11 @@ class FourierField(Field):
         cls,
         domain: PhysicalDomain,
         seed: jsd_float = 0.0,
-        interval: tuple[jsd_float, jsd_float] = (-0.1, 0.1),
+        energy_norm: float = 1.0,
         name: str = "field",
     ) -> FourierField:
         """Construct a random field depending on the independent variables described by domain."""
-        return PhysicalField.FromRandom(domain, seed, interval, name).hat()
+        return PhysicalField.FromRandom(domain, seed, energy_norm, name).hat()
 
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
