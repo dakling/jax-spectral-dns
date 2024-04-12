@@ -2399,7 +2399,7 @@ def run_ld_2020(
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
-        vel_base_hat = nse.get_field("velocity_base_hat", i)
+        vel_base_hat = nse.get_initial_field("velocity_base_hat")
         vel_base = vel_base_hat.no_hat()
 
         vort = vel.curl()
