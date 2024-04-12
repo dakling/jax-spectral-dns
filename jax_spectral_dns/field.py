@@ -1564,7 +1564,10 @@ class PhysicalField(Field):
                 save()
 
     def plot_isosurfaces(self, iso_val: float = 0.4) -> None:
-        verts, faces, _, _ = measure.marching_cubes(np.array(self.data, copy=False), iso_val, spacing=(0.1, 0.1, 0.1))  # type: ignore[no-untyped-call]
+        min_val = self.min()
+        max_val = self.max()
+        adjusted_val = min_val + iso_val * (max_val - min_val)
+        verts, faces, _, _ = measure.marching_cubes(np.array(self.data, copy=False), adjusted_val, spacing=(0.1, 0.1, 0.1))  # type: ignore[no-untyped-call]
         fig = figure.Figure()
         ax = fig.add_subplot(111, projection="3d")
         assert type(ax) is Axes3D

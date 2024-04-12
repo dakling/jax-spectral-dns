@@ -85,21 +85,21 @@ class Optimiser(ABC, Generic[I]):
         self.run_fn: Callable[[parameter_type, bool], jsd_float] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
             run_fn(self.parameters_to_run_input_(v), out)
         )
-        if use_optax:
-            learning_rate = params.get("learning_rate", 1e-2)
-            scale_by_norm = params.get("scale_by_norm", True)
-            self.solver = self.get_optax_solver(learning_rate, scale_by_norm)
-            self.solver_switched = False
-            print_verb("Using Optax solver")
-        else:
-            self.solver = self.get_jaxopt_solver()
-            self.solver_switched = True
-            print_verb("Using jaxopt solver")
-        self.state = self.solver.init_state(self.parameters)
         self.objective_fn_name = params.get("objective_fn_name", "objective function")
-
-        self.value = self.inv_fn(self.state.value)
-        print_verb(self.objective_fn_name + ":", self.value)
+        if max_iter > 0:
+            if use_optax:
+                learning_rate = params.get("learning_rate", 1e-2)
+                scale_by_norm = params.get("scale_by_norm", True)
+                self.solver = self.get_optax_solver(learning_rate, scale_by_norm)
+                self.solver_switched = False
+                print_verb("Using Optax solver")
+            else:
+                self.solver = self.get_jaxopt_solver()
+                self.solver_switched = True
+                print_verb("Using jaxopt solver")
+            self.state = self.solver.init_state(self.parameters)
+            self.value = self.inv_fn(self.state.value)
+            print_verb(self.objective_fn_name + ":", self.value)
 
     def parameters_to_run_input_(self, parameters: parameter_type) -> I:
         if self.parameters_to_run_input_fn == None:
@@ -231,7 +231,8 @@ class Optimiser(ABC, Generic[I]):
         final_value = self.inv_fn(final_inverse_value)
         print_verb()
         print_verb(self.objective_fn_name + ":", final_value)
-        print_verb(self.objective_fn_name + " change:", (final_value - self.value))
+        if self.value:
+            print_verb(self.objective_fn_name + " change:", (final_value - self.value))
         self.old_value = self.value
         self.value = final_value
         print_verb()
