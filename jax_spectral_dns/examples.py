@@ -2374,19 +2374,23 @@ def run_ld_2020(
     print_verb("end time in LD2020 units:", end_time_ / u_max_over_u_tau)
 
     if init_file is None:
-        # number_of_modes = 60
-        # lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny)
+        number_of_modes = 60
+        lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny)
 
-        # v0_0 = lsc.calculate_transient_growth_initial_condition(
-        #     domain,
-        #     end_time,
-        #     number_of_modes,
-        #     recompute_full=True,
-        #     save_final=False,
-        # )
-        vel_hat: Optional[VectorField[FourierField]] = VectorField.FromRandom(
-            FourierField, domain, energy_norm=e_0, name="velocity_hat"
+        v0_0 = lsc.calculate_transient_growth_initial_condition(
+            domain,
+            end_time,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
         )
+        v0_0.normalize_by_energy()
+        v0_0 *= e_0
+        vel_hat = v0_0.hat()
+        vel_hat.set_name("velocity_hat")
+        # vel_hat: Optional[VectorField[FourierField]] = VectorField.FromRandom(
+        #     FourierField, domain, energy_norm=e_0, name="velocity_hat"
+        # )
     else:
         vel_hat = None
 
