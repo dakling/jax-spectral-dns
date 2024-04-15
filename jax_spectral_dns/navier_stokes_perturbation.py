@@ -184,39 +184,33 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             )
         )
 
-    def get_time_step(self) -> float:
-        # return self.max_dt
-        if self.time_step % self.get_dt_update_frequency() == 0:
-            dX = (
-                self.get_physical_domain().grid[0][1:]
-                - self.get_physical_domain().grid[0][:-1]
-            )
-            dY = (
-                self.get_physical_domain().grid[1][1:]
-                - self.get_physical_domain().grid[1][:-1]
-            )
-            dZ = (
-                self.get_physical_domain().grid[2][1:]
-                - self.get_physical_domain().grid[2][:-1]
-            )
-            DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
-            vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
-            vel: VectorField[PhysicalField] = vel_hat.no_hat()
-            vel_base_hat: VectorField[FourierField] = self.get_latest_field(
-                "velocity_base_hat"
-            )
-            vel_base: VectorField[PhysicalField] = vel_base_hat.no_hat()
-            U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
-            V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
-            W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
-            u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
-            v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
-            w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
-            self.dt: float = min(self.max_dt, self.max_cfl * min([u_cfl, v_cfl, w_cfl]))
-            assert (
-                self.dt > 1e-8
-            ), "Breaking due to small timestep, which indicates an issue with the calculation."
-        return self.dt
+    def get_cfl(self) -> jsd_float:
+        dX = (
+            self.get_physical_domain().grid[0][1:]
+            - self.get_physical_domain().grid[0][:-1]
+        )
+        dY = (
+            self.get_physical_domain().grid[1][1:]
+            - self.get_physical_domain().grid[1][:-1]
+        )
+        dZ = (
+            self.get_physical_domain().grid[2][1:]
+            - self.get_physical_domain().grid[2][:-1]
+        )
+        DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+        vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
+        vel: VectorField[PhysicalField] = vel_hat.no_hat()
+        vel_base_hat: VectorField[FourierField] = self.get_latest_field(
+            "velocity_base_hat"
+        )
+        vel_base: VectorField[PhysicalField] = vel_base_hat.no_hat()
+        U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
+        V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
+        W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
+        u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
+        v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
+        w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
+        return self.get_dt() / min([u_cfl, v_cfl, w_cfl])
 
 
 def solve_navier_stokes_perturbation(

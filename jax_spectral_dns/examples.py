@@ -2319,9 +2319,10 @@ def run_ld_2020(
 
     Equation.initialize()
 
-    dt = 4e-3
-    end_time = 0.3  # in ld2020 units
-    # end_time = 0.02 # in ld2020 units
+    dt = 8e-3  # in dimensional units
+    end_time = 0.35  # the target time (in ld2021 units)
+    # end_time = 0.2  # in ld2021 units
+
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -2355,6 +2356,9 @@ def run_ld_2020(
     vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_max_value()
     u_max_over_u_tau = max
+    h_over_delta: float = (
+        1.0  # confusingly, LD2021 use channel half-height but call it channel height
+    )
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
@@ -2368,10 +2372,12 @@ def run_ld_2020(
     )  # continuously blend from turbulent to laminar mean profile
     vel_base.set_name("velocity_base")
 
-    Re = Re_tau * u_max_over_u_tau
-    # end_time_ = end_time * u_max_over_u_tau
-    end_time_ = round(end_time * u_max_over_u_tau)
-    print_verb("end time in LD2020 units:", end_time_ / u_max_over_u_tau)
+    Re = Re_tau * u_max_over_u_tau / h_over_delta
+    end_time_ = round(end_time * h_over_delta * u_max_over_u_tau)
+    print_verb(
+        "end time in LD2020 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
+    )
+    print_verb("end time in dimensional units:", end_time_)
 
     if init_file is None:
         number_of_modes = 60

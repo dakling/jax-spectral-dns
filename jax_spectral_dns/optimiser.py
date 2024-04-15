@@ -231,10 +231,12 @@ class Optimiser(ABC, Generic[I]):
         final_value = self.inv_fn(final_inverse_value)
         print_verb()
         print_verb(self.objective_fn_name + ":", final_value)
-        if self.value:
+        try:  # this might not work, e.g. if self.value does not exist (if max_iter is < 1). Anyway, printing should not cause an exception, so we ignore it.
             print_verb(self.objective_fn_name + " change:", (final_value - self.value))
-        self.old_value = self.value
-        self.value = final_value
+            self.old_value = self.value
+            self.value = final_value
+        except Exception:
+            pass
         print_verb()
 
 

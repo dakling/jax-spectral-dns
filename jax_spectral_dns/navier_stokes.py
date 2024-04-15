@@ -278,34 +278,28 @@ class NavierStokesVelVort(Equation):
             0
         ].get_cheb_mat_2_homogeneous_dirichlet(1)
 
-    def get_time_step(self) -> jsd_float:
-        return self.get_dt()
-        if self.time_step % self.get_dt_update_frequency() == 0:
-            dX = (
-                self.get_physical_domain().grid[0][1:]
-                - self.get_physical_domain().grid[0][:-1]
-            )
-            dY = (
-                self.get_physical_domain().grid[1][1:]
-                - self.get_physical_domain().grid[1][:-1]
-            )
-            dZ = (
-                self.get_physical_domain().grid[2][1:]
-                - self.get_physical_domain().grid[2][:-1]
-            )
-            DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
-            vel = self.get_latest_field("velocity_hat").no_hat()
-            U = vel[0][1:, 1:, 1:]
-            V = vel[1][1:, 1:, 1:]
-            W = vel[2][1:, 1:, 1:]
-            u_cfl = (abs(DX) / abs(U)).min().real
-            v_cfl = (abs(DY) / abs(V)).min().real
-            w_cfl = (abs(DZ) / abs(W)).min().real
-            self.dt = self.get_max_cfl() * min([u_cfl, v_cfl, w_cfl])
-            assert (
-                self.dt > 1e-8
-            ), "Breaking due to small timestep, which indicates an issue with the calculation."
-        return self.dt
+    def get_cfl(self) -> jsd_float:
+        dX = (
+            self.get_physical_domain().grid[0][1:]
+            - self.get_physical_domain().grid[0][:-1]
+        )
+        dY = (
+            self.get_physical_domain().grid[1][1:]
+            - self.get_physical_domain().grid[1][:-1]
+        )
+        dZ = (
+            self.get_physical_domain().grid[2][1:]
+            - self.get_physical_domain().grid[2][:-1]
+        )
+        DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+        vel = self.get_latest_field("velocity_hat").no_hat()
+        U = vel[0][1:, 1:, 1:]
+        V = vel[1][1:, 1:, 1:]
+        W = vel[2][1:, 1:, 1:]
+        u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
+        v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
+        w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
+        return self.get_dt() / min([u_cfl, v_cfl, w_cfl])
 
     def get_rk_parameters(self) -> tuple[list[jsd_float], ...]:
         return (
@@ -997,6 +991,8 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_
 
     def solve_scan(self) -> tuple[VectorField[FourierField], int]:
+        print_verb("cfl:", self.get_cfl(), debug=True)
+
         def inner_step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, None]:
             out = self.perform_time_step(u0)
             return (out, None)
