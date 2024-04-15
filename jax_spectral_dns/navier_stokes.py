@@ -278,7 +278,7 @@ class NavierStokesVelVort(Equation):
             0
         ].get_cheb_mat_2_homogeneous_dirichlet(1)
 
-    def get_cfl(self) -> jsd_float:
+    def get_cfl(self, i: int = -1) -> jnp_array:
         dX = (
             self.get_physical_domain().grid[0][1:]
             - self.get_physical_domain().grid[0][:-1]
@@ -292,14 +292,14 @@ class NavierStokesVelVort(Equation):
             - self.get_physical_domain().grid[2][:-1]
         )
         DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
-        vel = self.get_latest_field("velocity_hat").no_hat()
+        vel = self.get_field("velocity_hat", i).no_hat()
         U = vel[0][1:, 1:, 1:]
         V = vel[1][1:, 1:, 1:]
         W = vel[2][1:, 1:, 1:]
         u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
         v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
-        return self.get_dt() / min([u_cfl, v_cfl, w_cfl])
+        return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
     def get_rk_parameters(self) -> tuple[list[jsd_float], ...]:
         return (
@@ -991,7 +991,7 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_
 
     def solve_scan(self) -> tuple[VectorField[FourierField], int]:
-        print_verb("cfl:", self.get_cfl(), debug=True)
+        print_verb("initial cfl: ", self.get_cfl(), debug=True)
 
         def inner_step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, None]:
             out = self.perform_time_step(u0)
@@ -1066,6 +1066,9 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 self.append_field("velocity_hat", velocity, in_place=False)
+            for i in range(self.get_number_of_fields("velocity_hat")):
+                cfl_s = self.get_cfl(i)
+                print_verb("i: ", i, "max cfl:", max(cfl_s), "( ", cfl_s, " )")
             return (velocity, len(ts))
         else:
             u_final, _ = jax.lax.scan(
@@ -1082,6 +1085,7 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
+            print_verb("final cfl: ", self.get_cfl(), debug=True)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:

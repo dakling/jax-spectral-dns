@@ -2319,7 +2319,7 @@ def run_ld_2020(
 
     Equation.initialize()
 
-    dt = 8e-3  # in dimensional units
+    dt = 6e-3  # in dimensional units
     end_time = 0.35  # the target time (in ld2021 units)
     # end_time = 0.2  # in ld2021 units
 
