@@ -5,6 +5,7 @@ from operator import rshift
 from typing import Any, Callable, List, Optional, Self, Union, cast
 import jax
 import jax.numpy as jnp
+from matplotlib import axes
 import numpy as np
 from functools import partial, reduce
 import matplotlib.figure as figure
@@ -41,7 +42,7 @@ def update_nonlinear_terms_high_performance(
 ) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
     vel_new = jnp.array(
         [
-            fourier_domain.no_hat(vel_hat_new.at[i, ...].get())
+            fourier_domain.field_no_hat(vel_hat_new.at[i, ...].get())
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
@@ -296,9 +297,13 @@ class NavierStokesVelVort(Equation):
         U = vel[0][1:, 1:, 1:]
         V = vel[1][1:, 1:, 1:]
         W = vel[2][1:, 1:, 1:]
-        u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
+        u_cfl = cast(
+            float, (abs(DX) / abs(U) / self.get_physical_domain().aliasing).min().real
+        )
         v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
-        w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
+        w_cfl = cast(
+            float, (abs(DZ) / abs(W) / self.get_physical_domain().aliasing).min().real
+        )
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
     def get_rk_parameters(self) -> tuple[list[jsd_float], ...]:
@@ -908,12 +913,8 @@ class NavierStokesVelVort(Equation):
                     ],
                     axis=1,
                 )
-                if (
-                    jax.device_count() >= Nx
-                ):  # TODO maybe do some reshaping to use maximum number of devices
-                    out = jax.pmap(outer_map(kz_arr))(kx_state)
-                else:
-                    out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
+
+                out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
                 return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
 
             Nx = self.get_domain().number_of_cells(0)
@@ -991,7 +992,8 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_
 
     def solve_scan(self) -> tuple[VectorField[FourierField], int]:
-        print_verb("initial cfl: ", self.get_cfl(), debug=True)
+        cfl_initial = self.get_cfl()
+        print_verb("initial max cfl:", max(cfl_initial), cfl_initial, debug=True)
 
         def inner_step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, None]:
             out = self.perform_time_step(u0)
@@ -1085,7 +1087,8 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
-            print_verb("final cfl: ", self.get_cfl(), debug=True)
+            cfl_final = self.get_cfl()
+            print_verb("final max cfl:", max(cfl_final), cfl_final, debug=True)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:

@@ -637,17 +637,13 @@ class FourierDomain(Domain):
         )
         return out_field
 
-    def no_hat(self, field: jnp_array) -> jnp_array:
+    def field_no_hat(self, field: jnp_array) -> jnp_array:
         """Compute the inverse Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        Ns = [
-            # int(self.number_of_cells(i) * 1 / self.aliasing)
-            int(self.number_of_cells(i))
-            for i in self.all_dimensions()
-        ]
+        Ns = [int(self.number_of_cells(i)) for i in self.all_dimensions()]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
         for i in self.all_periodic_dimensions():
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)

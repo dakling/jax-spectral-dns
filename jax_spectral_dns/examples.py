@@ -2294,7 +2294,7 @@ def run_optimisation_transient_growth_mean_y_profile(
     optimiser.optimise()
 
 
-def run_ld_2020(
+def run_ld_2021(
     turb: float = 1.0,
     Re_tau: float = 180,
     Nx: int = 60,
@@ -2375,9 +2375,10 @@ def run_ld_2020(
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = round(end_time * h_over_delta * u_max_over_u_tau)
     print_verb(
-        "end time in LD2020 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
+        "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
     )
     print_verb("end time in dimensional units:", end_time_)
+    print_verb("Re:", Re)
 
     if init_file is None:
         number_of_modes = 60
@@ -2392,8 +2393,12 @@ def run_ld_2020(
         )
         v0_0.normalize_by_energy()
         v0_0 *= e_0
+        v0_0.set_name("velocity")
         vel_hat = v0_0.hat()
         vel_hat.set_name("velocity_hat")
+        v0_0.plot_3d(2)
+        vel_base.plot_3d(2)
+        raise Exception("break")
         # vel_hat: Optional[VectorField[FourierField]] = VectorField.FromRandom(
         #     FourierField, domain, energy_norm=e_0, name="velocity_hat"
         # )
