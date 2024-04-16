@@ -133,7 +133,7 @@ class Optimiser(ABC, Generic[I]):
     def run_input_to_parameters(self, input: I) -> parameter_type: ...
 
     @abstractmethod
-    def make_noisy(self, input: I, noise_amplitude: jsd_float = 1e-1) -> I: ...
+    def make_noisy(self, input: I, noise_amplitude: float = 1e-1) -> I: ...
 
     def parameters_from_file(self) -> parameter_type:
         """Load paramters from file filename."""
@@ -243,16 +243,12 @@ class Optimiser(ABC, Generic[I]):
 class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def make_noisy(
-        self, input: VectorField[FourierField], noise_amplitude: jsd_float = 1e-1
+        self, input: VectorField[FourierField], noise_amplitude: float = 1e-1
     ) -> VectorField[FourierField]:
         parameters_no_hat = input.no_hat()
-        e0 = parameters_no_hat.energy()
-        return VectorField(
-            [
-                f + FourierField.FromRandom(self.domain, seed=37, energy_norm=e0)
-                for f in input
-            ]
-        )
+        e0 = cast(float, jnp.sqrt(parameters_no_hat.energy()) * noise_amplitude)
+        white_noise_field = FourierField.FromWhiteNoise(self.domain, amplitude=e0)
+        return VectorField([f + white_noise_field for f in input])
 
     def parameters_to_run_input(
         self, parameters: parameter_type
@@ -319,7 +315,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
     def make_noisy(
-        self, input: "VectorField[PhysicalField]", noise_amplitude: jsd_float = 1e-1
+        self, input: "VectorField[PhysicalField]", noise_amplitude: float = 1e-1
     ) -> "VectorField[PhysicalField]":
         e0 = input.energy()
         return VectorField(
@@ -412,7 +408,7 @@ class OptimiserPertAndBase(
     def make_noisy(
         self,
         input: "tuple[VectorField[FourierField], VectorField[FourierField]]",
-        noise_amplitude: jsd_float = 1e-1,
+        noise_amplitude: float = 1e-1,
     ) -> "tuple[VectorField[FourierField], VectorField[FourierField]]":
         parameters_no_hat = input[0].no_hat()
         e0 = parameters_no_hat.energy()

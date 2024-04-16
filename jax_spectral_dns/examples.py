@@ -2382,7 +2382,7 @@ def run_ld_2021(
 
     if init_file is None:
         number_of_modes = 60
-        lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=Ny)
+        lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=64)
 
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             domain,
@@ -2393,12 +2393,8 @@ def run_ld_2021(
         )
         v0_0.normalize_by_energy()
         v0_0 *= e_0
-        v0_0.set_name("velocity")
         vel_hat = v0_0.hat()
         vel_hat.set_name("velocity_hat")
-        v0_0.plot_3d(2)
-        vel_base.plot_3d(2)
-        raise Exception("break")
         # vel_hat: Optional[VectorField[FourierField]] = VectorField.FromRandom(
         #     FourierField, domain, energy_norm=e_0, name="velocity_hat"
         # )
@@ -2466,6 +2462,8 @@ def run_ld_2021(
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= e_0
+        # U_norm.set_name("vel_norm")
+        # U_norm.plot_3d(2)
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
             U_norm, Re=Re, dt=dt, velocity_base_hat=vel_base.hat()
         )

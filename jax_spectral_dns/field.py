@@ -1750,6 +1750,15 @@ class FourierField(Field):
         """Construct a random field depending on the independent variables described by domain."""
         return PhysicalField.FromRandom(domain, seed, energy_norm, name).hat()
 
+    @classmethod
+    def FromWhiteNoise(
+        cls,
+        domain: PhysicalDomain,
+        amplitude: float = 1.0,
+        name: str = "field",
+    ) -> FourierField:
+        return cls(domain, jnp.ones(domain.shape) * amplitude, name=name)
+
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 
