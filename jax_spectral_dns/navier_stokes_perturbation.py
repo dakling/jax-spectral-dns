@@ -39,25 +39,40 @@ def update_nonlinear_terms_high_performance_perturbation(
     vel_base_hat: jnp_array,
     linearize: bool = False,
 ) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
+
+    vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
     vel_new = jnp.array(
         [
-            # domain.no_hat(vel_hat_new.at[i].get())
             fourier_domain.field_no_hat(vel_hat_new[i, ...])
             for i in physical_domain.all_dimensions()
         ]
     )
-    vort_new = physical_domain.curl(vel_new)
+    vort_new = jnp.array(
+        [
+            fourier_domain.field_no_hat(vort_hat_new[i, ...])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
 
     vel_new_sq = jnp.zeros_like(vel_new[0, ...])
     for j in physical_domain.all_dimensions():
         vel_new_sq += vel_new[j, ...] * vel_new[j, ...]
-    vel_new_sq_nabla = []
+    vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
+    vel_new_sq_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_nabla.append(physical_domain.diff(vel_new_sq, i))
+        vel_new_sq_hat_nabla.append(
+            fourier_domain.diff(vel_new_sq_hat, i, physical_domain=physical_domain)
+        )
 
-    hel_new_ = jnp.array(
-        physical_domain.cross_product(vel_new, vort_new)
-    ) - 1 / 2 * jnp.array(vel_new_sq_nabla)
+    vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
+    vel_vort_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(vel_vort_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+
+    hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
 
     # a-term
     vel_base = jnp.array(
@@ -69,42 +84,60 @@ def update_nonlinear_terms_high_performance_perturbation(
     vel_new_sq_a = jnp.zeros_like(vel_new[0, ...])
     for j in physical_domain.all_dimensions():
         vel_new_sq_a += vel_new[j] * vel_base[j]
-    vel_new_sq_nabla_a = []
+    vel_new_sq_a_hat = physical_domain.field_hat(vel_new_sq_a)
+    vel_new_sq_a_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_nabla_a.append(physical_domain.diff(vel_new_sq_a, i))
-    hel_new_a = jnp.array(
-        physical_domain.cross_product(vel_base, vort_new)
-    ) - 1 / 2 * jnp.array(vel_new_sq_nabla_a)
+        vel_new_sq_a_hat_nabla.append(
+            fourier_domain.diff(vel_new_sq_a_hat, i, physical_domain=physical_domain)
+        )
+    vel_vort_new_a = physical_domain.cross_product(vel_base, vort_new)
+    vel_vort_new_a_hat = jnp.array(
+        [
+            physical_domain.field_hat(vel_vort_new_a[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    hel_new_a_hat = jnp.array(vel_vort_new_a_hat) - 1 / 2 * jnp.array(
+        vel_new_sq_a_hat_nabla
+    )
 
     # b-term
-    vort_base = physical_domain.curl(vel_base)
-    vel_new_sq_nabla_b = vel_new_sq_nabla_a
-    hel_new_b = jnp.array(
-        physical_domain.cross_product(vel_new, vort_base)
-    ) - 1 / 2 * jnp.array(vel_new_sq_nabla_b)
+    vort_base_hat = fourier_domain.curl(vel_base_hat, physical_domain)
+    vort_base = jnp.array(
+        [
+            fourier_domain.field_no_hat(vort_base_hat.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
+        ]
+    )
+    vel_new_sq_b_hat_nabla = vel_new_sq_a_hat_nabla
+    vel_vort_new_b = physical_domain.cross_product(vel_new, vort_base)
+    vel_vort_new_b_hat = jnp.array(
+        [
+            physical_domain.field_hat(vel_vort_new_b[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    hel_new_b_hat = vel_vort_new_b_hat - 1 / 2 * jnp.array(vel_new_sq_b_hat_nabla)
 
     # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
-    hel_new = jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_ + hel_new_a + hel_new_b  # type: ignore[no-untyped-call]
-    conv_ns_new = -hel_new
+    hel_new_hat = jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_hat + hel_new_a_hat + hel_new_b_hat  # type: ignore[no-untyped-call]
+    conv_ns_hat_new = -hel_new_hat
 
-    h_v_new = (
-        -physical_domain.diff(
-            physical_domain.diff(hel_new[0], 0) + physical_domain.diff(hel_new[2], 2), 1
+    h_v_hat_new = (
+        -fourier_domain.diff(
+            fourier_domain.diff(hel_new_hat[0], 0, physical_domain=physical_domain)
+            + fourier_domain.diff(hel_new_hat[2], 2, physical_domain=physical_domain),
+            1,
+            physical_domain=physical_domain,
         )
-        + physical_domain.diff(hel_new[1], 0, 2)
-        + physical_domain.diff(hel_new[1], 2, 2)
+        + fourier_domain.diff(hel_new_hat[1], 0, 2, physical_domain=physical_domain)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2, physical_domain=physical_domain)
     )
-    h_g_new = physical_domain.diff(hel_new[0], 2) - physical_domain.diff(hel_new[2], 0)
+    h_g_hat_new = fourier_domain.diff(
+        hel_new_hat[0], 2, physical_domain=physical_domain
+    ) - fourier_domain.diff(hel_new_hat[2], 0, physical_domain=physical_domain)
 
-    h_v_hat_new = physical_domain.field_hat(h_v_new)
-    h_g_hat_new = physical_domain.field_hat(h_g_new)
-    vort_hat_new = [
-        physical_domain.field_hat(vort_new[i]) for i in physical_domain.all_dimensions()
-    ]
-    conv_ns_hat_new = [
-        physical_domain.field_hat(conv_ns_new[i])
-        for i in physical_domain.all_dimensions()
-    ]
+    conv_ns_hat_new = -hel_new_hat
 
     return (
         h_v_hat_new,

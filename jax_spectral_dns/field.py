@@ -196,7 +196,10 @@ class Field(ABC):
         return len(self.all_dimensions())
 
     def number_of_dofs(self) -> int:
-        return int(math.prod(self.get_domain().shape))
+        out: int = 1
+        for i in self.all_dimensions():
+            out *= self.get_domain().number_of_cells(i)
+        return out
 
     def all_dimensions(self) -> Sequence[int]:
         return self.get_domain().all_dimensions()
@@ -902,7 +905,7 @@ class PhysicalField(Field):
             rands.append(
                 jax.random.uniform(subkey, minval=interval[0], maxval=interval[1])
             )
-        field = jnp.array(rands).reshape(zero_field.physical_domain.shape)
+        field = jnp.array(rands).reshape(zero_field.get_domain().get_shape_aliasing())
         out = cls(domain, field, name)
         out.update_boundary_conditions()
         out.normalize_by_energy()
@@ -1757,7 +1760,7 @@ class FourierField(Field):
         amplitude: float = 1.0,
         name: str = "field",
     ) -> FourierField:
-        return cls(domain, jnp.ones(domain.shape) * amplitude, name=name)
+        return cls.FromRandom(domain, 37, amplitude, name)
 
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
@@ -1839,6 +1842,9 @@ class FourierField(Field):
         out.fourier_domain = field.physical_domain.hat()
         out.data = out.physical_domain.field_hat(field.data)
         return out
+
+    def number_of_dofs_aliasing(self) -> int:
+        return int(math.prod(self.get_physical_domain().shape))
 
     def normalize_by_max_value(self) -> Self:
         raise Exception(

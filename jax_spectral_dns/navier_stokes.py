@@ -40,51 +40,56 @@ def update_nonlinear_terms_high_performance(
     fourier_domain: FourierDomain,
     vel_hat_new: jnp_array,
 ) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
+
+    vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
     vel_new = jnp.array(
         [
             fourier_domain.field_no_hat(vel_hat_new.at[i, ...].get())
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
-    vort_new = physical_domain.curl(vel_new)
+    vort_new = jnp.array(
+        [
+            fourier_domain.field_no_hat(vort_hat_new[i, ...])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
 
     vel_new_sq = jnp.zeros_like(vel_new[0])
     for j in physical_domain.all_dimensions():
         vel_new_sq += vel_new[j] * vel_new[j]
-    vel_new_sq_nabla = []
+    vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
+    vel_new_sq_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_nabla.append(physical_domain.diff(vel_new_sq, i))
-
-    hel_new = jnp.array(
-        physical_domain.cross_product(vel_new, vort_new)
-    ) - 1 / 2 * jnp.array(vel_new_sq_nabla)
-
-    conv_ns_new = -hel_new
-
-    h_v_new = (
-        -physical_domain.diff(
-            physical_domain.diff(hel_new[0, ...], 0)
-            + physical_domain.diff(hel_new[2, ...], 2),
-            1,
+        vel_new_sq_hat_nabla.append(
+            fourier_domain.diff(vel_new_sq_hat, i, physical_domain=physical_domain)
         )
-        + physical_domain.diff(hel_new[1, ...], 0, 2)
-        + physical_domain.diff(hel_new[1, ...], 2, 2)
+
+    vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
+    vel_vort_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(vel_vort_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
     )
 
-    h_g_new = physical_domain.diff(hel_new[0, ...], 2) - physical_domain.diff(
-        hel_new[2, ...], 0
-    )
+    hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
 
-    h_v_hat_new = physical_domain.field_hat(h_v_new)
-    h_g_hat_new = physical_domain.field_hat(h_g_new)
-    vort_hat_new = [
-        physical_domain.field_hat(vort_new[i, ...])
-        for i in physical_domain.all_dimensions()
-    ]
-    conv_ns_hat_new = [
-        physical_domain.field_hat(conv_ns_new[i, ...])
-        for i in physical_domain.all_dimensions()
-    ]
+    conv_ns_hat_new = -hel_new_hat
+
+    h_v_hat_new = (
+        -fourier_domain.diff(
+            fourier_domain.diff(hel_new_hat[0], 0, physical_domain=physical_domain)
+            + fourier_domain.diff(hel_new_hat[2], 2, physical_domain=physical_domain),
+            1,
+            physical_domain=physical_domain,
+        )
+        + fourier_domain.diff(hel_new_hat[1], 0, 2, physical_domain=physical_domain)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2, physical_domain=physical_domain)
+    )
+    h_g_hat_new = fourier_domain.diff(
+        hel_new_hat[0], 2, physical_domain=physical_domain
+    ) - fourier_domain.diff(hel_new_hat[2], 0, physical_domain=physical_domain)
 
     return (
         h_v_hat_new,
@@ -993,7 +998,7 @@ class NavierStokesVelVort(Equation):
 
     def solve_scan(self) -> tuple[VectorField[FourierField], int]:
         cfl_initial = self.get_cfl()
-        print_verb("initial max cfl:", max(cfl_initial), cfl_initial, debug=True)
+        print_verb("initial cfl:", cfl_initial, debug=True)
 
         def inner_step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, None]:
             out = self.perform_time_step(u0)
@@ -1070,7 +1075,7 @@ class NavierStokesVelVort(Equation):
                 self.append_field("velocity_hat", velocity, in_place=False)
             for i in range(self.get_number_of_fields("velocity_hat")):
                 cfl_s = self.get_cfl(i)
-                print_verb("i: ", i, "max cfl:", max(cfl_s), "( ", cfl_s, " )")
+                print_verb("i: ", i, "cfl:", cfl_s)
             return (velocity, len(ts))
         else:
             u_final, _ = jax.lax.scan(
@@ -1088,7 +1093,7 @@ class NavierStokesVelVort(Equation):
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
-            print_verb("final max cfl:", max(cfl_final), cfl_final, debug=True)
+            print_verb("final cfl:", cfl_final, debug=True)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:

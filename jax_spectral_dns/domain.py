@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -140,6 +140,12 @@ class Domain(ABC):
             tuple(mgrid),
             aliasing,
         )
+
+    @abstractmethod
+    def get_shape(self) -> tuple[int, ...]: ...
+
+    @abstractmethod
+    def get_shape_aliasing(self) -> tuple[int, ...]: ...
 
     def number_of_cells(self, direction: int) -> int:
         return len(self.grid[direction])
@@ -417,7 +423,6 @@ class Domain(ABC):
             )
         return field
 
-    # @partial(jax.jit, static_argnums=(0))
     def curl(self, field: jnp_array) -> jnp_array:
         """Compute the curl of field."""
         # assert len(field) == 3, "rotation only defined in 3 dimensions"
@@ -459,6 +464,12 @@ class PhysicalDomain(Domain):
 
     def __eq__(self, other: Any) -> bool:
         return hash(self) is hash(other)
+
+    def get_shape(self) -> tuple[int, ...]:
+        return self.shape
+
+    def get_shape_aliasing(self) -> tuple[int, ...]:
+        return tuple(map(lambda x: len(x), self.grid))
 
     def hat(self) -> "FourierDomain":
         """Create a Fourier transform of the present domain in all periodic
@@ -551,6 +562,12 @@ class FourierDomain(Domain):
         )
         return out
 
+    def get_shape(self) -> tuple[int, ...]:
+        return self.shape
+
+    def get_shape_aliasing(self) -> tuple[int, ...]:
+        raise NotImplementedError()
+
     def assemble_poisson_matrix(self) -> np_complex_array:
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
@@ -588,7 +605,7 @@ class FourierDomain(Domain):
     # @partial(jax.jit, static_argnums=(0,2,3))
     def diff(
         self,
-        field: jnp_array,
+        field_hat: jnp_array,
         direction: int,
         order: int = 1,
         physical_domain: Optional[PhysicalDomain] = None,
@@ -596,11 +613,30 @@ class FourierDomain(Domain):
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            f_diff: jnp_array = jnp.array((1j * self.mgrid[direction]) ** order * field)
+            f_diff: jnp_array = jnp.array(
+                (1j * self.mgrid[direction]) ** order * field_hat
+            )
         else:
             assert physical_domain is not None
-            f_diff = physical_domain.diff(field, direction, order)
+            f_diff = physical_domain.diff(field_hat, direction, order)
         return f_diff
+
+    def curl(
+        self, field_hat: jnp_array, physical_domain: Optional[PhysicalDomain] = None
+    ) -> jnp_array:
+        """Compute the curl of field."""
+        u_y = self.diff(field_hat[0, ...], 1, physical_domain=physical_domain)
+        u_z = self.diff(field_hat[0, ...], 2, physical_domain=physical_domain)
+        v_x = self.diff(field_hat[1, ...], 0, physical_domain=physical_domain)
+        v_z = self.diff(field_hat[1, ...], 2, physical_domain=physical_domain)
+        w_x = self.diff(field_hat[2, ...], 0, physical_domain=physical_domain)
+        w_y = self.diff(field_hat[2, ...], 1, physical_domain=physical_domain)
+
+        curl_0 = w_y - v_z
+        curl_1 = u_z - w_x
+        curl_2 = v_x - u_y
+
+        return jnp.array([curl_0, curl_1, curl_2])
 
     def solve_poisson_fourier_field_slice(
         self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]

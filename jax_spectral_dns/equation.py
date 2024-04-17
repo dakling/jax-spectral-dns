@@ -41,9 +41,9 @@ def print_verb(*in_str: Any, verbosity_level: int = 1, debug: bool = False) -> N
             print(pref, end=" ")
             for st in in_str:
                 if type(st) is str:
-                    print(st, end="")
+                    print(st, end=" ")
                 else:
-                    jax.debug.callback(lambda x: print(x, end=""), st)
+                    jax.debug.callback(lambda x: print(x, end=" "), st)
             print()
         else:
             print(pref, *in_str)
