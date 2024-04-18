@@ -37,7 +37,6 @@ from jax_spectral_dns._typing import (
     jsd_float,
     jnp_array,
     Vel_fn_type,
-    Vector_Vel_fn_type,
     np_jnp_array,
 )
 

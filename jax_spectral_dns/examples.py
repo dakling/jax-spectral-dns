@@ -2490,7 +2490,7 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=True,
+        add_noise=False,
         noise_amplitude=1e-6,
     )
     optimiser.optimise()

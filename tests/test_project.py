@@ -1384,21 +1384,23 @@ class TestProject(unittest.TestCase):
         main()
 
     def test_transient_growth(self) -> None:
-        for Re, t in [(600, 2), (3000, 15)]:
+        for Re, t, err in [(600, 2, 8e-4), (3000, 15, 2e-5)]:
             gain, expected_gain, _, _ = run_transient_growth(
                 Re, t, alpha=1, beta=0, plot=False
             )
             rel_error = abs((gain - expected_gain) / expected_gain)
             print_verb(rel_error, verbosity_level=3)
-            assert rel_error < 5e-2
-        for Re, t in [(600, 2), (3000, 15)]:
+            assert rel_error < err
+        for Re, t, err in [(600, 2, 5e-6), (3000, 15, 5e-2)]:
             gain, expected_gain, _, _ = run_transient_growth_nonpert(
                 Re, t, alpha=1, beta=0, eps=1e-3, plot=False
             )
             rel_error = abs((gain - expected_gain) / expected_gain)
-            print_verb(rel_error, verbosity_level=1)
-            assert rel_error < 5e-2
+            print_verb(rel_error, verbosity_level=3)
+            assert rel_error < err
 
 
 if __name__ == "__main__":
-    unittest.main()
+    tp = TestProject()
+    tp.test_transient_growth()
+    # unittest.main()
