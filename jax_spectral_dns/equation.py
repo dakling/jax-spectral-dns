@@ -95,12 +95,22 @@ class Equation:
     def find_suitable_dt(
         cls,
         domain: PhysicalDomain,
-        max_cfl: float,
+        max_cfl: float = 0.7,
         U_max: tuple[float, ...] = (1.0, 1e-10, 1e-10),
         end_time: Optional[float] = None,
     ) -> float:
+        """Returns a suitable time step based on the given CFL number. If
+        end_time is provided, it is assumed that a number of time steps allowing
+        for a favourable partition into inner and outer steps (relevant for
+        solving with solve_scan) is desired, and this is taken into account."""
         dT = [
-            max_cfl * (domain.get_extent(i) / domain.number_of_cells(i)) / U_max[i]
+            max_cfl
+            * (
+                domain.get_extent(i) / domain.number_of_cells(i)
+                if domain.is_periodic(i)
+                else 1.0
+            )
+            / U_max[i]
             for i in domain.all_dimensions()
         ]
         dt = min(dT)
@@ -118,9 +128,6 @@ class Equation:
             return factors[number_of_factors // 2]
 
         number_of_time_steps = int(end_time / dt)
-        print(end_time)
-        print(dt)
-        print(number_of_time_steps)
         number_of_inner_steps = median_factor(number_of_time_steps)
         number_of_outer_steps = number_of_time_steps // number_of_inner_steps
         bad_n_step_division = (

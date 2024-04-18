@@ -472,7 +472,7 @@ class PhysicalDomain(Domain):
         return tuple(map(lambda x: len(x), self.grid))
 
     def get_extent(self, i: int) -> float:
-        return self.scale_factors[i] * 2.0 if self.is_periodic(i) else 1.0
+        return self.scale_factors[i] * 1.0 if self.is_periodic(i) else 2.0
 
     def hat(self) -> "FourierDomain":
         """Create a Fourier transform of the present domain in all periodic

@@ -2381,7 +2381,6 @@ def run_ld_2021(
     )
     print_verb("end time in dimensional units:", end_time_)
     print_verb("Re:", Re)
-    print_verb("dt:", dt)
 
     if init_file is None:
         number_of_modes = 60
