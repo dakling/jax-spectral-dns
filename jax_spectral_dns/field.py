@@ -913,7 +913,7 @@ class PhysicalField(Field):
         out *= smooth_field
         out.update_boundary_conditions()
         out.normalize_by_energy()
-        out *= energy_norm
+        out *= jnp.sqrt(energy_norm)
         return out
 
     @classmethod
@@ -1761,10 +1761,11 @@ class FourierField(Field):
     def FromWhiteNoise(
         cls,
         domain: PhysicalDomain,
-        amplitude: float = 1.0,
+        energy_norm: float = 1.0,
         name: str = "field",
+        seed: float = 37,
     ) -> FourierField:
-        return cls.FromRandom(domain, 37, amplitude, name)
+        return cls.FromRandom(domain, seed, energy_norm, name)
 
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain

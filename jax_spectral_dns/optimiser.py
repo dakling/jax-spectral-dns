@@ -220,6 +220,7 @@ class Optimiser(ABC, Generic[I]):
         print_verb()
         print_verb("iteration took", time.time() - start_time, "seconds")
         print_verb("\n")
+        jax.clear_caches()  # type: ignore[no-untyped-call]
 
     def optimise(self) -> None:
         for i in range(self.max_iter):
@@ -243,14 +244,12 @@ class Optimiser(ABC, Generic[I]):
 class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def make_noisy(
-        self, input: VectorField[FourierField], noise_amplitude: float = 1e-1
+        self, input: VectorField[FourierField], noise_amplitude: float = 1e-2
     ) -> VectorField[FourierField]:
         def get_white_noise_field(field: FourierField) -> FourierField:
             return FourierField.FromWhiteNoise(
                 self.domain,
-                amplitude=cast(
-                    float, jnp.sqrt(field.no_hat().energy()) * noise_amplitude
-                ),
+                energy_norm=field.no_hat().energy() * noise_amplitude,
             )
 
         return VectorField([f + get_white_noise_field(f) for f in input])
