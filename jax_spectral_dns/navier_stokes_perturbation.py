@@ -158,8 +158,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         super().__init__(velocity_field, **params)
 
         try:
-            print_verb("Using provided velocity base profile")
             velocity_base_hat = params["velocity_base_hat"]
+            print_verb("Using provided velocity base profile")
         except KeyError:
             print_verb("Using default laminar velocity base profile")
             velocity_x_base = PhysicalField.FromFunc(

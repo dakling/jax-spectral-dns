@@ -245,10 +245,15 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
     def make_noisy(
         self, input: VectorField[FourierField], noise_amplitude: float = 1e-1
     ) -> VectorField[FourierField]:
-        parameters_no_hat = input.no_hat()
-        e0 = cast(float, jnp.sqrt(parameters_no_hat.energy()) * noise_amplitude)
-        white_noise_field = FourierField.FromWhiteNoise(self.domain, amplitude=e0)
-        return VectorField([f + white_noise_field for f in input])
+        def get_white_noise_field(field: FourierField) -> FourierField:
+            return FourierField.FromWhiteNoise(
+                self.domain,
+                amplitude=cast(
+                    float, jnp.sqrt(field.no_hat().energy()) * noise_amplitude
+                ),
+            )
+
+        return VectorField([f + get_white_noise_field(f) for f in input])
 
     def parameters_to_run_input(
         self, parameters: parameter_type

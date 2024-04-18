@@ -496,8 +496,14 @@ class PhysicalDomain(Domain):
 
         for i in self.all_periodic_dimensions():
             out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
-            out_2 = out.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
-            out = jnp.concatenate([out_1, out_2], axis=i)
+            if ks[i] == Ns[i] - ks[i]:
+                out_2 = out.take(indices=np.array([ks[i]]), axis=i)
+            else:
+                out_2 = out.take(indices=np.array([ks[i]]), axis=i) + out.take(
+                    indices=np.array([Ns[i] - ks[i]]), axis=i
+                )
+            out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
+            out = jnp.concatenate([out_1, out_2, out_3], axis=i)
 
         return out
 

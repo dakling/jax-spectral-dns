@@ -2314,14 +2314,12 @@ def run_ld_2021(
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     aliasing = 3 / 2
-    # aliasing = 1
     e_0 = float(e_0)
 
     Equation.initialize()
 
-    dt = 6e-3  # in dimensional units
+    dt = 4e-2  # in dimensional units
     end_time = 0.35  # the target time (in ld2021 units)
-    # end_time = 0.2  # in ld2021 units
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -2493,6 +2491,126 @@ def run_ld_2021(
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
         add_noise=True,
-        noise_amplitude=1e-3,
+        noise_amplitude=1e-6,
     )
     optimiser.optimise()
+
+
+def run_white_noise() -> None:
+
+    Equation.initialize()
+    Re = 3000
+    e_0 = 1e-2
+    Nx, Ny, Nz = 28, 129, 24
+    dt = 4e-2
+    end_time = 1.0
+
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=3 / 2,
+    )
+
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
+        n_steps = nse.get_number_of_fields("velocity_hat")
+        # time = (i / (n_steps - 1)) * end_time
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vel_base_hat = nse.get_initial_field("velocity_base_hat")
+        vel_base = vel_base_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[2].plot_3d(2)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+        vel[0].plot_isosurfaces(0.4)
+
+        vel_total = vel + vel_base
+        vel_total.set_name("velocity_total")
+        vel_total[0].plot_3d(0)
+        vel_total[0].plot_isosurfaces(0.4)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+
+    vel_hat: VectorField[FourierField] = VectorField(
+        [
+            FourierField.FromWhiteNoise(domain, amplitude=e_0)
+            for _ in domain.all_dimensions()
+        ],
+        name="velocity_hat",
+    )
+
+    optimiser = OptimiserFourier(
+        domain,
+        lambda vel_hat_, t: 1.0,
+        vel_hat,
+        minimise=False,
+        force_2d=False,
+        objective_fn_name="gain",
+        add_noise=True,
+        noise_amplitude=1e-3,
+    )
+    fig = figure.Figure()
+    ax = fig.subplots(1, 2)
+    # assert type(ax) is Axes
+    assert type(ax) is np.ndarray
+    ax[0].plot(vel_hat[0].data[:, Ny // 2, 0])
+    ax[1].plot(vel_hat[0].data[0, Ny // 2, :])
+    print_verb("conti_error (before)", vel_hat.div().no_hat().energy())
+    vel_hat = optimiser.parameters_to_run_input(
+        optimiser.run_input_to_parameters(vel_hat)
+    )  # should lower conti error
+    print_verb("conti_error (after)", vel_hat.div().no_hat().energy())
+    vel_hat.div().no_hat().plot_3d(2)
+    ax[0].plot(vel_hat[0].data[:, Ny // 2, 0])
+    ax[1].plot(vel_hat[0].data[0, Ny // 2, :])
+    fig.savefig("plots/spectrum.png")
+    U = vel_hat.no_hat()
+    U.update_boundary_conditions()
+    U_norm = U.normalize_by_energy()
+    U_norm *= e_0
+    # U_norm.set_name("vel_norm")
+    # U_norm.plot_3d(2)
+    nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, Re=Re, dt=dt)
+    energy_0_ = U_norm.energy()
+    nse.activate_jit()
+    nse.end_time = end_time
+    nse.write_intermediate_output = True
+    nse.set_post_process_fn(post_process)
+    nse.solve()
+    nse.post_process()
+    vel_final = nse.get_latest_field("velocity_hat").no_hat()
+    gain = vel_final.energy() / energy_0_
+    print_verb(gain)
