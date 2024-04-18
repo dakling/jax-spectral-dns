@@ -1353,11 +1353,11 @@ class TestProject(unittest.TestCase):
                 "y",
                 label="Re_5772 (linear theory)",
             )
-            ax.plot(ts[1], dataset[1] / dataset_ana[1][0], "y", label="Re_5772 (DNS)")
+            ax.plot(ts[1], dataset[1] / dataset_ana[1][0], "k.", label="Re_5772 (DNS)")
             ax.plot(
                 ts[2],
                 dataset_ana[2] / dataset_ana[2][0],
-                "g-",
+                "k-",
                 label="Re_6000 (linear theory)",
             )
             ax.plot(ts[2], dataset[2] / dataset_ana[2][0], "g.", label="Re_6000 (DNS)")
@@ -1379,7 +1379,6 @@ class TestProject(unittest.TestCase):
                     ts, energy, energy_ana = run(rotated, use_antialiasing)
                     plot(ts, energy, energy_ana)
                     calculate_growth_rates(ts, energy, energy_ana)
-                    raise Exception("break")  # TODO
 
         main()
 
@@ -1401,6 +1400,4 @@ class TestProject(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    tp = TestProject()
-    tp.test_transient_growth()
-    # unittest.main()
+    unittest.main()

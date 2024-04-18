@@ -31,7 +31,7 @@ from jax_spectral_dns._typing import (
 )
 
 
-@partial(jax.jit, static_argnums=(0, 1))
+# @partial(jax.jit, static_argnums=(0, 1))
 def update_nonlinear_terms_high_performance_perturbation(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
