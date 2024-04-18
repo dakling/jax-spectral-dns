@@ -8,7 +8,7 @@ import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from functools import partial
+from functools import partial, reduce
 from typing import TYPE_CHECKING, Callable, Optional, Union, cast
 import time
 
@@ -2318,7 +2318,7 @@ def run_ld_2021(
 
     Equation.initialize()
 
-    dt = 4e-2  # in dimensional units
+    max_cfl = 0.7
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2371,12 +2371,17 @@ def run_ld_2021(
     vel_base.set_name("velocity_base")
 
     Re = Re_tau * u_max_over_u_tau / h_over_delta
-    end_time_ = round(end_time * h_over_delta * u_max_over_u_tau)
+    # end_time_ = round(end_time * h_over_delta * u_max_over_u_tau)
+    end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
+
+    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time_)
+
     print_verb(
         "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
     )
     print_verb("end time in dimensional units:", end_time_)
     print_verb("Re:", Re)
+    print_verb("dt:", dt)
 
     if init_file is None:
         number_of_modes = 60

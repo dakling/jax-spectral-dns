@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from functools import partial
+from functools import partial, reduce
 from typing import (
     Any,
     Callable,
@@ -17,11 +17,12 @@ import time
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from pathlib import Path
 import os
 
-from jax_spectral_dns.domain import Domain
+from jax_spectral_dns.domain import Domain, PhysicalDomain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
 from jax_spectral_dns._typing import jsd_float
@@ -89,6 +90,54 @@ class Equation:
     @classmethod
     def initialize(cls, cleanup: bool = True) -> None:
         Field.initialize(cleanup)
+
+    @classmethod
+    def find_suitable_dt(
+        cls,
+        domain: PhysicalDomain,
+        max_cfl: float,
+        U_max: tuple[float, ...] = (1.0, 1e-10, 1e-10),
+        end_time: Optional[float] = None,
+    ) -> float:
+        dT = [
+            max_cfl * (domain.get_extent(i) / domain.number_of_cells(i)) / U_max[i]
+            for i in domain.all_dimensions()
+        ]
+        dt = min(dT)
+        if end_time is None:
+            return dt
+
+        def median_factor(n: int) -> int:
+            """Return the median integer factor of n."""
+            factors = reduce(
+                list.__add__,
+                ([i, n // i] for i in range(1, int(n**0.5) + 1) if n % i == 0),
+            )
+            factors.sort()
+            number_of_factors = len(factors)  # should always be divisible by 2
+            return factors[number_of_factors // 2]
+
+        number_of_time_steps = int(end_time / dt)
+        print(end_time)
+        print(dt)
+        print(number_of_time_steps)
+        number_of_inner_steps = median_factor(number_of_time_steps)
+        number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+        bad_n_step_division = (
+            abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
+            > number_of_outer_steps
+        )
+        while bad_n_step_division:
+            number_of_time_steps += 1
+            number_of_inner_steps = median_factor(number_of_time_steps)
+            number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+            bad_n_step_division = (
+                abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
+                > number_of_outer_steps
+            )
+
+        dt = end_time / number_of_time_steps
+        return dt
 
     def get_dt(self) -> jsd_float:
         return self.fixed_parameters.dt
