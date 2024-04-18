@@ -2496,6 +2496,7 @@ def run_ld_2021(
         objective_fn_name="gain",
         add_noise=False,
         noise_amplitude=1e-6,
+        learning_rate=1e-4,
     )
     optimiser.optimise()
 

@@ -240,13 +240,9 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         U = vel[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
         V = vel[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
         W = vel[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
-        u_cfl = cast(
-            float, (abs(DX) / abs(U) * self.get_physical_domain().aliasing).min().real
-        )
+        u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
         v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
-        w_cfl = cast(
-            float, (abs(DZ) / abs(W) * self.get_physical_domain().aliasing).min().real
-        )
+        w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
 
