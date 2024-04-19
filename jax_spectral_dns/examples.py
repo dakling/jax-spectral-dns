@@ -2318,7 +2318,7 @@ def run_ld_2021(
 
     Equation.initialize()
 
-    max_cfl = 0.7
+    max_cfl = 0.3
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2507,7 +2507,7 @@ def run_white_noise() -> None:
     Re = 3000
     e_0 = 1e-6
     Nx, Ny, Nz = 28, 129, 24
-    max_cfl = 0.1
+    max_cfl = 0.7
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
@@ -2520,7 +2520,7 @@ def run_white_noise() -> None:
 
     velocity_x_base = PhysicalField.FromFunc(
         domain,
-        lambda X: 0.0 * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
+        lambda X: 1.0 * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
         name="velocity_x_base",
     )
     velocity_y_base = PhysicalField.FromFunc(
@@ -2540,7 +2540,6 @@ def run_white_noise() -> None:
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
-        # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -2620,11 +2619,17 @@ def run_white_noise() -> None:
     ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]))
     ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]))
     vel_hat.no_hat().plot_3d(2)
-    print_verb("conti_error (before)", vel_hat.div().no_hat().energy())
+    print_verb(
+        "conti_error (before)",
+        vel_hat.div().no_hat().energy() / vel_hat.no_hat().energy(),
+    )
     vel_hat = optimiser.parameters_to_run_input(
         optimiser.run_input_to_parameters(vel_hat)
     )  # should lower conti error
-    print_verb("conti_error (after)", vel_hat.div().no_hat().energy())
+    print_verb(
+        "conti_error (after)",
+        vel_hat.div().no_hat().energy() / vel_hat.no_hat().energy(),
+    )
     vel_hat.div().no_hat().plot_3d(2)
     ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]))
     ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]))
@@ -2638,7 +2643,9 @@ def run_white_noise() -> None:
         U_norm, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
     )
     energy_0_ = U_norm.energy()
+    nse.set_linearize(False)
     nse.activate_jit()
+    # nse.end_time = dt
     nse.end_time = end_time
     nse.write_intermediate_output = True
     nse.set_post_process_fn(post_process)
@@ -2647,3 +2654,23 @@ def run_white_noise() -> None:
     vel_final = nse.get_latest_field("velocity_hat").no_hat()
     gain = vel_final.energy() / energy_0_
     print_verb("gain:", gain)
+
+    # nse_small_dt = NavierStokesVelVortPerturbation.FromVelocityField(
+    #     U_norm, Re=Re, dt=dt/10, velocity_base_hat=velocity_base_hat
+    # )
+    # energy_0_ = U_norm.energy()
+    # nse_small_dt.set_linearize(False)
+    # nse_small_dt.activate_jit()
+    # nse_small_dt.end_time = dt
+    # nse_small_dt.write_intermediate_output = True
+    # nse_small_dt.set_post_process_fn(post_process)
+    # nse_small_dt.solve()
+
+    # vel_final_ = nse_small_dt.get_latest_field("velocity_hat").no_hat()
+    # gain_ = vel_final_.energy() / energy_0_
+    # print_verb("gain:", gain_)
+
+    # vel_diff = vel_final - vel_final_
+    # vel_diff.set_name("vel_diff")
+    # vel_diff.plot_3d(0)
+    # vel_diff.plot_3d(2)

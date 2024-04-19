@@ -172,9 +172,10 @@ class Optimiser(ABC, Generic[I]):
             value_and_grad=True,
             implicit_diff=True,
             jit=True,
-            linesearch="zoom",
-            linesearch_init="current",
-            maxls=15,
+            stepsize=1e-5,  # TODO
+            # linesearch="zoom",
+            # linesearch_init="current",
+            # maxls=15,
         )
         return solver
 
@@ -199,7 +200,7 @@ class Optimiser(ABC, Generic[I]):
         start_time = time.time()
         i = self.current_iteration
         number_of_steps = self.max_iter
-        print_verb("Iteration", i + 1, "of", number_of_steps)
+        print_verb("Iteration", i + 1, "of", number_of_steps, notify=True)
 
         solver = self.solver
 

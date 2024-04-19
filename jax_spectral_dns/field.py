@@ -1857,12 +1857,9 @@ class FourierField(Field):
         )
 
     def diff(self, direction: int, order: int = 1) -> FourierField:
-        if direction in self.all_periodic_dimensions():
-            out_field: jnp_array = jnp.array(
-                (1j * self.fourier_domain.mgrid[direction]) ** order * self.data
-            )
-        else:
-            out_field = self.physical_domain.diff(self.data, direction, order)
+        out_field: jnp_array = self.get_domain().diff(
+            self.data, direction, order, physical_domain=self.get_physical_domain()
+        )
         return FourierField(
             self.physical_domain,
             out_field,
@@ -2047,7 +2044,16 @@ class FourierFieldSlice(FourierField):
 
     def diff(self, direction: int, order: int = 1) -> "FourierFieldSlice":
         if direction in self.all_periodic_dimensions():
-            out_field = (1j * self.ks[direction]) ** order * self.data
+            if order % 2 == 0:
+                diff_array = (1j * self.ks[direction]) ** order
+            else:
+                N = len(self.ks[direction])
+                diff_array = (
+                    1j
+                    * self.ks[direction]
+                    * jnp.array([0.0 if i == N // 2 else 1.0 for i in range(N)])
+                ) ** order
+            out_field = diff_array * self.data
         else:
             out_field = self.physical_domain.diff(self.data, 0, order)
         return FourierFieldSlice(

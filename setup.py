@@ -18,6 +18,7 @@ setup(
         "scikit-image",
         "jaxopt",
         "optax",
+        "PyGObject",
         "pytest",
         "pytest-xdist",
         "black",

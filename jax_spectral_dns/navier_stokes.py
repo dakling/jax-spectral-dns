@@ -422,16 +422,19 @@ class NavierStokesVelVort(Equation):
         ) -> tuple[jnp_array, ...]:
             kx_ = jnp.asarray(domain.grid[0])[kx]
             kz_ = jnp.asarray(domain.grid[2])[kz]
-            minus_kx_kz_sq = -(kx_**2 + kz_**2)
-            vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1)
+            minus_j_kx = jax.lax.cond(kx == Nx // 2, lambda: 0.0 + 0.0j, lambda: -1j * kx_)  # type: ignore[no-untyped-call]
+            minus_j_kz = jax.lax.cond(kz == Nz // 2, lambda: 0.0 + 0.0j, lambda: -1j * kz_)  # type: ignore[no-untyped-call]
+            # make sure that the case where kx and kz are both set to zero does not cause a 0/0, instead set denominator to arbitrary value (1)
+            minus_kx_kz_sq = jax.lax.cond(kx == Nx // 2, lambda: jax.lax.cond(kz == Nz // 2, lambda: 1.0 + 0.0j, lambda: (minus_j_kx**2 + minus_j_kz**2)), lambda: (minus_j_kx**2 + minus_j_kz**2))  # type: ignore[no-untyped-call]
+            vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1, 1)
             vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
                 vel_1_y_, 1
             )
-            vel_x_ = (-1j * kx_ * vel_1_y_ + 1j * kz_ * vort_) / minus_kx_kz_sq
+            vel_x_ = (minus_j_kx * vel_1_y_ - minus_j_kz * vort_) / minus_kx_kz_sq
             if two_d:
                 vel_z_ = jnp.zeros_like(vel_x_)
             else:
-                vel_z_ = (-1j * kz_ * vel_1_y_ - 1j * kx_ * vort_) / minus_kx_kz_sq
+                vel_z_ = (minus_j_kz * vel_1_y_ + minus_j_kx * vort_) / minus_kx_kz_sq
             return (vel_x_, vel_z_)
 
         def inner_map(kx: jsd_float) -> Callable[[jnp_array], jnp_array]:
@@ -639,9 +642,15 @@ class NavierStokesVelVort(Equation):
                 v_1_hat_new_b = jnp.flip(v_1_hat_new_a)
 
                 # reconstruct velocity s.t. hom. Neumann is fulfilled
-                v_1_hat_new_p_diff = domain.diff_fourier_field_slice(v_1_hat_new_p, 1)
-                v_1_hat_new_a_diff = domain.diff_fourier_field_slice(v_1_hat_new_a, 1)
-                v_1_hat_new_b_diff = domain.diff_fourier_field_slice(v_1_hat_new_b, 1)
+                v_1_hat_new_p_diff = domain.diff_fourier_field_slice(
+                    v_1_hat_new_p, 1, 1
+                )
+                v_1_hat_new_a_diff = domain.diff_fourier_field_slice(
+                    v_1_hat_new_a, 1, 1
+                )
+                v_1_hat_new_b_diff = domain.diff_fourier_field_slice(
+                    v_1_hat_new_b, 1, 1
+                )
                 M = jnp.array(
                     [
                         [v_1_hat_new_a_diff[0], v_1_hat_new_b_diff[0]],
@@ -743,13 +752,24 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx: int, kz: int) -> tuple[jnp_array, jnp_array]:
                     kx_ = jnp.asarray(domain.grid[0])[kx]
                     kz_ = jnp.asarray(domain.grid[2])[kz]
-                    minus_kx_kz_sq = -(kx_**2 + kz_**2)
-                    v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1)
+                    minus_j_kx = jax.lax.cond(kx == Nx // 2, lambda: 0.0 + 0.0j, lambda: -1j * kx_)  # type: ignore[no-untyped-call]
+                    minus_j_kz = jax.lax.cond(kz == Nz // 2, lambda: 0.0 + 0.0j, lambda: -1j * kz_)  # type: ignore[no-untyped-call]
+                    # make sure that the case where kx and kz are both set to zero does not cause a 0/0, instead set denominator to arbitrary value (1)
+                    minus_kx_kz_sq = jax.lax.cond(kx == Nx // 2, lambda: jax.lax.cond(kz == Nz // 2, lambda: 1.0 + 0.0j, lambda: (minus_j_kx**2 + minus_j_kz**2)), lambda: (minus_j_kx**2 + minus_j_kz**2))  # type: ignore[no-untyped-call]
+                    v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
+                    v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
+                        v_1_new_y, 1
+                    )
+                    vort_1_hat_new_: jnp_array = (
+                        domain.update_boundary_conditions_fourier_field_slice(
+                            vort_1_hat_new, 1
+                        )
+                    )
                     v_0_new = (
-                        -1j * kx_ * v_1_new_y + 1j * kz_ * vort_1_hat_new
+                        minus_j_kx * v_1_new_y - minus_j_kz * vort_1_hat_new_
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        -1j * kz_ * v_1_new_y - 1j * kx_ * vort_1_hat_new
+                        minus_j_kz * v_1_new_y + minus_j_kx * vort_1_hat_new_
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 

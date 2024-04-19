@@ -22,6 +22,17 @@ import numpy as np
 from pathlib import Path
 import os
 
+try:
+    import gi  # type: ignore[import-untyped]
+
+    gi.require_version("Notify", "0.7")
+    from gi.repository import Notify  # type: ignore[import-untyped]
+
+    Notify.init("jax-spectral-dns")
+except Exception:
+    print("gi package not found, notifications will not work.")
+
+
 from jax_spectral_dns.domain import Domain, PhysicalDomain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
@@ -35,7 +46,9 @@ jnp_int_array = jnp.ndarray
 NoneType = type(None)
 
 
-def print_verb(*in_str: Any, verbosity_level: int = 1, debug: bool = False) -> None:
+def print_verb(
+    *in_str: Any, verbosity_level: int = 1, debug: bool = False, notify: bool = False
+) -> None:
     pref = "[" + time.ctime() + "]  " + "  " * verbosity_level
     if Equation.verbosity_level >= verbosity_level:
         if debug:
@@ -47,6 +60,11 @@ def print_verb(*in_str: Any, verbosity_level: int = 1, debug: bool = False) -> N
                     jax.debug.callback(lambda x: print(x, end=" "), st)
             print()
         else:
+            if notify:
+                try:
+                    Notify.Notification.new(*in_str).show()
+                except Exception:
+                    pass
             print(pref, *in_str)
 
 

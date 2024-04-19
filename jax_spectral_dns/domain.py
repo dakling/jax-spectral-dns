@@ -194,15 +194,6 @@ class Domain(ABC):
         )
         return f_diff
 
-    def diff_fourier_field_slice(
-        self, field: jnp_array, direction: int, order: int = 1
-    ) -> jnp_array:
-        """Calculate and return the derivative of given order for a Fourier
-        field slice in direction."""
-        return jnp.array(
-            np.linalg.matrix_power(self.diff_mats[direction], order) @ field
-        )
-
     def enforce_homogeneous_dirichlet(self, mat: np_float_array) -> np_float_array:
         """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         homogeneous dirichlet boundary conditions at both ends by setting the
@@ -622,9 +613,25 @@ class FourierDomain(Domain):
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            f_diff: jnp_array = jnp.array(
-                (1j * self.mgrid[direction]) ** order * field_hat
-            )
+            if order % 2 == 0:
+                diff_array = (1j * np.array(self.mgrid[direction])) ** order
+            else:
+                N = self.number_of_cells(direction)
+                diff_array_1d = (
+                    1j
+                    * np.array(self.grid[direction])
+                    * np.array([0.0 if i == N // 2 else 1.0 for i in range(N)])
+                ) ** order
+                diff_array = np.array(
+                    np.meshgrid(
+                        *[
+                            diff_array_1d if i == direction else self.grid[i]
+                            for i in self.all_dimensions()
+                        ],
+                        indexing="ij",
+                    )
+                )[direction]
+            f_diff: jnp_array = jnp.array(diff_array * field_hat)
         else:
             assert physical_domain is not None
             f_diff = physical_domain.diff(field_hat, direction, order)
@@ -707,3 +714,37 @@ class FourierDomain(Domain):
             norm="ortho",
         ).real / (1 / scaling_factor)
         return out
+
+    def diff_fourier_field_slice(
+        self,
+        field: jnp_array,
+        orientation: int,
+        direction: int,
+        order: int = 1,
+        k: int = 0,
+    ) -> jnp_array:
+        """Calculate and return the derivative of given order for a Fourier
+        field slice in direction."""
+        if orientation == direction:
+            return jnp.array(
+                np.linalg.matrix_power(self.diff_mats[direction], order) @ field
+            )
+        else:
+            if order % 2 == 0:
+                minus_j_k = -1j * self.grid[direction][k]
+            else:
+                N = self.number_of_cells(direction)
+                minus_j_k = jax.lax.cond(k == N // 2, lambda: 0.0 + 0.0j, lambda: -1j * self.grid[direction][k])  # type: ignore[no-untyped-call]
+            return cast(jnp_array, minus_j_k**order * field)
+
+    def integrate_fourier_field_slice(
+        self, field: jnp_array, orientation: int, direction: int, order: int = 1
+    ) -> jnp_array:
+        """Calculate and return the derivative of given order for a Fourier
+        field slice in direction."""
+        if orientation == direction:
+            return jnp.array(
+                np.linalg.matrix_power(self.diff_mats[direction], order) @ field
+            )
+        else:
+            raise NotImplementedError()
