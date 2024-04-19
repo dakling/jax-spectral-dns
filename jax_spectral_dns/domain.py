@@ -502,9 +502,9 @@ class PhysicalDomain(Domain):
             if ks[i] == Ns[i] - ks[i]:
                 out_2 = out.take(indices=np.array([ks[i]]), axis=i)
             else:
-                out_2 = out.take(indices=np.array([ks[i]]), axis=i) + out.take(
-                    indices=np.array([Ns[i] - ks[i]]), axis=i
-                )
+                out_2 = jnp.conjugate(
+                    out.take(indices=np.array([ks[i]]), axis=i)
+                ) + out.take(indices=np.array([Ns[i] - ks[i]]), axis=i)
             out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
             out = jnp.concatenate([out_1, out_2, out_3], axis=i)
 
