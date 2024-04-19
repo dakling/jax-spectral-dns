@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy as sc  # type: ignore
 import dataclasses
-from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any
+from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any, cast
 from typing_extensions import Self
 
 from jax_spectral_dns._typing import (
@@ -731,11 +731,11 @@ class FourierDomain(Domain):
             )
         else:
             if order % 2 == 0:
-                minus_j_k = -1j * self.grid[direction][k]
+                j_k = 1j * self.grid[direction][k]
             else:
                 N = self.number_of_cells(direction)
-                minus_j_k = jax.lax.cond(k == N // 2, lambda: 0.0 + 0.0j, lambda: -1j * self.grid[direction][k])  # type: ignore[no-untyped-call]
-            return cast(jnp_array, minus_j_k**order * field)
+                j_k = jax.lax.cond(k == N // 2, lambda: 0.0 + 0.0j, lambda: 1j * self.grid[direction][k])  # type: ignore[no-untyped-call]
+            return cast(jnp_array, j_k**order * field)
 
     def integrate_fourier_field_slice(
         self, field: jnp_array, orientation: int, direction: int, order: int = 1

@@ -2313,12 +2313,14 @@ def run_ld_2021(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
-    aliasing = 3 / 2
+    # aliasing = 3 / 2
+    # aliasing = 2
+    aliasing = 1
     e_0 = float(e_0)
 
     Equation.initialize()
 
-    max_cfl = 0.3
+    max_cfl = 0.6
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2494,7 +2496,7 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=False,
+        add_noise=True,
         noise_amplitude=1e-6,
         learning_rate=1e-4,
     )
@@ -2505,9 +2507,9 @@ def run_white_noise() -> None:
 
     Equation.initialize()
     Re = 3000
-    e_0 = 1e-6
+    e_0 = 1e-3
     Nx, Ny, Nz = 28, 129, 24
-    max_cfl = 0.7
+    max_cfl = 0.6
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
@@ -2616,8 +2618,8 @@ def run_white_noise() -> None:
     ax = fig.subplots(1, 2)
     # assert type(ax) is Axes
     assert type(ax) is np.ndarray
-    ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]))
-    ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]))
+    ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
+    ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
     vel_hat.no_hat().plot_3d(2)
     print_verb(
         "conti_error (before)",
@@ -2631,8 +2633,10 @@ def run_white_noise() -> None:
         vel_hat.div().no_hat().energy() / vel_hat.no_hat().energy(),
     )
     vel_hat.div().no_hat().plot_3d(2)
-    ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]))
-    ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]))
+    vel_hat.div().no_hat().plot_3d(1)
+    vel_hat.div().no_hat().plot_3d(0)
+    ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
+    ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
     vel_hat.no_hat().plot_3d(2)
     fig.savefig("plots/spectrum.png")
     U = vel_hat.no_hat()

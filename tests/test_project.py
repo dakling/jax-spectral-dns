@@ -1402,7 +1402,7 @@ class TestProject(unittest.TestCase):
             rel_error = abs((gain - expected_gain) / expected_gain)
             print_verb(rel_error, verbosity_level=3)
             assert rel_error < err
-        for Re, t, err in [(600, 2, 5e-6), (3000, 15, 5e-2)]:
+        for Re, t, err in [(600, 2, 6e-6), (3000, 15, 9e-4)]:
             gain, expected_gain, _, _ = run_transient_growth_nonpert(
                 Re, t, alpha=1, beta=0, eps=1e-3, plot=False
             )

@@ -561,12 +561,12 @@ class VectorField(Generic[T]):
 
     def div(self) -> T:
         out = self[0].diff(0)
+        for dim in self.all_dimensions()[1:]:
+            out = out + self[dim].diff(dim)
         if self.name is not None:
             out.name = "div_" + self.name
         else:
             out.name = "div_field"
-        for dim in self.all_dimensions()[1:]:
-            out = out + self[dim].diff(dim)
         return out
 
     def reconstruct_from_wavenumbers(
@@ -1857,7 +1857,8 @@ class FourierField(Field):
         )
 
     def diff(self, direction: int, order: int = 1) -> FourierField:
-        out_field: jnp_array = self.get_domain().diff(
+        domain: FourierDomain = self.get_domain()
+        out_field: jnp_array = domain.diff(
             self.data, direction, order, physical_domain=self.get_physical_domain()
         )
         return FourierField(

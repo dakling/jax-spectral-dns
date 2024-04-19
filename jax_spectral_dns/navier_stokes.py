@@ -424,12 +424,11 @@ class NavierStokesVelVort(Equation):
             kz_ = jnp.asarray(domain.grid[2])[kz]
             minus_j_kx = jax.lax.cond(kx == Nx // 2, lambda: 0.0 + 0.0j, lambda: -1j * kx_)  # type: ignore[no-untyped-call]
             minus_j_kz = jax.lax.cond(kz == Nz // 2, lambda: 0.0 + 0.0j, lambda: -1j * kz_)  # type: ignore[no-untyped-call]
-            # make sure that the case where kx and kz are both set to zero does not cause a 0/0, instead set denominator to arbitrary value (1)
-            minus_kx_kz_sq = jax.lax.cond(kx == Nx // 2, lambda: jax.lax.cond(kz == Nz // 2, lambda: 1.0 + 0.0j, lambda: (minus_j_kx**2 + minus_j_kz**2)), lambda: (minus_j_kx**2 + minus_j_kz**2))  # type: ignore[no-untyped-call]
+            minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1, 1)
-            vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
-                vel_1_y_, 1
-            )
+            # vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
+            #     vel_1_y_, 1
+            # )
             vel_x_ = (minus_j_kx * vel_1_y_ - minus_j_kz * vort_) / minus_kx_kz_sq
             if two_d:
                 vel_z_ = jnp.zeros_like(vel_x_)
@@ -448,19 +447,31 @@ class NavierStokesVelVort(Equation):
                     number_of_input_arguments,
                     axis=0,
                 )
+                # since the logical "and" causes problems for jax, we use arithmetic to decide if kx == kz == 0
+                kx_and_kz_both_zero = (
+                    jnp.exp(kx**2) * jnp.exp(kz**2) == 1
+                )  # since kx and kz are integers, this can only be true if kx==kz==0
+
                 out = jax.lax.cond(
-                    kx == 0,
-                    lambda kx___, kz___: jax.lax.cond(
-                        kz___ == 0,
-                        lambda _, __: rk_00(),
-                        lambda kx__, kz__: rk_not_00(kx__, kz__, *fields_1d),
-                        kx___,
-                        kz___,
-                    ),  # type: ignore[no-untyped-call]
+                    kx_and_kz_both_zero,
+                    lambda _, __: rk_00(),
                     lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
                     cast(jnp.float64, kx.real).astype(int),
                     kz,
-                )
+                )  # type: ignore[no-untyped-call]
+                # out = jax.lax.cond(
+                #     kx == 0,
+                #     lambda kx___, kz___: jax.lax.cond(
+                #         kz___ == 0,
+                #         lambda _, __: rk_00(),
+                #         lambda kx__, kz__: rk_not_00(kx__, kz__, *fields_1d),
+                #         kx___,
+                #         kz___,
+                #     ),  # type: ignore[no-untyped-call]
+                #     lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
+                #     cast(jnp.float64, kx.real).astype(int),
+                #     kz,
+                # )
                 return cast(jnp_array, out)
 
             return fn
@@ -754,22 +765,21 @@ class NavierStokesVelVort(Equation):
                     kz_ = jnp.asarray(domain.grid[2])[kz]
                     minus_j_kx = jax.lax.cond(kx == Nx // 2, lambda: 0.0 + 0.0j, lambda: -1j * kx_)  # type: ignore[no-untyped-call]
                     minus_j_kz = jax.lax.cond(kz == Nz // 2, lambda: 0.0 + 0.0j, lambda: -1j * kz_)  # type: ignore[no-untyped-call]
-                    # make sure that the case where kx and kz are both set to zero does not cause a 0/0, instead set denominator to arbitrary value (1)
-                    minus_kx_kz_sq = jax.lax.cond(kx == Nx // 2, lambda: jax.lax.cond(kz == Nz // 2, lambda: 1.0 + 0.0j, lambda: (minus_j_kx**2 + minus_j_kz**2)), lambda: (minus_j_kx**2 + minus_j_kz**2))  # type: ignore[no-untyped-call]
+                    minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
-                    v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
-                        v_1_new_y, 1
-                    )
-                    vort_1_hat_new_: jnp_array = (
-                        domain.update_boundary_conditions_fourier_field_slice(
-                            vort_1_hat_new, 1
-                        )
-                    )
+                    # v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
+                    #     v_1_new_y, 1
+                    # )
+                    # vort_1_hat_new_: jnp_array = (
+                    #     domain.update_boundary_conditions_fourier_field_slice(
+                    #         vort_1_hat_new, 1
+                    #     )
+                    # )
                     v_0_new = (
-                        minus_j_kx * v_1_new_y - minus_j_kz * vort_1_hat_new_
+                        minus_j_kx * v_1_new_y - minus_j_kz * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        minus_j_kz * v_1_new_y + minus_j_kx * vort_1_hat_new_
+                        minus_j_kz * v_1_new_y + minus_j_kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
