@@ -6,8 +6,10 @@ import time
 
 from abc import ABC, abstractmethod
 import math
+from numpy.polynomial.chebyshev import chebfit
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
@@ -284,6 +286,13 @@ class VectorField(Generic[T]):
         dim = domain.number_of_dimensions
         fs = cast(list[T], [field_cls(domain, data[i]) for i in range(dim)])
         return cls(fs, name)
+
+    def project_onto_domain(
+        self: VectorField[FourierField], domain: PhysicalDomain
+    ) -> VectorField[FourierField]:
+        return VectorField(
+            [f.project_onto_domain(domain) for f in self], name=self.name
+        )
 
     def __getitem__(self, index: int) -> T:
         return self.elements[index]
@@ -1080,7 +1089,7 @@ class PhysicalField(Field):
                 ax.plot(self.physical_domain.grid[0], self.data, label=self.name)
                 for other_field in other_fields:
                     ax.plot(
-                        self.physical_domain.grid[dimension],
+                        other_field.physical_domain.grid[dimension],
                         other_field.data,
                         "--",
                         label=other_field.name,
@@ -1125,7 +1134,7 @@ class PhysicalField(Field):
                 )
                 for other_field in other_fields:
                     ax.plot(
-                        self.physical_domain.grid[dimension],
+                        other_field.physical_domain.grid[dimension],
                         other_field.data.take(indices=N_c, axis=other_dim),
                         "--",
                         label=other_field.name,
@@ -1177,7 +1186,7 @@ class PhysicalField(Field):
                 )
                 for other_field in other_fields:
                     ax.plot(
-                        self.physical_domain.grid[dimension],
+                        other_field.physical_domain.grid[dimension],
                         other_field.data.take(indices=N_cs[1], axis=other_dims[1]).take(
                             indices=N_cs[0], axis=other_dims[0]
                         ),
@@ -1228,7 +1237,7 @@ class PhysicalField(Field):
                 )
                 for other_field in other_fields:
                     ax.plot(
-                        self.physical_domain.grid[0],
+                        other_field.physical_domain.grid[0],
                         other_field.data,
                         "--",
                         label=other_field.name,
@@ -1279,7 +1288,7 @@ class PhysicalField(Field):
                     )
                     for other_field in other_fields:
                         ax[dimension].plot(
-                            self.physical_domain.grid[dimension],
+                            other_field.physical_domain.grid[dimension],
                             other_field.data.take(indices=N_c, axis=other_dim),
                             "--",
                             label=other_field.name,
@@ -1333,7 +1342,7 @@ class PhysicalField(Field):
                     )
                     for other_field in other_fields:
                         ax[dimension].plot(
-                            self.physical_domain.grid[dimension],
+                            other_field.physical_domain.grid[dimension],
                             other_field.data.take(
                                 indices=N_cs[1], axis=other_dims[1]
                             ).take(indices=N_cs[0], axis=other_dims[0]),
@@ -1850,6 +1859,43 @@ class FourierField(Field):
         out.fourier_domain = field.physical_domain.hat()
         out.data = out.physical_domain.field_hat(field.data)
         return out
+
+    def project_onto_domain(self, domain: PhysicalDomain) -> FourierField:
+        data = self.data
+        for i in self.all_periodic_dimensions():
+            N = self.get_physical_domain().shape[i]
+            N_target = domain.shape[i]
+            if N > N_target:
+                data_1 = data.take(
+                    indices=jnp.arange(0, (N_target - 1) // 2 + 1), axis=i
+                )
+                data_2 = data.take(
+                    indices=jnp.arange(N - (N_target - 1) // 2, N), axis=i
+                )
+                data = jnp.concatenate([data_1, data_2], axis=i)
+            elif N < N_target:
+                zeros_shape = [
+                    data.shape[dim] if dim != i else N_target - N
+                    for dim in self.all_dimensions()
+                ]
+                extra_zeros = jnp.zeros(zeros_shape)
+                data_1 = data.take(indices=jnp.arange(0, (N - 1) // 2 + 1), axis=i)
+                data_2 = data.take(indices=jnp.arange((N - 1) // 2 + 1, N), axis=i)
+                data = jnp.concatenate([data_1, extra_zeros, data_2], axis=i)
+            else:
+                pass
+        for i in self.all_nonperiodic_dimensions():
+            N = self.get_physical_domain().shape[i]
+            N_target = domain.shape[i]
+            if N != N_target:
+                data_dct = jsc.fft.dctn(data, axes=(i,))
+                data = jax.lax.convert_element_type(
+                    jsc.fft.idctn(data_dct, s=(domain.shape[i],), axes=(i,))
+                    * N_target
+                    / N,
+                    new_dtype=jnp.complex64,
+                )
+        return FourierField(domain, data, name=self.name)
 
     def number_of_dofs_aliasing(self) -> int:
         return int(math.prod(self.get_physical_domain().shape))

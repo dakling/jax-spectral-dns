@@ -1412,6 +1412,7 @@ def run_optimisation_transient_growth(
 
     optimiser = OptimiserFourier(
         domain,
+        domain,
         run_case,
         v0_0_hat,
         minimise=False,
@@ -1543,6 +1544,7 @@ def run_optimisation_transient_growth_nonfourier(
         return gain
 
     optimiser = OptimiserNonFourier(
+        domain,
         domain,
         run_case,
         v0_0_norm,
@@ -1695,6 +1697,7 @@ def run_optimisation_transient_growth_y_profile(
 
     optimiser = OptimiserFourier(
         domain,
+        domain,
         run_case,
         v0_0_hat,
         minimise=False,
@@ -1830,6 +1833,7 @@ def run_optimisation_transient_growth_nonlinear(
         return gain
 
     optimiser = OptimiserFourier(
+        domain,
         domain,
         run_case,
         v0_0_hat,
@@ -1975,6 +1979,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
 
     optimiser = OptimiserFourier(
         domain,
+        domain,
         run_case,
         run_input_initial,
         minimise=False,
@@ -2114,6 +2119,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         return gain
 
     optimiser = OptimiserNonFourier(
+        domain,
         domain,
         run_case,
         init_file or v0_0_norm,
@@ -2282,6 +2288,7 @@ def run_optimisation_transient_growth_mean_y_profile(
 
     optimiser = OptimiserPertAndBase(
         domain,
+        domain,
         run_case,
         (v0_0_hat, velocity_base_hat),
         minimise=False,
@@ -2320,7 +2327,8 @@ def run_ld_2021(
 
     Equation.initialize()
 
-    max_cfl = 0.09
+    # max_cfl = 0.65
+    max_cfl = 0.3
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2328,6 +2336,13 @@ def run_ld_2021(
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=aliasing,
+    )
+
+    coarse_domain = PhysicalDomain.create(
+        (16, 64, 12),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=3 / 2,
     )
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
 
@@ -2488,6 +2503,7 @@ def run_ld_2021(
 
     optimiser = OptimiserFourier(
         domain,
+        coarse_domain,
         run_case,
         run_input_initial,
         minimise=False,
@@ -2514,6 +2530,12 @@ def run_white_noise() -> None:
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=3 / 2,
+    )
+    coarse_domain = PhysicalDomain.create(
+        (16, 40, 12),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=3 / 2,
@@ -2606,20 +2628,22 @@ def run_white_noise() -> None:
 
     vel_hat: VectorField[FourierField] = VectorField(
         [
-            FourierField.FromWhiteNoise(domain, energy_norm=e_0)
-            for _ in domain.all_dimensions()
+            FourierField.FromWhiteNoise(coarse_domain, energy_norm=e_0)
+            for _ in coarse_domain.all_dimensions()
         ],
         name="velocity_hat",
-    )
+    ).project_onto_domain(domain)
 
     optimiser = OptimiserFourier(
+        domain,
+        # coarse_domain,
         domain,
         lambda vel_hat_, t: 1.0,
         vel_hat,
         minimise=False,
         force_2d=False,
         objective_fn_name="gain",
-        add_noise=True,
+        add_noise=False,
         noise_amplitude=1e-3,
     )
     fig = figure.Figure()
@@ -2647,7 +2671,7 @@ def run_white_noise() -> None:
     # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
     # vel_hat.no_hat().plot_3d(2)
     # fig.savefig("plots/spectrum.png")
-    U = vel_hat.no_hat()
+    U = vel_hat.project_onto_domain(domain).no_hat()
     U.update_boundary_conditions()
     # U[1].data = jnp.zeros_like(U[1].data)
     U_norm = U.normalize_by_energy()

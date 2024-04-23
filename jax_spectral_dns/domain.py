@@ -620,7 +620,9 @@ class FourierDomain(Domain):
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            diff_array = (1j * np.array(self.mgrid[direction])) ** order
+            diff_array = ((1j * np.array(self.mgrid[direction])) ** order).astype(
+                np.complex64
+            )
             f_diff: jnp_array = jnp.array(diff_array * field_hat)
         else:
             assert physical_domain is not None

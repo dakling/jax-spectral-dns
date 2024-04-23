@@ -415,26 +415,29 @@ class NavierStokesVelVort(Equation):
         assert vel_z_00 is not None
 
         def rk_00() -> tuple[jnp_array, ...]:
-            return (vel_x_00 * (1 + 0j), vel_z_00 * (1 + 0j))
+            return (
+                (vel_x_00 * (1 + 0j)).astype(jnp.complex64),
+                (vel_z_00 * (1 + 0j)).astype(jnp.complex64),
+            )
 
         def rk_not_00(
             kx: int, kz: int, vort_: jnp_array, vel_y_: jnp_array
         ) -> tuple[jnp_array, ...]:
             kx_ = jnp.asarray(domain.grid[0])[kx]
             kz_ = jnp.asarray(domain.grid[2])[kz]
-            minus_j_kx = -1j * kx_
-            minus_j_kz = -1j * kz_
+            j_kx = 1j * kx_
+            j_kz = 1j * kz_
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1, 1)
-            # vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
-            #     vel_1_y_, 1
-            # )
-            vel_x_ = (minus_j_kx * vel_1_y_ - minus_j_kz * vort_) / minus_kx_kz_sq
+            vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
+                vel_1_y_, 1
+            )
+            vel_x_ = (-j_kx * vel_1_y_ + j_kz * vort_) / minus_kx_kz_sq
             if two_d:
                 vel_z_ = jnp.zeros_like(vel_x_)
             else:
-                vel_z_ = (minus_j_kz * vel_1_y_ + minus_j_kx * vort_) / minus_kx_kz_sq
-            return (vel_x_, vel_z_)
+                vel_z_ = (-j_kz * vel_1_y_ - j_kx * vort_) / minus_kx_kz_sq
+            return (vel_x_.astype(jnp.complex64), vel_z_.astype(jnp.complex64))
 
         def inner_map(kx: jsd_float) -> Callable[[jnp_array], jnp_array]:
             def fn(kz_one_pt_state: jnp_array) -> jnp_array:
@@ -459,19 +462,6 @@ class NavierStokesVelVort(Equation):
                     cast(jnp.float64, kx.real).astype(int),
                     kz,
                 )  # type: ignore[no-untyped-call]
-                # out = jax.lax.cond(
-                #     kx == 0,
-                #     lambda kx___, kz___: jax.lax.cond(
-                #         kz___ == 0,
-                #         lambda _, __: rk_00(),
-                #         lambda kx__, kz__: rk_not_00(kx__, kz__, *fields_1d),
-                #         kx___,
-                #         kz___,
-                #     ),  # type: ignore[no-untyped-call]
-                #     lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
-                #     cast(jnp.float64, kx.real).astype(int),
-                #     kz,
-                # )
                 return cast(jnp_array, out)
 
             return fn
@@ -507,7 +497,6 @@ class NavierStokesVelVort(Equation):
             ],
             axis=1,
         )
-        # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
         kx_state = jnp.concatenate(
             [
                 kx_arr.T,
@@ -520,20 +509,11 @@ class NavierStokesVelVort(Equation):
         return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(self, vel_hat_data: jnp_array) -> jnp_array:
-        # if not Field.activate_jit_:
-        # self.dt = self.get_time_step()
-        # Re = self.Re_tau
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
 
-        # D2 = np.linalg.matrix_power(self.get_physical_domain().diff_mats[1], 2)
-        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         n = self.get_domain().number_of_cells(1)
-        # # I = np.eye(n)
-        # Z = np.zeros((n, n))
-
-        # L_NS_y = 1 / Re * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
 
         def perform_single_rk_step_for_single_wavenumber(
             step: int,

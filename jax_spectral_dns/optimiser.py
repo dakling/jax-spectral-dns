@@ -35,7 +35,8 @@ class Optimiser(ABC, Generic[I]):
 
     def __init__(
         self,
-        domain: PhysicalDomain,
+        calculation_domain: PhysicalDomain,
+        optimisation_domain: PhysicalDomain,
         run_fn: Callable[[I, bool], jsd_float],
         run_input_initial: Union[I, str],
         minimise: bool = False,
@@ -51,7 +52,8 @@ class Optimiser(ABC, Generic[I]):
         self.parameters_to_run_input_fn = params.get("parameters_to_run_input_fn")
         self.run_input_to_parameters_fn = params.get("run_input_to_parameters_fn")
 
-        self.domain = domain
+        self.calculation_domain = calculation_domain
+        self.optimisation_domain = optimisation_domain
         self.force_2d = force_2d
         if type(run_input_initial) is str:
             # we would like to be flexible with how the input is provided - see comments for details
@@ -247,10 +249,12 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
     def make_noisy(
         self, input: VectorField[FourierField], noise_amplitude: float = 1e-2
     ) -> VectorField[FourierField]:
+        input = input.project_onto_domain(self.optimisation_domain)
+
         def get_white_noise_field(field: FourierField) -> FourierField:
             return FourierField.FromWhiteNoise(
-                self.domain,
-                energy_norm=field.no_hat().energy() * noise_amplitude,
+                self.optimisation_domain,
+                energy_norm=f.no_hat().energy() * noise_amplitude,
             )
 
         return VectorField([f + get_white_noise_field(f) for f in input])
@@ -268,19 +272,20 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             v1_hat = parameters[1]
             v0_00 = parameters[2]
             v2_00 = parameters[3]
-        domain = self.domain
+        domain = self.optimisation_domain
         U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
             domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
         )
         input: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
-        )
+        ).project_onto_domain(self.calculation_domain)
 
         return input
 
     def run_input_to_parameters(
         self, input: VectorField[FourierField]
     ) -> parameter_type:
+        input = input.project_onto_domain(self.optimisation_domain)
         if self.force_2d:
             v0_1 = input[1].data * (1 + 0j)
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
@@ -291,6 +296,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
             v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
             self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
+        # print(self.parameters)
         return self.parameters
 
     def post_process_iteration(self) -> None:
@@ -347,15 +353,19 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
                 v1 = parameters[1].real
                 v0_00_hat = parameters[2]
                 v2_00_hat = parameters[3]
-                vort = self.domain.update_boundary_conditions(vort)
-                vort_hat = self.domain.field_hat(vort)
-            v1 = self.domain.update_boundary_conditions(v1)
-            v1_hat = self.domain.field_hat(v1)
-            domain = self.domain
+                vort = self.optimisation_domain.update_boundary_conditions(vort)
+                vort_hat = self.optimisation_domain.field_hat(vort)
+            v1 = self.optimisation_domain.update_boundary_conditions(v1)
+            v1_hat = self.optimisation_domain.field_hat(v1)
+            domain = self.optimisation_domain
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
                 domain, vort_hat, v1_hat, v0_00_hat, v2_00_hat, two_d=self.force_2d
             )
-            input = VectorField.FromData(FourierField, domain, U_hat_data).no_hat()
+            input = (
+                VectorField.FromData(FourierField, domain, U_hat_data)
+                .project_onto_domain(self.calculation_domain)
+                .no_hat()
+            )
         else:
             assert self.parameters_to_run_input_fn is not None
             input = self.parameters_to_run_input_fn(parameters)
@@ -476,7 +486,7 @@ class OptimiserPertAndBase(
     def parameters_to_run_input(
         self, parameters: parameter_type
     ) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
-        domain = self.domain
+        domain = self.optimisation_domain
         if self.force_2d:
             vort_hat: Optional[jnp_array] = None
             v1_hat: jnp_array = parameters[0][0]
@@ -523,7 +533,7 @@ class OptimiserPertAndBase(
 
         U_hat: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
-        )
+        ).project_onto_domain(self.calculation_domain)
         U_base: VectorField[FourierField] = VectorField.FromData(
             FourierField,
             domain,
@@ -534,5 +544,5 @@ class OptimiserPertAndBase(
                     jnp.zeros_like(v0_base_hat),
                 ]
             ),
-        )
+        ).project_onto_domain(self.calculation_domain)
         return (U_hat, U_base)
