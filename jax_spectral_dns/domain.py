@@ -41,7 +41,10 @@ def get_fourier_grid(
 ) -> np_float_array:
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
-    n = int(N * aliasing)
+    if N % 2 != 0:
+        n = int((N - 1) * aliasing)
+    else:
+        n = int(N * aliasing)
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
     return np.linspace(start=0.0, stop=scale_factor, num=int(n + 1))[:-1]
@@ -71,6 +74,9 @@ def assemble_fourier_diff_mat(
         [0, 0.5 * (-1) ** np.arange(1, n) * 1 / np.tan(np.arange(1, n) * h / 2)]
     )
     column2 = np.block([column[0], np.flip(column[1:])])
+    # if n % 2 != 0:
+    #     return np.nan * np.ones_like(np.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order))
+    # #     raise Exception("Fourier discretization points must be even!")
     return np.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order)
 
 
@@ -102,9 +108,16 @@ class Domain(ABC):
         if type(scale_factors) == NoneType:
             scale_factors_: List[float] = []
         else:
-            # assert isinstance(scale_factors, list | tuple)
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
+        shape_ = (
+            (
+                shape[i]
+                if not periodic_directions[i] or shape[i] % 2 != 0
+                else shape[i] + 1
+            )
+            for i in range(len(shape))
+        )
         grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):
@@ -134,7 +147,7 @@ class Domain(ABC):
             number_of_dimensions,
             tuple(periodic_directions),
             tuple(scale_factors_),
-            tuple(shape),
+            tuple(shape_),
             tuple(grid),
             tuple(diff_mats),
             tuple(mgrid),
@@ -478,10 +491,7 @@ class PhysicalDomain(Domain):
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
         Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
-        ks = [
-            int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
-            for i in self.all_dimensions()
-        ]
+        ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
 
         out = (
             jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho")
@@ -490,14 +500,11 @@ class PhysicalDomain(Domain):
 
         for i in self.all_periodic_dimensions():
             out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
-            if ks[i] == Ns[i] - ks[i]:
-                out_2 = out.take(indices=np.array([ks[i]]), axis=i)
-            else:
-                out_2 = jnp.conjugate(
-                    out.take(indices=np.array([ks[i]]), axis=i)
-                ) + out.take(indices=np.array([Ns[i] - ks[i]]), axis=i)
+            out_2 = out.take(indices=jnp.array([ks[i]]), axis=i) * (
+                1.0 if ks[i] == Ns[i] // 2 else 2.0
+            )
             out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
-            out = jnp.concatenate([out_1, out_2, out_3], axis=i)
+            out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
 
         return out
 
@@ -538,7 +545,7 @@ class FourierDomain(Domain):
 
         Ns = []
         for i in physical_domain.all_dimensions():
-            Ns.append(physical_domain.number_of_cells(i) / physical_domain.aliasing)
+            Ns.append(physical_domain.shape[i])
         fourier_grid = []
         for i in physical_domain.all_dimensions():
             if physical_domain.periodic_directions[i]:
@@ -613,7 +620,8 @@ class FourierDomain(Domain):
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            if order % 2 == 0:
+            # if order % 2 == 0:
+            if True:
                 diff_array = (1j * np.array(self.mgrid[direction])) ** order
             else:
                 N = self.number_of_cells(direction)
@@ -730,11 +738,11 @@ class FourierDomain(Domain):
                 np.linalg.matrix_power(self.diff_mats[direction], order) @ field
             )
         else:
-            if order % 2 == 0:
-                j_k = 1j * self.grid[direction][k]
-            else:
-                N = self.number_of_cells(direction)
-                j_k = jax.lax.cond(k == N // 2, lambda: 0.0 + 0.0j, lambda: 1j * self.grid[direction][k])  # type: ignore[no-untyped-call]
+            # if order % 2 == 0:
+            j_k = 1j * self.grid[direction][k]
+            # else:
+            #     N = self.number_of_cells(direction)
+            #     j_k = jax.lax.cond(k == N // 2, lambda: 0.0 + 0.0j, lambda: 1j * self.grid[direction][k])  # type: ignore[no-untyped-call]
             return cast(jnp_array, j_k**order * field)
 
     def integrate_fourier_field_slice(

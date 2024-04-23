@@ -1618,11 +1618,14 @@ class PhysicalField(Field):
 
     def diff(self, direction: int, order: int = 1) -> PhysicalField:
         name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
-        return PhysicalField(
-            self.physical_domain,
-            self.physical_domain.diff(self.data, direction, order),
-            self.name + "_" + name_suffix,
-        )
+        if self.physical_domain.is_periodic(direction):
+            return self.hat().diff(direction, order).no_hat()
+        else:
+            return PhysicalField(
+                self.physical_domain,
+                self.physical_domain.diff(self.data, direction, order),
+                self.name + "_" + name_suffix,
+            )
 
     def integrate(
         self,
@@ -1864,7 +1867,7 @@ class FourierField(Field):
         return FourierField(
             self.physical_domain,
             out_field,
-            name=self.name + "_diff_" + str(order),
+            name=self.name + "_" + "xyz"[order],
         )
 
     def integrate(

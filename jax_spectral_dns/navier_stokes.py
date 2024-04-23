@@ -422,8 +422,8 @@ class NavierStokesVelVort(Equation):
         ) -> tuple[jnp_array, ...]:
             kx_ = jnp.asarray(domain.grid[0])[kx]
             kz_ = jnp.asarray(domain.grid[2])[kz]
-            minus_j_kx = jax.lax.cond(kx == Nx // 2, lambda: 0.0 + 0.0j, lambda: -1j * kx_)  # type: ignore[no-untyped-call]
-            minus_j_kz = jax.lax.cond(kz == Nz // 2, lambda: 0.0 + 0.0j, lambda: -1j * kz_)  # type: ignore[no-untyped-call]
+            minus_j_kx = -1j * kx_
+            minus_j_kz = -1j * kz_
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1, 1)
             # vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
@@ -751,7 +751,6 @@ class NavierStokesVelVort(Equation):
                                 -self.dpdz[kx__, :, kz__],
                             ]
                         )
-                    # v_hat_new = np.linalg.inv(lhs_mat_00) @ (
                     assert N_00_old is not None
                     v_hat_new = lhs_mat_inv_00 @ (
                         rhs_mat_00 @ v_hat
@@ -763,8 +762,8 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx: int, kz: int) -> tuple[jnp_array, jnp_array]:
                     kx_ = jnp.asarray(domain.grid[0])[kx]
                     kz_ = jnp.asarray(domain.grid[2])[kz]
-                    minus_j_kx = jax.lax.cond(kx == Nx // 2, lambda: 0.0 + 0.0j, lambda: -1j * kx_)  # type: ignore[no-untyped-call]
-                    minus_j_kz = jax.lax.cond(kz == Nz // 2, lambda: 0.0 + 0.0j, lambda: -1j * kz_)  # type: ignore[no-untyped-call]
+                    minus_j_kx = -1j * kx_
+                    minus_j_kz = -1j * kz_
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
                     # v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
