@@ -762,8 +762,8 @@ class NavierStokesVelVort(Equation):
                 def rk_not_00(kx: int, kz: int) -> tuple[jnp_array, jnp_array]:
                     kx_ = jnp.asarray(domain.grid[0])[kx]
                     kz_ = jnp.asarray(domain.grid[2])[kz]
-                    minus_j_kx = -1j * kx_
-                    minus_j_kz = -1j * kz_
+                    j_kx = 1j * kx_
+                    j_kz = 1j * kz_
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
                     # v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
@@ -775,10 +775,10 @@ class NavierStokesVelVort(Equation):
                     #     )
                     # )
                     v_0_new = (
-                        minus_j_kx * v_1_new_y - minus_j_kz * vort_1_hat_new
+                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        minus_j_kz * v_1_new_y + minus_j_kx * vort_1_hat_new
+                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 

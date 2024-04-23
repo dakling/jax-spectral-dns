@@ -2320,7 +2320,7 @@ def run_ld_2021(
 
     Equation.initialize()
 
-    max_cfl = 0.6
+    max_cfl = 0.09
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2509,7 +2509,7 @@ def run_white_noise() -> None:
     Re = 3000
     e_0 = 1e-3
     Nx, Ny, Nz = 28, 129, 24
-    max_cfl = 0.6
+    max_cfl = 0.1
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
@@ -2563,6 +2563,9 @@ def run_white_noise() -> None:
         assert type(ax) is Axes
         ts = []
         energy_t = []
+
+        fig_ = figure.Figure()
+        ax_ = fig_.subplots(1, 2)
         for j in range(n_steps):
             time_ = (j / (n_steps - 1)) * end_time
             vel_hat_ = nse.get_field("velocity_hat", j)
@@ -2570,6 +2573,11 @@ def run_white_noise() -> None:
             vel_energy_ = vel_.energy()
             ts.append(time_)
             energy_t.append(vel_energy_)
+
+            assert type(ax_) is np.ndarray
+            ax_[0].plot(jnp.abs(vel_hat_[2].data[:, Ny // 2, 0]), "o")
+            ax_[1].plot(jnp.abs(vel_hat_[2].data[0, Ny // 2, :]), "o")
+            fig_.savefig("plots/spectrum_t" + ".png")
 
         energy_t_arr = np.array(energy_t)
         ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
@@ -2582,19 +2590,19 @@ def run_white_noise() -> None:
         fig.legend()
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
 
-        fig = figure.Figure()
-        ax = fig.subplots(1, 2)
+        fig_ = figure.Figure()
+        ax_ = fig_.subplots(1, 2)
         # assert type(ax) is Axes
-        assert type(ax) is np.ndarray
-        ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]))
-        ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]))
+        assert type(ax_) is np.ndarray
+        ax_[0].plot(jnp.abs(vel_hat[2].data[:, Ny // 2, 0]))
+        ax_[1].plot(jnp.abs(vel_hat[2].data[0, Ny // 2, :]))
         print_verb(
             "conti_error (iteration",
             i,
             ")",
             vel_hat.div().no_hat().energy() / vel.energy(),
         )
-        fig.savefig("plots/spectrum_t_" + "{:06}".format(i) + ".png")
+        fig_.savefig("plots/spectrum_t_" + "{:06}".format(i) + ".png")
 
     vel_hat: VectorField[FourierField] = VectorField(
         [
@@ -2618,8 +2626,8 @@ def run_white_noise() -> None:
     ax = fig.subplots(1, 2)
     # assert type(ax) is Axes
     assert type(ax) is np.ndarray
-    ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
-    ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
+    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
+    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
     vel_hat.no_hat().plot_3d(2)
     print_verb(
         "conti_error (before)",
@@ -2635,28 +2643,43 @@ def run_white_noise() -> None:
     vel_hat.div().no_hat().plot_3d(2)
     vel_hat.div().no_hat().plot_3d(1)
     vel_hat.div().no_hat().plot_3d(0)
-    ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
-    ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
-    vel_hat.no_hat().plot_3d(2)
-    fig.savefig("plots/spectrum.png")
+    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
+    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
+    # vel_hat.no_hat().plot_3d(2)
+    # fig.savefig("plots/spectrum.png")
     U = vel_hat.no_hat()
     U.update_boundary_conditions()
+    # U[1].data = jnp.zeros_like(U[1].data)
     U_norm = U.normalize_by_energy()
+    # U_norm *= jnp.sqrt(e_0)
     U_norm *= e_0
     nse = NavierStokesVelVortPerturbation.FromVelocityField(
         U_norm, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
     )
-    energy_0_ = U_norm.energy()
+    # energy_0_ = U_norm.energy()
     nse.set_linearize(False)
     nse.activate_jit()
     # nse.end_time = dt
     nse.end_time = end_time
+    vel_hat = nse.get_latest_field("velocity_hat")
+    energy_0 = vel_hat.no_hat().energy()
+    print(energy_0)
+    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
+    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
+    # nse.perform_time_step()
+    # nse.perform_time_step()
+    # nse.perform_time_step()
+
+    # vel_hat = nse.get_latest_field("velocity_hat")
+    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
+    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
+    # fig.savefig("plots/spectrum.png")
     nse.write_intermediate_output = True
     nse.set_post_process_fn(post_process)
     nse.solve()
     nse.post_process()
     vel_final = nse.get_latest_field("velocity_hat").no_hat()
-    gain = vel_final.energy() / energy_0_
+    gain = vel_final.energy() / energy_0
     print_verb("gain:", gain)
 
     # nse_small_dt = NavierStokesVelVortPerturbation.FromVelocityField(

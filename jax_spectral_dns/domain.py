@@ -66,7 +66,10 @@ def assemble_fourier_diff_mat(
 ) -> np_float_array:
     """Assemble a 1D Fourier differentiation matrix in direction i with
     differentiation order order."""
-    n = int(N * aliasing)
+    if N % 2 != 0:
+        n = int((N - 1) * aliasing)
+    else:
+        n = int(N * aliasing)
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
     h = 2 * np.pi / n
@@ -74,9 +77,6 @@ def assemble_fourier_diff_mat(
         [0, 0.5 * (-1) ** np.arange(1, n) * 1 / np.tan(np.arange(1, n) * h / 2)]
     )
     column2 = np.block([column[0], np.flip(column[1:])])
-    # if n % 2 != 0:
-    #     return np.nan * np.ones_like(np.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order))
-    # #     raise Exception("Fourier discretization points must be even!")
     return np.linalg.matrix_power(sc.linalg.toeplitz(column, column2), order)
 
 
@@ -620,25 +620,7 @@ class FourierDomain(Domain):
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            # if order % 2 == 0:
-            if True:
-                diff_array = (1j * np.array(self.mgrid[direction])) ** order
-            else:
-                N = self.number_of_cells(direction)
-                diff_array_1d = (
-                    1j
-                    * np.array(self.grid[direction])
-                    * np.array([0.0 if i == N // 2 else 1.0 for i in range(N)])
-                ) ** order
-                diff_array = np.array(
-                    np.meshgrid(
-                        *[
-                            diff_array_1d if i == direction else self.grid[i]
-                            for i in self.all_dimensions()
-                        ],
-                        indexing="ij",
-                    )
-                )[direction]
+            diff_array = (1j * np.array(self.mgrid[direction])) ** order
             f_diff: jnp_array = jnp.array(diff_array * field_hat)
         else:
             assert physical_domain is not None
@@ -738,11 +720,7 @@ class FourierDomain(Domain):
                 np.linalg.matrix_power(self.diff_mats[direction], order) @ field
             )
         else:
-            # if order % 2 == 0:
             j_k = 1j * self.grid[direction][k]
-            # else:
-            #     N = self.number_of_cells(direction)
-            #     j_k = jax.lax.cond(k == N // 2, lambda: 0.0 + 0.0j, lambda: 1j * self.grid[direction][k])  # type: ignore[no-untyped-call]
             return cast(jnp_array, j_k**order * field)
 
     def integrate_fourier_field_slice(
