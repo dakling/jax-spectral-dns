@@ -916,10 +916,10 @@ class PhysicalField(Field):
             )
         field = jnp.array(rands).reshape(zero_field.get_domain().get_shape_aliasing())
         out = cls(domain, field, name)
-        smooth_field = PhysicalField.FromFunc(
-            domain, lambda X: jnp.exp(-((3.0 * X[1]) ** 2))
-        )  # make sure that we are not messing with the boundary conditions
-        out *= smooth_field
+        # smooth_field = PhysicalField.FromFunc(
+        #     domain, lambda X: jnp.exp(-((3.0 * X[1]) ** 2))
+        # )  # make sure that we are not messing with the boundary conditions
+        # out *= smooth_field
         out.update_boundary_conditions()
         out.normalize_by_energy()
         out *= jnp.sqrt(energy_norm)

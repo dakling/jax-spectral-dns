@@ -2404,7 +2404,7 @@ def run_ld_2021(
         lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=64)
 
         v0_0 = lsc.calculate_transient_growth_initial_condition(
-            domain,
+            coarse_domain,
             end_time,
             number_of_modes,
             recompute_full=True,
@@ -2523,7 +2523,7 @@ def run_white_noise() -> None:
 
     Equation.initialize()
     Re = 3000
-    e_0 = 1e-3
+    e_0 = 1e-6
     Nx, Ny, Nz = 28, 129, 24
     max_cfl = 0.1
     end_time = 5e-1
@@ -2535,7 +2535,7 @@ def run_white_noise() -> None:
         aliasing=3 / 2,
     )
     coarse_domain = PhysicalDomain.create(
-        (16, 40, 12),
+        (16, 24, 12),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=3 / 2,

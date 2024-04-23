@@ -254,7 +254,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         def get_white_noise_field(field: FourierField) -> FourierField:
             return FourierField.FromWhiteNoise(
                 self.optimisation_domain,
-                energy_norm=f.no_hat().energy() * noise_amplitude,
+                energy_norm=field.no_hat().energy() * noise_amplitude,
             )
 
         return VectorField([f + get_white_noise_field(f) for f in input])
