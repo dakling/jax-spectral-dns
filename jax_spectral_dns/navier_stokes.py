@@ -766,19 +766,19 @@ class NavierStokesVelVort(Equation):
                     j_kz = 1j * kz_
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
-                    # v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
-                    #     v_1_new_y, 1
-                    # )
-                    # vort_1_hat_new_: jnp_array = (
-                    #     domain.update_boundary_conditions_fourier_field_slice(
-                    #         vort_1_hat_new, 1
-                    #     )
-                    # )
+                    v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
+                        v_1_new_y, 1
+                    )
+                    vort_1_hat_new_: jnp_array = (
+                        domain.update_boundary_conditions_fourier_field_slice(
+                            vort_1_hat_new, 1
+                        )
+                    )
                     v_0_new = (
-                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new
+                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new_
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new
+                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new_
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
