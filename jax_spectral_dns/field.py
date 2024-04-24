@@ -916,13 +916,14 @@ class PhysicalField(Field):
             )
         field = jnp.array(rands).reshape(zero_field.get_domain().get_shape_aliasing())
         out = cls(domain, field, name)
-        # smooth_field = PhysicalField.FromFunc(
-        #     domain, lambda X: jnp.exp(-((3.0 * X[1]) ** 2))
-        # )  # make sure that we are not messing with the boundary conditions
-        # out *= smooth_field
+        smooth_field = PhysicalField.FromFunc(
+            domain, lambda X: jnp.exp(-((1.4 * X[1]) ** 8))
+        )  # make sure that we are not messing with the boundary conditions
+        out *= smooth_field
         out.update_boundary_conditions()
         out.normalize_by_energy()
         out *= jnp.sqrt(energy_norm)
+        out.set_name(name)
         return out
 
     @classmethod
@@ -1913,7 +1914,7 @@ class FourierField(Field):
         return FourierField(
             self.physical_domain,
             out_field,
-            name=self.name + "_" + "xyz"[order],
+            name=self.name + "_" + "xyz"[direction],
         )
 
     def integrate(
@@ -2057,6 +2058,148 @@ class FourierField(Field):
             self.physical_domain, out_field, name=self.name + "_reconstr"
         )
 
+    def plot_3d(self, direction: Optional[int] = None) -> None:
+        if not self.activate_jit_:
+            if direction is not None:
+                self.plot_3d_single(direction)
+            else:
+                assert (
+                    self.physical_domain.number_of_dimensions == 3
+                ), "Only 3D supported for this plotting method."
+                fig = figure.Figure(layout="constrained")
+                base_len = 100
+                grd = (base_len, base_len)
+                lx = self.domain.get_shape()[0]
+                ly = self.domain.get_shape()[1]
+                lz = self.domain.get_shape()[2]
+                rows_x = int(ly / (ly + lx) * base_len)
+                cols_x = int(lz / (lz + ly) * base_len)
+                rows_y = int(lx / (ly + lx) * base_len)
+                cols_y = int(lz / (lz + ly) * base_len)
+                rows_z = int(lx / (ly + lx) * base_len)
+                cols_z = int(ly / (lz + ly) * base_len)
+                ax = [
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[
+                            rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
+                        ]
+                    ),
+                ]
+                ims = []
+                for dim in self.all_dimensions():
+                    N_c = (self.domain.get_shape()[dim] - 1) // 2
+                    other_dim = [i for i in self.all_dimensions() if i != dim]
+                    ims.append(
+                        ax[dim].imshow(
+                            abs(self.data.take(indices=N_c, axis=dim)),
+                            interpolation=None,
+                            extent=(
+                                self.domain.grid[other_dim[1]][0],
+                                self.domain.grid[other_dim[1]][-1],
+                                self.domain.grid[other_dim[0]][0],
+                                self.domain.grid[other_dim[0]][-1],
+                            ),
+                        )
+                    )
+                    ax[dim].set_xlabel("xyz"[other_dim[1]])
+                    ax[dim].set_ylabel("xyz"[other_dim[0]])
+                # Find the min and max of all colors for use in setting the color scale.
+                vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+                vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+                for im in ims:
+                    im.set_norm(norm)
+                fig.colorbar(ims[0], ax=ax, label=self.name)
+
+                def save() -> None:
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_3d_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_3d_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
+
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
+
+    def plot_3d_single(self, dim: int) -> None:
+        if not self.activate_jit_:
+            assert (
+                self.physical_domain.number_of_dimensions == 3
+            ), "Only 3D supported for this plotting method."
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
+            ims = []
+            N_c = (self.domain.get_shape()[dim] - 1) // 2
+            other_dim = [i for i in self.all_dimensions() if i != dim]
+            ims.append(
+                ax.imshow(
+                    abs(self.data.take(indices=N_c, axis=dim).T),
+                    interpolation=None,
+                    extent=(
+                        self.domain.grid[other_dim[0]][0],
+                        self.domain.grid[other_dim[0]][-1],
+                        self.domain.grid[other_dim[1]][0],
+                        self.domain.grid[other_dim[1]][-1],
+                    ),
+                )
+            )
+            ax.set_xlabel("xyz"[other_dim[0]])
+            ax.set_ylabel("xyz"[other_dim[1]])
+            # Find the min and max of all colors for use in setting the color scale.
+            vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+            vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            for im in ims:
+                im.set_norm(norm)
+            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+
+            def save() -> None:
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "xyz"[dim]
+                    + "_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "xyz"[dim]
+                    + "_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
+
 
 class FourierFieldSlice(FourierField):
     def __init__(
@@ -2094,15 +2237,7 @@ class FourierFieldSlice(FourierField):
 
     def diff(self, direction: int, order: int = 1) -> "FourierFieldSlice":
         if direction in self.all_periodic_dimensions():
-            if order % 2 == 0:
-                diff_array = (1j * self.ks[direction]) ** order
-            else:
-                N = len(self.ks[direction])
-                diff_array = (
-                    1j
-                    * self.ks[direction]
-                    * jnp.array([0.0 if i == N // 2 else 1.0 for i in range(N)])
-                ) ** order
+            diff_array = (1j * self.ks[direction]) ** order
             out_field = diff_array * self.data
         else:
             out_field = self.physical_domain.diff(self.data, 0, order)

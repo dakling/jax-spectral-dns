@@ -609,7 +609,6 @@ class FourierDomain(Domain):
         )
         return mat
 
-    # @partial(jax.jit, static_argnums=(0,2,3))
     def diff(
         self,
         field_hat: jnp_array,
@@ -620,9 +619,7 @@ class FourierDomain(Domain):
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            diff_array = ((1j * np.array(self.mgrid[direction])) ** order).astype(
-                np.complex128
-            )
+            diff_array = (1j * np.array(self.mgrid[direction])) ** order
             f_diff: jnp_array = jnp.array(diff_array * field_hat)
         else:
             assert physical_domain is not None
@@ -726,13 +723,91 @@ class FourierDomain(Domain):
             return cast(jnp_array, j_k**order * field)
 
     def integrate_fourier_field_slice(
-        self, field: jnp_array, orientation: int, direction: int, order: int = 1
+        self,
+        field: jnp_array,
+        orientation: int,
+        direction: int,
+        order: int = 1,
+        bc_left: Optional[float] = None,
+        bc_right: Optional[float] = None,
     ) -> jnp_array:
         """Calculate and return the derivative of given order for a Fourier
         field slice in direction."""
-        if orientation == direction:
-            return jnp.array(
-                np.linalg.matrix_power(self.diff_mats[direction], -order) @ field
+
+        def safe_is_nonzero(input: Optional[float]) -> bool:
+            if type(input) == NoneType:
+                return False
+            else:
+                assert input is not None
+                return abs(input) > 1e-20
+
+        if (safe_is_nonzero(bc_left)) or (safe_is_nonzero(bc_right)):
+            raise Exception("Only homogeneous dirichlet conditions currently supported")
+
+        assert order <= 2, "Integration only supported up to second order"
+
+        def set_first_mat_row_and_col_to_unit(matr: jnp_array) -> jnp_array:
+            if bc_right == None:
+                return matr
+            N = matr.shape[0]
+            out = jnp.block(
+                [
+                    ([jnp.ones((1)), jnp.zeros((1, N - 1))]),
+                    ([jnp.zeros((N - 1, 1)), matr[1:, 1:]]),
+                ]
             )
+            return out
+
+        def set_last_mat_row_and_col_to_unit(matr: jnp_array) -> jnp_array:
+            if bc_left == None:
+                return matr
+            N = matr.shape[0]
+            out = jnp.block(
+                [
+                    ([matr[:-1, :-1], jnp.zeros((N - 1, 1))]),
+                    ([jnp.zeros((1, N - 1)), jnp.ones((1))]),
+                ]
+            )
+            return out
+
+        if orientation == direction:
+            if order == 1:
+                if type(bc_right) is not NoneType and type(bc_left) is NoneType:
+                    assert bc_right is not None
+                    mat = set_first_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                    # b = set_first_of_field(field, bc_right)
+                elif type(bc_left) is not NoneType and type(bc_right) is NoneType:
+                    assert bc_left is not None
+                    mat = set_last_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                    # b = set_last_of_field(field, bc_left)
+
+                else:
+                    mat = set_last_mat_row_and_col_to_unit(
+                        set_first_mat_row_and_col_to_unit(
+                            jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                        )
+                    )
+            elif order == 2:
+                mat = set_last_mat_row_and_col_to_unit(
+                    set_first_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                )
+                # b_right = 0.0
+                # b_left = 0.0
+                # b = set_first_and_last_of_field(field, b_right, b_left)
+
         else:
-            raise NotImplementedError()
+            raise Exception(
+                "Integration not implemented in periodic directions, use Fourier integration instead."
+            )
+
+        inv_mat = jnp.linalg.inv(mat)
+
+        out: jnp_array = inv_mat @ field
+
+        return out

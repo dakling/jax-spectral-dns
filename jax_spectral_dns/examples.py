@@ -2304,9 +2304,9 @@ def run_optimisation_transient_growth_mean_y_profile(
 def run_ld_2021(
     turb: float = 1.0,
     Re_tau: float = 180,
-    Nx: int = 60,
-    Ny: int = 90,
-    Nz: int = 48,
+    Nx: int = 28,
+    Ny: int = 129,
+    Nz: int = 24,
     number_of_steps: int = 10,
     min_number_of_optax_steps: int = -1,
     e_0: float = 1e-3,
@@ -2320,15 +2320,15 @@ def run_ld_2021(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
-    # aliasing = 3 / 2
+    aliasing = 3 / 2
     # aliasing = 2
-    aliasing = 1
+    # aliasing = 1
     e_0 = float(e_0)
 
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.3
+    max_cfl = 0.4
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2338,12 +2338,13 @@ def run_ld_2021(
         aliasing=aliasing,
     )
 
-    coarse_domain = PhysicalDomain.create(
-        (16, 64, 12),
-        (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
-        aliasing=3 / 2,
-    )
+    # coarse_domain = PhysicalDomain.create(
+    #     (16, 64, 12),
+    #     (True, False, True),
+    #     scale_factors=(1.87, 1.0, 0.93),
+    #     aliasing=1,
+    # )
+    coarse_domain = domain
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
 
     def get_vel_field(
@@ -2414,9 +2415,6 @@ def run_ld_2021(
         v0_0 *= e_0
         vel_hat = v0_0.hat()
         vel_hat.set_name("velocity_hat")
-        # vel_hat: Optional[VectorField[FourierField]] = VectorField.FromRandom(
-        #     FourierField, domain, energy_norm=e_0, name="velocity_hat"
-        # )
     else:
         vel_hat = None
 
@@ -2512,7 +2510,7 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=True,
+        add_noise=False,
         noise_amplitude=1e-6,
         learning_rate=1e-4,
     )
@@ -2523,9 +2521,9 @@ def run_white_noise() -> None:
 
     Equation.initialize()
     Re = 3000
-    e_0 = 1e-6
-    Nx, Ny, Nz = 64, 160, 64
-    max_cfl = 0.3
+    e_0 = 1e-4
+    Nx, Ny, Nz = 28, 129, 24
+    max_cfl = 0.6
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
@@ -2535,10 +2533,10 @@ def run_white_noise() -> None:
         aliasing=3 / 2,
     )
     coarse_domain = PhysicalDomain.create(
-        (16, 24, 12),
+        (16, 90, 16),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
-        aliasing=3 / 2,
+        aliasing=1,
     )
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
 
@@ -2597,11 +2595,12 @@ def run_white_noise() -> None:
             energy_t.append(vel_energy_)
 
             assert type(ax_) is np.ndarray
-            ax_[0].plot(jnp.abs(vel_hat_[2].data[:, Ny // 2, 0]), "o")
-            ax_[1].plot(jnp.abs(vel_hat_[2].data[0, Ny // 2, :]), "o")
+            ax_[0].plot(jnp.abs(vel_hat_[2].data[:, Ny // 2, -1]), "o")
+            ax_[1].plot(jnp.abs(vel_hat_[2].data[-1, Ny // 2, :]), "o")
             fig_.savefig("plots/spectrum_t" + ".png")
 
         energy_t_arr = np.array(energy_t)
+        print_verb("energy_t", energy_t)
         ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
         ax.plot(
             ts[: i + 1],
@@ -2616,8 +2615,8 @@ def run_white_noise() -> None:
         ax_ = fig_.subplots(1, 2)
         # assert type(ax) is Axes
         assert type(ax_) is np.ndarray
-        ax_[0].plot(jnp.abs(vel_hat[2].data[:, Ny // 2, 0]))
-        ax_[1].plot(jnp.abs(vel_hat[2].data[0, Ny // 2, :]))
+        ax_[0].plot(jnp.abs(vel_hat[2].data[:, Ny // 2, -1]))
+        ax_[1].plot(jnp.abs(vel_hat[2].data[-1, Ny // 2, :]))
         print_verb(
             "conti_error (iteration",
             i,
@@ -2632,12 +2631,13 @@ def run_white_noise() -> None:
             for _ in coarse_domain.all_dimensions()
         ],
         name="velocity_hat",
-    ).project_onto_domain(domain)
+    )
 
     optimiser = OptimiserFourier(
         domain,
-        # coarse_domain,
         domain,
+        # coarse_domain,
+        # coarse_domain,
         lambda vel_hat_, t: 1.0,
         vel_hat,
         minimise=False,
@@ -2660,6 +2660,7 @@ def run_white_noise() -> None:
     vel_hat = optimiser.parameters_to_run_input(
         optimiser.run_input_to_parameters(vel_hat)
     )  # should lower conti error
+    vel_hat.set_name("velocity_hat")
     print_verb(
         "conti_error (after)",
         vel_hat.div().no_hat().energy() / vel_hat.no_hat().energy(),
@@ -2667,6 +2668,11 @@ def run_white_noise() -> None:
     vel_hat.div().no_hat().plot_3d(2)
     vel_hat.div().no_hat().plot_3d(1)
     vel_hat.div().no_hat().plot_3d(0)
+    vel_hat[0].diff(0).no_hat().plot_3d(0)
+    vel_hat[1].diff(1).no_hat().plot_3d(0)
+    vel_hat[2].diff(2).no_hat().plot_3d(0)
+    (vel_hat[0].diff(0) + vel_hat[2].diff(2)).no_hat().plot_3d(0)
+    # raise Exception("break")
     # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
     # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
     # vel_hat.no_hat().plot_3d(2)
@@ -2687,7 +2693,6 @@ def run_white_noise() -> None:
     nse.end_time = end_time
     vel_hat = nse.get_latest_field("velocity_hat")
     energy_0 = vel_hat.no_hat().energy()
-    print(energy_0)
     # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
     # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
     # nse.perform_time_step()

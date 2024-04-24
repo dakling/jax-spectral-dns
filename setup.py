@@ -22,6 +22,7 @@ setup(
     extras_require={
         "notifications": ["PyGObject"],
         "contributing": [
+            "mypy",
             "pytest",
             "pytest-xdist",
             "black",
