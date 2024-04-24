@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 
 
 np_float_array = npt.NDArray[np.float64]
-np_complex_array = npt.NDArray[np.complex64]
+np_complex_array = npt.NDArray[np.complex128]
 jsd_float = Union[float, np.float64, jnp.float64]
-jsd_complex = Union[jsd_float, complex, np.complex64, jnp.complex64]
+jsd_complex = Union[jsd_float, complex, np.complex128, jnp.complex128]
 jnp_array = jt.Array
 jsd_array = jt.ArrayLike
 np_jnp_array = Union[np_float_array, np_complex_array, jnp_array]

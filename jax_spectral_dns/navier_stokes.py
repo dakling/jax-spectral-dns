@@ -332,22 +332,22 @@ class NavierStokesVelVort(Equation):
         L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
         rk_mats_rhs = np.zeros(
             (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
-            dtype=np.complex64,
+            dtype=np.complex128,
         )
         rk_mats_lhs_inv = np.zeros(
             (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
-            dtype=np.complex64,
+            dtype=np.complex128,
         )
         rk_rhs_inhom = np.zeros(
             (3, domain.number_of_cells(0), domain.number_of_cells(2), n),
-            dtype=np.complex64,
+            dtype=np.complex128,
         )
         rk_mats_lhs_inv_inhom = np.zeros(
             (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
-            dtype=np.complex64,
+            dtype=np.complex128,
         )
-        rk_mats_rhs_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex64)
-        rk_mats_lhs_inv_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex64)
+        rk_mats_rhs_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex128)
+        rk_mats_lhs_inv_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex128)
         for i in range(3):
             for xi, kx in enumerate(domain.grid[0]):
                 for zi, kz in enumerate(domain.grid[2]):
@@ -416,8 +416,8 @@ class NavierStokesVelVort(Equation):
 
         def rk_00() -> tuple[jnp_array, ...]:
             return (
-                (vel_x_00 * (1 + 0j)).astype(jnp.complex64),
-                (vel_z_00 * (1 + 0j)).astype(jnp.complex64),
+                (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
+                (vel_z_00 * (1 + 0j)).astype(jnp.complex128),
             )
 
         def rk_not_00(
@@ -437,7 +437,7 @@ class NavierStokesVelVort(Equation):
                 vel_z_ = jnp.zeros_like(vel_x_)
             else:
                 vel_z_ = (-j_kz * vel_1_y_ - j_kx * vort_) / minus_kx_kz_sq
-            return (vel_x_.astype(jnp.complex64), vel_z_.astype(jnp.complex64))
+            return (vel_x_.astype(jnp.complex128), vel_z_.astype(jnp.complex128))
 
         def inner_map(kx: jsd_float) -> Callable[[jnp_array], jnp_array]:
             def fn(kz_one_pt_state: jnp_array) -> jnp_array:

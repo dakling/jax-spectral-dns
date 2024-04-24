@@ -1893,7 +1893,7 @@ class FourierField(Field):
                     jsc.fft.idctn(data_dct, s=(domain.shape[i],), axes=(i,))
                     * N_target
                     / N,
-                    new_dtype=jnp.complex64,
+                    new_dtype=jnp.complex128,
                 )
         return FourierField(domain, data, name=self.name)
 
