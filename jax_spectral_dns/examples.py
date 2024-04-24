@@ -2524,8 +2524,8 @@ def run_white_noise() -> None:
     Equation.initialize()
     Re = 3000
     e_0 = 1e-6
-    Nx, Ny, Nz = 28, 129, 24
-    max_cfl = 0.1
+    Nx, Ny, Nz = 64, 200, 64
+    max_cfl = 0.3
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
