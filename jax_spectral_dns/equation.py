@@ -23,7 +23,7 @@ from pathlib import Path
 import os
 
 try:
-    import gi  # type: ignore[import-untyped]
+    import gi  # type: ignore
 
     gi.require_version("Notify", "0.7")
     from gi.repository import Notify  # type: ignore[import-untyped]

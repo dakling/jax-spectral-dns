@@ -2524,7 +2524,7 @@ def run_white_noise() -> None:
     Equation.initialize()
     Re = 3000
     e_0 = 1e-6
-    Nx, Ny, Nz = 64, 200, 64
+    Nx, Ny, Nz = 64, 160, 64
     max_cfl = 0.3
     end_time = 5e-1
 
