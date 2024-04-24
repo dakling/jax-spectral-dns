@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc
 import numpy as np
 import scipy as sc  # type: ignore
 import dataclasses
@@ -642,6 +643,79 @@ class FourierDomain(Domain):
         curl_2 = v_x - u_y
 
         return jnp.array([curl_0, curl_1, curl_2])
+
+    def project_onto_domain(
+        self,
+        physical_domain: PhysicalDomain,
+        target_domain: PhysicalDomain,
+        field_hat: jnp_array,
+    ) -> jnp_array:
+        for i in self.all_periodic_dimensions():
+            N = physical_domain.shape[i]
+            N_target = target_domain.shape[i]
+            if N > N_target:
+                data_1 = field_hat.take(
+                    indices=jnp.arange(0, (N_target - 1) // 2 + 1), axis=i
+                )
+                data_2 = field_hat.take(
+                    indices=jnp.arange(N - (N_target - 1) // 2, N), axis=i
+                )
+                field_hat = jnp.concatenate([data_1, data_2], axis=i)
+            elif N < N_target:
+                zeros_shape = [
+                    field_hat.shape[dim] if dim != i else N_target - N
+                    for dim in self.all_dimensions()
+                ]
+                extra_zeros = jnp.zeros(zeros_shape)
+                data_1 = field_hat.take(indices=jnp.arange(0, (N - 1) // 2 + 1), axis=i)
+                data_2 = field_hat.take(indices=jnp.arange((N - 1) // 2 + 1, N), axis=i)
+                field_hat = jnp.concatenate([data_1, extra_zeros, data_2], axis=i)
+            else:
+                pass
+        for i in self.all_nonperiodic_dimensions():
+            N = physical_domain.shape[i]
+            N_target = target_domain.shape[i]
+            if N != N_target:
+                data_dct = jsc.fft.dctn(field_hat, axes=(i,))
+                field_hat = jax.lax.convert_element_type(
+                    jsc.fft.idctn(data_dct, s=(target_domain.shape[i],), axes=(i,))
+                    * N_target
+                    / N,
+                    new_dtype=jnp.complex128,
+                )
+        return field_hat
+
+    def filter_field(
+        self, physical_domain: PhysicalDomain, field_hat: jnp_array
+    ) -> jnp_array:
+        N_coarse_ = tuple(
+            physical_domain.shape[i]
+            - (
+                physical_domain.shape[i] // 3
+                if physical_domain.periodic_directions[i]
+                else 0
+            )
+            for i in self.all_dimensions()
+        )
+        N_coarse = tuple(
+            (
+                N_coarse_[i]
+                if N_coarse_[i] % 2 == 0 or not physical_domain.periodic_directions[i]
+                else N_coarse_[i] + 1
+            )
+            for i in self.all_dimensions()
+        )
+        coarse_domain = PhysicalDomain.create(
+            N_coarse,
+            physical_domain.periodic_directions,
+            physical_domain.scale_factors,
+            aliasing=1,
+        )
+        return self.project_onto_domain(
+            coarse_domain,
+            physical_domain,
+            self.project_onto_domain(physical_domain, coarse_domain, field_hat),
+        )
 
     def solve_poisson_fourier_field_slice(
         self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]

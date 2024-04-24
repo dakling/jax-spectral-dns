@@ -2522,15 +2522,16 @@ def run_white_noise() -> None:
     Equation.initialize()
     Re = 3000
     e_0 = 1e-4
-    Nx, Ny, Nz = 28, 129, 24
-    max_cfl = 0.6
+    Nx, Ny, Nz = 44, 129, 36
+    max_cfl = 0.1
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
-        aliasing=3 / 2,
+        # aliasing=3 / 2,
+        aliasing=1,
     )
     coarse_domain = PhysicalDomain.create(
         (16, 90, 16),

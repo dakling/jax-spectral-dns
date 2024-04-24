@@ -779,26 +779,15 @@ class NavierStokesVelVort(Equation):
 
         for step in range(number_of_rk_steps):
 
-            # transform to and from physical space to eliminate high wavenumbers # TODO
-            # vel_hat_data = jnp.array([self.get_physical_domain().field_hat(self.get_domain().field_no_hat(vel_hat_data[i])) for i in self.all_dimensions()])
-            coarse_domain = PhysicalDomain.create(
-                (
-                    self.get_physical_domain().shape[0] - 4,
-                    self.get_physical_domain().shape[1],
-                    self.get_physical_domain().shape[2] - 4,
-                ),
-                self.get_physical_domain().periodic_directions,
-                self.get_physical_domain().scale_factors,
-            )
-            vel_hat = VectorField(
+            # filter out high wavenumbers to dealias
+            vel_hat_data = jnp.array(
                 [
-                    FourierField(self.get_physical_domain(), vel_hat_data[i])
+                    self.get_domain().filter_field(
+                        self.get_physical_domain(), vel_hat_data[i]
+                    )
                     for i in self.all_dimensions()
                 ]
             )
-            vel_hat = vel_hat.project_onto_domain(coarse_domain)
-            vel_hat = vel_hat.project_onto_domain(self.get_physical_domain())
-            vel_hat_data = vel_hat.get_data()
             # update nonlinear terms
             (
                 h_v_hat,
