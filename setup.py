@@ -18,12 +18,16 @@ setup(
         "scikit-image",
         "jaxopt",
         "optax",
-        "PyGObject",
-        "pytest",
-        "pytest-xdist",
-        "black",
-        "pre-commit",  # for automatic formatting
     ],
+    extras_require={
+        "notifications": ["PyGObject"],
+        "contributing": [
+            "pytest",
+            "pytest-xdist",
+            "black",
+            "pre-commit",  # for automatic formatting
+        ],
+    },
     classifiers=[
         "Development Status :: 1 - Planning",
         "Intended Audience :: Science/Research",
