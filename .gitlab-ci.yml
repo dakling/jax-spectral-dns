@@ -20,6 +20,9 @@ default:
     image: python
     before_script:
         - pip install mypy
+        - pip install black
+        - pip install pytest
+        - pip install pytest-xdist
         - pip install .
     
 
