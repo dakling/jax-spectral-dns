@@ -732,7 +732,7 @@ class FourierDomain(Domain):
         field slice in direction."""
         if orientation == direction:
             return jnp.array(
-                np.linalg.matrix_power(self.diff_mats[direction], order) @ field
+                np.linalg.matrix_power(self.diff_mats[direction], -order) @ field
             )
         else:
             raise NotImplementedError()

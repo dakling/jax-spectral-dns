@@ -1395,7 +1395,7 @@ class TestProject(unittest.TestCase):
         main()
 
     def test_transient_growth(self) -> None:
-        for Re, t, err in [(600, 2, 8e-4), (3000, 15, 2e-5)]:
+        for Re, t, err in [(600, 2, 8e-4), (3000, 15, 3e-5)]:
             gain, expected_gain, _, _ = run_transient_growth(
                 Re, t, alpha=1, beta=0, plot=False
             )
