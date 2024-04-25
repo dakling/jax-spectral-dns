@@ -3,7 +3,8 @@ from __future__ import annotations
 
 NoneType = type(None)
 from operator import rshift
-from typing import Any, Callable, List, Optional, Self, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Tuple, Union, cast
+from typing_extensions import Self
 import jax
 import jax.numpy as jnp
 from matplotlib import axes
