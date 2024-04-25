@@ -91,14 +91,8 @@ class Equation:
         self.before_time_step_fn: Optional[Callable[[E], None]] = None
         self.after_time_step_fn: Optional[Callable[[E], None]] = None
         self.post_process_fn: Optional[Callable[[E, int], None]] = None
-        try:
-            self.end_time = params["end_time"]
-        except KeyError:
-            self.end_time = None
-        try:
-            self.max_iter = params["max_iter"]
-        except KeyError:
-            self.max_iter = None
+        self.end_time = params.get("end_time", 0.0)
+        self.max_iter = params.get("max_iter", 1000)
         for field in fields:
             f_name: str = field.get_name()
             self.fields[f_name] = [field]

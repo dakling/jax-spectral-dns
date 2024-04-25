@@ -9,7 +9,7 @@ from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from functools import partial, reduce
-from typing import TYPE_CHECKING, Callable, Optional, Union, cast
+from typing import TYPE_CHECKING, Callable, Optional, Union, cast, Tuple, List
 import time
 
 from jax_spectral_dns import navier_stokes_perturbation
@@ -406,13 +406,13 @@ def run_pseudo_2d() -> None:
     vel_pert_0_hat = nse.get_initial_field("velocity_hat")[1]
     vel_pert_0: PhysicalField = vel_pert_0_hat.no_hat()
     vel_pert_0.name = "veloctity_y_0"
-    ts: list[float] = []
-    energy_t: list[float] = []
-    energy_x_t: list[float] = []
-    energy_y_t: list[float] = []
-    energy_t_ana: list[float] = []
-    energy_x_t_ana: list[float] = []
-    energy_y_t_ana: list[float] = []
+    ts: List[float] = []
+    energy_t: List[float] = []
+    energy_x_t: List[float] = []
+    energy_y_t: List[float] = []
+    energy_t_ana: List[float] = []
+    energy_x_t_ana: List[float] = []
+    energy_y_t_ana: List[float] = []
 
     def before_time_step(nse: NavierStokesVelVort) -> None:
         i = nse.time_step
@@ -721,13 +721,13 @@ def run_pseudo_2d_perturbation(
 
     vel_pert_0 = nse.get_initial_field("velocity_hat").no_hat()[1]
     vel_pert_0.name = "veloctity_y_0"
-    ts: list[float] = []
-    energy_t: list[float] = []
-    energy_x_t: list[float] = []
-    energy_y_t: list[float] = []
-    energy_t_ana: list[float] = []
-    energy_x_t_ana: list[float] = []
-    energy_y_t_ana: list[float] = []
+    ts: List[float] = []
+    energy_t: List[float] = []
+    energy_x_t: List[float] = []
+    energy_y_t: List[float] = []
+    energy_t_ana: List[float] = []
+    energy_x_t_ana: List[float] = []
+    energy_y_t_ana: List[float] = []
 
     nse.set_before_time_step_fn(None)
     nse.set_after_time_step_fn(None)
@@ -890,7 +890,7 @@ def run_transient_growth_nonpert(
     Ny: int = 50,
     Nz: int = 4,
     plot: bool = True,
-) -> tuple[float, float, list[float], list[float]]:
+) -> Tuple[float, float, List[float], List[float]]:
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -1063,7 +1063,7 @@ def run_transient_growth(
     Nz: int = 4,
     linearize: Union[bool, str] = True,
     plot: bool = True,
-) -> tuple[float, float, list[float], list[float]]:
+) -> Tuple[float, float, List[float], List[float]]:
 
     # ensure that these variables are not strings as they might be passed as command line arguments
     Re = float(Re)
@@ -1211,7 +1211,7 @@ def run_transient_growth(
 
 def run_transient_growth_time_study(
     transient_growth_fn_: Union[
-        str, Callable[[float], tuple[float, float, list[float], list[float]]]
+        str, Callable[[float], Tuple[float, float, List[float], List[float]]]
     ] = run_transient_growth
 ) -> None:
 
@@ -2301,14 +2301,15 @@ def run_optimisation_transient_growth_mean_y_profile(
     optimiser.optimise()
 
 
-def run_ld_2021_get_mean():
+def run_ld_2021_get_mean() -> None:
     Re = 3275
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
-    max_cfl = 0.5
-    # end_time = 100
-    end_time = 1
+    max_cfl = 0.3
+    end_time = 100
+
+    Equation.initialize()
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -2316,7 +2317,14 @@ def run_ld_2021_get_mean():
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,
     )
+    coarse_domain = PhysicalDomain.create(
+        (16, Ny, 16),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=1,
+    )
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
+    print_verb("dt:", dt)
 
     def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -2324,7 +2332,7 @@ def run_ld_2021_get_mean():
         vel = vel_hat.no_hat()
         avg_vel = VectorField([PhysicalField.Zeros(domain) for _ in range(3)])
         if i == 0:
-            for j in range(i):
+            for j in range(n_steps):
                 vel_hat = nse.get_field("velocity_hat", j)
                 vel = vel_hat.no_hat()
                 avg_vel += vel / n_steps
@@ -2343,7 +2351,7 @@ def run_ld_2021_get_mean():
             avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
             for i_x in range(Nx):
                 for i_z in range(Nz):
-                    avg_vel_x_slice += avg_vel[i_x, :, i_z] / (Nx * Nz)
+                    avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
             avg_vel_x_slice.set_time_step(0)
             avg_vel_x_slice.set_name("average_velocity_x_slice")
             avg_vel_x_slice.save_to_file("avg_vel_x_slice")
@@ -2363,8 +2371,15 @@ def run_ld_2021_get_mean():
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
-    U = vel_base_lam
+    noise_field = (
+        FourierField.FromWhiteNoise(coarse_domain, 1e-4)
+        .project_onto_domain(domain)
+        .no_hat()
+    )
+    U = vel_base_lam + VectorField([noise_field for _ in range(3)])
+    # U = vel_base_lam
     nse = NavierStokesVelVort.FromVelocityField(U, Re=Re, dt=dt)
+    nse.end_time = end_time
 
     # nse.deactivate_jit()
     nse.activate_jit()
@@ -2402,7 +2417,7 @@ def run_ld_2021(
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.4
+    max_cfl = 0.2
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2423,7 +2438,7 @@ def run_ld_2021(
 
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: np_jnp_array
-    ) -> tuple[VectorField[PhysicalField], np_jnp_array, jsd_float]:
+    ) -> Tuple[VectorField[PhysicalField], np_jnp_array, jsd_float]:
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
             for j in range(len(cheb_coeffs)):
@@ -2584,8 +2599,8 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=False,
-        noise_amplitude=1e-8,
+        add_noise=True,
+        noise_amplitude=1e-10,
         learning_rate=1e-4,
     )
     optimiser.optimise()

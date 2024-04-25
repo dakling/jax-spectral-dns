@@ -87,7 +87,7 @@ class Field(ABC):
 
     @classmethod
     def Zeros(cls, domain: PhysicalDomain, name: str = "field") -> Self:
-        data: jnp_array = jnp.zeros(domain.shape)
+        data: jnp_array = jnp.zeros(domain.get_shape_aliasing())
         return cls(domain, data, name)
 
     @abstractmethod
@@ -871,7 +871,7 @@ class PhysicalField(Field):
             raise Exception("Don't know how to divide by another field")
         else:
             new_name = "field"
-            ret = PhysicalField(self.physical_domain, self.data * other, name=new_name)
+            ret = PhysicalField(self.physical_domain, self.data / other, name=new_name)
             ret.time_step = self.time_step
             return ret
 
