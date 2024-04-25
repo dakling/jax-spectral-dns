@@ -2511,7 +2511,7 @@ def run_ld_2021(
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
         add_noise=True,
-        noise_amplitude=1e-6,
+        noise_amplitude=1e-8,
         learning_rate=1e-4,
     )
     optimiser.optimise()
@@ -2534,6 +2534,7 @@ def run_white_noise() -> None:
         aliasing=1,
     )
     coarse_domain = PhysicalDomain.create(
+        # (16, Ny, 16),
         (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),

@@ -8,7 +8,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import Any, cast
+from typing import Any, Tuple, cast
 
 # from importlib import reload
 import sys
@@ -39,7 +39,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     vel_hat_new: jnp_array,
     vel_base_hat: jnp_array,
     linearize: bool = False,
-) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
+) -> Tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
 
     vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
     vel_new = jnp.array(
@@ -255,7 +255,7 @@ def solve_navier_stokes_perturbation(
     Ny: int = 40,
     Nz: int = 8,
     perturbation_factor: float = 0.1,
-    scale_factors: tuple[float, float, float] = (1.87, 1.0, 0.93),
+    scale_factors: Tuple[float, float, float] = (1.87, 1.0, 0.93),
     dt: float = 1e-2,
     u_max_over_u_tau: jsd_float = 1.0,
     aliasing: float = 1.0,

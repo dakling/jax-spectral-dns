@@ -3,7 +3,17 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import time
-from typing import Any, Callable, Generic, Optional, TypeVar, Union, TYPE_CHECKING, cast
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+    TYPE_CHECKING,
+    cast,
+)
 import jax
 import jax.numpy as jnp
 import pickle
@@ -417,14 +427,14 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
 
 class OptimiserPertAndBase(
-    Optimiser[tuple[VectorField[FourierField], VectorField[FourierField]]]
+    Optimiser[Tuple[VectorField[FourierField], VectorField[FourierField]]]
 ):
 
     def make_noisy(
         self,
-        input: "tuple[VectorField[FourierField], VectorField[FourierField]]",
+        input: "Tuple[VectorField[FourierField], VectorField[FourierField]]",
         noise_amplitude: float = 1e-1,
-    ) -> "tuple[VectorField[FourierField], VectorField[FourierField]]":
+    ) -> "Tuple[VectorField[FourierField], VectorField[FourierField]]":
         parameters_no_hat = input[0].no_hat()
         e0 = parameters_no_hat.energy()
         # only add noise to perturbation field
@@ -465,7 +475,7 @@ class OptimiserPertAndBase(
         U_base[0].save_to_file("vel_base_" + str(i + 1))
 
     def run_input_to_parameters(
-        self, inp: "tuple[VectorField[FourierField], VectorField[FourierField]]"
+        self, inp: "Tuple[VectorField[FourierField], VectorField[FourierField]]"
     ) -> parameter_type:
         vel_hat, vel_base = inp
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
@@ -485,7 +495,7 @@ class OptimiserPertAndBase(
 
     def parameters_to_run_input(
         self, parameters: parameter_type
-    ) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
+    ) -> Tuple[VectorField[FourierField], VectorField[FourierField]]:
         domain = self.optimisation_domain
         if self.force_2d:
             vort_hat: Optional[jnp_array] = None

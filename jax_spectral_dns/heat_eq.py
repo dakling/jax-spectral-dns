@@ -31,7 +31,7 @@ class Heat_Eq(Equation):
         out = cast(PhysicalField, super().get_field(name, index))
         return out
 
-    def get_fields(self, name: str) -> list["PhysicalField"]:
+    def get_fields(self, name: str) -> List["PhysicalField"]:
         return cast(List[PhysicalField], super().get_fields(name))
 
     def get_initial_field(self, name: str) -> "PhysicalField":
@@ -75,10 +75,10 @@ class Heat_Eq(Equation):
         self.i += 1
         # return self.perform_implicit_euler_step(dt, i)
 
-    def solve(self) -> list[PhysicalField]:
+    def solve(self) -> List[PhysicalField]:
         for i in jnp.arange(1, self.number_of_steps + 1):
             self.perform_time_step()
-        out: list[PhysicalField] = self.get_fields("u")
+        out: List[PhysicalField] = self.get_fields("u")
         return out
 
     def plot(self) -> None:

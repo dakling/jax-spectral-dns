@@ -10,7 +10,7 @@ from matplotlib.axes import Axes
 
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, List, Tuple, cast
 
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, PhysicalField, FourierFieldSlice, VectorField
@@ -97,7 +97,7 @@ class TestProject(unittest.TestCase):
         u_x_ana = PhysicalField.FromFunc(domain, func=u_diff_fn, name="u_x_ana")
         u_xx_ana = PhysicalField.FromFunc(domain, func=u_diff_fn_2, name="u_xx_ana")
 
-        # u.plot_center(0, u_x, u_xx, u_x_ana, u_xx_ana)
+        # u.plot_center(0, u_x, u_xx, List, u_x, List_ana, u_xx_ana)
         tol = 8e-5
         print_verb(abs(u_x - u_x_ana), verbosity_level=3)
         print_verb(abs(u_xx - u_xx_ana), verbosity_level=3)
@@ -1264,7 +1264,7 @@ class TestProject(unittest.TestCase):
 
         def run(
             rotated: bool = False, use_antialiasing: bool = False
-        ) -> tuple[list[list[float]], jnp_array, jnp_array]:
+        ) -> Tuple[List[List[float]], jnp_array, jnp_array]:
             ts = []
             energy = []
             energy_ana = []
@@ -1276,7 +1276,7 @@ class TestProject(unittest.TestCase):
             return (ts, jnp.array(energy), jnp.array(energy_ana))
 
         def calculate_growth_rates(
-            ts: list[list[float]], energy: jnp_array, energy_ana: jnp_array
+            ts: List[List[float]], energy: jnp_array, energy_ana: jnp_array
         ) -> None:
             start_index = 1  # don't start at 0 to allow for some initial transient
             time = ts[0][-1] - ts[0][start_index]
@@ -1335,7 +1335,7 @@ class TestProject(unittest.TestCase):
             assert rel_error_6000 < 1e-3
 
         def plot(
-            ts: list[list[float]],
+            ts: List[List[float]],
             dataset: jnp_array,
             dataset_ana: jnp_array,
             rotated: bool,

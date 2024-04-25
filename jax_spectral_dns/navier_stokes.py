@@ -3,7 +3,7 @@ from __future__ import annotations
 
 NoneType = type(None)
 from operator import rshift
-from typing import Any, Callable, List, Optional, Self, Union, cast
+from typing import Any, Callable, List, Optional, Self, Tuple, Union, cast
 import jax
 import jax.numpy as jnp
 from matplotlib import axes
@@ -40,7 +40,7 @@ def update_nonlinear_terms_high_performance(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: jnp_array,
-) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
+) -> Tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
 
     vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
     vel_new = jnp.array(
@@ -125,7 +125,7 @@ class NavierStokesVelVort(Equation):
             except KeyError:
                 raise Exception("Either Re or Re_tau has to be given as a parameter.")
         self.nonlinear_update_fn: Callable[
-            [jnp_array], tuple[jnp_array, jnp_array, jnp_array, jnp_array]
+            [jnp_array], Tuple[jnp_array, jnp_array, jnp_array, jnp_array]
         ] = lambda vel: update_nonlinear_terms_high_performance(
             self.get_physical_domain(), self.get_domain(), vel
         )
@@ -183,7 +183,7 @@ class NavierStokesVelVort(Equation):
         return cls(velocity_field_hat, **params)
 
     @classmethod
-    def FromRandom(cls, shape: tuple[int, ...], **params: Any) -> Self:
+    def FromRandom(cls, shape: Tuple[int, ...], **params: Any) -> Self:
         domain = PhysicalDomain.create(shape, (True, False, True))
         vel_x = PhysicalField.FromRandom(domain, name="u0")
         vel_y = PhysicalField.FromRandom(domain, name="u1")
@@ -202,7 +202,7 @@ class NavierStokesVelVort(Equation):
         out = cast(VectorField[FourierField], super().get_field(name, index))
         return out
 
-    def get_fields(self, name: str) -> list["VectorField[FourierField]"]:
+    def get_fields(self, name: str) -> List["VectorField[FourierField]"]:
         return cast(List[VectorField[FourierField]], super().get_fields(name))
 
     def get_initial_field(self, name: str) -> "VectorField[FourierField]":
@@ -251,7 +251,7 @@ class NavierStokesVelVort(Equation):
 
     def get_vorticity_and_helicity(
         self,
-    ) -> tuple[VectorField[FourierField], VectorField[FourierField]]:
+    ) -> Tuple[VectorField[FourierField], VectorField[FourierField]]:
         velocity_field_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_hat"
         )
@@ -308,7 +308,7 @@ class NavierStokesVelVort(Equation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
-    def get_rk_parameters(self) -> tuple[list[jsd_float], ...]:
+    def get_rk_parameters(self) -> Tuple[List[jsd_float], ...]:
         return (
             [29 / 96, -3 / 40, 1 / 6],
             [37 / 160, 5 / 24, 1 / 6],
@@ -322,7 +322,7 @@ class NavierStokesVelVort(Equation):
         physical_domain: PhysicalDomain,
         Re_tau: jsd_float,
         dt: jsd_float,
-    ) -> tuple[np_complex_array, ...]:
+    ) -> Tuple[np_complex_array, ...]:
         alpha, beta, _, _ = self.get_rk_parameters()
         D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
         Ly = 1 / Re_tau * D2
@@ -415,7 +415,7 @@ class NavierStokesVelVort(Equation):
         assert vort is not None
         assert vel_z_00 is not None
 
-        def rk_00() -> tuple[jnp_array, ...]:
+        def rk_00() -> Tuple[jnp_array, ...]:
             return (
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
                 vel_y[0, :, 0],
@@ -424,7 +424,7 @@ class NavierStokesVelVort(Equation):
 
         def rk_not_00(
             kx: int, kz: int, vort_: jnp_array, vel_y_: jnp_array
-        ) -> tuple[jnp_array, ...]:
+        ) -> Tuple[jnp_array, ...]:
             kx_ = jnp.asarray(domain.grid[0])[kx]
             kz_ = jnp.asarray(domain.grid[2])[kz]
             j_kx = 1j * kx_
@@ -531,7 +531,7 @@ class NavierStokesVelVort(Equation):
             step: int,
         ) -> Callable[
             [
-                tuple[int, int],
+                Tuple[int, int],
                 jnp_array,
                 jnp_array,
                 jnp_array,
@@ -545,10 +545,10 @@ class NavierStokesVelVort(Equation):
                 Optional[jnp_array],
                 Optional[jnp_array],
             ],
-            tuple[jnp_array, ...],
+            Tuple[jnp_array, ...],
         ]:
             def fn(
-                K: tuple[int, int],
+                K: Tuple[int, int],
                 v_1_lap_hat_sw: jnp_array,
                 vort_1_hat_sw: jnp_array,
                 h_v_hat_sw: jnp_array,
@@ -561,7 +561,7 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat_sw_2_00: jnp_array,
                 conv_ns_hat_old_sw_0_00: Optional[jnp_array],
                 conv_ns_hat_old_sw_2_00: Optional[jnp_array],
-            ) -> tuple[jnp_array, ...]:
+            ) -> Tuple[jnp_array, ...]:
                 domain = self.get_domain()
                 kx = K[0]
                 kz = K[1]
@@ -680,7 +680,7 @@ class NavierStokesVelVort(Equation):
                 vort_1_hat_new = phi_hat_vort_new
 
                 # compute velocities in x and z directions
-                def rk_00() -> tuple[jnp_array, jnp_array]:
+                def rk_00() -> Tuple[jnp_array, jnp_array]:
                     kx__ = 0
                     kz__ = 0
                     lhs_mat_inv_00 = jnp.asarray(self.get_rk_mats_lhs_inv_ns())[step]
@@ -728,7 +728,7 @@ class NavierStokesVelVort(Equation):
                     )
                     return (v_hat_new[:n], v_hat_new[n:])
 
-                def rk_not_00(kx: int, kz: int) -> tuple[jnp_array, jnp_array]:
+                def rk_not_00(kx: int, kz: int) -> Tuple[jnp_array, jnp_array]:
                     kx_ = jnp.asarray(domain.grid[0])[kx]
                     kz_ = jnp.asarray(domain.grid[2])[kz]
                     j_kx = 1j * kx_
@@ -789,7 +789,7 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
-            # vel_hat_data = vel_hat_data_
+            vel_hat_data = vel_hat_data_
             # update nonlinear terms
             (
                 h_v_hat,
@@ -866,8 +866,8 @@ class NavierStokesVelVort(Equation):
 
                 def inner_map(
                     kx: np_jnp_array,
-                ) -> Callable[[np_jnp_array], list[jnp_array]]:
-                    def fn(kz_one_pt_state: np_jnp_array) -> list[jnp_array]:
+                ) -> Callable[[np_jnp_array], List[jnp_array]]:
+                    def fn(kz_one_pt_state: np_jnp_array) -> List[jnp_array]:
                         kz = kz_one_pt_state[0]
                         fields_1d = jnp.split(
                             kz_one_pt_state[1:],
@@ -994,15 +994,15 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_
 
-    def solve_scan(self) -> tuple[VectorField[FourierField], int]:
+    def solve_scan(self) -> Tuple[VectorField[FourierField], int]:
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True)
 
-        def inner_step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, None]:
+        def inner_step_fn(u0: jnp_array, _: Any) -> Tuple[jnp_array, None]:
             out = self.perform_time_step(u0)
             return (out, None)
 
-        def step_fn(u0: jnp_array, _: Any) -> tuple[jnp_array, jnp_array]:
+        def step_fn(u0: jnp_array, _: Any) -> Tuple[jnp_array, jnp_array]:
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
@@ -1106,7 +1106,7 @@ def solve_navier_stokes_laminar(
     Ny: int = 40,
     Nz: int = 8,
     perturbation_factor: float = 0.1,
-    scale_factors: tuple[float, float, float] = (1.87, 1.0, 0.93),
+    scale_factors: Tuple[float, float, float] = (1.87, 1.0, 0.93),
     aliasing: float = 1.0,
     **params: Any,
 ) -> NavierStokesVelVort:

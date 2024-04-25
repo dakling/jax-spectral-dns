@@ -24,9 +24,11 @@ from typing import (
     Generic,
     Iterable,
     Iterator,
+    List,
     Optional,
     Sequence,
     SupportsIndex,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -209,10 +211,10 @@ class Field(ABC):
     def is_periodic(self, direction: int) -> bool:
         return self.get_domain().is_periodic(direction)
 
-    def all_periodic_dimensions(self) -> list[int]:
+    def all_periodic_dimensions(self) -> List[int]:
         return self.get_domain().all_periodic_dimensions()
 
-    def all_nonperiodic_dimensions(self) -> list[int]:
+    def all_nonperiodic_dimensions(self) -> List[int]:
         return self.get_domain().all_nonperiodic_dimensions()
 
     def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> np_float_array:
@@ -255,7 +257,7 @@ class VectorField(Generic[T]):
         name: str = "field",
     ) -> Self:
         dim = domain.number_of_dimensions
-        fs = cast(list[T], [field_cls.Zeros(domain) for _ in range(dim)])
+        fs = cast(List[T], [field_cls.Zeros(domain) for _ in range(dim)])
         return cls(fs, name)
 
     @classmethod
@@ -270,7 +272,7 @@ class VectorField(Generic[T]):
         """Construct a random field depending on the independent variables described by domain."""
         dim = domain.number_of_dimensions
         fs = cast(
-            list[T],
+            List[T],
             [field_cls.FromRandom(domain, seed, energy_norm) for _ in range(dim)],
         )
         return cls(fs, name)
@@ -284,7 +286,7 @@ class VectorField(Generic[T]):
         name: str = "field",
     ) -> Self:
         dim = domain.number_of_dimensions
-        fs = cast(list[T], [field_cls(domain, data[i]) for i in range(dim)])
+        fs = cast(List[T], [field_cls(domain, data[i]) for i in range(dim)])
         return cls(fs, name)
 
     def project_onto_domain(
@@ -495,12 +497,12 @@ class VectorField(Generic[T]):
         # assert type(out) is Sequence[int]
         return out
 
-    def all_periodic_dimensions(self) -> list[int]:
+    def all_periodic_dimensions(self) -> List[int]:
         out = self[0].get_domain().all_periodic_dimensions()
         # assert type(out) is list[int]
         return out
 
-    def all_nonperiodic_dimensions(self) -> list[int]:
+    def all_nonperiodic_dimensions(self) -> List[int]:
         out = self[0].get_domain().all_nonperiodic_dimensions()
         # assert type(out) is list[int]
         return out
@@ -580,7 +582,7 @@ class VectorField(Generic[T]):
 
     def reconstruct_from_wavenumbers(
         self, fn: Callable[[int, int], jnp_array], number_of_other_fields: int = 0
-    ) -> tuple[VectorField[FourierField], int]:
+    ) -> Tuple[VectorField[FourierField], int]:
 
         # jit = True
         # vectorize = True
@@ -1520,7 +1522,7 @@ class PhysicalField(Field):
                 save()
 
     def plot_isolines(
-        self, normal_direction: int, isolines: Optional[list[jsd_float]] = None
+        self, normal_direction: int, isolines: Optional[List[jsd_float]] = None
     ) -> None:
         if not self.activate_jit_:
             if type(isolines) == NoneType:
@@ -2225,14 +2227,14 @@ class FourierFieldSlice(FourierField):
     def all_dimensions(self) -> Sequence[int]:
         return range(len(self.ks))
 
-    def all_periodic_dimensions(self) -> list[int]:
+    def all_periodic_dimensions(self) -> List[int]:
         return [
             self.all_dimensions()[d]
             for d in self.all_dimensions()
             if d not in self.all_nonperiodic_dimensions()
         ]
 
-    def all_nonperiodic_dimensions(self) -> list[int]:
+    def all_nonperiodic_dimensions(self) -> List[int]:
         return [self.non_periodic_direction]
 
     def diff(self, direction: int, order: int = 1) -> "FourierFieldSlice":
