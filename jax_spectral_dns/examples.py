@@ -2301,6 +2301,80 @@ def run_optimisation_transient_growth_mean_y_profile(
     optimiser.optimise()
 
 
+def run_ld_2021_get_mean():
+    Re = 3275
+    Nx: int = 64
+    Ny: int = 129
+    Nz: int = 64
+    max_cfl = 0.5
+    # end_time = 100
+    end_time = 1
+
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=1,
+    )
+    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
+
+    def post_process(nse: NavierStokesVelVort, i: int) -> None:
+        n_steps = nse.get_number_of_fields("velocity_hat")
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+        avg_vel = VectorField([PhysicalField.Zeros(domain) for _ in range(3)])
+        if i == 0:
+            for j in range(i):
+                vel_hat = nse.get_field("velocity_hat", j)
+                vel = vel_hat.no_hat()
+                avg_vel += vel / n_steps
+            slice_domain = PhysicalDomain.create(
+                (Ny,),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            avg_vel.set_time_step(0)
+            avg_vel.set_name("average_velocity")
+            avg_vel.save_to_file("avg_vel")
+            avg_vel[0].plot_3d(2)
+            avg_vel[1].plot_3d(2)
+            avg_vel[2].plot_3d(2)
+            avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
+            for i_x in range(Nx):
+                for i_z in range(Nz):
+                    avg_vel_x_slice += avg_vel[i_x, :, i_z] / (Nx * Nz)
+            avg_vel_x_slice.set_time_step(0)
+            avg_vel_x_slice.set_name("average_velocity_x_slice")
+            avg_vel_x_slice.save_to_file("avg_vel_x_slice")
+            avg_vel_x_slice.plot()
+
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[2].plot_3d(2)
+
+    vel_base_lam = VectorField(
+        [
+            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
+    )
+    U = vel_base_lam
+    nse = NavierStokesVelVort.FromVelocityField(U, Re=Re, dt=dt)
+
+    # nse.deactivate_jit()
+    nse.activate_jit()
+    nse.write_intermediate_output = True
+    nse.solve()
+
+    nse.set_post_process_fn(post_process)
+    nse.post_process()
+
+
 def run_ld_2021(
     turb: float = 1.0,
     Re_tau: float = 180,
@@ -2534,8 +2608,8 @@ def run_white_noise() -> None:
         aliasing=1,
     )
     coarse_domain = PhysicalDomain.create(
-        # (16, Ny, 16),
-        (Nx, Ny, Nz),
+        (28, Ny, 24),
+        # (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,

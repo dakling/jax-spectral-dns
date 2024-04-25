@@ -768,12 +768,7 @@ class NavierStokesVelVort(Equation):
                 #     v_0_new_field, v_2_new_field = rk_not_00(kx, kz)
                 return (v_0_new_field, v_1_hat_new, v_2_new_field, v_1_lap_hat_new_a)
 
-            if Nx * Nz > 100:
-                # return jax.checkpoint(fn, policy=jax.checkpoint_policies.dots_with_no_batch_dims_saveable)
-                # return jax.checkpoint(fn, static_argnums=(0,))
-                return fn
-            else:
-                return fn
+            return fn
 
         number_of_rk_steps = 3
 
@@ -973,7 +968,6 @@ class NavierStokesVelVort(Equation):
         # return vel_new_hat.get_data()
         return vel_new_hat_field
 
-    # @partial(jax.checkpoint, policy=jax.checkpoint_policies.checkpoint_dots, static_argnums=(0,))
     def perform_time_step(self, vel_hat_data: Optional[jnp_array] = None) -> jnp_array:
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
