@@ -29,7 +29,7 @@ jnp_array = jt.Array
 jsd_array = jt.ArrayLike
 np_jnp_array = Union[np_float_array, np_complex_array, jnp_array]
 Vel_fn_type = Callable[
-    [Union[list[jsd_float], Tuple[jsd_float, ...], np_jnp_array]], jsd_float
+    [Union[List[jsd_float], Tuple[jsd_float, ...], np_jnp_array]], jsd_float
 ]
 parameter_type = Tuple[jnp_array, ...]
 
@@ -44,12 +44,12 @@ if TYPE_CHECKING:
         List[VectorField[FourierField]],
     ]
     pseudo_2d_perturbation_return_type = Tuple[
-        list[float],
-        list[float],
-        list[float],
-        list[float],
-        list[float],
-        list[float],
-        list[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
         VectorField[PhysicalField],
     ]
