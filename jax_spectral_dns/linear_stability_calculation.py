@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+from __future__ import annotations
 from typing import Any, Callable, Union, Optional, cast
 import numpy as np
 import numpy.typing as npt

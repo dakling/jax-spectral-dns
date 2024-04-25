@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 NoneType = type(None)
 import jax

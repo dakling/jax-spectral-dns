@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
 NoneType = type(None)
 from operator import rshift
@@ -780,7 +781,7 @@ class NavierStokesVelVort(Equation):
         for step in range(number_of_rk_steps):
 
             # filter out high wavenumbers to dealias
-            vel_hat_data = jnp.array(
+            vel_hat_data_ = jnp.array(
                 [
                     self.get_domain().filter_field(
                         self.get_physical_domain(), vel_hat_data[i]
@@ -788,13 +789,14 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
+            # vel_hat_data = vel_hat_data_
             # update nonlinear terms
             (
                 h_v_hat,
                 h_g_hat,
                 vort_hat,
                 conv_ns_hat,
-            ) = self.nonlinear_update_fn(vel_hat_data)
+            ) = self.nonlinear_update_fn(vel_hat_data_)
 
             if type(h_v_hat_old) == NoneType:
                 h_v_hat_old = h_v_hat

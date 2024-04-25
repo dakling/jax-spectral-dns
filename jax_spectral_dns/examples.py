@@ -2320,9 +2320,9 @@ def run_ld_2021(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
-    aliasing = 3 / 2
+    # aliasing = 3 / 2
     # aliasing = 2
-    # aliasing = 1
+    aliasing = 1
     e_0 = float(e_0)
 
     Equation.initialize()
@@ -2338,13 +2338,13 @@ def run_ld_2021(
         aliasing=aliasing,
     )
 
-    # coarse_domain = PhysicalDomain.create(
-    #     (16, 64, 12),
-    #     (True, False, True),
-    #     scale_factors=(1.87, 1.0, 0.93),
-    #     aliasing=1,
-    # )
-    coarse_domain = domain
+    coarse_domain = PhysicalDomain.create(
+        (28, Ny, 24),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=1,
+    )
+    # coarse_domain = domain
     avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
 
     def get_vel_field(
@@ -2510,7 +2510,7 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=False,
+        add_noise=True,
         noise_amplitude=1e-6,
         learning_rate=1e-4,
     )
@@ -2523,7 +2523,7 @@ def run_white_noise() -> None:
     Re = 3000
     e_0 = 1e-4
     Nx, Ny, Nz = 44, 129, 36
-    max_cfl = 0.1
+    max_cfl = 0.5
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
@@ -2534,7 +2534,7 @@ def run_white_noise() -> None:
         aliasing=1,
     )
     coarse_domain = PhysicalDomain.create(
-        (16, 90, 16),
+        (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,
