@@ -82,7 +82,7 @@ def assemble_fourier_diff_mat(
 
 
 # @register_pytree_node_class
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class Domain(ABC):
     """Class that mainly contains information on the independent variables of
     the problem (i.e. the basis) and implements some operations that can be
@@ -145,14 +145,14 @@ class Domain(ABC):
         for mgr in mgrid:
             mgr.setflags(write=False)
         return cls(
-            number_of_dimensions,
-            tuple(periodic_directions),
-            tuple(scale_factors_),
-            tuple(shape_),
-            tuple(grid),
-            tuple(diff_mats),
-            tuple(mgrid),
-            aliasing,
+            number_of_dimensions=number_of_dimensions,
+            periodic_directions=tuple(periodic_directions),
+            scale_factors=tuple(scale_factors_),
+            shape=tuple(shape_),
+            grid=tuple(grid),
+            diff_mats=tuple(diff_mats),
+            mgrid=tuple(mgrid),
+            aliasing=aliasing,
         )
 
     @abstractmethod
@@ -186,9 +186,7 @@ class Domain(ABC):
         ]
 
     # @partial(jax.jit, static_argnums=(0,2,3))
-    def diff(
-        self, field: jnp_array, direction: int, order: int = 1, _: Any = None
-    ) -> jnp_array:
+    def diff(self, field: jnp_array, direction: int, order: int = 1) -> jnp_array:
         """Calculate and return the derivative of given order for field in
         direction."""
         inds = "ijk"
@@ -452,7 +450,7 @@ class Domain(ABC):
         return jnp.array([out_0, out_1, out_2])
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
 
@@ -496,24 +494,22 @@ class PhysicalDomain(Domain):
             / scaling_factor
         )
 
-        domain_hat = self.hat()
+        Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
+        ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
+        for i in self.all_periodic_dimensions():
+            out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
+            out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
+            out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
+            out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
 
-        # Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
-        # ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
-        # for i in self.all_periodic_dimensions():
-        #     out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
-        #     out_2 = out.take(indices=jnp.array([ks[i]]), axis=i) * (
-        #         1.0 if ks[i] == Ns[i] // 2 else 2.0
-        #     )
-        #     out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
-        #     out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
-
-        return domain_hat.project_onto_domain(out)
+        return out
 
 
-@dataclasses.dataclass(frozen=True, init=False)
+@dataclasses.dataclass(frozen=True, init=True, kw_only=True)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
+
+    physical_domain: PhysicalDomain  # the physical domain it is based on
 
     def __hash__(self) -> int:
         return hash(
@@ -560,14 +556,15 @@ class FourierDomain(Domain):
         grid = fourier_grid_shifted
         mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
         out = FourierDomain(
-            physical_domain.number_of_dimensions,
-            tuple(physical_domain.periodic_directions),
-            tuple(physical_domain.scale_factors),
-            tuple(physical_domain.shape),
-            tuple(grid),
-            tuple(physical_domain.diff_mats),
-            tuple(mgrid),
-            physical_domain.aliasing,
+            number_of_dimensions=physical_domain.number_of_dimensions,
+            periodic_directions=tuple(physical_domain.periodic_directions),
+            scale_factors=tuple(physical_domain.scale_factors),
+            shape=tuple(physical_domain.shape),
+            grid=tuple(grid),
+            diff_mats=tuple(physical_domain.diff_mats),
+            mgrid=tuple(mgrid),
+            aliasing=physical_domain.aliasing,
+            physical_domain=physical_domain,
         )
         return out
 
@@ -616,7 +613,6 @@ class FourierDomain(Domain):
         field_hat: jnp_array,
         direction: int,
         order: int = 1,
-        physical_domain: Optional[PhysicalDomain] = None,
     ) -> jnp_array:
         """Calculate and return the derivative of given order for field in
         direction."""
@@ -624,20 +620,17 @@ class FourierDomain(Domain):
             diff_array = (1j * np.array(self.mgrid[direction])) ** order
             f_diff: jnp_array = jnp.array(diff_array * field_hat)
         else:
-            assert physical_domain is not None
-            f_diff = physical_domain.diff(field_hat, direction, order)
+            f_diff = self.physical_domain.diff(field_hat, direction, order)
         return f_diff
 
-    def curl(
-        self, field_hat: jnp_array, physical_domain: Optional[PhysicalDomain] = None
-    ) -> jnp_array:
+    def curl(self, field_hat: jnp_array) -> jnp_array:
         """Compute the curl of field."""
-        u_y = self.diff(field_hat[0, ...], 1, physical_domain=physical_domain)
-        u_z = self.diff(field_hat[0, ...], 2, physical_domain=physical_domain)
-        v_x = self.diff(field_hat[1, ...], 0, physical_domain=physical_domain)
-        v_z = self.diff(field_hat[1, ...], 2, physical_domain=physical_domain)
-        w_x = self.diff(field_hat[2, ...], 0, physical_domain=physical_domain)
-        w_y = self.diff(field_hat[2, ...], 1, physical_domain=physical_domain)
+        u_y = self.diff(field_hat[0, ...], 1)
+        u_z = self.diff(field_hat[0, ...], 2)
+        v_x = self.diff(field_hat[1, ...], 0)
+        v_z = self.diff(field_hat[1, ...], 2)
+        w_x = self.diff(field_hat[2, ...], 0)
+        w_y = self.diff(field_hat[2, ...], 1)
 
         curl_0 = w_y - v_z
         curl_1 = u_z - w_x
@@ -645,12 +638,15 @@ class FourierDomain(Domain):
 
         return jnp.array([curl_0, curl_1, curl_2])
 
-    def project_onto_shape(
+    def project_onto_domain(
         self,
-        target_shape: tuple[int, ...],
+        target_domain: PhysicalDomain,
         field_hat: jnp_array,
     ) -> jnp_array:
-        initial_shape = field_hat.shape
+        initial_shape = self.shape
+        target_domain_hat = target_domain.hat()
+        target_shape = target_domain_hat.shape
+
         for i in self.all_periodic_dimensions():
             N = initial_shape[i]
             N_target = target_shape[i]
@@ -673,48 +669,94 @@ class FourierDomain(Domain):
                 field_hat = jnp.concatenate([data_1, extra_zeros, data_2], axis=i)
             else:
                 pass
+
         for i in self.all_nonperiodic_dimensions():
             N = initial_shape[i]
             N_target = target_shape[i]
             if N != N_target:
-                data_dct = jsc.fft.dctn(field_hat, axes=(i,))
-                field_hat = jax.lax.convert_element_type(
-                    jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
-                    * N_target
-                    / N,
-                    new_dtype=jnp.complex128,
-                )
+                hybrid_domain_hat = PhysicalDomain.create(
+                    field_hat.shape,
+                    self.periodic_directions,
+                    self.scale_factors,
+                    self.aliasing,
+                ).hat()
+                field = hybrid_domain_hat.field_no_hat(field_hat)
+                data_dct = jsc.fft.dctn(field, axes=(i,))
+                field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
+                ratio = data_dct.shape[i] / field.shape[i]
+                field_hat = target_domain.field_hat(field * ratio)
+            else:
+                pass  # the shape is already correct (N = N_target), no need to do anything
+
         return field_hat
 
-    def project_onto_domain(
-        self,
-        field_hat: jnp_array,
-    ) -> jnp_array:
-        return self.project_onto_shape(self.shape, field_hat)
-
-    def filter_field(
-        self, physical_domain: PhysicalDomain, field_hat: jnp_array
-    ) -> jnp_array:
-        N_coarse_ = tuple(
-            physical_domain.shape[i]
-            - (
-                physical_domain.shape[i] // 3
-                if physical_domain.periodic_directions[i]
-                else 0
+    def filter_field(self, field_hat: jnp_array) -> jnp_array:
+        N_coarse = tuple(
+            self.shape[i] - (self.shape[i] // 3) for i in self.all_dimensions()
+        )
+        N_coarse = tuple(
+            (
+                N_coarse[i]
+                if N_coarse[i] % 2 == 0 or not self.periodic_directions[i]
+                else N_coarse[i] + 1
             )
+            for i in self.all_dimensions()
+        )
+        coarse_domain = PhysicalDomain.create(
+            N_coarse, self.periodic_directions, self.scale_factors, self.aliasing
+        )
+        coarse_domain_hat = coarse_domain.hat()
+
+        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        fine_field_hat = coarse_domain_hat.project_onto_domain(
+            self.physical_domain, coarse_field_hat
+        )
+
+        return fine_field_hat
+
+    def filter_field_fourier_only(self, field_hat: jnp_array) -> jnp_array:
+        N_coarse = tuple(
+            self.shape[i]
+            - ((self.shape[i] // 3) if self.is_periodic(i) else self.shape[i])
             for i in self.all_dimensions()
         )
         N_coarse = tuple(
             (
-                N_coarse_[i]
-                if N_coarse_[i] % 2 == 0 or not physical_domain.periodic_directions[i]
-                else N_coarse_[i] + 1
+                N_coarse[i]
+                if N_coarse[i] % 2 == 0 or not self.periodic_directions[i]
+                else N_coarse[i] + 1
             )
             for i in self.all_dimensions()
         )
-        return self.project_onto_shape(
-            physical_domain.shape, self.project_onto_shape(N_coarse, field_hat)
+        coarse_domain = PhysicalDomain.create(
+            N_coarse, self.periodic_directions, self.scale_factors, self.aliasing
         )
+        coarse_domain_hat = coarse_domain.hat()
+
+        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        fine_field_hat = coarse_domain_hat.project_onto_domain(
+            self.physical_domain, coarse_field_hat
+        )
+
+        return fine_field_hat
+
+    def filter_field_nonfourier_only(self, field_hat: jnp_array) -> jnp_array:
+        N_coarse = tuple(
+            self.shape[i]
+            - ((self.shape[i] // 3) if not self.is_periodic(i) else self.shape[i])
+            for i in self.all_dimensions()
+        )
+        coarse_domain = PhysicalDomain.create(
+            N_coarse, self.periodic_directions, self.scale_factors, self.aliasing
+        )
+        coarse_domain_hat = coarse_domain.hat()
+
+        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        fine_field_hat = coarse_domain_hat.project_onto_domain(
+            self.physical_domain, coarse_field_hat
+        )
+
+        return fine_field_hat
 
     def solve_poisson_fourier_field_slice(
         self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]
@@ -768,8 +810,6 @@ class FourierDomain(Domain):
             ]
             extra_zeros = jnp.zeros(zeros_shape)
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
-        # target_shape = tuple(int((self.number_of_cells(i) - (0 if self.is_periodic(i) else 0)) * self.aliasing) for i in self.all_dimensions())
-        # field = self.project_onto_shape(target_shape, field)
 
         out = jnp.fft.ifftn(
             field,

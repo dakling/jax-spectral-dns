@@ -41,29 +41,29 @@ def update_nonlinear_terms_high_performance_perturbation(
     linearize: bool = False,
 ) -> Tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
 
-    vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.field_no_hat(vel_hat_new[i, ...])
+            # fourier_domain.filter_field_nonfourier_only(fourier_domain.field_no_hat(vel_hat_new[i]))
+            fourier_domain.field_no_hat(vel_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.field_no_hat(vort_hat_new[i, ...])
+            # fourier_domain.filter_field_nonfourier_only(fourier_domain.field_no_hat(vort_hat_new[i]))
+            fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
 
-    vel_new_sq = jnp.zeros_like(vel_new[0, ...])
+    vel_new_sq = jnp.zeros_like(vel_new[0])
     for j in physical_domain.all_dimensions():
-        vel_new_sq += vel_new[j, ...] * vel_new[j, ...]
+        vel_new_sq += vel_new[j] * vel_new[j]
     vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
     vel_new_sq_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_hat_nabla.append(
-            fourier_domain.diff(vel_new_sq_hat, i, physical_domain=physical_domain)
-        )
+        vel_new_sq_hat_nabla.append(fourier_domain.diff(vel_new_sq_hat, i))
 
     vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
     vel_vort_new_hat = jnp.array(
@@ -88,9 +88,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     vel_new_sq_a_hat = physical_domain.field_hat(vel_new_sq_a)
     vel_new_sq_a_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_a_hat_nabla.append(
-            fourier_domain.diff(vel_new_sq_a_hat, i, physical_domain=physical_domain)
-        )
+        vel_new_sq_a_hat_nabla.append(fourier_domain.diff(vel_new_sq_a_hat, i))
     vel_vort_new_a = physical_domain.cross_product(vel_base, vort_new)
     vel_vort_new_a_hat = jnp.array(
         [
@@ -103,7 +101,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     )
 
     # b-term
-    vort_base_hat = fourier_domain.curl(vel_base_hat, physical_domain)
+    vort_base_hat = fourier_domain.curl(vel_base_hat)
     vort_base = jnp.array(
         [
             fourier_domain.field_no_hat(vort_base_hat.at[i].get())
@@ -126,17 +124,16 @@ def update_nonlinear_terms_high_performance_perturbation(
 
     h_v_hat_new = (
         -fourier_domain.diff(
-            fourier_domain.diff(hel_new_hat[0], 0, physical_domain=physical_domain)
-            + fourier_domain.diff(hel_new_hat[2], 2, physical_domain=physical_domain),
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
             1,
-            physical_domain=physical_domain,
         )
-        + fourier_domain.diff(hel_new_hat[1], 0, 2, physical_domain=physical_domain)
-        + fourier_domain.diff(hel_new_hat[1], 2, 2, physical_domain=physical_domain)
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
     )
-    h_g_hat_new = fourier_domain.diff(
-        hel_new_hat[0], 2, physical_domain=physical_domain
-    ) - fourier_domain.diff(hel_new_hat[2], 0, physical_domain=physical_domain)
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
 
     conv_ns_hat_new = -hel_new_hat
 

@@ -918,10 +918,10 @@ class PhysicalField(Field):
             )
         field = jnp.array(rands).reshape(zero_field.get_domain().get_shape_aliasing())
         out = cls(domain, field, name)
-        smooth_field = PhysicalField.FromFunc(
-            domain, lambda X: jnp.exp(-((1.4 * X[1]) ** 8))
-        )  # make sure that we are not messing with the boundary conditions
-        out *= smooth_field
+        # smooth_field = PhysicalField.FromFunc(
+        #     domain, lambda X: jnp.exp(-((1.4 * X[1]) ** 8))
+        # )  # make sure that we are not messing with the boundary conditions
+        # out *= smooth_field
         out.update_boundary_conditions()
         out.normalize_by_energy()
         out *= jnp.sqrt(energy_norm)
@@ -1864,41 +1864,8 @@ class FourierField(Field):
         return out
 
     def project_onto_domain(self, domain: PhysicalDomain) -> FourierField:
-        data = self.data
-        for i in self.all_periodic_dimensions():
-            N = self.get_physical_domain().shape[i]
-            N_target = domain.shape[i]
-            if N > N_target:
-                data_1 = data.take(
-                    indices=jnp.arange(0, (N_target - 1) // 2 + 1), axis=i
-                )
-                data_2 = data.take(
-                    indices=jnp.arange(N - (N_target - 1) // 2, N), axis=i
-                )
-                data = jnp.concatenate([data_1, data_2], axis=i)
-            elif N < N_target:
-                zeros_shape = [
-                    data.shape[dim] if dim != i else N_target - N
-                    for dim in self.all_dimensions()
-                ]
-                extra_zeros = jnp.zeros(zeros_shape)
-                data_1 = data.take(indices=jnp.arange(0, (N - 1) // 2 + 1), axis=i)
-                data_2 = data.take(indices=jnp.arange((N - 1) // 2 + 1, N), axis=i)
-                data = jnp.concatenate([data_1, extra_zeros, data_2], axis=i)
-            else:
-                pass
-        for i in self.all_nonperiodic_dimensions():
-            N = self.get_physical_domain().shape[i]
-            N_target = domain.shape[i]
-            if N != N_target:
-                data_dct = jsc.fft.dctn(data, axes=(i,))
-                data = jax.lax.convert_element_type(
-                    jsc.fft.idctn(data_dct, s=(domain.shape[i],), axes=(i,))
-                    * N_target
-                    / N,
-                    new_dtype=jnp.complex128,
-                )
-        return FourierField(domain, data, name=self.name)
+        out_data = self.get_domain().project_onto_domain(domain, self.data)
+        return FourierField(domain, out_data, name=self.name)
 
     def number_of_dofs_aliasing(self) -> int:
         return int(math.prod(self.get_physical_domain().shape))
@@ -1910,9 +1877,7 @@ class FourierField(Field):
 
     def diff(self, direction: int, order: int = 1) -> FourierField:
         domain: FourierDomain = self.get_domain()
-        out_field: jnp_array = domain.diff(
-            self.data, direction, order, physical_domain=self.get_physical_domain()
-        )
+        out_field: jnp_array = domain.diff(self.data, direction, order)
         return FourierField(
             self.physical_domain,
             out_field,

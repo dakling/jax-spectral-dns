@@ -43,16 +43,18 @@ def update_nonlinear_terms_high_performance(
     vel_hat_new: jnp_array,
 ) -> Tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
 
-    vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.field_no_hat(vel_hat_new.at[i, ...].get())
+            # fourier_domain.filter_field_nonfourier_only(fourier_domain.field_no_hat(vel_hat_new.at[i].get()))
+            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.field_no_hat(vort_hat_new[i, ...])
+            # fourier_domain.filter_field_nonfourier_only(fourier_domain.field_no_hat(vort_hat_new[i]))
+            fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
@@ -63,9 +65,7 @@ def update_nonlinear_terms_high_performance(
     vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
     vel_new_sq_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_hat_nabla.append(
-            fourier_domain.diff(vel_new_sq_hat, i, physical_domain=physical_domain)
-        )
+        vel_new_sq_hat_nabla.append(fourier_domain.diff(vel_new_sq_hat, i))
 
     vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
     vel_vort_new_hat = jnp.array(
@@ -81,17 +81,16 @@ def update_nonlinear_terms_high_performance(
 
     h_v_hat_new = (
         -fourier_domain.diff(
-            fourier_domain.diff(hel_new_hat[0], 0, physical_domain=physical_domain)
-            + fourier_domain.diff(hel_new_hat[2], 2, physical_domain=physical_domain),
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
             1,
-            physical_domain=physical_domain,
         )
-        + fourier_domain.diff(hel_new_hat[1], 0, 2, physical_domain=physical_domain)
-        + fourier_domain.diff(hel_new_hat[1], 2, 2, physical_domain=physical_domain)
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
     )
-    h_g_hat_new = fourier_domain.diff(
-        hel_new_hat[0], 2, physical_domain=physical_domain
-    ) - fourier_domain.diff(hel_new_hat[2], 0, physical_domain=physical_domain)
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
 
     return (
         h_v_hat_new,
@@ -671,14 +670,15 @@ class NavierStokesVelVort(Equation):
                     + (self.get_dt() * xi[step]) * N_vort_old
                 )
 
-                # lhs_mat_vort = domain.enforce_homogeneous_dirichlet(lhs_mat_vort)
                 rhs_vort = domain.update_boundary_conditions_fourier_field_slice(
                     rhs_vort, 1
                 )
 
                 phi_hat_vort_new = lhs_mat_vort_inv @ (rhs_vort)
 
-                vort_1_hat_new = phi_hat_vort_new
+                vort_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
+                    phi_hat_vort_new, 1
+                )
 
                 # compute velocities in x and z directions
                 def rk_00() -> Tuple[jnp_array, jnp_array]:
@@ -736,16 +736,19 @@ class NavierStokesVelVort(Equation):
                     j_kz = 1j * kz_
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
+                    v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
+                        v_1_new_y, 1
+                    )
                     vort_1_hat_new_: jnp_array = (
                         domain.update_boundary_conditions_fourier_field_slice(
                             vort_1_hat_new, 1
                         )
                     )
                     v_0_new = (
-                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new
+                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new_
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new
+                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new_
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
@@ -777,22 +780,20 @@ class NavierStokesVelVort(Equation):
         for step in range(number_of_rk_steps):
 
             # filter out high wavenumbers to dealias
-            vel_hat_data_ = jnp.array(
+            vel_hat_data = jnp.array(
                 [
-                    self.get_domain().filter_field(
-                        self.get_physical_domain(), vel_hat_data[i]
-                    )
+                    # self.get_domain().filter_field_fourier_only(vel_hat_data[i])
+                    self.get_domain().filter_field(vel_hat_data[i])
                     for i in self.all_dimensions()
                 ]
             )
-            vel_hat_data = vel_hat_data_
             # update nonlinear terms
             (
                 h_v_hat,
                 h_g_hat,
                 vort_hat,
                 conv_ns_hat,
-            ) = self.nonlinear_update_fn(vel_hat_data_)
+            ) = self.nonlinear_update_fn(vel_hat_data)
 
             if type(h_v_hat_old) == NoneType:
                 h_v_hat_old = h_v_hat
@@ -810,9 +811,7 @@ class NavierStokesVelVort(Equation):
             v_1_lap_hat = jnp.sum(
                 jnp.array(
                     [
-                        self.get_domain().diff(
-                            v_1_hat, i, 2, self.get_physical_domain()
-                        )
+                        self.get_domain().diff(v_1_hat, i, 2)
                         for i in self.all_dimensions()
                     ]
                 ),
