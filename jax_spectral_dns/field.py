@@ -296,6 +296,11 @@ class VectorField(Generic[T]):
             [f.project_onto_domain(domain) for f in self], name=self.name
         )
 
+    def filter(
+        self: VectorField[FourierField], domain: PhysicalDomain
+    ) -> VectorField[FourierField]:
+        return VectorField([f.filter() for f in self], name=self.name)
+
     def __getitem__(self, index: int) -> T:
         return self.elements[index]
 
@@ -1780,7 +1785,7 @@ class FourierField(Field):
         name: str = "field",
         seed: float = 37,
     ) -> FourierField:
-        return cls.FromRandom(domain, seed, energy_norm, name)
+        return cls.FromRandom(domain, seed, energy_norm, name).filter()
 
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
@@ -1866,6 +1871,10 @@ class FourierField(Field):
     def project_onto_domain(self, domain: PhysicalDomain) -> FourierField:
         out_data = self.get_domain().project_onto_domain(domain, self.data)
         return FourierField(domain, out_data, name=self.name)
+
+    def filter(self) -> FourierField:
+        out_data = self.get_domain().filter_field(self.data)
+        return FourierField(self.get_physical_domain(), out_data, name=self.name)
 
     def number_of_dofs_aliasing(self) -> int:
         return int(math.prod(self.get_physical_domain().shape))

@@ -2430,10 +2430,7 @@ def run_ld_2021(
     )
 
     coarse_domain = PhysicalDomain.create(
-        # (30, 86, 26),
-        (Nx - 2, Ny - 2, Nz - 2),
-        # (Nx, Ny - 2, Nz),
-        # (Nx-2, Ny, Nz-2),
+        (30, 86, 26),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,
@@ -2644,7 +2641,7 @@ def run_white_noise() -> None:
     Re = 3000
     e_0 = 1e-4
     Nx, Ny, Nz = 44, 129, 36
-    max_cfl = 0.5
+    max_cfl = 0.4
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
@@ -2758,8 +2755,8 @@ def run_white_noise() -> None:
 
     optimiser = OptimiserFourier(
         domain,
-        domain,
-        # coarse_domain,
+        # domain,
+        coarse_domain,
         # coarse_domain,
         lambda vel_hat_, t: 1.0,
         vel_hat,
