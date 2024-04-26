@@ -886,9 +886,9 @@ def run_transient_growth_nonpert(
     beta: float = 0.0,
     end_time: Optional[float] = None,
     eps: float = 1e-3,
-    Nx: int = 4,
-    Ny: int = 50,
-    Nz: int = 4,
+    Nx: int = 6,
+    Ny: int = 80,
+    Nz: int = 6,
     plot: bool = True,
 ) -> Tuple[float, float, List[float], List[float]]:
 
@@ -920,11 +920,12 @@ def run_transient_growth_nonpert(
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
         dt=1e-2,
-        aliasing=3 / 2,
+        # aliasing=3 / 2,
+        aliasing=1,
     )
     # nse.initialize()
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
 
     U_pert = lsc.calculate_transient_growth_initial_condition(
         nse.get_physical_domain(),
@@ -1058,9 +1059,9 @@ def run_transient_growth(
     beta: float = 0.0,
     end_time: Optional[float] = None,
     eps: float = 1e-5,
-    Nx: int = 4,
-    Ny: int = 50,
-    Nz: int = 4,
+    Nx: int = 6,
+    Ny: int = 80,
+    Nz: int = 6,
     linearize: Union[bool, str] = True,
     plot: bool = True,
 ) -> Tuple[float, float, List[float], List[float]]:
@@ -1098,13 +1099,14 @@ def run_transient_growth(
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 0.93),
         dt=1e-2,
-        aliasing=3 / 2,
+        # aliasing=3 / 2,
+        aliasing=1,
     )
     # nse.initialize()
 
     nse.set_linearize(linearize_)
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
 
     U = lsc.calculate_transient_growth_initial_condition(
         nse.get_physical_domain(),
@@ -2417,7 +2419,7 @@ def run_ld_2021(
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.2
+    max_cfl = 0.4
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2428,7 +2430,10 @@ def run_ld_2021(
     )
 
     coarse_domain = PhysicalDomain.create(
-        (28, Ny, 24),
+        # (30, 86, 26),
+        (Nx - 2, Ny - 2, Nz - 2),
+        # (Nx, Ny - 2, Nz),
+        # (Nx-2, Ny, Nz-2),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,
@@ -2494,7 +2499,8 @@ def run_ld_2021(
         lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=64)
 
         v0_0 = lsc.calculate_transient_growth_initial_condition(
-            coarse_domain,
+            # coarse_domain,
+            domain,
             end_time,
             number_of_modes,
             recompute_full=True,
@@ -2509,6 +2515,28 @@ def run_ld_2021(
 
     run_input_initial = init_file or vel_hat
     assert run_input_initial is not None
+
+    assert vel_hat is not None
+    print("vel_coarse")
+    vel_hat.no_hat().plot_3d(2)
+    vel_hat_coarse = vel_hat.project_onto_domain(coarse_domain)
+    vel_hat_coarse.set_name("vel_hat_coarse")
+    vel_hat_coarse.no_hat().plot_3d(2)
+    print("vel_fine")
+    vel_hat_fine = vel_hat_coarse.project_onto_domain(domain)
+    vel_hat_fine.set_name("vel_hat_fine")
+    vel_hat_fine.no_hat().plot_3d(2)
+    print("vel_filtered")
+    print(vel_hat[0].data.shape)
+    vel_hat_filtered = VectorField(
+        [
+            FourierField(domain, domain.hat().filter_field(vel_hat[i].data))
+            for i in range(3)
+        ]
+    )
+    vel_hat_filtered.set_name("vel_hat_filtered")
+    vel_hat_filtered.no_hat().plot_3d(2)
+    # raise Exception("break")
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -2528,6 +2556,9 @@ def run_ld_2021(
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
+        vel[0].plot_3d(0)
+        vel[1].plot_3d(0)
+        vel[2].plot_3d(0)
         vort[2].plot_3d(2)
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
@@ -2599,9 +2630,10 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=True,
-        noise_amplitude=1e-10,
-        learning_rate=1e-4,
+        # add_noise=True,
+        add_noise=False,
+        noise_amplitude=1e-6,
+        learning_rate=1e-6,
     )
     optimiser.optimise()
 
@@ -2623,7 +2655,7 @@ def run_white_noise() -> None:
         aliasing=1,
     )
     coarse_domain = PhysicalDomain.create(
-        (28, Ny, 24),
+        (28, Ny - 20, 24),
         # (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),

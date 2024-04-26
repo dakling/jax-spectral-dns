@@ -502,7 +502,7 @@ class PhysicalDomain(Domain):
             out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
             out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
 
-        return out
+        return out.astype(jnp.complex128)
 
 
 @dataclasses.dataclass(frozen=True, init=True, kw_only=True)
@@ -688,7 +688,7 @@ class FourierDomain(Domain):
             else:
                 pass  # the shape is already correct (N = N_target), no need to do anything
 
-        return field_hat
+        return field_hat.astype(jnp.complex128)
 
     def filter_field(self, field_hat: jnp_array) -> jnp_array:
         N_coarse = tuple(
