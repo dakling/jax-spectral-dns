@@ -50,7 +50,7 @@ class LinearStabilityCalculation:
 
         self.C: Optional["np_complex_array"] = None
 
-        self.domain: PhysicalDomain = PhysicalDomain.create((n,), (False,))
+        self.domain: PhysicalDomain = PhysicalDomain.create((n,), (False,), aliasing=1)
         self.ys: "np_float_array" = self.domain.grid[0]
 
         self.velocity_field_: Optional[VectorField[PhysicalField]] = None

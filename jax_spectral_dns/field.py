@@ -1696,7 +1696,8 @@ class PhysicalField(Field):
                     shape,
                     periodic_directions,
                     scale_factors=scale_factors,
-                    aliasing=self.get_domain().aliasing,
+                    # aliasing=self.get_domain().aliasing,
+                    aliasing=1,
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
                     int.data, indices=N - 1, axis=direction
@@ -1730,7 +1731,8 @@ class PhysicalField(Field):
                     shape,
                     periodic_directions,
                     scale_factors=scale_factors,
-                    aliasing=self.get_domain().aliasing,
+                    # aliasing=self.get_domain().aliasing,
+                    aliasing=1,
                 )
                 data = (
                     self.physical_domain.scale_factors[direction]

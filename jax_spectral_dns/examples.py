@@ -2434,7 +2434,7 @@ def run_ld_2021(
         (30, 86, 26),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
-        aliasing=1,
+        aliasing=aliasing,
     )
     # coarse_domain = domain
     avg_vel_coeffs = np.loadtxt(
@@ -2525,6 +2525,8 @@ def run_ld_2021(
             "expected gain:",
             lsc.calculate_transient_growth_max_energy(end_time, number_of_modes),
         )
+        print("v0_0.energy()")
+        print(v0_0.energy())
         v0_0.normalize_by_energy()
         v0_0 *= e_0
         vel_hat = v0_0.hat()
@@ -2555,6 +2557,8 @@ def run_ld_2021(
     # )
     # vel_hat_filtered.set_name("vel_hat_filtered")
     # vel_hat_filtered.no_hat().plot_3d(2)
+    # print("vel_hat.no_hat().energy()")
+    # print(vel_hat.no_hat().energy())
     # raise Exception("break")
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:

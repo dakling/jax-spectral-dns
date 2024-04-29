@@ -16,11 +16,11 @@ from jax_spectral_dns.equation import print_verb
 logging.getLogger("jax").setLevel(logging.WARNING)
 
 # max_devices = 1
-max_devices = 6
+# max_devices = 6
 # max_devices = 1e10
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
-    min(multiprocessing.cpu_count(), max_devices)
-)
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
+#     min(multiprocessing.cpu_count(), max_devices)
+# )
 
 import sys
 from jax_spectral_dns.examples import *
@@ -33,6 +33,8 @@ def print_welcome() -> None:
     print_verb("#############################", verbosity_level=vl)
     print_verb("# Starting jax-spectral-dns #", verbosity_level=vl, notify=True)
     print_verb("#############################", verbosity_level=vl)
+    print("")
+    print_verb("jax.local_devices(): ", jax.local_devices(), verbosity_level=vl)
     print("")
     print("")
 

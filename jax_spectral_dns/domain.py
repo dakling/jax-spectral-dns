@@ -701,7 +701,7 @@ class FourierDomain(Domain):
                     field_hat.shape,
                     self.periodic_directions,
                     self.scale_factors,
-                    self.aliasing,
+                    1,
                 ).hat()
                 field = hybrid_domain_hat.field_no_hat(field_hat)
                 data_dct = jsc.fft.dctn(field, axes=(i,))
@@ -749,7 +749,7 @@ class FourierDomain(Domain):
             for i in self.all_dimensions()
         )
         coarse_domain = PhysicalDomain.create(
-            N_coarse, self.periodic_directions, self.scale_factors, self.aliasing
+            N_coarse, self.periodic_directions, self.scale_factors, 1
         )
         coarse_domain_hat = coarse_domain.hat()
 
@@ -780,7 +780,7 @@ class FourierDomain(Domain):
             for i in self.all_dimensions()
         )
         coarse_domain = PhysicalDomain.create(
-            N_coarse, self.periodic_directions, self.scale_factors, self.aliasing
+            N_coarse, self.periodic_directions, self.scale_factors, 1
         )
         coarse_domain_hat = coarse_domain.hat()
 
@@ -803,7 +803,7 @@ class FourierDomain(Domain):
             for i in self.all_dimensions()
         )
         coarse_domain = PhysicalDomain.create(
-            N_coarse, self.periodic_directions, self.scale_factors, self.aliasing
+            N_coarse, self.periodic_directions, self.scale_factors, 1
         )
         coarse_domain_hat = coarse_domain.hat()
 
