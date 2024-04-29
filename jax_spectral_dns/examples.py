@@ -2505,6 +2505,7 @@ def run_ld_2021(
             aliasing=1,
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / np.max(U_base)
         lsc = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
@@ -2525,8 +2526,6 @@ def run_ld_2021(
             "expected gain:",
             lsc.calculate_transient_growth_max_energy(end_time, number_of_modes),
         )
-        print("v0_0.energy()")
-        print(v0_0.energy())
         v0_0.normalize_by_energy()
         v0_0 *= e_0
         vel_hat = v0_0.hat()
