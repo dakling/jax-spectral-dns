@@ -2420,7 +2420,7 @@ def run_ld_2021(
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.4
+    max_cfl = 0.2
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2531,26 +2531,26 @@ def run_ld_2021(
     run_input_initial = init_file or vel_hat
     assert run_input_initial is not None
 
-    assert vel_hat is not None
-    print("vel_coarse")
-    vel_hat.no_hat().plot_3d(2)
-    vel_hat_coarse = vel_hat.project_onto_domain(coarse_domain)
-    vel_hat_coarse.set_name("vel_hat_coarse")
-    vel_hat_coarse.no_hat().plot_3d(2)
-    print("vel_fine")
-    vel_hat_fine = vel_hat_coarse.project_onto_domain(domain)
-    vel_hat_fine.set_name("vel_hat_fine")
-    vel_hat_fine.no_hat().plot_3d(2)
-    print("vel_filtered")
-    print(vel_hat[0].data.shape)
-    vel_hat_filtered = VectorField(
-        [
-            FourierField(domain, domain.hat().filter_field(vel_hat[i].data))
-            for i in range(3)
-        ]
-    )
-    vel_hat_filtered.set_name("vel_hat_filtered")
-    vel_hat_filtered.no_hat().plot_3d(2)
+    # assert vel_hat is not None
+    # print("vel_coarse")
+    # vel_hat.no_hat().plot_3d(2)
+    # vel_hat_coarse = vel_hat.project_onto_domain(coarse_domain)
+    # vel_hat_coarse.set_name("vel_hat_coarse")
+    # vel_hat_coarse.no_hat().plot_3d(2)
+    # print("vel_fine")
+    # vel_hat_fine = vel_hat_coarse.project_onto_domain(domain)
+    # vel_hat_fine.set_name("vel_hat_fine")
+    # vel_hat_fine.no_hat().plot_3d(2)
+    # print("vel_filtered")
+    # print(vel_hat[0].data.shape)
+    # vel_hat_filtered = VectorField(
+    #     [
+    #         FourierField(domain, domain.hat().filter_field(vel_hat[i].data))
+    #         for i in range(3)
+    #     ]
+    # )
+    # vel_hat_filtered.set_name("vel_hat_filtered")
+    # vel_hat_filtered.no_hat().plot_3d(2)
     # raise Exception("break")
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:

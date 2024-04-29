@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
 try:
     import optax  # type: ignore
-except ModuleNotFoundError:
-    print("optax not found")
+except Exception:
+    print("optax could not be loaded")
 try:
     import jaxopt  # type: ignore
 except ModuleNotFoundError:
