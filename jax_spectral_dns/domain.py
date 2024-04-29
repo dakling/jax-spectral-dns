@@ -690,6 +690,28 @@ class FourierDomain(Domain):
 
         return field_hat.astype(jnp.complex128)
 
+    def project_onto_domain_nonfourier(
+        self,
+        target_domain: PhysicalDomain,
+        field: jnp_array,
+    ) -> jnp_array:
+        initial_shape = self.shape
+        target_domain_hat = target_domain.hat()
+        target_shape = target_domain_hat.shape
+
+        for i in self.all_nonperiodic_dimensions():
+            N = initial_shape[i]
+            N_target = target_shape[i]
+            if N != N_target:
+                data_dct = jsc.fft.dctn(field, axes=(i,))
+                field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
+                ratio = data_dct.shape[i] / field.shape[i]
+                field *= ratio
+            else:
+                pass  # the shape is already correct (N = N_target), no need to do anything
+
+        return field.astype(jnp.float64)
+
     def filter_field(self, field_hat: jnp_array) -> jnp_array:
         N_coarse = tuple(
             self.shape[i] - (self.shape[i] // 3) for i in self.all_dimensions()
@@ -716,8 +738,7 @@ class FourierDomain(Domain):
 
     def filter_field_fourier_only(self, field_hat: jnp_array) -> jnp_array:
         N_coarse = tuple(
-            self.shape[i]
-            - ((self.shape[i] // 3) if self.is_periodic(i) else self.shape[i])
+            self.shape[i] - ((self.shape[i] // 3) if self.is_periodic(i) else 0)
             for i in self.all_dimensions()
         )
         N_coarse = tuple(
@@ -740,10 +761,9 @@ class FourierDomain(Domain):
 
         return fine_field_hat
 
-    def filter_field_nonfourier_only(self, field_hat: jnp_array) -> jnp_array:
+    def filter_field_nonfourier_only(self, field: jnp_array) -> jnp_array:
         N_coarse = tuple(
-            self.shape[i]
-            - ((self.shape[i] // 3) if not self.is_periodic(i) else self.shape[i])
+            self.shape[i] - ((self.shape[i] // 3) if not self.is_periodic(i) else 0)
             for i in self.all_dimensions()
         )
         coarse_domain = PhysicalDomain.create(
@@ -751,12 +771,12 @@ class FourierDomain(Domain):
         )
         coarse_domain_hat = coarse_domain.hat()
 
-        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
-        fine_field_hat = coarse_domain_hat.project_onto_domain(
-            self.physical_domain, coarse_field_hat
+        coarse_field = self.project_onto_domain_nonfourier(coarse_domain, field)
+        fine_field = coarse_domain_hat.project_onto_domain_nonfourier(
+            self.physical_domain, coarse_field
         )
 
-        return fine_field_hat
+        return fine_field
 
     def solve_poisson_fourier_field_slice(
         self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]

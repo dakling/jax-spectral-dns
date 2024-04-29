@@ -41,6 +41,7 @@ from jax_spectral_dns.optimiser import (
 from jax_spectral_dns._typing import (
     jsd_float,
     jnp_array,
+    np_float_array,
     Vel_fn_type,
     np_jnp_array,
     parameter_type,
@@ -2436,11 +2437,14 @@ def run_ld_2021(
         aliasing=1,
     )
     # coarse_domain = domain
-    avg_vel_coeffs = np.loadtxt("./profiles/Re_tau_180_90_small_channel.csv")
+    avg_vel_coeffs = np.loadtxt(
+        "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+    )
 
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: np_jnp_array
     ) -> Tuple[VectorField[PhysicalField], np_jnp_array, jsd_float]:
+        Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
             for j in range(len(cheb_coeffs)):
@@ -2493,7 +2497,21 @@ def run_ld_2021(
 
     if init_file is None:
         number_of_modes = 60
-        lsc = LinearStabilityCalculation(Re=Re, alpha=2 * jnp.pi / 1.87, beta=0, n=64)
+        n = 64
+        lsc_domain = PhysicalDomain.create(
+            (2, n, 2),
+            (True, False, True),
+            scale_factors=domain.scale_factors,
+            aliasing=1,
+        )
+        _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+        lsc = LinearStabilityCalculation(
+            Re=Re,
+            alpha=2 * jnp.pi / 1.87,
+            beta=0,
+            n=n,
+            U_base=cast(np_float_array, U_base),
+        )
 
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             # coarse_domain,

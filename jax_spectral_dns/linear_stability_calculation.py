@@ -29,7 +29,12 @@ NoneType = type(None)
 
 class LinearStabilityCalculation:
     def __init__(
-        self, Re: jsd_float = 180.0, alpha: float = 3.25, beta: float = 0.0, n: int = 50
+        self,
+        Re: jsd_float = 180.0,
+        alpha: float = 3.25,
+        beta: float = 0.0,
+        n: int = 50,
+        U_base: Optional[np_float_array] = None,
     ):
         self.Re = Re
         self.alpha = alpha
@@ -43,8 +48,8 @@ class LinearStabilityCalculation:
 
         self.C: Optional[np_complex_array] = None
 
-        domain: PhysicalDomain = PhysicalDomain.create((n,), (False,))
-        self.ys: np_float_array = domain.grid[0]
+        self.domain: PhysicalDomain = PhysicalDomain.create((n,), (False,))
+        self.ys: np_float_array = self.domain.grid[0]
 
         self.velocity_field_: Optional[VectorField[PhysicalField]] = None
 
@@ -79,6 +84,11 @@ class LinearStabilityCalculation:
             + "_"
             + str(domain_.number_of_cells(2))
         )
+        if type(U_base) is not NoneType:
+            assert U_base is not None
+            self.U_base = U_base
+        else:
+            self.U_base = np.array([1 - self.ys[i] ** 2 for i in range(self.n)])
         # Equation.initialize()
 
     def assemble_matrix_fast(self) -> tuple[np_complex_array, np_complex_array]:
@@ -101,13 +111,17 @@ class LinearStabilityCalculation:
             kk = k + var * n
             return (jj, kk)
 
-        u_fun: Callable[[float], float] = lambda y: (1 - y**2)
-        du_fun: Callable[[float], float] = lambda y: -2 * y
+        # u_fun: Callable[[float], float] = lambda y: (1 - y**2)
+        # du_fun: Callable[[float], float] = lambda y: -2 * y
+        U_base = self.U_base
+        dU_base = self.domain.diff_mats[0] @ U_base
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
-            U = u_fun(y)
-            dU = du_fun(y)
+            # U = u_fun(y)
+            # dU = du_fun(y)
+            U = self.U_base[j]
+            dU = dU_base[j]
             for k in range(n):
 
                 def setMat(
