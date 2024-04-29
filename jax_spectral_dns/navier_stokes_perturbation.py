@@ -8,7 +8,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import Any, Tuple, cast
+from typing import TYPE_CHECKING, Any, Tuple, cast
 
 # from importlib import reload
 import sys
@@ -22,24 +22,24 @@ from jax_spectral_dns.field import (
     FourierFieldSlice,
 )
 from jax_spectral_dns.equation import Equation, print_verb
-from jax_spectral_dns._typing import (
-    np_float_array,
-    np_complex_array,
-    jsd_float,
-    jnp_array,
-    np_jnp_array,
-    Vel_fn_type,
-)
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import (
+        jsd_float,
+        jnp_array,
+        np_jnp_array,
+        Vel_fn_type,
+    )
 
 
 # @partial(jax.jit, static_argnums=(0, 1))
 def update_nonlinear_terms_high_performance_perturbation(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
-    vel_hat_new: jnp_array,
-    vel_base_hat: jnp_array,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
     linearize: bool = False,
-) -> Tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
@@ -219,7 +219,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             )
         )
 
-    def get_cfl(self, i: int = -1) -> jnp_array:
+    def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
             self.get_physical_domain().grid[0][1:]
             - self.get_physical_domain().grid[0][:-1]
@@ -258,7 +258,7 @@ def solve_navier_stokes_perturbation(
     perturbation_factor: float = 0.1,
     scale_factors: Tuple[float, float, float] = (1.87, 1.0, 0.93),
     dt: float = 1e-2,
-    u_max_over_u_tau: jsd_float = 1.0,
+    u_max_over_u_tau: "jsd_float" = 1.0,
     aliasing: float = 1.0,
     rotated: bool = False,
 ) -> NavierStokesVelVortPerturbation:

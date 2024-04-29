@@ -34,15 +34,6 @@ from typing import (
     cast,
 )
 from typing_extensions import Self
-from jax_spectral_dns._typing import (
-    jsd_array,
-    np_float_array,
-    np_complex_array,
-    jsd_float,
-    jnp_array,
-    Vel_fn_type,
-    np_jnp_array,
-)
 
 try:
     from skimage import measure
@@ -51,6 +42,15 @@ except ModuleNotFoundError:
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import AnyScalarField, AnyVectorField
+    from jax_spectral_dns._typing import (
+        jsd_array,
+        np_float_array,
+        np_complex_array,
+        jsd_float,
+        jnp_array,
+        Vel_fn_type,
+        np_jnp_array,
+    )
 
 
 import numpy as np
@@ -79,7 +79,7 @@ class Field(ABC):
 
     field_dir = "./fields/"
 
-    def __init__(self, domain: Domain, data: jnp_array, name: str):
+    def __init__(self, domain: Domain, data: "jnp_array", name: str):
         self.domain = domain
         self.data = data
         self.name = name
@@ -87,7 +87,7 @@ class Field(ABC):
 
     @classmethod
     def Zeros(cls, domain: PhysicalDomain, name: str = "field") -> Self:
-        data: jnp_array = jnp.zeros(domain.get_shape_aliasing())
+        data: "jnp_array" = jnp.zeros(domain.get_shape_aliasing())
         return cls(domain, data, name)
 
     @abstractmethod
@@ -124,7 +124,7 @@ class Field(ABC):
 
     def save_to_file(self, filename: str) -> None:
         """Save field to file filename."""
-        field_array: np_float_array = np.array(self.data.tolist())
+        field_array: "np_float_array" = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
 
     def get_data(self) -> jnp.ndarray:
@@ -157,33 +157,33 @@ class Field(ABC):
     def __sub__(self: T, _: Union[T, jnp.ndarray]) -> T: ...
 
     @abstractmethod
-    def __mul__(self: T, _: Union[T, jnp.ndarray, jsd_float]) -> T: ...
+    def __mul__(self: T, _: Union[T, jnp.ndarray, "jsd_float"]) -> T: ...
 
     __rmul__ = __mul__
     __lmul__ = __mul__
 
     @abstractmethod
-    def __truediv__(self: T, _: jsd_float) -> T: ...
+    def __truediv__(self: T, _: "jsd_float") -> T: ...
 
     @abstractmethod
-    def shift(self: T, value: jsd_float) -> T: ...
+    def shift(self: T, value: "jsd_float") -> T: ...
 
-    def volume_integral(self) -> jsd_float:
+    def volume_integral(self) -> "jsd_float":
         raise NotImplementedError()
 
     def __repr__(self) -> str:
         return str(self.data)
 
-    def __getitem__(self, index: Any) -> jnp_array:
+    def __getitem__(self, index: Any) -> "jnp_array":
         return self.data[index]
 
-    def max(self) -> jnp_array:
+    def max(self) -> "jnp_array":
         return jnp.max(self.data.flatten())
 
-    def min(self) -> jnp_array:
+    def min(self) -> "jnp_array":
         return jnp.min(self.data.flatten())
 
-    def absmax(self) -> jnp_array:
+    def absmax(self) -> "jnp_array":
         max = jnp.max(self.data.flatten())
         min = jnp.min(self.data.flatten())
         return jnp.max(jnp.array([max, -min]))
@@ -217,7 +217,7 @@ class Field(ABC):
     def all_nonperiodic_dimensions(self) -> List[int]:
         return self.get_domain().all_nonperiodic_dimensions()
 
-    def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> np_float_array:
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> "np_float_array":
         return self.get_physical_domain().get_cheb_mat_2_homogeneous_dirichlet(
             direction
         )
@@ -265,7 +265,7 @@ class VectorField(Generic[T]):
         cls,
         field_cls: type["AnyScalarField"],
         domain: PhysicalDomain,
-        seed: jsd_float = 0,
+        seed: "jsd_float" = 0,
         energy_norm: float = 1.0,
         name: str = "field",
     ) -> Self:
@@ -282,7 +282,7 @@ class VectorField(Generic[T]):
         cls,
         field_cls: type["AnyScalarField"],
         domain: PhysicalDomain,
-        data: jnp_array,
+        data: "jnp_array",
         name: str = "field",
     ) -> Self:
         dim = domain.number_of_dimensions
@@ -316,20 +316,20 @@ class VectorField(Generic[T]):
             out += str(elem)
         return out
 
-    def __add__(self, other: Union[VectorField[T], jnp_array]) -> VectorField[T]:
+    def __add__(self, other: Union[VectorField[T], "jnp_array"]) -> VectorField[T]:
         out = []
         for i in range(len(self)):
             f: T = self[i]
-            other_i: Union[T, jnp_array] = other[i]
+            other_i: Union[T, "jnp_array"] = other[i]
             out_: T = f + other_i
             out.append(out_)
         return VectorField(out)
 
-    def __sub__(self, other: Union[VectorField[T], jnp_array]) -> VectorField[T]:
+    def __sub__(self, other: Union[VectorField[T], "jnp_array"]) -> VectorField[T]:
         return self + (-1) * other
 
     def __mul__(
-        self, other: Union[VectorField[T], jnp_array, jsd_float]
+        self, other: Union[VectorField[T], "jnp_array", "jsd_float"]
     ) -> VectorField[T]:
         out = []
         if isinstance(other, VectorField):
@@ -347,7 +347,7 @@ class VectorField(Generic[T]):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: jsd_float) -> VectorField[T]:
+    def __truediv__(self, other: "jsd_float") -> VectorField[T]:
         out = []
         for i in range(len(self)):
             out.append(self[i] / other)
@@ -361,7 +361,7 @@ class VectorField(Generic[T]):
             out.append(self[i] ** exponent)
         return VectorField(out)
 
-    def shift(self, value: jnp_array) -> VectorField[T]:
+    def shift(self, value: "jnp_array") -> VectorField[T]:
         out = []
         assert len(value) == len(self), "Dimension mismatch."
         for i in range(len(self)):
@@ -462,7 +462,7 @@ class VectorField(Generic[T]):
             field_array = np.array(f.data.tolist())
             field_array.dump(f.field_dir + filename)
 
-    def get_data(self) -> jnp_array:
+    def get_data(self) -> "jnp_array":
         return jnp.array([f.data for f in self])
         # return [f.data for f in self]
 
@@ -586,7 +586,7 @@ class VectorField(Generic[T]):
         return out
 
     def reconstruct_from_wavenumbers(
-        self, fn: Callable[[int, int], jnp_array], number_of_other_fields: int = 0
+        self, fn: Callable[[int, int], "jnp_array"], number_of_other_fields: int = 0
     ) -> Tuple[VectorField[FourierField], int]:
 
         # jit = True
@@ -791,7 +791,7 @@ class PhysicalField(Field):
     def __init__(
         self,
         domain: PhysicalDomain,
-        data: jnp_array,
+        data: "jnp_array",
         name: str = "field",
         time_step: int = 0,
     ):
@@ -800,7 +800,7 @@ class PhysicalField(Field):
         self.name = name
         self.time_step: int = time_step
 
-    def shift(self, value: jsd_float) -> PhysicalField:
+    def shift(self, value: "jsd_float") -> PhysicalField:
         out_field = self.data + value
         return PhysicalField(self.physical_domain, out_field, name=self.name)
 
@@ -833,7 +833,7 @@ class PhysicalField(Field):
         ), "Attempted to subtract a Field and a Fourier Field."
         return self + other * (-1.0)  # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> PhysicalField:
+    def __mul__(self, other: Union[Self, jnp.ndarray, "jsd_float"]) -> PhysicalField:
         if isinstance(other, FourierField):
             raise Exception("Attempted to multiply physical field and Fourier field")
         elif isinstance(other, Field):
@@ -871,7 +871,7 @@ class PhysicalField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: jsd_float) -> PhysicalField:
+    def __truediv__(self, other: "jsd_float") -> PhysicalField:
         if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
         else:
@@ -890,12 +890,12 @@ class PhysicalField(Field):
     def FromFunc(
         cls,
         domain: PhysicalDomain,
-        func: Optional[Vel_fn_type] = None,
+        func: Optional["Vel_fn_type"] = None,
         name: str = "field",
     ) -> Self:
         """Construct from function func depending on the independent variables described by domain."""
         if not func:
-            func_: Vel_fn_type = lambda x: 0.0 * math.prod(x)
+            func_: "Vel_fn_type" = lambda x: 0.0 * math.prod(x)
         else:
             assert func is not None
             func_ = func
@@ -906,7 +906,7 @@ class PhysicalField(Field):
     def FromRandom(
         cls,
         domain: PhysicalDomain,
-        seed: jsd_float = 0,
+        seed: "jsd_float" = 0,
         energy_norm: float = 1.0,
         name: str = "field",
     ) -> PhysicalField:
@@ -994,10 +994,12 @@ class PhysicalField(Field):
     def get_physical_domain(self) -> PhysicalDomain:
         return self.get_domain()
 
-    def l2error(self, fn: Vel_fn_type) -> jsd_array:
+    def l2error(self, fn: "Vel_fn_type") -> "jsd_array":
         # TODO supersampling
         analytical_solution = PhysicalField.FromFunc(self.physical_domain, fn)
-        return cast(jsd_array, jnp.linalg.norm((self - analytical_solution).data, None))
+        return cast(
+            "jsd_array", jnp.linalg.norm((self - analytical_solution).data, None)
+        )
 
     def volume_integral(self) -> float:
         int = PhysicalField(self.physical_domain, self.data)
@@ -1057,7 +1059,7 @@ class PhysicalField(Field):
                 constant_values=0.0,
             )
 
-    def eval(self, X: Sequence[float]) -> jsd_array:
+    def eval(self, X: Sequence[float]) -> "jsd_array":
         """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""
         grd = self.physical_domain.grid
         interpolant = []
@@ -1527,7 +1529,7 @@ class PhysicalField(Field):
                 save()
 
     def plot_isolines(
-        self, normal_direction: int, isolines: Optional[List[jsd_float]] = None
+        self, normal_direction: int, isolines: Optional[List["jsd_float"]] = None
     ) -> None:
         if not self.activate_jit_:
             if type(isolines) == NoneType:
@@ -1654,23 +1656,25 @@ class PhysicalField(Field):
         out_bc = self.physical_domain.integrate(
             self.data, direction, order, bc_left, bc_right
         )
-        # assert type(out_bc) is jsd_array
+        # assert type(out_bc) is 'jsd_array'
         return PhysicalField(self.physical_domain, out_bc, name=self.name + "_int")
 
     def definite_integral(
         self, direction: int
-    ) -> Union[float, jsd_array, PhysicalField]:
-        def reduce_add_along_axis(arr: jsd_array, axis: int) -> jnp_array:
+    ) -> Union[float, "jsd_array", PhysicalField]:
+        def reduce_add_along_axis(arr: "jsd_array", axis: int) -> "jnp_array":
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
             out_arr = jnp.array(functools.reduce(lambda a, b: a + b, arr))
-            # assert type(out_arr) is jsd_array
+            # assert type(out_arr) is 'jsd_array'
             return out_arr
 
         if not self.is_periodic(direction):
             int = self.integrate(direction, 1, bc_right=0.0)
             if self.number_of_dimensions() == 1:
-                out: jsd_float = cast(jsd_float, int[0]) - cast(jsd_float, int[-1])
+                out: "jsd_float" = cast("jsd_float", int[0]) - cast(
+                    "jsd_float", int[-1]
+                )
                 return cast(float, out)
             else:
                 N = self.physical_domain.number_of_cells(direction)
@@ -1770,7 +1774,7 @@ class FourierField(Field):
     def FromRandom(
         cls,
         domain: PhysicalDomain,
-        seed: jsd_float = 0.0,
+        seed: "jsd_float" = 0.0,
         energy_norm: float = 1.0,
         name: str = "field",
     ) -> FourierField:
@@ -1811,7 +1815,7 @@ class FourierField(Field):
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
         return self + other * (-1.0)  # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> FourierField:
+    def __mul__(self, other: Union[Self, jnp.ndarray, "jsd_float"]) -> FourierField:
         if isinstance(other, Field):
             assert isinstance(
                 other, FourierField
@@ -1852,11 +1856,11 @@ class FourierField(Field):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: jsd_float) -> FourierField:
+    def __truediv__(self, other: "jsd_float") -> FourierField:
         out = self.data / other
         return FourierField(self.physical_domain, out, name=self.name)
 
-    def shift(self, value: jsd_float) -> FourierField:
+    def shift(self, value: "jsd_float") -> FourierField:
         out_field = self.data + value
         return FourierField(self.get_physical_domain(), out_field, name=self.name)
 
@@ -1886,7 +1890,7 @@ class FourierField(Field):
 
     def diff(self, direction: int, order: int = 1) -> FourierField:
         domain: FourierDomain = self.get_domain()
-        out_field: jnp_array = domain.diff(self.data, direction, order)
+        out_field: "jnp_array" = domain.diff(self.data, direction, order)
         return FourierField(
             self.physical_domain,
             out_field,
@@ -1920,7 +1924,7 @@ class FourierField(Field):
             out_field_ = self.physical_domain.integrate(
                 self.data, direction, order, bc_right=bc_right, bc_left=bc_left
             )
-            # assert type(out_field_) is jsd_array
+            # assert type(out_field_) is 'jsd_array'
             out_field = out_field_
 
         return FourierField(
@@ -1937,7 +1941,7 @@ class FourierField(Field):
 
     def definite_integral(
         self, direction: int
-    ) -> Union[jsd_float, jsd_array, PhysicalField]:
+    ) -> Union["jsd_float", "jsd_array", PhysicalField]:
         raise NotImplementedError()
 
     def update_boundary_conditions(self) -> None:
@@ -1945,7 +1949,7 @@ class FourierField(Field):
         very small (this prevents divide-by-zero issues)."""
         raise NotImplementedError()
 
-    def assemble_poisson_matrix(self) -> np_complex_array:
+    def assemble_poisson_matrix(self) -> "np_complex_array":
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
@@ -1979,7 +1983,7 @@ class FourierField(Field):
         )
         return mat
 
-    def solve_poisson(self, mat: Optional[np_complex_array] = None) -> FourierField:
+    def solve_poisson(self, mat: Optional["np_complex_array"] = None) -> FourierField:
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
@@ -2014,7 +2018,7 @@ class FourierField(Field):
         return out_field
 
     def reconstruct_from_wavenumbers(
-        self, fn: Callable[[int, int], jnp_array], vectorize: bool = False
+        self, fn: Callable[[int, int], "jnp_array"], vectorize: bool = False
     ) -> FourierField:
         if vectorize:
             print("vectorisation not implemented yet, using unvectorized version")
@@ -2182,7 +2186,7 @@ class FourierFieldSlice(FourierField):
         self,
         domain: FourierDomain,
         non_periodic_direction: int,
-        data: jnp_array,
+        data: "jnp_array",
         name: str = "field_hat_slice",
         *ks: int,
         **params: Any,
@@ -2230,8 +2234,8 @@ class FourierFieldSlice(FourierField):
         self,
         direction: int,
         order: int = 1,
-        _: Optional[jsd_array] = None,
-        __: Optional[jsd_array] = None,
+        _: Optional["jsd_array"] = None,
+        __: Optional["jsd_array"] = None,
     ) -> "FourierFieldSlice":
         if direction in self.all_periodic_dimensions():
             out_field = self.data / (1j * self.ks[direction]) ** order
@@ -2246,7 +2250,7 @@ class FourierFieldSlice(FourierField):
             ks_int=self.ks_int,
         )
 
-    def assemble_poisson_matrix(self) -> np_complex_array:
+    def assemble_poisson_matrix(self) -> "np_complex_array":
         y_mat = self.get_cheb_mat_2_homogeneous_dirichlet(0)
         n = y_mat.shape[0]
         factor = np.zeros_like(self.ks[0])
@@ -2259,7 +2263,7 @@ class FourierFieldSlice(FourierField):
         return mat_inv
 
     def solve_poisson(
-        self, mat: Optional[np_complex_array] = None
+        self, mat: Optional["np_complex_array"] = None
     ) -> FourierFieldSlice:
         if type(mat) == NoneType:
             mat_inv = self.assemble_poisson_matrix()
@@ -2330,7 +2334,9 @@ class FourierFieldSlice(FourierField):
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierFieldSlice:
         return self + other * (-1.0)  # type: ignore
 
-    def __mul__(self, other: Union[Self, jnp.ndarray, jsd_float]) -> FourierFieldSlice:
+    def __mul__(
+        self, other: Union[Self, jnp.ndarray, "jsd_float"]
+    ) -> FourierFieldSlice:
         if isinstance(other, Field):
             if self.activate_jit_:
                 new_name = ""
@@ -2374,7 +2380,7 @@ class FourierFieldSlice(FourierField):
     __rmul__ = __mul__
     __lmul__ = __mul__
 
-    def __truediv__(self, other: jsd_float) -> FourierFieldSlice:
+    def __truediv__(self, other: "jsd_float") -> FourierFieldSlice:
         if isinstance(other, Field):
             raise Exception("Don't know how to divide by another field")
         else:
@@ -2401,7 +2407,7 @@ class FourierFieldSlice(FourierField):
                 ks_int=self.ks_int,
             )
 
-    def shift(self, value: jsd_float) -> FourierFieldSlice:
+    def shift(self, value: "jsd_float") -> FourierFieldSlice:
         out_field = self.data + value
         return FourierFieldSlice(
             self.fourier_domain, self.non_periodic_direction, out_field, name=self.name

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 import jax
 import jax.numpy as jnp
 
@@ -13,7 +13,9 @@ from typing import List, Optional, cast
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import PhysicalField
 from jax_spectral_dns.equation import Equation
-from jax_spectral_dns._typing import jsd_float, jnp_array, Vel_fn_type
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import jsd_float, jnp_array, Vel_fn_type
 
 
 class Heat_Eq(Equation):
@@ -23,7 +25,7 @@ class Heat_Eq(Equation):
         super().__init__(domain, *fields)
         u = self.get_initial_field("u")
         u.update_boundary_conditions()
-        self.dt: jsd_float = params["dt"]
+        self.dt: "jsd_float" = params["dt"]
         self.number_of_steps: int = params["number_of_steps"]
         self.i: int = 0
 
@@ -101,7 +103,7 @@ def solve_heat_eq_1D() -> None:
 
     domain = PhysicalDomain.create((Nx,), (False,))
 
-    u_fn: Vel_fn_type = lambda X: jnp.cos(X[0] * jnp.pi / 2)
+    u_fn: "Vel_fn_type" = lambda X: jnp.cos(X[0] * jnp.pi / 2)
     u = PhysicalField.FromFunc(domain, func=u_fn, name="u")
     heat_eq = Heat_Eq(domain, u, dt=dt, number_of_steps=Nt)
 
@@ -119,7 +121,7 @@ def solve_heat_eq_1D() -> None:
 def optimize_heat_eq_1D() -> None:
     Nx = 100
 
-    def run(v0: jnp_array) -> jsd_float:
+    def run(v0: "jnp_array") -> "jsd_float":
         domain = PhysicalDomain.create((Nx,), (False,))
 
         u = PhysicalField(domain, v0, name="u")
@@ -205,7 +207,7 @@ def optimize_heat_eq_3D() -> None:
     Ny = Nx
     Nz = Nx
 
-    def run(v0: jnp_array) -> jsd_float:
+    def run(v0: "jnp_array") -> "jsd_float":
         domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
         Nt = 3000
         dt = 5e-9

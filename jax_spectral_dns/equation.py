@@ -36,10 +36,10 @@ except Exception:
 from jax_spectral_dns.domain import Domain, PhysicalDomain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
-from jax_spectral_dns._typing import jsd_float
 
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import AnyField, AnyFieldList
+    from jax_spectral_dns._typing import AnyField, AnyFieldList, jsd_float
+
 
 jnp_int_array = jnp.ndarray
 
@@ -83,11 +83,11 @@ class Equation:
     verbosity_level: int = 1
 
     def __init__(self: E, domain: Domain, *fields: "AnyField", **params: Any):
-        dt: jsd_float = params.get("dt", 1e-2)
+        dt: "jsd_float" = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step: int = 0
-        self.time: jsd_float = 0.0
+        self.time: "jsd_float" = 0.0
         self.before_time_step_fn: Optional[Callable[[E], None]] = None
         self.after_time_step_fn: Optional[Callable[[E], None]] = None
         self.post_process_fn: Optional[Callable[[E, int], None]] = None
@@ -158,7 +158,7 @@ class Equation:
         dt = end_time / number_of_time_steps
         return dt
 
-    def get_dt(self) -> jsd_float:
+    def get_dt(self) -> "jsd_float":
         return self.fixed_parameters.dt
 
     def get_domain(self) -> Domain:
