@@ -501,7 +501,7 @@ class LinearStabilityCalculation:
     def calculate_transient_growth_max_energy(
         self, T: float, number_of_modes: int
     ) -> float:
-        if (self.S) == NoneType:
+        if type(self.S) == NoneType:
             self.S, _ = self.calculate_transient_growth_svd(
                 T, number_of_modes, save=False
             )
