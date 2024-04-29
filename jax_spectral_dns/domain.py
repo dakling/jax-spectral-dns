@@ -123,11 +123,11 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        shape = (
+        shape = tuple(
             (
-                shape[i] * aliasing
-                if not periodic_directions[i] or (shape[i] * aliasing) % 2 != 0
-                else (shape[i] * aliasing) + 1
+                int(shape[i] * aliasing)
+                if not periodic_directions[i] or int(shape[i] * aliasing) % 2 != 0
+                else int(shape[i] * aliasing) + 1
             )
             for i in range(len(shape))
         )
@@ -796,7 +796,7 @@ class FourierDomain(Domain):
         N_coarse = tuple(
             self.shape[i]
             - (
-                int(self.shape[i](1 - 1 / self.aliasing))
+                self.shape[i] * int(1 - 1 / self.aliasing)
                 if not self.is_periodic(i)
                 else 0
             )
