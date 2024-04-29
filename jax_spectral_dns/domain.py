@@ -82,7 +82,8 @@ def assemble_fourier_diff_mat(
 
 
 # @register_pytree_node_class
-@dataclasses.dataclass(frozen=True, kw_only=True)
+# @dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(frozen=True)
 class Domain(ABC):
     """Class that mainly contains information on the independent variables of
     the problem (i.e. the basis) and implements some operations that can be
@@ -450,7 +451,8 @@ class Domain(ABC):
         return jnp.array([out_0, out_1, out_2])
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+# @dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(frozen=True)
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
 
@@ -505,11 +507,14 @@ class PhysicalDomain(Domain):
         return out.astype(jnp.complex128)
 
 
-@dataclasses.dataclass(frozen=True, init=True, kw_only=True)
+# @dataclasses.dataclass(frozen=True, init=True, kw_only=True)
+@dataclasses.dataclass(frozen=True, init=True)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
 
-    physical_domain: PhysicalDomain  # the physical domain it is based on
+    physical_domain: Optional[PhysicalDomain] = (
+        None  # the physical domain it is based on
+    )
 
     def __hash__(self) -> int:
         return hash(
@@ -620,6 +625,7 @@ class FourierDomain(Domain):
             diff_array = (1j * np.array(self.mgrid[direction])) ** order
             f_diff: jnp_array = jnp.array(diff_array * field_hat)
         else:
+            assert self.physical_domain is not None
             f_diff = self.physical_domain.diff(field_hat, direction, order)
         return f_diff
 
@@ -730,6 +736,7 @@ class FourierDomain(Domain):
         coarse_domain_hat = coarse_domain.hat()
 
         coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        assert self.physical_domain is not None
         fine_field_hat = coarse_domain_hat.project_onto_domain(
             self.physical_domain, coarse_field_hat
         )
@@ -755,6 +762,7 @@ class FourierDomain(Domain):
         coarse_domain_hat = coarse_domain.hat()
 
         coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        assert self.physical_domain is not None
         fine_field_hat = coarse_domain_hat.project_onto_domain(
             self.physical_domain, coarse_field_hat
         )
@@ -772,6 +780,7 @@ class FourierDomain(Domain):
         coarse_domain_hat = coarse_domain.hat()
 
         coarse_field = self.project_onto_domain_nonfourier(coarse_domain, field)
+        assert self.physical_domain is not None
         fine_field = coarse_domain_hat.project_onto_domain_nonfourier(
             self.physical_domain, coarse_field
         )
