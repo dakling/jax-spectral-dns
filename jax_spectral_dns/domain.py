@@ -123,11 +123,11 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        shape_ = (
+        shape = (
             (
-                shape[i]
-                if not periodic_directions[i] or shape[i] % 2 != 0
-                else shape[i] + 1
+                shape[i] * aliasing
+                if not periodic_directions[i] or (shape[i] * aliasing) % 2 != 0
+                else (shape[i] * aliasing) + 1
             )
             for i in range(len(shape))
         )
@@ -138,10 +138,12 @@ class Domain(ABC):
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
                 grid.append(
-                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=aliasing)
+                    # get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=aliasing)
+                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=1.0)
                 )
                 diff_mats.append(
-                    assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=aliasing)
+                    # assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=aliasing)
+                    assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=1.0)
                     * (2 * np.pi)
                     / scale_factors_[dim]
                 )
@@ -160,7 +162,7 @@ class Domain(ABC):
             number_of_dimensions=number_of_dimensions,
             periodic_directions=tuple(periodic_directions),
             scale_factors=tuple(scale_factors_),
-            shape=tuple(shape_),
+            shape=tuple(shape),
             grid=tuple(grid),
             diff_mats=tuple(diff_mats),
             mgrid=tuple(mgrid),
@@ -735,7 +737,8 @@ class FourierDomain(Domain):
 
     def filter_field(self, field_hat: "jnp_array") -> "jnp_array":
         N_coarse = tuple(
-            self.shape[i] - (self.shape[i] // 3) for i in self.all_dimensions()
+            self.shape[i] - int(self.shape[i] * (1 - 1 / self.aliasing))
+            for i in self.all_dimensions()
         )
         N_coarse = tuple(
             (
@@ -760,7 +763,12 @@ class FourierDomain(Domain):
 
     def filter_field_fourier_only(self, field_hat: "jnp_array") -> "jnp_array":
         N_coarse = tuple(
-            self.shape[i] - ((self.shape[i] // 3) if self.is_periodic(i) else 0)
+            self.shape[i]
+            - (
+                int(self.shape[i] * (1 - 1 / self.aliasing))
+                if self.is_periodic(i)
+                else 0
+            )
             for i in self.all_dimensions()
         )
         N_coarse = tuple(
@@ -786,7 +794,12 @@ class FourierDomain(Domain):
 
     def filter_field_nonfourier_only(self, field: "jnp_array") -> "jnp_array":
         N_coarse = tuple(
-            self.shape[i] - ((self.shape[i] // 3) if not self.is_periodic(i) else 0)
+            self.shape[i]
+            - (
+                int(self.shape[i](1 - 1 / self.aliasing))
+                if not self.is_periodic(i)
+                else 0
+            )
             for i in self.all_dimensions()
         )
         coarse_domain = PhysicalDomain.create(
@@ -853,7 +866,8 @@ class FourierDomain(Domain):
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
-                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                # field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                field_1.shape[dim] if dim != i else int(Ns[i] * 0)
                 for dim in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)
