@@ -56,8 +56,7 @@ class LinearStabilityCalculation:
         self.velocity_field_: Optional[VectorField[PhysicalField]] = None
 
         self.S: Optional["np_float_array"] = None
-        self.V: Optional["np_complex_array"] = None
-        self.U: Optional["np_complex_array"] = None
+        self.coeffs: Optional["np_complex_array"] = None
 
         self.symm: bool = False
         # self.symm: bool = True
@@ -495,16 +494,19 @@ class LinearStabilityCalculation:
         coeffs = F_inv @ V[:, 0]
         if save:
             self.S = S
-            self.U = U
-            self.V = V
+            self.coeffs = coeffs
 
         return (S, coeffs)
 
     def calculate_transient_growth_max_energy(
         self, T: float, number_of_modes: int
     ) -> float:
-        S, _ = self.calculate_transient_growth_svd(T, number_of_modes, save=False)
-        return cast(float, S[0] ** 2)
+        if (self.S) == NoneType:
+            self.S, _ = self.calculate_transient_growth_svd(
+                T, number_of_modes, save=False
+            )
+        assert self.S is not None
+        return cast(float, self.S[0] ** 2)
 
     def calculate_transient_growth_initial_condition_from_coefficients(
         self, domain: PhysicalDomain, coeffs: "np_complex_array", recompute: bool = True
@@ -564,7 +566,7 @@ class LinearStabilityCalculation:
             else:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
-            if recompute_full or type(self.V) == NoneType:
+            if recompute_full or type(self.coeffs) == NoneType:
                 self.S, factors = self.calculate_transient_growth_svd(
                     T, number_of_modes, save=False, recompute=recompute_full
                 )

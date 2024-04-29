@@ -2420,7 +2420,7 @@ def run_ld_2021(
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.2
+    max_cfl = 0.1
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2520,6 +2520,10 @@ def run_ld_2021(
             number_of_modes,
             recompute_full=True,
             save_final=False,
+        )
+        print_verb(
+            "expected gain:",
+            lsc.calculate_transient_growth_max_energy(end_time, number_of_modes),
         )
         v0_0.normalize_by_energy()
         v0_0 *= e_0
