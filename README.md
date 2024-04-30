@@ -110,7 +110,7 @@ optimisation problems as well.
 Below, the output of a run of `run_optimisation_transient_growth_y_profile` is shown. 
 Even though the optimiser is only run for twenty iterations, a clear improvement
 from an energy gain of $1.24$ up to a gain of $19.29$ is achieved. Getting closer to 
-the expected gain of $20.37$ would likely require more iterations.
+the expected gain of $20.36$ would likely require more iterations.
 Nonetheless, the initial condition is optimised until it qualitatively resembles
 the one shown in the `test_transient_growth` section, and the simulation
 also matches up nicely, at least qualitatively.

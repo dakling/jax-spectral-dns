@@ -54,7 +54,7 @@ class Optimiser(ABC, Generic[I]):
         use_optax: bool = False,
         min_optax_iter: int = 0,
         add_noise: bool = True,
-        noise_amplitude: float = 1e-1,
+        noise_amplitude: float = 1e-6,
         **params: Any,
     ):
 

@@ -2431,10 +2431,10 @@ def run_ld_2021(
     )
 
     coarse_domain = PhysicalDomain.create(
-        (int(Nx * 2 / 3), int(Ny * 2 / 3), int(Nz * 2 / 3)),
+        (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
-        aliasing=aliasing,
+        aliasing=1,
     )
     # coarse_domain = domain
     avg_vel_coeffs = np.loadtxt(
@@ -2505,7 +2505,6 @@ def run_ld_2021(
             aliasing=1,
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base / np.max(U_base)
         lsc = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
@@ -2517,14 +2516,14 @@ def run_ld_2021(
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             # coarse_domain,
             domain,
-            end_time_,
+            end_time,
             number_of_modes,
             recompute_full=True,
             save_final=False,
         )
         print_verb(
             "expected gain:",
-            lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+            lsc.calculate_transient_growth_max_energy(end_time, number_of_modes),
         )
         v0_0.normalize_by_energy()
         v0_0 *= e_0
