@@ -258,6 +258,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
     def make_noisy(
         self, input: VectorField[FourierField], noise_amplitude: float = 1e-2
     ) -> VectorField[FourierField]:
+        print_verb("adding noise")
         input = input.project_onto_domain(self.optimisation_domain)
 
         def get_white_noise_field(field: FourierField) -> FourierField:
@@ -337,6 +338,7 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
     def make_noisy(
         self, input: "VectorField[PhysicalField]", noise_amplitude: float = 1e-1
     ) -> "VectorField[PhysicalField]":
+        print_verb("adding noise")
         e0 = input.energy()
         return VectorField(
             [

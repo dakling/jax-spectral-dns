@@ -2431,7 +2431,7 @@ def run_ld_2021(
     )
 
     coarse_domain = PhysicalDomain.create(
-        (30, 86, 26),
+        (int(Nx * 2 / 3), int(Ny * 2 / 3), int(Nz * 2 / 3)),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=aliasing,
@@ -2517,14 +2517,14 @@ def run_ld_2021(
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             # coarse_domain,
             domain,
-            end_time,
+            end_time_,
             number_of_modes,
             recompute_full=True,
             save_final=False,
         )
         print_verb(
             "expected gain:",
-            lsc.calculate_transient_growth_max_energy(end_time, number_of_modes),
+            lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
         v0_0 *= e_0
