@@ -311,6 +311,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def post_process_iteration(self) -> None:
 
+        self.parameters_to_file()
         i = self.current_iteration
         U_hat = self.parameters_to_run_input_(self.parameters)
         U = U_hat.no_hat()
@@ -330,7 +331,6 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
         v0_new[0].plot_isosurfaces(0.4)
-        self.parameters_to_file()
 
 
 class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
@@ -420,11 +420,11 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
+        v0_new.save_to_file("vel_0_" + str(i + 1))
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
         v0_new[0].plot_isosurfaces(0.4)
-        v0_new.save_to_file("vel_0_" + str(i + 1))
 
 
 class OptimiserPertAndBase(
@@ -462,18 +462,20 @@ class OptimiserPertAndBase(
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
-        v0_new.plot_3d(2)
-        v0_new[0].plot_center(1)
-        v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
         U_base = U_base_hat.no_hat()
         U_base.set_name("vel_base")
         U_base.set_time_step(i + 1)
+        U_base[0].save_to_file("vel_base_" + str(i + 1))
+
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
+        v0_new[0].plot_isosurfaces(0.4)
+
         U_base[0].plot_3d(2)
         U_base[0].plot_center(1)
-        U_base[0].save_to_file("vel_base_" + str(i + 1))
 
     def run_input_to_parameters(
         self, inp: "Tuple[VectorField[FourierField], VectorField[FourierField]]"
