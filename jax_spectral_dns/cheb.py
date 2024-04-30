@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 import numpy as np
 from numpy.polynomial.chebyshev import Chebyshev
-from jax_spectral_dns._typing import jsd_float
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import jsd_float
 
 
 def cheb(order: int, deriv: int) -> Chebyshev:
@@ -30,12 +33,12 @@ def phi_s(order: int, deriv: int) -> Chebyshev:
     return out
 
 
-def phi_as(order: int, deriv: int, ySym: jsd_float) -> Chebyshev:
+def phi_as(order: int, deriv: int, ySym: "jsd_float") -> Chebyshev:
     out: Chebyshev = ySym * phi_a(order, deriv) + (1 - ySym) * phi_s(order, deriv)
     return out
 
 
-def phi_sa(order: int, deriv: int, ySym: jsd_float) -> Chebyshev:
+def phi_sa(order: int, deriv: int, ySym: "jsd_float") -> Chebyshev:
     out: Chebyshev = phi_as(order, deriv, 1 - ySym)
     return out
 

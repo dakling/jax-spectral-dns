@@ -3,23 +3,22 @@
 
 make_video_mp4(){
     mkdir img || echo
-    ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4"
+    ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4" &> /dev/null
 }
 
 combine_two_mp4(){
     mkdir img || echo
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -filter_complex hstack=inputs=2 "img/$1.mp4"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -filter_complex hstack=inputs=2 "img/$1.mp4" &> /dev/null
 }
 
 combine_three_mp4(){
     mkdir img || echo
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4" &> /dev/null
 }
 
 combine_four_mp4(){
     mkdir img || echo
-    # ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex hstack=inputs=4 "img/$1.mp4"
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "[0:v][1:v][2:v][3:v]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[v]" -map "[v]" "img/$1.mp4"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "[0:v][1:v][2:v][3:v]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 make_video_gif(){

@@ -23,10 +23,10 @@ from pathlib import Path
 import os
 
 try:
-    import gi  # type: ignore[import-untyped]
+    import gi  # type: ignore
 
     gi.require_version("Notify", "0.7")
-    from gi.repository import Notify  # type: ignore[import-untyped]
+    from gi.repository import Notify  # type: ignore
 
     Notify.init("jax-spectral-dns")
 except Exception:
@@ -36,10 +36,10 @@ except Exception:
 from jax_spectral_dns.domain import Domain, PhysicalDomain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
 from jax_spectral_dns.fixed_parameters import FixedParameters
-from jax_spectral_dns._typing import jsd_float
 
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import AnyField, AnyFieldList
+    from jax_spectral_dns._typing import AnyField, AnyFieldList, jsd_float
+
 
 jnp_int_array = jnp.ndarray
 
@@ -83,22 +83,16 @@ class Equation:
     verbosity_level: int = 1
 
     def __init__(self: E, domain: Domain, *fields: "AnyField", **params: Any):
-        dt: jsd_float = params.get("dt", 1e-2)
+        dt: "jsd_float" = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step: int = 0
-        self.time: jsd_float = 0.0
+        self.time: "jsd_float" = 0.0
         self.before_time_step_fn: Optional[Callable[[E], None]] = None
         self.after_time_step_fn: Optional[Callable[[E], None]] = None
         self.post_process_fn: Optional[Callable[[E, int], None]] = None
-        try:
-            self.end_time = params["end_time"]
-        except KeyError:
-            self.end_time = None
-        try:
-            self.max_iter = params["max_iter"]
-        except KeyError:
-            self.max_iter = None
+        self.end_time = params.get("end_time", 0.0)
+        self.max_iter = params.get("max_iter", 1000)
         for field in fields:
             f_name: str = field.get_name()
             self.fields[f_name] = [field]
@@ -164,7 +158,7 @@ class Equation:
         dt = end_time / number_of_time_steps
         return dt
 
-    def get_dt(self) -> jsd_float:
+    def get_dt(self) -> "jsd_float":
         return self.fixed_parameters.dt
 
     def get_domain(self) -> Domain:

@@ -5,25 +5,37 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsc
 import numpy as np
 import scipy as sc  # type: ignore
 import dataclasses
-from typing import Iterable, Optional, Tuple, Union, Sequence, List, Any, cast
+from typing import (
+    TYPE_CHECKING,
+    Iterable,
+    Optional,
+    Tuple,
+    Union,
+    Sequence,
+    List,
+    Any,
+    cast,
+)
 from typing_extensions import Self
 
-from jax_spectral_dns._typing import (
-    np_float_array,
-    np_complex_array,
-    jnp_array,
-    np_jnp_array,
-    jsd_float,
-)
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import (
+        np_float_array,
+        np_complex_array,
+        jnp_array,
+        np_jnp_array,
+        jsd_float,
+    )
 
 
 NoneType = type(None)
 
 
-def get_cheb_grid(N: int, scale_factor: float = 1.0) -> np_float_array:
+def get_cheb_grid(N: int, scale_factor: float = 1.0) -> "np_float_array":
     """Assemble a Chebyshev grid with N points on the interval [-1, 1],
     unless scaled to a different interval using scale_factor (currently not
     implemented)."""
@@ -38,7 +50,7 @@ def get_cheb_grid(N: int, scale_factor: float = 1.0) -> np_float_array:
 
 def get_fourier_grid(
     N: int, scale_factor: float = 2.0 * np.pi, aliasing: float = 1.0
-) -> np_float_array:
+) -> "np_float_array":
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
     if N % 2 != 0:
@@ -50,7 +62,7 @@ def get_fourier_grid(
     return np.linspace(start=0.0, stop=scale_factor, num=int(n + 1))[:-1]
 
 
-def assemble_cheb_diff_mat(xs: np_float_array, order: int = 1) -> np_float_array:
+def assemble_cheb_diff_mat(xs: "np_float_array", order: int = 1) -> "np_float_array":
     """Assemble a 1D Chebyshev differentiation matrix in direction i with
     differentiation order order."""
     N = len(xs)
@@ -63,7 +75,7 @@ def assemble_cheb_diff_mat(xs: np_float_array, order: int = 1) -> np_float_array
 
 def assemble_fourier_diff_mat(
     N: int, order: int = 1, aliasing: float = 1.0
-) -> np_float_array:
+) -> "np_float_array":
     """Assemble a 1D Fourier differentiation matrix in direction i with
     differentiation order order."""
     if N % 2 != 0:
@@ -81,6 +93,7 @@ def assemble_fourier_diff_mat(
 
 
 # @register_pytree_node_class
+# @dataclasses.dataclass(frozen=True, kw_only=True)
 @dataclasses.dataclass(frozen=True)
 class Domain(ABC):
     """Class that mainly contains information on the independent variables of
@@ -91,9 +104,9 @@ class Domain(ABC):
     periodic_directions: Tuple[bool, ...]
     scale_factors: Tuple[float, ...]
     shape: Tuple[int, ...]
-    grid: Tuple[np_float_array, ...]
-    diff_mats: Tuple[np_float_array, ...]
-    mgrid: Tuple[np_float_array, ...]
+    grid: Tuple["np_float_array", ...]
+    diff_mats: Tuple["np_float_array", ...]
+    mgrid: Tuple["np_float_array", ...]
     aliasing: float = 3 / 2  # prevent aliasing using the 3/2-rule
 
     @classmethod
@@ -110,11 +123,11 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        shape_ = (
+        shape = tuple(
             (
-                shape[i]
-                if not periodic_directions[i] or shape[i] % 2 != 0
-                else shape[i] + 1
+                int(shape[i] * aliasing)
+                if not periodic_directions[i] or int(shape[i] * aliasing) % 2 != 0
+                else int(shape[i] * aliasing) + 1
             )
             for i in range(len(shape))
         )
@@ -125,10 +138,12 @@ class Domain(ABC):
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
                 grid.append(
-                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=aliasing)
+                    # get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=aliasing)
+                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=1.0)
                 )
                 diff_mats.append(
-                    assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=aliasing)
+                    # assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=aliasing)
+                    assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=1.0)
                     * (2 * np.pi)
                     / scale_factors_[dim]
                 )
@@ -144,14 +159,14 @@ class Domain(ABC):
         for mgr in mgrid:
             mgr.setflags(write=False)
         return cls(
-            number_of_dimensions,
-            tuple(periodic_directions),
-            tuple(scale_factors_),
-            tuple(shape_),
-            tuple(grid),
-            tuple(diff_mats),
-            tuple(mgrid),
-            aliasing,
+            number_of_dimensions=number_of_dimensions,
+            periodic_directions=tuple(periodic_directions),
+            scale_factors=tuple(scale_factors_),
+            shape=tuple(shape),
+            grid=tuple(grid),
+            diff_mats=tuple(diff_mats),
+            mgrid=tuple(mgrid),
+            aliasing=aliasing,
         )
 
     @abstractmethod
@@ -185,9 +200,7 @@ class Domain(ABC):
         ]
 
     # @partial(jax.jit, static_argnums=(0,2,3))
-    def diff(
-        self, field: jnp_array, direction: int, order: int = 1, _: Any = None
-    ) -> jnp_array:
+    def diff(self, field: "jnp_array", direction: int, order: int = 1) -> "jnp_array":
         """Calculate and return the derivative of given order for field in
         direction."""
         inds = "ijk"
@@ -207,19 +220,23 @@ class Domain(ABC):
         )
         return f_diff
 
-    def enforce_homogeneous_dirichlet(self, mat: np_float_array) -> np_float_array:
+    def enforce_homogeneous_dirichlet(self, mat: "np_float_array") -> "np_float_array":
         """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         homogeneous dirichlet boundary conditions at both ends by setting the
         off-diagonal elements of its first and last rows and columns to zero and
         the diagonal elements to unity."""
 
-        def set_first_mat_row_and_col_to_unit(matr: np_float_array) -> np_float_array:
+        def set_first_mat_row_and_col_to_unit(
+            matr: "np_float_array",
+        ) -> "np_float_array":
             N = matr.shape[0]
             return np.block(
                 [[1, np.zeros((1, N - 1))], [np.zeros((N - 1, 1)), matr[1:, 1:]]]
             )
 
-        def set_last_mat_row_and_col_to_unit(matr: np_float_array) -> np_float_array:
+        def set_last_mat_row_and_col_to_unit(
+            matr: "np_float_array",
+        ) -> "np_float_array":
             N = matr.shape[0]
             return np.block(
                 [[matr[:-1, :-1], np.zeros((N - 1, 1))], [np.zeros((1, N - 1)), 1]]
@@ -229,21 +246,21 @@ class Domain(ABC):
 
     def enforce_inhomogeneous_dirichlet(
         self,
-        mat: np_float_array,
-        rhs: np_jnp_array,
-        bc_left: jsd_float,
-        bc_right: jsd_float,
-    ) -> tuple[np_float_array, np_float_array]:
+        mat: "np_float_array",
+        rhs: "np_jnp_array",
+        bc_left: "jsd_float",
+        bc_right: "jsd_float",
+    ) -> tuple["np_float_array", "np_float_array"]:
         # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         # inhomogeneous dirichlet boundary conditions at both ends by setting the
         # off-diagonal elements of its first and last rows to zero and
         # the diagonal elements to unity, and the first and last element of the
         # rhs to the desired values bc_left and bc_right."""
-        def set_first_mat_row_to_unit(matr: np_float_array) -> np_float_array:
+        def set_first_mat_row_to_unit(matr: "np_float_array") -> "np_float_array":
             N = matr.shape[0]
             return np.block([[1, np.zeros((1, N - 1))], [matr[1:, :]]])
 
-        def set_last_mat_row_to_unit(matr: np_float_array) -> np_float_array:
+        def set_last_mat_row_to_unit(matr: "np_float_array") -> "np_float_array":
             N = matr.shape[0]
             return np.block([[matr[:-1, :]], [np.zeros((1, N - 1)), 1]])
 
@@ -252,7 +269,7 @@ class Domain(ABC):
 
         return (out_mat, out_rhs)
 
-    def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> np_float_array:
+    def get_cheb_mat_2_homogeneous_dirichlet(self, direction: int) -> "np_float_array":
         """Assemble the Chebyshev differentiation matrix of second order with
         homogeneous Dirichlet boundary conditions enforced by setting the first
         and last rows and columns to one (diagonal elements) and zero
@@ -264,12 +281,12 @@ class Domain(ABC):
 
     def integrate(
         self,
-        field: jnp_array,
+        field: "jnp_array",
         direction: int,
         order: int = 1,
         bc_left: Optional[float] = None,
         bc_right: Optional[float] = None,
-    ) -> jnp_array:
+    ) -> "jnp_array":
         """Calculate the integral or order for field in direction subject to the
         boundary conditions bc_left and/or bc_right. Since this is difficult to
         generalize, only cases that are needed are implemented."""
@@ -286,7 +303,7 @@ class Domain(ABC):
 
         assert order <= 2, "Integration only supported up to second order"
 
-        def set_first_mat_row_and_col_to_unit(matr: jnp_array) -> jnp_array:
+        def set_first_mat_row_and_col_to_unit(matr: "jnp_array") -> "jnp_array":
             if bc_right == None:
                 return matr
             N = matr.shape[0]
@@ -298,7 +315,7 @@ class Domain(ABC):
             )
             return out
 
-        def set_last_mat_row_and_col_to_unit(matr: jnp_array) -> jnp_array:
+        def set_last_mat_row_and_col_to_unit(matr: "jnp_array") -> "jnp_array":
             if bc_left == None:
                 return matr
             N = matr.shape[0]
@@ -311,8 +328,8 @@ class Domain(ABC):
             return out
 
         def set_first_of_field(
-            field: jnp_array, new_first: Union[jnp_array, float]
-        ) -> jnp_array:
+            field: "jnp_array", new_first: Union["jnp_array", float]
+        ) -> "jnp_array":
             N = field.shape[direction]
             inds = jnp.arange(1, N)
             inner = field.take(indices=inds, axis=direction)
@@ -325,8 +342,8 @@ class Domain(ABC):
             return out
 
         def set_last_of_field(
-            field: jnp_array, new_last: Union[jnp_array, float]
-        ) -> jnp_array:
+            field: "jnp_array", new_last: Union["jnp_array", float]
+        ) -> "jnp_array":
             N = field.shape[direction]
             inds = jnp.arange(0, N - 1)
             inner = field.take(indices=inds, axis=direction)
@@ -339,10 +356,10 @@ class Domain(ABC):
             return out
 
         def set_first_and_last_of_field(
-            field: jnp_array,
-            first: Union[jnp_array, float],
-            last: Union[jnp_array, float],
-        ) -> jnp_array:
+            field: "jnp_array",
+            first: Union["jnp_array", float],
+            last: Union["jnp_array", float],
+        ) -> "jnp_array":
             N = field.shape[direction]
             inds = jnp.arange(1, N - 1)
             inner = field.take(indices=inds, axis=direction)
@@ -408,7 +425,7 @@ class Domain(ABC):
         out_bc = out
         return out_bc
 
-    def update_boundary_conditions(self, field: jnp_array) -> jnp_array:
+    def update_boundary_conditions(self, field: "jnp_array") -> "jnp_array":
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""
         for dim in self.all_nonperiodic_dimensions():
             field = jnp.take(
@@ -427,7 +444,7 @@ class Domain(ABC):
             )
         return field
 
-    def curl(self, field: jnp_array) -> jnp_array:
+    def curl(self, field: "jnp_array") -> "jnp_array":
         """Compute the curl of field."""
         # assert len(field) == 3, "rotation only defined in 3 dimensions"
         u_y = self.diff(field[0, ...], 1)
@@ -443,7 +460,7 @@ class Domain(ABC):
 
         return jnp.array([curl_0, curl_1, curl_2])
 
-    def cross_product(self, field_1: jnp_array, field_2: jnp_array) -> jnp_array:
+    def cross_product(self, field_1: "jnp_array", field_2: "jnp_array") -> "jnp_array":
         """Compute the cross (or vector) product of field_1 and field_2."""
         out_0 = field_1[1, ...] * field_2[2, ...] - field_1[2, ...] * field_2[1, ...]
         out_1 = field_1[2, ...] * field_2[0, ...] - field_1[0, ...] * field_2[2, ...]
@@ -451,6 +468,7 @@ class Domain(ABC):
         return jnp.array([out_0, out_1, out_2])
 
 
+# @dataclasses.dataclass(frozen=True, kw_only=True)
 @dataclasses.dataclass(frozen=True)
 class PhysicalDomain(Domain):
     """Domain that lives in physical space (as opposed to Fourier space)."""
@@ -484,34 +502,36 @@ class PhysicalDomain(Domain):
 
         return FourierDomain.FromPhysicalDomain(self)
 
-    def field_hat(self, field: jnp_array) -> jnp_array:
+    def field_hat(self, field: "jnp_array") -> "jnp_array":
         """Compute the Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
-
-        Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
-        ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
 
         out = (
             jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho")
             / scaling_factor
         )
 
+        Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
+        ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
         for i in self.all_periodic_dimensions():
             out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
-            out_2 = out.take(indices=jnp.array([ks[i]]), axis=i) * (
-                1.0 if ks[i] == Ns[i] // 2 else 2.0
-            )
+            out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
             out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
             out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
 
-        return out
+        return out.astype(jnp.complex128)
 
 
-@dataclasses.dataclass(frozen=True, init=False)
+# @dataclasses.dataclass(frozen=True, init=True, kw_only=True)
+@dataclasses.dataclass(frozen=True, init=True)
 class FourierDomain(Domain):
     """Same as Domain but lives in Fourier space."""
+
+    physical_domain: Optional[PhysicalDomain] = (
+        None  # the physical domain it is based on
+    )
 
     def __hash__(self) -> int:
         return hash(
@@ -532,7 +552,7 @@ class FourierDomain(Domain):
         """Create a Fourier transform of the present domain in all periodic
         directions and return the resulting domain."""
 
-        def fftshift(inp: np_float_array, i: int) -> np_float_array:
+        def fftshift(inp: "np_float_array", i: int) -> "np_float_array":
             if physical_domain.periodic_directions[i]:
                 N = len(inp)
                 return (
@@ -558,14 +578,15 @@ class FourierDomain(Domain):
         grid = fourier_grid_shifted
         mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
         out = FourierDomain(
-            physical_domain.number_of_dimensions,
-            tuple(physical_domain.periodic_directions),
-            tuple(physical_domain.scale_factors),
-            tuple(physical_domain.shape),
-            tuple(grid),
-            tuple(physical_domain.diff_mats),
-            tuple(mgrid),
-            physical_domain.aliasing,
+            number_of_dimensions=physical_domain.number_of_dimensions,
+            periodic_directions=tuple(physical_domain.periodic_directions),
+            scale_factors=tuple(physical_domain.scale_factors),
+            shape=tuple(physical_domain.shape),
+            grid=tuple(grid),
+            diff_mats=tuple(physical_domain.diff_mats),
+            mgrid=tuple(mgrid),
+            aliasing=physical_domain.aliasing,
+            physical_domain=physical_domain,
         )
         return out
 
@@ -575,7 +596,7 @@ class FourierDomain(Domain):
     def get_shape_aliasing(self) -> tuple[int, ...]:
         raise NotImplementedError()
 
-    def assemble_poisson_matrix(self) -> np_complex_array:
+    def assemble_poisson_matrix(self) -> "np_complex_array":
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."
         assert (
             len(self.all_nonperiodic_dimensions()) <= 1
@@ -609,36 +630,30 @@ class FourierDomain(Domain):
         )
         return mat
 
-    # @partial(jax.jit, static_argnums=(0,2,3))
     def diff(
         self,
-        field_hat: jnp_array,
+        field_hat: "jnp_array",
         direction: int,
         order: int = 1,
-        physical_domain: Optional[PhysicalDomain] = None,
-    ) -> jnp_array:
+    ) -> "jnp_array":
         """Calculate and return the derivative of given order for field in
         direction."""
         if direction in self.all_periodic_dimensions():
-            diff_array = ((1j * np.array(self.mgrid[direction])) ** order).astype(
-                np.complex128
-            )
-            f_diff: jnp_array = jnp.array(diff_array * field_hat)
+            diff_array = (1j * np.array(self.mgrid[direction])) ** order
+            f_diff: "jnp_array" = jnp.array(diff_array * field_hat)
         else:
-            assert physical_domain is not None
-            f_diff = physical_domain.diff(field_hat, direction, order)
+            assert self.physical_domain is not None
+            f_diff = self.physical_domain.diff(field_hat, direction, order)
         return f_diff
 
-    def curl(
-        self, field_hat: jnp_array, physical_domain: Optional[PhysicalDomain] = None
-    ) -> jnp_array:
+    def curl(self, field_hat: "jnp_array") -> "jnp_array":
         """Compute the curl of field."""
-        u_y = self.diff(field_hat[0, ...], 1, physical_domain=physical_domain)
-        u_z = self.diff(field_hat[0, ...], 2, physical_domain=physical_domain)
-        v_x = self.diff(field_hat[1, ...], 0, physical_domain=physical_domain)
-        v_z = self.diff(field_hat[1, ...], 2, physical_domain=physical_domain)
-        w_x = self.diff(field_hat[2, ...], 0, physical_domain=physical_domain)
-        w_y = self.diff(field_hat[2, ...], 1, physical_domain=physical_domain)
+        u_y = self.diff(field_hat[0, ...], 1)
+        u_z = self.diff(field_hat[0, ...], 2)
+        v_x = self.diff(field_hat[1, ...], 0)
+        v_z = self.diff(field_hat[1, ...], 2)
+        w_x = self.diff(field_hat[2, ...], 0)
+        w_y = self.diff(field_hat[2, ...], 1)
 
         curl_0 = w_y - v_z
         curl_1 = u_z - w_x
@@ -646,9 +661,167 @@ class FourierDomain(Domain):
 
         return jnp.array([curl_0, curl_1, curl_2])
 
+    def project_onto_domain(
+        self,
+        target_domain: PhysicalDomain,
+        field_hat: "jnp_array",
+    ) -> "jnp_array":
+        initial_shape = self.shape
+        target_domain_hat = target_domain.hat()
+        target_shape = target_domain_hat.shape
+
+        for i in self.all_periodic_dimensions():
+            N = initial_shape[i]
+            N_target = target_shape[i]
+            if N > N_target:
+                data_1 = field_hat.take(
+                    indices=jnp.arange(0, (N_target - 1) // 2 + 1), axis=i
+                )
+                data_2 = field_hat.take(
+                    indices=jnp.arange(N - (N_target - 1) // 2, N), axis=i
+                )
+                field_hat = jnp.concatenate([data_1, data_2], axis=i)
+            elif N < N_target:
+                zeros_shape = [
+                    field_hat.shape[dim] if dim != i else N_target - N
+                    for dim in self.all_dimensions()
+                ]
+                extra_zeros = jnp.zeros(zeros_shape)
+                data_1 = field_hat.take(indices=jnp.arange(0, (N - 1) // 2 + 1), axis=i)
+                data_2 = field_hat.take(indices=jnp.arange((N - 1) // 2 + 1, N), axis=i)
+                field_hat = jnp.concatenate([data_1, extra_zeros, data_2], axis=i)
+            else:
+                pass
+
+        for i in self.all_nonperiodic_dimensions():
+            N = initial_shape[i]
+            N_target = target_shape[i]
+            if N != N_target:
+                hybrid_domain_hat = PhysicalDomain.create(
+                    field_hat.shape,
+                    self.periodic_directions,
+                    self.scale_factors,
+                    1,
+                ).hat()
+                field = hybrid_domain_hat.field_no_hat(field_hat)
+                data_dct = jsc.fft.dctn(field, axes=(i,))
+                field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
+                ratio = data_dct.shape[i] / field.shape[i]
+                field_hat = target_domain.field_hat(field * ratio)
+            else:
+                pass  # the shape is already correct (N = N_target), no need to do anything
+
+        return field_hat.astype(jnp.complex128)
+
+    def project_onto_domain_nonfourier(
+        self,
+        target_domain: PhysicalDomain,
+        field: "jnp_array",
+    ) -> "jnp_array":
+        initial_shape = self.shape
+        target_domain_hat = target_domain.hat()
+        target_shape = target_domain_hat.shape
+
+        for i in self.all_nonperiodic_dimensions():
+            N = initial_shape[i]
+            N_target = target_shape[i]
+            if N != N_target:
+                data_dct = jsc.fft.dctn(field, axes=(i,))
+                field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
+                ratio = data_dct.shape[i] / field.shape[i]
+                field *= ratio
+            else:
+                pass  # the shape is already correct (N = N_target), no need to do anything
+
+        return field.astype(jnp.float64)
+
+    def filter_field(self, field_hat: "jnp_array") -> "jnp_array":
+        N_coarse = tuple(
+            self.shape[i] - int(self.shape[i] * (1 - 1 / self.aliasing))
+            for i in self.all_dimensions()
+        )
+        N_coarse = tuple(
+            (
+                N_coarse[i]
+                if N_coarse[i] % 2 == 0 or not self.periodic_directions[i]
+                else N_coarse[i] + 1
+            )
+            for i in self.all_dimensions()
+        )
+        coarse_domain = PhysicalDomain.create(
+            N_coarse, self.periodic_directions, self.scale_factors, 1
+        )
+        coarse_domain_hat = coarse_domain.hat()
+
+        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        assert self.physical_domain is not None
+        fine_field_hat = coarse_domain_hat.project_onto_domain(
+            self.physical_domain, coarse_field_hat
+        )
+
+        return fine_field_hat
+
+    def filter_field_fourier_only(self, field_hat: "jnp_array") -> "jnp_array":
+        N_coarse = tuple(
+            self.shape[i]
+            - (
+                int(self.shape[i] * (1 - 1 / self.aliasing))
+                if self.is_periodic(i)
+                else 0
+            )
+            for i in self.all_dimensions()
+        )
+        N_coarse = tuple(
+            (
+                N_coarse[i]
+                if N_coarse[i] % 2 == 0 or not self.periodic_directions[i]
+                else N_coarse[i] + 1
+            )
+            for i in self.all_dimensions()
+        )
+        coarse_domain = PhysicalDomain.create(
+            N_coarse, self.periodic_directions, self.scale_factors, 1
+        )
+        coarse_domain_hat = coarse_domain.hat()
+
+        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        assert self.physical_domain is not None
+        fine_field_hat = coarse_domain_hat.project_onto_domain(
+            self.physical_domain, coarse_field_hat
+        )
+
+        return fine_field_hat
+
+    def filter_field_nonfourier_only(self, field: "jnp_array") -> "jnp_array":
+        N_coarse = tuple(
+            self.shape[i]
+            - (
+                self.shape[i] * int(1 - 1 / self.aliasing)
+                if not self.is_periodic(i)
+                else 0
+            )
+            for i in self.all_dimensions()
+        )
+        coarse_domain = PhysicalDomain.create(
+            N_coarse, self.periodic_directions, self.scale_factors, 1
+        )
+        coarse_domain_hat = coarse_domain.hat()
+
+        coarse_field = self.project_onto_domain_nonfourier(coarse_domain, field)
+        assert self.physical_domain is not None
+        fine_field = coarse_domain_hat.project_onto_domain_nonfourier(
+            self.physical_domain, coarse_field
+        )
+
+        return fine_field
+
     def solve_poisson_fourier_field_slice(
-        self, field: jnp_array, mat: np_jnp_array, k1: Optional[int], k2: Optional[int]
-    ) -> jnp_array:
+        self,
+        field: "jnp_array",
+        mat: "np_jnp_array",
+        k1: Optional[int],
+        k2: Optional[int],
+    ) -> "jnp_array":
         """Solve the poisson equation with field as the right-hand side for a
         one-dimensional slice at the wavenumbers k1 and k2. Use the provided
         differentiation matrix mat."""
@@ -663,8 +836,8 @@ class FourierDomain(Domain):
         return out_field
 
     def update_boundary_conditions_fourier_field_slice(
-        self, field: jnp_array, non_periodic_direction: int
-    ) -> jnp_array:
+        self, field: "jnp_array", non_periodic_direction: int
+    ) -> "jnp_array":
         """Set the boundary conditions for a one-dimensional slice of a field
         along the non_periodic_direction. This assumes homogeneous dirichlet
         conditions in all non-periodic directions"""
@@ -681,7 +854,7 @@ class FourierDomain(Domain):
         )
         return out_field
 
-    def field_no_hat(self, field: jnp_array) -> jnp_array:
+    def field_no_hat(self, field: "jnp_array") -> "jnp_array":
         """Compute the inverse Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
@@ -694,7 +867,7 @@ class FourierDomain(Domain):
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
                 # field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
-                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                field_1.shape[dim] if dim != i else int(Ns[i] * 0)
                 for dim in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)
@@ -709,12 +882,12 @@ class FourierDomain(Domain):
 
     def diff_fourier_field_slice(
         self,
-        field: jnp_array,
+        field: "jnp_array",
         orientation: int,
         direction: int,
         order: int = 1,
         k: int = 0,
-    ) -> jnp_array:
+    ) -> "jnp_array":
         """Calculate and return the derivative of given order for a Fourier
         field slice in direction."""
         if orientation == direction:
@@ -723,16 +896,94 @@ class FourierDomain(Domain):
             )
         else:
             j_k = 1j * self.grid[direction][k]
-            return cast(jnp_array, j_k**order * field)
+            return cast("jnp_array", j_k**order * field)
 
     def integrate_fourier_field_slice(
-        self, field: jnp_array, orientation: int, direction: int, order: int = 1
-    ) -> jnp_array:
+        self,
+        field: "jnp_array",
+        orientation: int,
+        direction: int,
+        order: int = 1,
+        bc_left: Optional[float] = None,
+        bc_right: Optional[float] = None,
+    ) -> "jnp_array":
         """Calculate and return the derivative of given order for a Fourier
         field slice in direction."""
-        if orientation == direction:
-            return jnp.array(
-                np.linalg.matrix_power(self.diff_mats[direction], order) @ field
+
+        def safe_is_nonzero(input: Optional[float]) -> bool:
+            if type(input) == NoneType:
+                return False
+            else:
+                assert input is not None
+                return abs(input) > 1e-20
+
+        if (safe_is_nonzero(bc_left)) or (safe_is_nonzero(bc_right)):
+            raise Exception("Only homogeneous dirichlet conditions currently supported")
+
+        assert order <= 2, "Integration only supported up to second order"
+
+        def set_first_mat_row_and_col_to_unit(matr: "jnp_array") -> "jnp_array":
+            if bc_right == None:
+                return matr
+            N = matr.shape[0]
+            out = jnp.block(
+                [
+                    ([jnp.ones((1)), jnp.zeros((1, N - 1))]),
+                    ([jnp.zeros((N - 1, 1)), matr[1:, 1:]]),
+                ]
             )
+            return out
+
+        def set_last_mat_row_and_col_to_unit(matr: "jnp_array") -> "jnp_array":
+            if bc_left == None:
+                return matr
+            N = matr.shape[0]
+            out = jnp.block(
+                [
+                    ([matr[:-1, :-1], jnp.zeros((N - 1, 1))]),
+                    ([jnp.zeros((1, N - 1)), jnp.ones((1))]),
+                ]
+            )
+            return out
+
+        if orientation == direction:
+            if order == 1:
+                if type(bc_right) is not NoneType and type(bc_left) is NoneType:
+                    assert bc_right is not None
+                    mat = set_first_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                    # b = set_first_of_field(field, bc_right)
+                elif type(bc_left) is not NoneType and type(bc_right) is NoneType:
+                    assert bc_left is not None
+                    mat = set_last_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                    # b = set_last_of_field(field, bc_left)
+
+                else:
+                    mat = set_last_mat_row_and_col_to_unit(
+                        set_first_mat_row_and_col_to_unit(
+                            jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                        )
+                    )
+            elif order == 2:
+                mat = set_last_mat_row_and_col_to_unit(
+                    set_first_mat_row_and_col_to_unit(
+                        jnp.linalg.matrix_power(self.diff_mats[direction], order)
+                    )
+                )
+                # b_right = 0.0
+                # b_left = 0.0
+                # b = set_first_and_last_of_field(field, b_right, b_left)
+
         else:
-            raise NotImplementedError()
+            raise Exception(
+                "Integration not implemented in periodic directions, use Fourier integration instead."
+            )
+
+        inv_mat = jnp.linalg.inv(mat)
+
+        out: "jnp_array" = inv_mat @ field
+
+        return out

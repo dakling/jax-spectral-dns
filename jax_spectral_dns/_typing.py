@@ -12,6 +12,7 @@ from typing import (
     Optional,
     Sequence,
     List,
+    Tuple,
     Union,
     TYPE_CHECKING,
 )
@@ -28,9 +29,9 @@ jnp_array = jt.Array
 jsd_array = jt.ArrayLike
 np_jnp_array = Union[np_float_array, np_complex_array, jnp_array]
 Vel_fn_type = Callable[
-    [Union[list[jsd_float], tuple[jsd_float, ...], np_jnp_array]], jsd_float
+    [Union[List[jsd_float], Tuple[jsd_float, ...], np_jnp_array]], jsd_float
 ]
-parameter_type = tuple[jnp_array, ...]
+parameter_type = Tuple[jnp_array, ...]
 
 if TYPE_CHECKING:
     AnyScalarField = Union[PhysicalField, FourierField]
@@ -42,13 +43,13 @@ if TYPE_CHECKING:
         List[VectorField[PhysicalField]],
         List[VectorField[FourierField]],
     ]
-    pseudo_2d_perturbation_return_type = tuple[
-        list[float],
-        list[float],
-        list[float],
-        list[float],
-        list[float],
-        list[float],
-        list[float],
+    pseudo_2d_perturbation_return_type = Tuple[
+        List[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
+        List[float],
         VectorField[PhysicalField],
     ]

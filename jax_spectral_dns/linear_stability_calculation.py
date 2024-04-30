@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
-from typing import Any, Callable, Union, Optional, cast
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Callable, Union, Optional, cast
 import numpy as np
 import numpy.typing as npt
 import jax.numpy as jnp
@@ -14,43 +14,49 @@ from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import PhysicalField, VectorField
-from jax_spectral_dns._typing import (
-    jsd_complex,
-    jsd_array,
-    np_float_array,
-    np_complex_array,
-    jnp_array,
-    jsd_float,
-    np_jnp_array,
-)
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import (
+        jsd_complex,
+        jsd_array,
+        np_float_array,
+        np_complex_array,
+        jnp_array,
+        jsd_float,
+        np_jnp_array,
+    )
 
 NoneType = type(None)
 
 
 class LinearStabilityCalculation:
     def __init__(
-        self, Re: jsd_float = 180.0, alpha: float = 3.25, beta: float = 0.0, n: int = 50
+        self,
+        Re: "jsd_float" = 180.0,
+        alpha: float = 3.25,
+        beta: float = 0.0,
+        n: int = 50,
+        U_base: Optional["np_float_array"] = None,
     ):
         self.Re = Re
         self.alpha = alpha
         self.beta = beta
         self.n = n  # chebychev resolution
 
-        self.A: Optional[np_complex_array] = None
-        self.B: Optional[np_complex_array] = None
-        self.eigenvalues: Optional[np_complex_array] = None
-        self.eigenvectors: Optional[list[np_complex_array]] = None
+        self.A: Optional["np_complex_array"] = None
+        self.B: Optional["np_complex_array"] = None
+        self.eigenvalues: Optional["np_complex_array"] = None
+        self.eigenvectors: Optional[list["np_complex_array"]] = None
 
-        self.C: Optional[np_complex_array] = None
+        self.C: Optional["np_complex_array"] = None
 
-        domain: PhysicalDomain = PhysicalDomain.create((n,), (False,))
-        self.ys: np_float_array = domain.grid[0]
+        self.domain: PhysicalDomain = PhysicalDomain.create((n,), (False,), aliasing=1)
+        self.ys: "np_float_array" = self.domain.grid[0]
 
         self.velocity_field_: Optional[VectorField[PhysicalField]] = None
 
-        self.S: Optional[np_float_array] = None
-        self.V: Optional[np_complex_array] = None
-        self.U: Optional[np_complex_array] = None
+        self.S: Optional["np_float_array"] = None
+        self.coeffs: Optional["np_complex_array"] = None
 
         self.symm: bool = False
         # self.symm: bool = True
@@ -79,9 +85,14 @@ class LinearStabilityCalculation:
             + "_"
             + str(domain_.number_of_cells(2))
         )
+        if type(U_base) is not NoneType:
+            assert U_base is not None
+            self.U_base = U_base
+        else:
+            self.U_base = np.array([1 - self.ys[i] ** 2 for i in range(self.n)])
         # Equation.initialize()
 
-    def assemble_matrix_fast(self) -> tuple[np_complex_array, np_complex_array]:
+    def assemble_matrix_fast(self) -> tuple["np_complex_array", "np_complex_array"]:
         alpha = self.alpha
         beta = self.beta
         Re = self.Re
@@ -101,17 +112,21 @@ class LinearStabilityCalculation:
             kk = k + var * n
             return (jj, kk)
 
-        u_fun: Callable[[float], float] = lambda y: (1 - y**2)
-        du_fun: Callable[[float], float] = lambda y: -2 * y
+        # u_fun: Callable[[float], float] = lambda y: (1 - y**2)
+        # du_fun: Callable[[float], float] = lambda y: -2 * y
+        U_base = self.U_base
+        dU_base = self.domain.diff_mats[0] @ U_base
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
-            U = u_fun(y)
-            dU = du_fun(y)
+            # U = u_fun(y)
+            # dU = du_fun(y)
+            U = self.U_base[j]
+            dU = dU_base[j]
             for k in range(n):
 
                 def setMat(
-                    mat: np_complex_array, eq: int, var: int, value: jsd_complex
+                    mat: "np_complex_array", eq: int, var: int, value: "jsd_complex"
                 ) -> None:
                     jj, kk = local_to_global_index(j, k, eq, var)
                     mat[jj, kk] = value
@@ -176,7 +191,7 @@ class LinearStabilityCalculation:
 
     def calculate_eigenvalues(
         self, save: bool = False
-    ) -> tuple[np_complex_array, list[np_complex_array]]:
+    ) -> tuple["np_complex_array", list["np_complex_array"]]:
         try:
             if None in [self.A, self.B]:
                 self.assemble_matrix_fast()
@@ -251,7 +266,7 @@ class LinearStabilityCalculation:
     def velocity_field(
         self,
         domain: PhysicalDomain,
-        evec: np_jnp_array,
+        evec: "np_jnp_array",
         factor: float = 1.0,
         symm: bool = False,
     ) -> VectorField[PhysicalField]:
@@ -279,8 +294,11 @@ class LinearStabilityCalculation:
         )
 
     def y_slice_to_3d_field(
-        self, domain: PhysicalDomain, y_slice_i: jnp_array, factor: jsd_complex = 1.0
-    ) -> jnp_array:
+        self,
+        domain: PhysicalDomain,
+        y_slice_i: "jnp_array",
+        factor: "jsd_complex" = 1.0,
+    ) -> "jnp_array":
         out = (
             factor
             * jnp.einsum(
@@ -301,14 +319,14 @@ class LinearStabilityCalculation:
     def velocity_field_from_y_slice(
         self,
         domain: PhysicalDomain,
-        y_slice: tuple[jnp_array, jnp_array, jnp_array],
-        factor: jsd_float = 1.0,
+        y_slice: tuple["jnp_array", "jnp_array", "jnp_array"],
+        factor: "jsd_float" = 1.0,
     ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
-        u_vec: jnp_array = y_slice[0]
-        v_vec: jnp_array = y_slice[1]
-        w_vec: jnp_array = y_slice[2]
+        u_vec: "jnp_array" = y_slice[0]
+        v_vec: "jnp_array" = y_slice[1]
+        w_vec: "jnp_array" = y_slice[2]
 
         u_field = PhysicalField(
             domain,
@@ -331,7 +349,7 @@ class LinearStabilityCalculation:
 
     def energy_over_time(
         self, domain: PhysicalDomain, mode: int = 0, eps: float = 1.0
-    ) -> tuple[Callable[[jsd_float, Optional[int]], float], jsd_complex]:
+    ) -> tuple[Callable[["jsd_float", Optional[int]], float], "jsd_complex"]:
         if type(self.velocity_field_) == NoneType:
             try:
                 u = PhysicalField.FromFile(
@@ -367,11 +385,11 @@ class LinearStabilityCalculation:
 
         assert self.eigenvalues is not None
 
-        def out(t: jsd_float, dim: Optional[int] = None) -> float:
+        def out(t: "jsd_float", dim: Optional[int] = None) -> float:
             assert self.velocity_field_ is not None
             assert self.eigenvalues is not None
             if type(dim) == NoneType:
-                energy: jsd_float = 0.0
+                energy: "jsd_float" = 0.0
                 for d in domain.all_dimensions():
                     energy += (
                         self.velocity_field_[d]
@@ -389,11 +407,11 @@ class LinearStabilityCalculation:
 
     def calculate_transient_growth_svd(
         self,
-        T: jsd_float,
+        T: "jsd_float",
         number_of_modes: int,
         save: bool = False,
         recompute: bool = False,
-    ) -> tuple[np_float_array, np_complex_array]:
+    ) -> tuple["np_float_array", "np_complex_array"]:
         if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
             try:
                 if recompute:
@@ -418,14 +436,14 @@ class LinearStabilityCalculation:
 
         n = self.n
 
-        def get_integral_coefficient(p: int, q: int) -> jsd_float:
+        def get_integral_coefficient(p: int, q: int) -> "jsd_float":
             f = lambda y: phi(p, 0)(y) * phi(q, 0)(y)
             out, _ = quad(f, -1, 1, limit=100)
             return out
 
         def get_integral_coefficient_symm(
             p: int, q: int
-        ) -> tuple[jsd_float, jsd_float]:
+        ) -> tuple["jsd_float", "jsd_float"]:
             f_s = lambda y: phi_s(p, 0)(y) * phi_s(q, 0)(y)
             f_a = lambda y: phi_a(p, 0)(y) * phi_a(q, 0)(y)
             out_s, _ = quad(f_s, -1, 1, limit=100)
@@ -476,19 +494,22 @@ class LinearStabilityCalculation:
         coeffs = F_inv @ V[:, 0]
         if save:
             self.S = S
-            self.U = U
-            self.V = V
+            self.coeffs = coeffs
 
         return (S, coeffs)
 
     def calculate_transient_growth_max_energy(
         self, T: float, number_of_modes: int
     ) -> float:
-        S, _ = self.calculate_transient_growth_svd(T, number_of_modes, save=False)
-        return cast(float, S[0] ** 2)
+        if type(self.S) == NoneType:
+            self.S, _ = self.calculate_transient_growth_svd(
+                T, number_of_modes, save=False
+            )
+        assert self.S is not None
+        return cast(float, self.S[0] ** 2)
 
     def calculate_transient_growth_initial_condition_from_coefficients(
-        self, domain: PhysicalDomain, coeffs: np_complex_array, recompute: bool = True
+        self, domain: PhysicalDomain, coeffs: "np_complex_array", recompute: bool = True
     ) -> VectorField[PhysicalField]:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for eigenvalues/-vectors,
@@ -545,7 +566,7 @@ class LinearStabilityCalculation:
             else:
                 raise FileNotFoundError()  # a bit of a HACK?
         except FileNotFoundError:
-            if recompute_full or type(self.V) == NoneType:
+            if recompute_full or type(self.coeffs) == NoneType:
                 self.S, factors = self.calculate_transient_growth_svd(
                     T, number_of_modes, save=False, recompute=recompute_full
                 )

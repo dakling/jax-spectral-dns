@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import annotations
 
 NoneType = type(None)
 import jax
@@ -7,7 +8,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, Tuple, cast
 
 # from importlib import reload
 import sys
@@ -21,48 +22,52 @@ from jax_spectral_dns.field import (
     FourierFieldSlice,
 )
 from jax_spectral_dns.equation import Equation, print_verb
-from jax_spectral_dns._typing import (
-    np_float_array,
-    np_complex_array,
-    jsd_float,
-    jnp_array,
-    np_jnp_array,
-    Vel_fn_type,
-)
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import (
+        jsd_float,
+        jnp_array,
+        np_jnp_array,
+        Vel_fn_type,
+    )
 
 
 # @partial(jax.jit, static_argnums=(0, 1))
 def update_nonlinear_terms_high_performance_perturbation(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
-    vel_hat_new: jnp_array,
-    vel_base_hat: jnp_array,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
     linearize: bool = False,
-) -> tuple[jnp_array, jnp_array, jnp_array, jnp_array]:
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
-    vort_hat_new = fourier_domain.curl(vel_hat_new, physical_domain)
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.field_no_hat(vel_hat_new[i, ...])
+            fourier_domain.filter_field_nonfourier_only(
+                fourier_domain.field_no_hat(vel_hat_new[i])
+            )
+            # fourier_domain.field_no_hat(vel_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.field_no_hat(vort_hat_new[i, ...])
+            fourier_domain.filter_field_nonfourier_only(
+                fourier_domain.field_no_hat(vort_hat_new[i])
+            )
+            # fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
 
-    vel_new_sq = jnp.zeros_like(vel_new[0, ...])
+    vel_new_sq = jnp.zeros_like(vel_new[0])
     for j in physical_domain.all_dimensions():
-        vel_new_sq += vel_new[j, ...] * vel_new[j, ...]
+        vel_new_sq += vel_new[j] * vel_new[j]
     vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
     vel_new_sq_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_hat_nabla.append(
-            fourier_domain.diff(vel_new_sq_hat, i, physical_domain=physical_domain)
-        )
+        vel_new_sq_hat_nabla.append(fourier_domain.diff(vel_new_sq_hat, i))
 
     vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
     vel_vort_new_hat = jnp.array(
@@ -87,9 +92,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     vel_new_sq_a_hat = physical_domain.field_hat(vel_new_sq_a)
     vel_new_sq_a_hat_nabla = []
     for i in physical_domain.all_dimensions():
-        vel_new_sq_a_hat_nabla.append(
-            fourier_domain.diff(vel_new_sq_a_hat, i, physical_domain=physical_domain)
-        )
+        vel_new_sq_a_hat_nabla.append(fourier_domain.diff(vel_new_sq_a_hat, i))
     vel_vort_new_a = physical_domain.cross_product(vel_base, vort_new)
     vel_vort_new_a_hat = jnp.array(
         [
@@ -102,7 +105,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     )
 
     # b-term
-    vort_base_hat = fourier_domain.curl(vel_base_hat, physical_domain)
+    vort_base_hat = fourier_domain.curl(vel_base_hat)
     vort_base = jnp.array(
         [
             fourier_domain.field_no_hat(vort_base_hat.at[i].get())
@@ -125,17 +128,16 @@ def update_nonlinear_terms_high_performance_perturbation(
 
     h_v_hat_new = (
         -fourier_domain.diff(
-            fourier_domain.diff(hel_new_hat[0], 0, physical_domain=physical_domain)
-            + fourier_domain.diff(hel_new_hat[2], 2, physical_domain=physical_domain),
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
             1,
-            physical_domain=physical_domain,
         )
-        + fourier_domain.diff(hel_new_hat[1], 0, 2, physical_domain=physical_domain)
-        + fourier_domain.diff(hel_new_hat[1], 2, 2, physical_domain=physical_domain)
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
     )
-    h_g_hat_new = fourier_domain.diff(
-        hel_new_hat[0], 2, physical_domain=physical_domain
-    ) - fourier_domain.diff(hel_new_hat[2], 0, physical_domain=physical_domain)
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
 
     conv_ns_hat_new = -hel_new_hat
 
@@ -217,7 +219,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             )
         )
 
-    def get_cfl(self, i: int = -1) -> jnp_array:
+    def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
             self.get_physical_domain().grid[0][1:]
             - self.get_physical_domain().grid[0][:-1]
@@ -254,9 +256,9 @@ def solve_navier_stokes_perturbation(
     Ny: int = 40,
     Nz: int = 8,
     perturbation_factor: float = 0.1,
-    scale_factors: tuple[float, float, float] = (1.87, 1.0, 0.93),
+    scale_factors: Tuple[float, float, float] = (1.87, 1.0, 0.93),
     dt: float = 1e-2,
-    u_max_over_u_tau: jsd_float = 1.0,
+    u_max_over_u_tau: "jsd_float" = 1.0,
     aliasing: float = 1.0,
     rotated: bool = False,
 ) -> NavierStokesVelVortPerturbation:
