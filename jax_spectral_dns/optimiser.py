@@ -330,7 +330,10 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
+        try:
+            v0_new[0].plot_isosurfaces(0.4)
+        except Exception:
+            pass
 
 
 class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
@@ -424,7 +427,10 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
+        try:
+            v0_new[0].plot_isosurfaces(0.4)
+        except Exception:
+            pass
 
 
 class OptimiserPertAndBase(
@@ -472,7 +478,10 @@ class OptimiserPertAndBase(
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
+        try:
+            v0_new[0].plot_isosurfaces(0.4)
+        except Exception:
+            pass
 
         U_base[0].plot_3d(2)
         U_base[0].plot_center(1)
