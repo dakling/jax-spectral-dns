@@ -1394,7 +1394,10 @@ class PhysicalField(Field):
                 assert (
                     self.physical_domain.number_of_dimensions == 3
                 ), "Only 3D supported for this plotting method."
-                fig = figure.Figure(layout="constrained")
+                try:
+                    fig = figure.Figure(layout="constrained")
+                except Exception:
+                    fig = figure.Figure()
                 base_len = 100
                 grd = (base_len, base_len)
                 lx = self.physical_domain.scale_factors[0]
@@ -2048,7 +2051,10 @@ class FourierField(Field):
                 assert (
                     self.physical_domain.number_of_dimensions == 3
                 ), "Only 3D supported for this plotting method."
-                fig = figure.Figure(layout="constrained")
+                try:
+                    fig = figure.Figure(layout="constrained")
+                except Exception:
+                    fig = figure.Figure()
                 base_len = 100
                 grd = (base_len, base_len)
                 lx = self.domain.get_shape()[0]
