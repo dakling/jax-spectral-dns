@@ -15,13 +15,11 @@ import multiprocessing
 logging.getLogger("jax").setLevel(logging.WARNING)
 
 # max_devices = 1
-max_devices = 4
+# max_devices = 4
 # max_devices = 1e10
-os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
-    min(multiprocessing.cpu_count(), max_devices)
-)
-
-print("jax.local_devices(): ", jax.local_devices())
+# os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
+#     min(multiprocessing.cpu_count(), max_devices)
+# )
 
 import sys
 from jax_spectral_dns.examples import *
