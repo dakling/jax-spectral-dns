@@ -34,8 +34,6 @@ if TYPE_CHECKING:
 from jax.experimental import mesh_utils
 from jax.sharding import PositionalSharding
 
-sharding = PositionalSharding(mesh_utils.create_device_mesh((4,)))
-
 NoneType = type(None)
 
 
