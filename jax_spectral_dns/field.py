@@ -58,7 +58,7 @@ import numpy as np
 from pathlib import Path
 import os
 
-from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
+from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain, sharding
 
 NoneType = type(None)
 
@@ -81,7 +81,7 @@ class Field(ABC):
 
     def __init__(self, domain: Domain, data: "jnp_array", name: str):
         self.domain = domain
-        self.data = data
+        self.data = cast("jnp_array", jax.device_put(data, sharding))
         self.name = name
         raise NotImplementedError("Trying to initialize an abstract class")
 

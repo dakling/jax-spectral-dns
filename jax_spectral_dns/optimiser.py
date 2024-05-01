@@ -290,6 +290,10 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             FourierField, domain, U_hat_data
         ).project_onto_domain(self.calculation_domain)
 
+        input_nh = input.no_hat()
+        input_nh.set_name("input")
+        print("input_nh.energy()")
+        print(input_nh.energy())
         return input
 
     def run_input_to_parameters(

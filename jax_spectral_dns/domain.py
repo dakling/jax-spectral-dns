@@ -31,6 +31,10 @@ if TYPE_CHECKING:
         jsd_float,
     )
 
+from jax.experimental import mesh_utils
+from jax.sharding import PositionalSharding
+
+sharding = PositionalSharding(mesh_utils.create_device_mesh((4,)))
 
 NoneType = type(None)
 
@@ -48,15 +52,13 @@ def get_cheb_grid(N: int, scale_factor: float = 1.0) -> "np_float_array":
     )  # gauss-lobatto points with endpoints
 
 
-def get_fourier_grid(
-    N: int, scale_factor: float = 2.0 * np.pi, aliasing: float = 1.0
-) -> "np_float_array":
+def get_fourier_grid(N: int, scale_factor: float = 2.0 * np.pi) -> "np_float_array":
     """Assemble a Fourier grid (equidistant) with N points on the interval [0, 2pi],
     unless scaled to a different interval using scale_factor."""
     if N % 2 != 0:
-        n = int((N - 1) * aliasing)
+        n = int((N - 1))
     else:
-        n = int(N * aliasing)
+        n = int(N)
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
     return np.linspace(start=0.0, stop=scale_factor, num=int(n + 1))[:-1]
@@ -73,15 +75,13 @@ def assemble_cheb_diff_mat(xs: "np_float_array", order: int = 1) -> "np_float_ar
     return np.linalg.matrix_power(D_ - np.diag(sum(np.transpose(D_))), order)
 
 
-def assemble_fourier_diff_mat(
-    N: int, order: int = 1, aliasing: float = 1.0
-) -> "np_float_array":
+def assemble_fourier_diff_mat(N: int, order: int = 1) -> "np_float_array":
     """Assemble a 1D Fourier differentiation matrix in direction i with
     differentiation order order."""
     if N % 2 != 0:
-        n = int((N - 1) * aliasing)
+        n = int((N - 1))
     else:
-        n = int(N * aliasing)
+        n = int(N)
     if n % 2 != 0:
         raise Exception("Fourier discretization points must be even!")
     h = 2 * np.pi / n
@@ -108,6 +108,7 @@ class Domain(ABC):
     diff_mats: Tuple["np_float_array", ...]
     mgrid: Tuple["np_float_array", ...]
     aliasing: float = 3 / 2  # prevent aliasing using the 3/2-rule
+    dealias_nonperiodic: bool = False
 
     @classmethod
     def create(
@@ -116,6 +117,7 @@ class Domain(ABC):
         periodic_directions: Tuple[bool, ...],
         scale_factors: Optional[Tuple[float, ...]] = None,
         aliasing: float = 3 / 2,
+        dealias_nonperiodic: bool = False,
     ) -> Self:
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
@@ -125,9 +127,22 @@ class Domain(ABC):
             scale_factors_ = list(scale_factors)
         shape = tuple(
             (
-                int(shape[i] * aliasing)
-                if not periodic_directions[i] or int(shape[i] * aliasing) % 2 != 0
-                else int(shape[i] * aliasing) + 1
+                int(
+                    shape[i]
+                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+                )
+                if not periodic_directions[i]
+                or int(
+                    shape[i]
+                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+                )
+                % 2
+                != 0
+                else int(
+                    shape[i]
+                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+                )
+                + 1
             )
             for i in range(len(shape))
         )
@@ -137,13 +152,9 @@ class Domain(ABC):
             if periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
-                grid.append(
-                    # get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=aliasing)
-                    get_fourier_grid(shape[dim], scale_factors_[dim], aliasing=1.0)
-                )
+                grid.append(get_fourier_grid(shape[dim], scale_factors_[dim]))
                 diff_mats.append(
-                    # assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=aliasing)
-                    assemble_fourier_diff_mat(N=shape[dim], order=1, aliasing=1.0)
+                    assemble_fourier_diff_mat(N=shape[dim], order=1)
                     * (2 * np.pi)
                     / scale_factors_[dim]
                 )
@@ -167,6 +178,7 @@ class Domain(ABC):
             diff_mats=tuple(diff_mats),
             mgrid=tuple(mgrid),
             aliasing=aliasing,
+            dealias_nonperiodic=dealias_nonperiodic,
         )
 
     @abstractmethod
@@ -481,6 +493,7 @@ class PhysicalDomain(Domain):
                 self.scale_factors,
                 self.shape,
                 self.aliasing,
+                self.dealias_nonperiodic,
             )
         )
 
@@ -541,6 +554,7 @@ class FourierDomain(Domain):
                 self.scale_factors,
                 self.shape,
                 self.aliasing,
+                self.dealias_nonperiodic,
             )
         )
 
@@ -586,6 +600,7 @@ class FourierDomain(Domain):
             diff_mats=tuple(physical_domain.diff_mats),
             mgrid=tuple(mgrid),
             aliasing=physical_domain.aliasing,
+            dealias_nonperiodic=physical_domain.dealias_nonperiodic,
             physical_domain=physical_domain,
         )
         return out
@@ -736,30 +751,33 @@ class FourierDomain(Domain):
         return field.astype(jnp.float64)
 
     def filter_field(self, field_hat: "jnp_array") -> "jnp_array":
-        N_coarse = tuple(
-            self.shape[i] - int(self.shape[i] * (1 - 1 / self.aliasing))
-            for i in self.all_dimensions()
-        )
-        N_coarse = tuple(
-            (
-                N_coarse[i]
-                if N_coarse[i] % 2 == 0 or not self.periodic_directions[i]
-                else N_coarse[i] + 1
+        if self.dealias_nonperiodic:
+            N_coarse = tuple(
+                self.shape[i] - int(self.shape[i] * (1 - 1 / self.aliasing))
+                for i in self.all_dimensions()
             )
-            for i in self.all_dimensions()
-        )
-        coarse_domain = PhysicalDomain.create(
-            N_coarse, self.periodic_directions, self.scale_factors, 1
-        )
-        coarse_domain_hat = coarse_domain.hat()
+            N_coarse = tuple(
+                (
+                    N_coarse[i]
+                    if N_coarse[i] % 2 == 0 or not self.periodic_directions[i]
+                    else N_coarse[i] + 1
+                )
+                for i in self.all_dimensions()
+            )
+            coarse_domain = PhysicalDomain.create(
+                N_coarse, self.periodic_directions, self.scale_factors, 1
+            )
+            coarse_domain_hat = coarse_domain.hat()
 
-        coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
-        assert self.physical_domain is not None
-        fine_field_hat = coarse_domain_hat.project_onto_domain(
-            self.physical_domain, coarse_field_hat
-        )
+            coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+            assert self.physical_domain is not None
+            fine_field_hat = coarse_domain_hat.project_onto_domain(
+                self.physical_domain, coarse_field_hat
+            )
 
-        return fine_field_hat
+            return fine_field_hat
+        else:
+            return self.filter_field_fourier_only(field_hat)
 
     def filter_field_fourier_only(self, field_hat: "jnp_array") -> "jnp_array":
         N_coarse = tuple(

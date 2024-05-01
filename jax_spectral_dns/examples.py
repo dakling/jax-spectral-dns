@@ -1100,8 +1100,8 @@ def run_transient_growth(
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 0.93),
         dt=1e-2,
-        # aliasing=3 / 2,
-        aliasing=1,
+        aliasing=3 / 2,
+        # aliasing=1,
     )
     # nse.initialize()
 
@@ -1587,7 +1587,7 @@ def run_optimisation_transient_growth_y_profile(
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
     aliasing = 3 / 2
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
     domain: PhysicalDomain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -1603,9 +1603,15 @@ def run_optimisation_transient_growth_y_profile(
         save_final=False,
     )
 
+    print(v0_0.energy())
+
     e_0 = 1e-3
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
+
+    print(v0_0_norm.energy())
+    v0_0_norm.plot_3d(2)
+
     v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
@@ -2428,10 +2434,13 @@ def run_ld_2021(
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=aliasing,
+        # dealias_nonperiodic=True
+        dealias_nonperiodic=False,
     )
 
     coarse_domain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
+        (Nx, Ny - Ny // 3, Nz),
+        # (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,
