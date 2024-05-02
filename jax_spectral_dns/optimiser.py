@@ -24,6 +24,16 @@ from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorFie
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
+from jax.sharding import Mesh
+from jax.sharding import PartitionSpec
+from jax.sharding import NamedSharding
+from jax.experimental import mesh_utils
+
+P = jax.sharding.PartitionSpec
+n = jax.local_device_count()
+devices = mesh_utils.create_device_mesh((n,))
+mesh = jax.sharding.Mesh(devices, ("x",))
+sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array
@@ -286,6 +296,9 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
             domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
         )
+
+        U_hat_data = jax.device_put(U_hat_data, sharding)
+
         input: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
         ).project_onto_domain(self.calculation_domain)
@@ -295,6 +308,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
     def run_input_to_parameters(
         self, input: VectorField[FourierField]
     ) -> "parameter_type":
+
         input = input.project_onto_domain(self.optimisation_domain)
         if self.force_2d:
             v0_1 = input[1].data * (1 + 0j)
@@ -375,6 +389,8 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
                 domain, vort_hat, v1_hat, v0_00_hat, v2_00_hat, two_d=self.force_2d
             )
+
+            U_hat_data = jax.device_put(U_hat_data, sharding)
             input = (
                 VectorField.FromData(FourierField, domain, U_hat_data)
                 .project_onto_domain(self.calculation_domain)
