@@ -46,6 +46,10 @@ try:
     import jaxopt  # type: ignore
 except ModuleNotFoundError:
     print("jaxopt not found")
+try:
+    from humanfriendly import format_timespan  # type: ignore
+except ModuleNotFoundError:
+    pass
 
 I = TypeVar("I")  # the type of the input to the run-function
 
@@ -243,7 +247,11 @@ class Optimiser(ABC, Generic[I]):
             )
             self.switch_solver_maybe()
         print_verb()
-        print_verb("iteration took", time.time() - start_time, "seconds")
+        iteration_duration = time.time() - start_time
+        try:
+            print_verb("iteration took", format_timespan(iteration_duration))
+        except Exception:
+            print_verb("iteration took", iteration_duration, "seconds")
         print_verb("\n")
         jax.clear_caches()  # type: ignore[no-untyped-call]
 

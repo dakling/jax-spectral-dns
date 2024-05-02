@@ -18,6 +18,7 @@ setup(
         "scikit-image",
         "jaxopt",
         "optax",
+        "humanfriendly",
     ],
     extras_require={
         "notifications": ["PyGObject"],

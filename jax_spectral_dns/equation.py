@@ -32,6 +32,11 @@ try:
 except Exception:
     print("gi package not found, notifications will not work.")
 
+try:
+    from humanfriendly import format_timespan  # type: ignore
+except ModuleNotFoundError:
+    print("humanfriendly not found, time durations won't be formatted nicely.")
+
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
 from jax_spectral_dns.field import Field, FourierField, PhysicalField
@@ -324,16 +329,29 @@ class Equation:
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
             _, number_of_time_steps = self.solve_scan()
-            print_verb(
-                "Took "
-                + "{:.2f}".format(time.time() - start_time)
-                + " seconds for "
-                + str(number_of_time_steps)
-                + " time steps ("
-                + "{:.3e}".format((time.time() - start_time) / number_of_time_steps)
-                + " s/TS).",
-                verbosity_level=1,
-            )
+            duration = time.time() - start_time
+            try:
+                print_verb(
+                    "Took "
+                    + format_timespan(duration)
+                    + " for "
+                    + str(number_of_time_steps)
+                    + " time steps ("
+                    + "{:.3e}".format(duration / number_of_time_steps)
+                    + " s/TS).",
+                    verbosity_level=1,
+                )
+            except Exception:
+                print_verb(
+                    "Took "
+                    + "{:.2f}".format(duration)
+                    + " seconds for "
+                    + str(number_of_time_steps)
+                    + " time steps ("
+                    + "{:.3e}".format(duration / number_of_time_steps)
+                    + " s/TS).",
+                    verbosity_level=1,
+                )
             self.deactivate_jit()
 
         else:
