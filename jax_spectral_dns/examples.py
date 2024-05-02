@@ -1061,7 +1061,7 @@ def run_transient_growth(
     end_time: Optional[float] = None,
     eps: float = 1e-5,
     Nx: int = 6,
-    Ny: int = 80,
+    Ny: int = 50,
     Nz: int = 6,
     linearize: Union[bool, str] = True,
     plot: bool = True,
@@ -2425,7 +2425,7 @@ def run_ld_2021(
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.15
+    max_cfl = 0.10
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
