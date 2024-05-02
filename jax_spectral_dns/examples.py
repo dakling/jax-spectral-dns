@@ -1702,18 +1702,6 @@ def run_optimisation_transient_growth_y_profile(
         )
         return U_hat
 
-    v0_0 = v0_0_hat.no_hat()
-    v0_0.set_name("vel")
-    v0_0.plot_3d(0)
-    v0_0.plot_3d(2)
-    params = run_input_to_params(v0_0_hat)
-    v0_0_hat_new = params_to_run_input(params)
-    v0_0_new = v0_0_hat_new.no_hat()
-    v0_0_new.set_name("vel_new")
-    v0_0_new.plot_3d(0)
-    v0_0_new.plot_3d(2)
-    raise Exception("break")
-
     optimiser = OptimiserFourier(
         domain,
         domain,
