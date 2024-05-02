@@ -478,7 +478,7 @@ class NavierStokesVelVort(Equation):
                     lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
                     cast(jnp.float64, kx.real).astype(int),
                     kz,
-                )  # type: ignore[no-untyped-call]
+                )
                 return cast("jnp_array", out)
 
             return fn
@@ -766,7 +766,7 @@ class NavierStokesVelVort(Equation):
                         lambda kx__, kz__: rk_not_00(kx__, kz__),
                         kx___,
                         kz___,
-                    ),  # type: ignore[no-untyped-call]
+                    ),
                     lambda kx___, kz___: rk_not_00(kx___, kz___),
                     kx,
                     kz,

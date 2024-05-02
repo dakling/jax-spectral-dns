@@ -123,7 +123,11 @@ def update_nonlinear_terms_high_performance_perturbation(
     hel_new_b_hat = vel_vort_new_b_hat - 1 / 2 * jnp.array(vel_new_sq_b_hat_nabla)
 
     # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
-    hel_new_hat = jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_hat + hel_new_a_hat + hel_new_b_hat  # type: ignore[no-untyped-call]
+    hel_new_hat = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_hat
+        + hel_new_a_hat
+        + hel_new_b_hat
+    )
     conv_ns_hat_new = -hel_new_hat
 
     h_v_hat_new = (

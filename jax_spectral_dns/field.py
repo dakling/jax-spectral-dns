@@ -1025,7 +1025,7 @@ class PhysicalField(Field):
 
         self.data = jax.lax.cond(
             max > 1e-20, lambda: self.data / max, lambda: self.data
-        )  # type: ignore[no-untyped-call]
+        )
         return self
 
     def get_domain(self) -> PhysicalDomain:
@@ -1069,16 +1069,12 @@ class PhysicalField(Field):
 
     def normalize_by_energy(self) -> Self:
         en = self.energy()
-        self.data = jax.lax.cond(
-            en > 1e-20, lambda: self.data / en, lambda: self.data
-        )  # type: ignore[no-untyped-call]
+        self.data = jax.lax.cond(en > 1e-20, lambda: self.data / en, lambda: self.data)
         return self
 
     def normalize_by_energy_p(self, p: float = 1.0) -> Self:
         en = self.energy_p(p)
-        self.data = jax.lax.cond(
-            en > 1e-20, lambda: self.data / en, lambda: self.data
-        )  # type: ignore[no-untyped-call]
+        self.data = jax.lax.cond(en > 1e-20, lambda: self.data / en, lambda: self.data)
         return self
 
     def update_boundary_conditions(self) -> None:

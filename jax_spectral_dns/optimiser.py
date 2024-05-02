@@ -266,7 +266,7 @@ class Optimiser(ABC, Generic[I]):
 class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def make_noisy(
-        self, input: VectorField[FourierField], noise_amplitude: float = 1e-2
+        self, input: VectorField[FourierField], noise_amplitude: float = 1e-6
     ) -> VectorField[FourierField]:
         print_verb("adding noise")
         input = input.project_onto_domain(self.optimisation_domain)
@@ -353,7 +353,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
     def make_noisy(
-        self, input: "VectorField[PhysicalField]", noise_amplitude: float = 1e-1
+        self, input: "VectorField[PhysicalField]", noise_amplitude: float = 1e-6
     ) -> "VectorField[PhysicalField]":
         print_verb("adding noise")
         e0 = input.energy()
@@ -456,7 +456,7 @@ class OptimiserPertAndBase(
     def make_noisy(
         self,
         input: "Tuple[VectorField[FourierField], VectorField[FourierField]]",
-        noise_amplitude: float = 1e-1,
+        noise_amplitude: float = 1e-6,
     ) -> "Tuple[VectorField[FourierField], VectorField[FourierField]]":
         parameters_no_hat = input[0].no_hat()
         e0 = parameters_no_hat.energy()
