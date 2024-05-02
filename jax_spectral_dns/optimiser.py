@@ -24,6 +24,16 @@ from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorFie
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
+from jax.sharding import Mesh
+from jax.sharding import PartitionSpec
+from jax.sharding import NamedSharding
+from jax.experimental import mesh_utils
+
+P = jax.sharding.PartitionSpec
+n = jax.local_device_count()
+devices = mesh_utils.create_device_mesh((n,))
+mesh = jax.sharding.Mesh(devices, ("x",))
+sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array
@@ -54,7 +64,7 @@ class Optimiser(ABC, Generic[I]):
         use_optax: bool = False,
         min_optax_iter: int = 0,
         add_noise: bool = True,
-        noise_amplitude: float = 1e-1,
+        noise_amplitude: float = 1e-6,
         **params: Any,
     ):
 
@@ -105,6 +115,9 @@ class Optimiser(ABC, Generic[I]):
                 self.solver_switched = False
                 print_verb("Using Optax solver")
             else:
+                assert (
+                    jax.local_device_count() == 1
+                ), "jaxopt does not support multiple devices - set device_count to 1 or use optax solver."
                 self.solver = self.get_jaxopt_solver()
                 self.solver_switched = True
                 print_verb("Using jaxopt solver")
@@ -256,7 +269,7 @@ class Optimiser(ABC, Generic[I]):
 class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def make_noisy(
-        self, input: VectorField[FourierField], noise_amplitude: float = 1e-2
+        self, input: VectorField[FourierField], noise_amplitude: float = 1e-6
     ) -> VectorField[FourierField]:
         print_verb("adding noise")
         input = input.project_onto_domain(self.optimisation_domain)
@@ -286,6 +299,9 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
             domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
         )
+
+        U_hat_data = jax.device_put(U_hat_data, sharding)
+
         input: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
         ).project_onto_domain(self.calculation_domain)
@@ -295,6 +311,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
     def run_input_to_parameters(
         self, input: VectorField[FourierField]
     ) -> "parameter_type":
+
         input = input.project_onto_domain(self.optimisation_domain)
         if self.force_2d:
             v0_1 = input[1].data * (1 + 0j)
@@ -311,6 +328,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
     def post_process_iteration(self) -> None:
 
+        self.parameters_to_file()
         i = self.current_iteration
         U_hat = self.parameters_to_run_input_(self.parameters)
         U = U_hat.no_hat()
@@ -329,14 +347,16 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
-        self.parameters_to_file()
+        try:
+            v0_new[0].plot_isosurfaces(0.4)
+        except Exception:
+            pass
 
 
 class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
     def make_noisy(
-        self, input: "VectorField[PhysicalField]", noise_amplitude: float = 1e-1
+        self, input: "VectorField[PhysicalField]", noise_amplitude: float = 1e-6
     ) -> "VectorField[PhysicalField]":
         print_verb("adding noise")
         e0 = input.energy()
@@ -372,6 +392,8 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
             U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
                 domain, vort_hat, v1_hat, v0_00_hat, v2_00_hat, two_d=self.force_2d
             )
+
+            U_hat_data = jax.device_put(U_hat_data, sharding)
             input = (
                 VectorField.FromData(FourierField, domain, U_hat_data)
                 .project_onto_domain(self.calculation_domain)
@@ -420,11 +442,14 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
+        v0_new.save_to_file("vel_0_" + str(i + 1))
         v0_new.plot_3d(2)
         v0_new[0].plot_center(1)
         v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
-        v0_new.save_to_file("vel_0_" + str(i + 1))
+        try:
+            v0_new[0].plot_isosurfaces(0.4)
+        except Exception:
+            pass
 
 
 class OptimiserPertAndBase(
@@ -434,7 +459,7 @@ class OptimiserPertAndBase(
     def make_noisy(
         self,
         input: "Tuple[VectorField[FourierField], VectorField[FourierField]]",
-        noise_amplitude: float = 1e-1,
+        noise_amplitude: float = 1e-6,
     ) -> "Tuple[VectorField[FourierField], VectorField[FourierField]]":
         parameters_no_hat = input[0].no_hat()
         e0 = parameters_no_hat.energy()
@@ -462,18 +487,23 @@ class OptimiserPertAndBase(
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)
-        v0_new.plot_3d(2)
-        v0_new[0].plot_center(1)
-        v0_new[1].plot_center(1)
-        v0_new[0].plot_isosurfaces(0.4)
         v0_new.save_to_file("vel_0_" + str(i + 1))
 
         U_base = U_base_hat.no_hat()
         U_base.set_name("vel_base")
         U_base.set_time_step(i + 1)
+        U_base[0].save_to_file("vel_base_" + str(i + 1))
+
+        v0_new.plot_3d(2)
+        v0_new[0].plot_center(1)
+        v0_new[1].plot_center(1)
+        try:
+            v0_new[0].plot_isosurfaces(0.4)
+        except Exception:
+            pass
+
         U_base[0].plot_3d(2)
         U_base[0].plot_center(1)
-        U_base[0].save_to_file("vel_base_" + str(i + 1))
 
     def run_input_to_parameters(
         self, inp: "Tuple[VectorField[FourierField], VectorField[FourierField]]"

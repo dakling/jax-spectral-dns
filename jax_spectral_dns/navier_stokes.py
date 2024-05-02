@@ -478,7 +478,7 @@ class NavierStokesVelVort(Equation):
                     lambda kx___, kz___: rk_not_00(kx___, kz___, *fields_1d),
                     cast(jnp.float64, kx.real).astype(int),
                     kz,
-                )  # type: ignore[no-untyped-call]
+                )
                 return cast("jnp_array", out)
 
             return fn
@@ -766,7 +766,7 @@ class NavierStokesVelVort(Equation):
                         lambda kx__, kz__: rk_not_00(kx__, kz__),
                         kx___,
                         kz___,
-                    ),  # type: ignore[no-untyped-call]
+                    ),
                     lambda kx___, kz___: rk_not_00(kx___, kz___),
                     kx,
                     kz,
@@ -1024,7 +1024,17 @@ class NavierStokesVelVort(Equation):
             number_of_factors = len(factors)  # should always be divisible by 2
             return factors[number_of_factors // 2]
 
-        u0 = self.get_latest_field("velocity_hat").get_data()
+        from jax.sharding import Mesh
+        from jax.sharding import PartitionSpec
+        from jax.sharding import NamedSharding
+        from jax.experimental import mesh_utils
+
+        P = jax.sharding.PartitionSpec
+        n = jax.local_device_count()
+        devices = mesh_utils.create_device_mesh((n,))
+        mesh = jax.sharding.Mesh(devices, ("x",))
+        sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
+        u0 = jax.device_put(self.get_latest_field("velocity_hat").get_data(), sharding)
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 

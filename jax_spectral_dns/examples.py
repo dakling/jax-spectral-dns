@@ -1318,7 +1318,8 @@ def run_optimisation_transient_growth(
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    aliasing = 3 / 2
+    # aliasing = 3 / 2
+    aliasing = 1
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
@@ -1424,6 +1425,7 @@ def run_optimisation_transient_growth(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
+        add_noise=False,
     )
     optimiser.optimise()
 
@@ -1557,6 +1559,7 @@ def run_optimisation_transient_growth_nonfourier(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
+        add_noise=False,
     )
     optimiser.optimise()
 
@@ -1585,7 +1588,8 @@ def run_optimisation_transient_growth_y_profile(
     end_time = T
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
-    aliasing = 3 / 2
+    # aliasing = 3 / 2
+    aliasing = 1
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
@@ -1603,7 +1607,7 @@ def run_optimisation_transient_growth_y_profile(
         save_final=False,
     )
 
-    e_0 = 1e-3
+    e_0 = 1e-6
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
     v0_0_hat = v0_0_norm.hat()
@@ -1683,7 +1687,7 @@ def run_optimisation_transient_growth_y_profile(
     def run_input_to_params(vel_hat: "VectorField[FourierField]") -> "parameter_type":
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
-        v0 = tuple([v0_1, v0_0_00_hat])
+        v0 = (v0_1, v0_0_00_hat)
         return v0
 
     def params_to_run_input(params: "parameter_type") -> VectorField[FourierField]:
@@ -1711,6 +1715,7 @@ def run_optimisation_transient_growth_y_profile(
         run_input_to_parameters_fn=run_input_to_params,
         parameters_to_run_input_fn=params_to_run_input,
         objective_fn_name="gain",
+        add_noise=False,
     )
     optimiser.optimise()
 
@@ -2420,7 +2425,7 @@ def run_ld_2021(
     Equation.initialize()
 
     # max_cfl = 0.65
-    max_cfl = 0.1
+    max_cfl = 0.15
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2428,13 +2433,15 @@ def run_ld_2021(
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=aliasing,
+        dealias_nonperiodic=False,
     )
 
     coarse_domain = PhysicalDomain.create(
-        (int(Nx * 2 / 3), int(Ny * 2 / 3), int(Nz * 2 / 3)),
+        (Nx, Ny - Ny // 3, Nz),
+        # (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=(1.87, 1.0, 0.93),
-        aliasing=aliasing,
+        aliasing=1,
     )
     # coarse_domain = domain
     avg_vel_coeffs = np.loadtxt(

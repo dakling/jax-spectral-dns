@@ -26,7 +26,7 @@ pip install .
 When using pip for installation as shown above, the python package dependencies
 are automatically installed. For those interested, they are still listed here:
 
-- python 3.9+
+- python 3.9+ (python 3.8 also works if the `optax` package is not used. Note that development and testing are done on the latest python version.)
 - some python libraries, which are installed by pip automatically (refer to [setup.py](./setup.py) for details)
 - optional (for postprocessing with `make-video.sh`):
     - bash or a similiar shell
@@ -110,7 +110,7 @@ optimisation problems as well.
 Below, the output of a run of `run_optimisation_transient_growth_y_profile` is shown. 
 Even though the optimiser is only run for twenty iterations, a clear improvement
 from an energy gain of $1.24$ up to a gain of $19.29$ is achieved. Getting closer to 
-the expected gain of a bit above $20$ would likely require more iterations.
+the expected gain of $20.36$ would likely require more iterations.
 Nonetheless, the initial condition is optimised until it qualitatively resembles
 the one shown in the `test_transient_growth` section, and the simulation
 also matches up nicely, at least qualitatively.
