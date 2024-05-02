@@ -323,7 +323,6 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
             v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
             self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
-        # print(self.parameters)
         return self.parameters
 
     def post_process_iteration(self) -> None:

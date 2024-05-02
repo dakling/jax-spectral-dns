@@ -632,6 +632,7 @@ def run_pseudo_2d_perturbation(
     save: bool = True,
     v0: Optional["jnp_array"] = None,
     aliasing: float = 1.0,
+    dealias_nonperiodic: bool = False,
     rotated: bool = False,
     jit: bool = True,
 ) -> "pseudo_2d_perturbation_return_type":
@@ -659,6 +660,7 @@ def run_pseudo_2d_perturbation(
             perturbation_factor=0.0,
             scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-3),
             aliasing=aliasing,
+            dealias_nonperiodic=dealias_nonperiodic,
             rotated=False,
         )
     else:
@@ -672,6 +674,7 @@ def run_pseudo_2d_perturbation(
             perturbation_factor=0.0,
             scale_factors=(1e-3, 1.0, 1 * (2 * jnp.pi / alpha)),
             aliasing=aliasing,
+            dealias_nonperiodic=dealias_nonperiodic,
             rotated=True,
         )
 
@@ -1060,9 +1063,9 @@ def run_transient_growth(
     beta: float = 0.0,
     end_time: Optional[float] = None,
     eps: float = 1e-5,
-    Nx: int = 6,
+    Nx: int = 4,
     Ny: int = 50,
-    Nz: int = 6,
+    Nz: int = 4,
     linearize: Union[bool, str] = True,
     plot: bool = True,
 ) -> Tuple[float, float, List[float], List[float]]:
@@ -1100,8 +1103,8 @@ def run_transient_growth(
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 0.93),
         dt=1e-2,
-        # aliasing=3 / 2,
-        aliasing=1,
+        aliasing=3 / 2,
+        # aliasing=1,
     )
     # nse.initialize()
 

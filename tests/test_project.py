@@ -1223,7 +1223,10 @@ class TestProject(unittest.TestCase):
 
     def test_2d_growth_rates_quantitatively(self) -> None:
         def run_re(
-            Re: float, rotated: bool = False, use_antialiasing: bool = True
+            Re: float,
+            rotated: bool = False,
+            use_antialiasing: bool = True,
+            dealias_nonperiodic: bool = False,
         ) -> "pseudo_2d_perturbation_return_type":
             end_time = 6e-1
             if use_antialiasing:
@@ -1246,6 +1249,7 @@ class TestProject(unittest.TestCase):
                     dt=1e-2,
                     rotated=True,
                     aliasing=aliasing,
+                    dealias_nonperiodic=dealias_nonperiodic,
                 )
             else:
                 return run_pseudo_2d_perturbation(
@@ -1260,16 +1264,19 @@ class TestProject(unittest.TestCase):
                     eps=1.0,
                     dt=1e-2,
                     aliasing=aliasing,
+                    dealias_nonperiodic=dealias_nonperiodic,
                 )
 
         def run(
-            rotated: bool = False, use_antialiasing: bool = False
+            rotated: bool = False,
+            use_antialiasing: bool = False,
+            dealias_nonperiodic: bool = False,
         ) -> Tuple[List[List[float]], jnp_array, jnp_array]:
             ts = []
             energy = []
             energy_ana = []
             for Re in [5500, 5772.22, 6000]:
-                out = run_re(Re, rotated, use_antialiasing)
+                out = run_re(Re, rotated, use_antialiasing, dealias_nonperiodic)
                 ts.append(out[-2])
                 energy.append(out[0])
                 energy_ana.append(out[3])
@@ -1380,17 +1387,48 @@ class TestProject(unittest.TestCase):
 
         def main() -> None:
             for use_antialiasing in [True, False]:
-                for rotated in [False, True]:
-                    print_verb(
-                        "testing growth rates in "
-                        + ("rotated" if rotated else "normal")
-                        + " domain "
-                        + ("with" if use_antialiasing else "without")
-                        + " antialiasing"
-                    )
-                    ts, energy, energy_ana = run(rotated, use_antialiasing)
-                    plot(ts, energy, energy_ana, rotated, use_antialiasing)
-                    calculate_growth_rates(ts, energy, energy_ana)
+                rotated = False
+                dealias_nonperiodic = False
+                print_verb(
+                    "testing growth rates in "
+                    + ("rotated" if rotated else "normal")
+                    + " domain "
+                    + ("with" if use_antialiasing else "without")
+                    + " antialiasing"
+                )
+                ts, energy, energy_ana = run(
+                    rotated, use_antialiasing, dealias_nonperiodic
+                )
+                plot(ts, energy, energy_ana, rotated, use_antialiasing)
+                calculate_growth_rates(ts, energy, energy_ana)
+
+            use_antialiasing = True
+
+            rotated = True
+            dealias_nonperiodic = False
+            print_verb(
+                "testing growth rates in "
+                + ("rotated" if rotated else "normal")
+                + " domain "
+                + ("with" if use_antialiasing else "without")
+                + " antialiasing"
+            )
+            ts, energy, energy_ana = run(rotated, use_antialiasing, dealias_nonperiodic)
+            plot(ts, energy, energy_ana, rotated, use_antialiasing)
+            calculate_growth_rates(ts, energy, energy_ana)
+
+            rotated = False
+            dealias_nonperiodic = True
+            print_verb(
+                "testing growth rates in "
+                + ("rotated" if rotated else "normal")
+                + " domain "
+                + ("with" if use_antialiasing else "without")
+                + " antialiasing also in the nonperiodic direction"
+            )
+            ts, energy, energy_ana = run(rotated, use_antialiasing, dealias_nonperiodic)
+            plot(ts, energy, energy_ana, rotated, use_antialiasing)
+            calculate_growth_rates(ts, energy, energy_ana)
 
         main()
 

@@ -264,6 +264,7 @@ def solve_navier_stokes_perturbation(
     dt: float = 1e-2,
     u_max_over_u_tau: "jsd_float" = 1.0,
     aliasing: float = 1.0,
+    dealias_nonperiodic: bool = False,
     rotated: bool = False,
 ) -> NavierStokesVelVortPerturbation:
 
@@ -272,7 +273,7 @@ def solve_navier_stokes_perturbation(
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=aliasing,
-        dealias_nonperiodic=False,
+        dealias_nonperiodic=dealias_nonperiodic,
     )
 
     vel_x_fn = lambda X: (
