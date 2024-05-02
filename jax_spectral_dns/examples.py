@@ -1100,8 +1100,8 @@ def run_transient_growth(
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 0.93),
         dt=1e-2,
-        aliasing=3 / 2,
-        # aliasing=1,
+        # aliasing=3 / 2,
+        aliasing=1,
     )
     # nse.initialize()
 
@@ -1318,7 +1318,8 @@ def run_optimisation_transient_growth(
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    aliasing = 3 / 2
+    # aliasing = 3 / 2
+    aliasing = 1
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
@@ -1424,6 +1425,7 @@ def run_optimisation_transient_growth(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
+        add_noise=False,
     )
     optimiser.optimise()
 
@@ -1557,6 +1559,7 @@ def run_optimisation_transient_growth_nonfourier(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
+        add_noise=False,
     )
     optimiser.optimise()
 
@@ -1585,9 +1588,10 @@ def run_optimisation_transient_growth_y_profile(
     end_time = T
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
-    aliasing = 3 / 2
+    # aliasing = 3 / 2
+    aliasing = 1
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -1603,15 +1607,9 @@ def run_optimisation_transient_growth_y_profile(
         save_final=False,
     )
 
-    print(v0_0.energy())
-
-    e_0 = 1e-3
+    e_0 = 1e-6
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0
-
-    print(v0_0_norm.energy())
-    v0_0_norm.plot_3d(2)
-
     v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
@@ -1689,7 +1687,7 @@ def run_optimisation_transient_growth_y_profile(
     def run_input_to_params(vel_hat: "VectorField[FourierField]") -> "parameter_type":
         v0_1 = vel_hat[1].data[1, :, 0] * (1 + 0j)
         v0_0_00_hat = vel_hat[0].data[0, :, 0] * (1 + 0j)
-        v0 = tuple([v0_1, v0_0_00_hat])
+        v0 = (v0_1, v0_0_00_hat)
         return v0
 
     def params_to_run_input(params: "parameter_type") -> VectorField[FourierField]:
@@ -1704,6 +1702,18 @@ def run_optimisation_transient_growth_y_profile(
         )
         return U_hat
 
+    v0_0 = v0_0_hat.no_hat()
+    v0_0.set_name("vel")
+    v0_0.plot_3d(0)
+    v0_0.plot_3d(2)
+    params = run_input_to_params(v0_0_hat)
+    v0_0_hat_new = params_to_run_input(params)
+    v0_0_new = v0_0_hat_new.no_hat()
+    v0_0_new.set_name("vel_new")
+    v0_0_new.plot_3d(0)
+    v0_0_new.plot_3d(2)
+    raise Exception("break")
+
     optimiser = OptimiserFourier(
         domain,
         domain,
@@ -1717,6 +1727,7 @@ def run_optimisation_transient_growth_y_profile(
         run_input_to_parameters_fn=run_input_to_params,
         parameters_to_run_input_fn=params_to_run_input,
         objective_fn_name="gain",
+        add_noise=False,
     )
     optimiser.optimise()
 
@@ -2513,6 +2524,7 @@ def run_ld_2021(
             aliasing=1,
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / np.max(U_base)
         lsc = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
@@ -2524,14 +2536,14 @@ def run_ld_2021(
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             # coarse_domain,
             domain,
-            end_time,
+            end_time_,
             number_of_modes,
             recompute_full=True,
             save_final=False,
         )
         print_verb(
             "expected gain:",
-            lsc.calculate_transient_growth_max_energy(end_time, number_of_modes),
+            lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
         v0_0 *= e_0

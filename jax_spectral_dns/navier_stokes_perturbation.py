@@ -272,7 +272,7 @@ def solve_navier_stokes_perturbation(
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=aliasing,
-        # dealias_nonperiodic=True
+        dealias_nonperiodic=False,
     )
 
     vel_x_fn = lambda X: (

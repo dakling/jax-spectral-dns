@@ -115,6 +115,9 @@ class Optimiser(ABC, Generic[I]):
                 self.solver_switched = False
                 print_verb("Using Optax solver")
             else:
+                assert (
+                    jax.local_device_count() == 1
+                ), "jaxopt does not support multiple devices - set device_count to 1 or use optax solver."
                 self.solver = self.get_jaxopt_solver()
                 self.solver_switched = True
                 print_verb("Using jaxopt solver")
