@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    List,
     Optional,
     Sequence,
     TypeVar,
@@ -79,6 +80,7 @@ E = TypeVar("E", bound="Equation")
 class Equation:
     name = "equation"
     write_intermediate_output = False
+    write_entire_output = False
 
     # verbosity_level:
     # 0: no output
@@ -222,6 +224,10 @@ class Equation:
             assert field is not None
             self.fields[name] = [field]
             self.fields[name][0].name = name + "_0"
+
+    def add_field_history(self, name: str, field_history: "AnyFieldList") -> None:
+        assert name not in self.fields, "Field " + name + " already exists!"
+        self.fields[name] = cast(List["AnyField"], field_history)
 
     def activate_jit(self) -> None:
         Field.activate_jit_ = True

@@ -208,7 +208,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             "velocity_base_hat"
         )
         self.nonlinear_update_fn = (
-            lambda vel: update_nonlinear_terms_high_performance_perturbation(
+            lambda vel, _: update_nonlinear_terms_high_performance_perturbation(
                 self.get_physical_domain(),
                 self.get_domain(),
                 vel,

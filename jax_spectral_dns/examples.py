@@ -33,6 +33,9 @@ from jax_spectral_dns.navier_stokes_perturbation import (
 from jax_spectral_dns.linear_stability_calculation import (
     LinearStabilityCalculation,
 )
+from jax_spectral_dns.navier_stokes_perturbation_dual import (
+    perform_step_navier_stokes_perturbation_dual,
+)
 from jax_spectral_dns.optimiser import (
     OptimiserFourier,
     OptimiserNonFourier,
@@ -2885,3 +2888,109 @@ def run_white_noise() -> None:
     # vel_diff.set_name("vel_diff")
     # vel_diff.plot_3d(0)
     # vel_diff.plot_3d(2)
+
+
+def run_optimisation_transient_growth_dual(
+    Re: float = 3000.0,
+    T: float = 15,
+    Nx: int = 8,
+    Ny: int = 90,
+    Nz: int = 8,
+    number_of_steps: int = 20,
+    min_number_of_optax_steps: int = -1,
+) -> None:
+    Re = float(Re)
+    T = float(T)
+    alpha = 1.0
+    beta = 0.0
+
+    Equation.initialize()
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    min_number_of_optax_steps = int(min_number_of_optax_steps)
+    dt = 1e-2
+    end_time = T
+    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    # number_of_modes = 60
+    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
+    # aliasing = 3 / 2
+    aliasing = 1
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    domain: PhysicalDomain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=scale_factors,
+        aliasing=aliasing,
+    )
+
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        number_of_modes,
+        recompute_full=True,
+        save_final=False,
+    )
+
+    e_0 = 1e-6
+    v0_0_norm = v0_0.normalize_by_energy()
+    v0_0_norm *= e_0
+    v0_0_hat = v0_0_norm.hat()
+
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
+        n_steps = nse.get_number_of_fields("velocity_hat")
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig("plots/plot_energy_t_final.png")
+
+    v0_hat = v0_0_hat
+
+    for i in range(number_of_steps):
+        v0_hat.set_name("velocity_hat")
+        nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt)
+        nse.end_time = end_time
+        gain, corr = perform_step_navier_stokes_perturbation_dual(nse)
+        v0_hat = v0_hat + 1e-3 * corr
+
+        print_verb(gain)
+        v0 = v0_hat.no_hat()
+        v0.set_time_step(i)
+        v0.plot_3d(0)
+        v0.plot_3d(2)
