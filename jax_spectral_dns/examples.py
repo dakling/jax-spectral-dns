@@ -2983,13 +2983,17 @@ def run_optimisation_transient_growth_dual(
     v0_hat = v0_0_hat
 
     for i in range(number_of_steps):
+        print_verb("iteration", i, "of", number_of_steps)
         v0_hat.set_name("velocity_hat")
         nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt)
         nse.end_time = end_time
         gain, corr = perform_step_navier_stokes_perturbation_dual(nse)
-        v0_hat = v0_hat + 1e-3 * corr
+        v0_hat = v0_hat - 1e-3 * corr
 
-        print_verb(gain)
+        print_verb("")
+        print_verb("gain:", gain)
+        print_verb("")
+
         v0 = v0_hat.no_hat()
         v0.set_time_step(i)
         v0.plot_3d(0)

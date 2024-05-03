@@ -1877,18 +1877,25 @@ class FourierField(Field):
         return self.physical_domain
 
     def __add__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
-        assert isinstance(
-            other, FourierField
-        ), "Attempted to add a Fourier Field and a Field."
-        if self.activate_jit_:
-            new_name = ""
-        else:
-            if other.name[0] == "-":
-                new_name = self.name + " - " + other.name[1:]
+        assert not isinstance(
+            other, PhysicalField
+        ), "Attempted to add a Fourier Field and a PhysicalField."
+        if isinstance(other, FourierField):
+            if self.activate_jit_:
+                new_name = ""
             else:
-                new_name = self.name + " + " + other.name
-        ret = FourierField(self.physical_domain, self.data + other.data, name=new_name)
-        ret.time_step = self.time_step
+                if other.name[0] == "-":
+                    new_name = self.name + " - " + other.name[1:]
+                else:
+                    new_name = self.name + " + " + other.name
+            ret = FourierField(
+                self.physical_domain, self.data + other.data, name=new_name
+            )
+            ret.time_step = self.time_step
+        else:
+            new_name = self.name
+            ret = FourierField(self.physical_domain, self.data + other, name=new_name)
+            ret.time_step = self.time_step
         return ret
 
     def __sub__(self, other: Union[Self, jnp.ndarray]) -> FourierField:
