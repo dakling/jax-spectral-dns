@@ -200,10 +200,9 @@ class Optimiser(ABC, Generic[I]):
             value_and_grad=True,
             implicit_diff=True,
             jit=True,
-            stepsize=1e-5,  # TODO
-            # linesearch="zoom",
-            # linesearch_init="current",
-            # maxls=15,
+            linesearch="zoom",
+            linesearch_init="current",
+            maxls=15,
         )
         return solver
 
