@@ -198,7 +198,7 @@ class Optimiser(ABC, Generic[I]):
         solver = jaxopt.LBFGS(
             jax.value_and_grad(self.run_fn),
             value_and_grad=True,
-            implicit_diff=True,
+            implicit_diff=False,
             jit=True,
             linesearch="zoom",
             linesearch_init="current",
