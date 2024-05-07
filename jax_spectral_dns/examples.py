@@ -2661,7 +2661,8 @@ def run_ld_2021(
         run_input_initial,
         minimise=False,
         force_2d=False,
-        max_iter=number_of_steps,
+        # max_iter=number_of_steps,
+        max_iter=-1,  # suppress initialisation of optimiser
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
@@ -2670,7 +2671,10 @@ def run_ld_2021(
         noise_amplitude=1e-6,
         learning_rate=1e-6,
     )
-    optimiser.optimise()
+    # optimiser.optimise()
+    gain, corr = jax.value_and_grad(optimiser.run_fn)(optimiser.parameters)
+    print_verb(corr)
+    print_verb(gain)
 
 
 def run_white_noise() -> None:
@@ -2981,9 +2985,10 @@ def run_optimisation_transient_growth_dual(
         fig.savefig("plots/plot_energy_t_final.png")
 
     v0_hat = v0_0_hat
+    old_gain = None
 
     for i in range(number_of_steps):
-        print_verb("iteration", i, "of", number_of_steps)
+        print_verb("iteration", i + 1, "of", number_of_steps)
         v0_hat.set_name("velocity_hat")
         nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt)
         nse.end_time = end_time
@@ -2992,9 +2997,12 @@ def run_optimisation_transient_growth_dual(
 
         print_verb("")
         print_verb("gain:", gain)
+        if old_gain is not None:
+            print_verb("gain change:", gain - old_gain)
         print_verb("")
 
         v0 = v0_hat.no_hat()
         v0.set_time_step(i)
         v0.plot_3d(0)
         v0.plot_3d(2)
+        old_gain = gain
