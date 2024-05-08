@@ -254,7 +254,7 @@ class Domain(ABC):
 
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
 
-    def enforce_homogeneous_dirichlet_jnp(self, mat: "jnp_array") -> "jnp_array":
+    def enforce_homogeneous_dirichlet_jnp(self, mat: "np_jnp_array") -> "jnp_array":
         """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
         homogeneous dirichlet boundary conditions at both ends by setting the
         off-diagonal elements of its first and last rows and columns to zero and
@@ -305,8 +305,8 @@ class Domain(ABC):
 
     def enforce_inhomogeneous_dirichlet_jnp(
         self,
-        mat: "jnp_array",
-        rhs: "jnp_jjnp_array",
+        mat: "np_jnp_array",
+        rhs: "np_jnp_array",
         bc_left: "jsd_float",
         bc_right: "jsd_float",
     ) -> tuple["jnp_array", "jnp_array"]:

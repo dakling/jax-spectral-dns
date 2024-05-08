@@ -189,8 +189,10 @@ class NavierStokesEDAC(Equation):
         )
         new_u = u + u_eq * dt
         new_p = p + p_eq * dt
-        (domain.update_boundary_conditions(new_u[i]) for i in range(3))
-        return jnp.concatenate([new_u, jnp.array([new_p])], axis=0)
+        new_u_bc = jnp.array(
+            [domain.update_boundary_conditions(new_u[i]) for i in range(3)]
+        )
+        return jnp.concatenate([new_u_bc, jnp.array([new_p])], axis=0)
 
     def perform_time_step(
         self, U: Optional["jnp_array"] = None, i: Optional[int] = None
@@ -311,7 +313,7 @@ class NavierStokesEDAC(Equation):
                     PhysicalField(
                         self.get_physical_domain(),
                         u_final[0][i],
-                        name="velocit_" + "xyz"[i],
+                        name="velocity_" + "xyz"[i],
                     )
                     for i in self.all_dimensions()
                 ]

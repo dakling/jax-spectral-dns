@@ -2663,8 +2663,7 @@ def run_ld_2021(
         run_input_initial,
         minimise=False,
         force_2d=False,
-        # max_iter=number_of_steps,
-        max_iter=-1,  # suppress initialisation of optimiser
+        max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
@@ -3033,7 +3032,8 @@ def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.01) -> None:
     for activate_jit in [True, False]:
         Re = 1.5e0
 
-        end_time = 1.0e-1
+        dt = 1e-7
+        end_time = 1e5 * dt
         domain = PhysicalDomain.create(
             (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93)
         )
@@ -3078,7 +3078,6 @@ def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.01) -> None:
         vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
         vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-        dt = 1e-5
         nse = NavierStokesEDAC(vel, dt=dt, end_time=end_time, Re=Re)
         nse.end_time = end_time
         nse.activate_jit()
@@ -3088,6 +3087,8 @@ def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.01) -> None:
         print_verb("Doing post-processing")
         vel = nse.get_latest_field("velocity")
         vel.plot_3d(2)
+        p = nse.get_latest_field("pressure")
+        p.plot_3d(2)
         # tol = 5e-7
         # print_verb(abs(vel[0]), verbosity_level=3)
         # print_verb(abs(vel[1]), verbosity_level=3)
