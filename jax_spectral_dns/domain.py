@@ -254,6 +254,30 @@ class Domain(ABC):
 
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
 
+    def enforce_homogeneous_dirichlet_jnp(self, mat: "jnp_array") -> "jnp_array":
+        """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
+        homogeneous dirichlet boundary conditions at both ends by setting the
+        off-diagonal elements of its first and last rows and columns to zero and
+        the diagonal elements to unity."""
+
+        def set_first_mat_row_and_col_to_unit(
+            matr: "jnp_array",
+        ) -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block(
+                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]
+            )
+
+        def set_last_mat_row_and_col_to_unit(
+            matr: "jnp_array",
+        ) -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block(
+                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
+            )
+
+        return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
+
     def enforce_inhomogeneous_dirichlet(
         self,
         mat: "np_float_array",
@@ -276,6 +300,31 @@ class Domain(ABC):
 
         out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
         out_rhs = np.block([bc_right, rhs[1:-1], bc_left])
+
+        return (out_mat, out_rhs)
+
+    def enforce_inhomogeneous_dirichlet_jnp(
+        self,
+        mat: "jnp_array",
+        rhs: "jnp_jjnp_array",
+        bc_left: "jsd_float",
+        bc_right: "jsd_float",
+    ) -> tuple["jnp_array", "jnp_array"]:
+        # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
+        # inhomogeneous dirichlet boundary conditions at both ends by setting the
+        # off-diagonal elements of its first and last rows to zero and
+        # the diagonal elements to unity, and the first and last element of the
+        # rhs to the desired values bc_left and bc_right."""
+        def set_first_mat_row_to_unit(matr: "jnp_array") -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block([[1, jnp.zeros((1, N - 1))], [matr[1:, :]]])
+
+        def set_last_mat_row_to_unit(matr: "jnp_array") -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block([[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]])
+
+        out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
+        out_rhs = jnp.block([bc_right, rhs[1:-1], bc_left])
 
         return (out_mat, out_rhs)
 
