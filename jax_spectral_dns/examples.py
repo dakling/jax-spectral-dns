@@ -3033,7 +3033,7 @@ def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.01) -> None:
     for activate_jit in [True, False]:
         Re = 1.5e0
 
-        end_time = 1.0e-3
+        end_time = 1.0e-1
         domain = PhysicalDomain.create(
             (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93)
         )
