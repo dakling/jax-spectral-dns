@@ -55,6 +55,8 @@ class NavierStokesEDAC(Equation):
 
         self.Mach = params.get("Mach", 0.1)
 
+        self.max_number_of_outer_steps = params.get("max_number_of_outer_steps", 100)
+
         try:
             self.Re_tau = params["Re_tau"]
         except KeyError:
@@ -66,7 +68,10 @@ class NavierStokesEDAC(Equation):
         self.flow_rate = self.get_flow_rate(velocity_field)
         self.dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
         pressure_field = PhysicalField.FromFunc(
-            domain, lambda X: -self.dPdx * X[0], name="pressure"
+            # domain, lambda X: -self.dPdx * X[0], name="pressure"
+            domain,
+            lambda X: 0 * X[0],
+            name="pressure",
         )
 
         super().__init__(domain, velocity_field, pressure_field, dt=dt)
@@ -106,10 +111,10 @@ class NavierStokesEDAC(Equation):
         self.dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
         self.dpdx = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
+        )
         self.dpdz = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
+        )
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
@@ -168,9 +173,9 @@ class NavierStokesEDAC(Equation):
             conv_ns
             - jnp.array(
                 [
-                    domain.diff(p, 0),
-                    jnp.zeros_like(domain.diff(p, 0)),
-                    jnp.zeros_like(domain.diff(p, 0)),
+                    domain.diff(p, 0) + self.dpdx.data,
+                    domain.diff(p, 1),
+                    domain.diff(p, 2),
                 ]
             )
             + 1 / Re_tau * jnp.array([domain.laplacian(u[i]) for i in range(3)])
@@ -182,17 +187,22 @@ class NavierStokesEDAC(Equation):
             + u[2] * domain.diff(p, 2)
         )
 
+        conv_p = domain.update_boundary_conditions(conv_p)
+        diff_p = 1 / Re_tau * domain.laplacian(p)
+        diff_p = domain.update_boundary_conditions(diff_p)
         p_eq = (
             conv_p
+            # - 1 / self.Mach**2 * (domain.diff(u[0], 0) + domain.diff(u[2], 2)) # u[1]_y is zero
             - 1 / self.Mach**2 * domain.divergence(u)
-            + 1 / Re_tau * domain.laplacian(p)
+            + diff_p
         )
         new_u = u + u_eq * dt
         new_p = p + p_eq * dt
         new_u_bc = jnp.array(
             [domain.update_boundary_conditions(new_u[i]) for i in range(3)]
         )
-        return jnp.concatenate([new_u_bc, jnp.array([new_p])], axis=0)
+        new_p_bc = new_p.at[0, 0, 0].set(0.0)
+        return jnp.concatenate([new_u_bc, jnp.array([new_p_bc])], axis=0)
 
     def perform_time_step(
         self, U: Optional["jnp_array"] = None, i: Optional[int] = None
@@ -217,6 +227,7 @@ class NavierStokesEDAC(Equation):
         ) -> Tuple[Tuple["jnp_array", int], Tuple["jnp_array", int]]:
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
+                # inner_step_fn,
                 u0,
                 xs=None,
                 length=number_of_inner_steps,
@@ -256,14 +267,10 @@ class NavierStokesEDAC(Equation):
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
-        if not self.write_entire_output:
-            number_of_inner_steps = median_factor(number_of_time_steps)
-            number_of_outer_steps = number_of_time_steps // number_of_inner_steps
-            number_of_outer_steps = 1
-            number_of_inner_steps = number_of_time_steps
-        else:
-            number_of_outer_steps = number_of_time_steps
-            number_of_inner_steps = 1
+        number_of_inner_steps = median_factor(number_of_time_steps)
+        # number_of_outer_steps = min(self.max_number_of_outer_steps, number_of_time_steps // number_of_inner_steps)
+        number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+        # number_of_inner_steps = number_of_time_steps // number_of_outer_steps # TODO
 
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
@@ -282,6 +289,10 @@ class NavierStokesEDAC(Equation):
                     ]
                 )
                 self.append_field("velocity", velocity, in_place=False)
+                pressure = PhysicalField(
+                    self.get_physical_domain(), u[3], name="pressure"
+                )
+                self.append_field("pressure", pressure, in_place=False)
             for i in range(self.get_number_of_fields("velocity")):
                 cfl_s = self.get_cfl(i)
                 print_verb("i: ", i, "cfl:", cfl_s)
@@ -301,6 +312,10 @@ class NavierStokesEDAC(Equation):
                 ]
             )
             self.append_field("velocity", velocity_final, in_place=False)
+            pressure_final = PhysicalField(
+                self.get_physical_domain(), u_final[0][3], name="pressure"
+            )
+            self.append_field("pressure", pressure_final, in_place=False)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True)
             return (trajectory[0], len(ts))
@@ -322,3 +337,9 @@ class NavierStokesEDAC(Equation):
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True)
             return (velocity_final, len(ts))
+
+    def post_process(self: E) -> None:
+        if type(self.post_process_fn) != NoneType:
+            assert self.post_process_fn is not None
+            for i in range(self.get_number_of_fields("velocity")):
+                self.post_process_fn(self, i)

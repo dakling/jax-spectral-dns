@@ -1325,8 +1325,8 @@ def run_optimisation_transient_growth(
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    # aliasing = 3 / 2
-    aliasing = 1
+    aliasing = 3 / 2
+    # aliasing = 1
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
@@ -2917,9 +2917,9 @@ def run_white_noise() -> None:
 def run_optimisation_transient_growth_dual(
     Re: float = 3000.0,
     T: float = 15,
-    Nx: int = 8,
-    Ny: int = 90,
-    Nz: int = 8,
+    Nx: int = 4,
+    Ny: int = 64,
+    Nz: int = 4,
     number_of_steps: int = 20,
     min_number_of_optax_steps: int = -1,
 ) -> None:
@@ -3004,92 +3004,169 @@ def run_optimisation_transient_growth_dual(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    v0_hat = v0_0_hat
-    old_gain = None
+    # def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
+    def run_case(U_hat_: "jnp_array", out: bool = False) -> "jsd_float":
 
+        U_hat: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, U_hat_, name="velocity_hat"
+        )
+        U = U_hat.no_hat()
+        U.update_boundary_conditions()
+        U_norm = U.normalize_by_energy()
+        U_norm *= e_0
+
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+        nse.end_time = end_time
+
+        # nse.set_linearize(False)
+        nse.set_linearize(True)
+
+        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
+        nse.activate_jit()
+        if out:
+            nse.write_intermediate_output = True
+            nse.set_post_process_fn(post_process)
+        else:
+            nse.write_intermediate_output = False
+        nse.solve()
+        vel = nse.get_latest_field("velocity_hat").no_hat()
+
+        nse.set_before_time_step_fn(None)
+        nse.set_after_time_step_fn(None)
+        if out:
+            nse.post_process()
+
+        gain = vel.energy() / vel_0.energy()
+        return gain
+
+    old_gain = None
+    v0_hat = v0_0_hat
     for i in range(number_of_steps):
         print_verb("iteration", i + 1, "of", number_of_steps)
         v0_hat.set_name("velocity_hat")
         nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt)
         nse.end_time = end_time
+
         gain, corr = perform_step_navier_stokes_perturbation_dual(nse)
-        v0_hat = v0_hat - 1e-3 * corr
+
+        corr_field: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, corr, name="corr_hat"
+        )
+        corr_nh = corr_field.no_hat()
+        corr_nh.set_name("corr")
+        corr_nh.plot_3d(2)
+
+        gain_, corr_ = jax.value_and_grad(run_case)(v0_hat.get_data())
+        corr_field_: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, corr_, name="corr_hat_"
+        )
+        corr_nh_ = corr_field_.no_hat()
+        corr_nh_.set_name("corr_")
+        corr_nh_.plot_3d(2)
+
+        diff_field = corr_nh - corr_nh_
+        diff_field.set_name("diff")
+        diff_field.plot_3d(2)
+
+        v0_hat = VectorField.FromData(
+            FourierField, domain, v0_hat.get_data() - 1e-3 * corr, name="velocity_hat"
+        )
 
         print_verb("")
         print_verb("gain:", gain)
+        print_verb("gain_:", gain_)
         if old_gain is not None:
             print_verb("gain change:", gain - old_gain)
         print_verb("")
 
         v0 = v0_hat.no_hat()
         v0.set_time_step(i)
-        v0.plot_3d(0)
         v0.plot_3d(2)
         old_gain = gain
 
 
-def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.01) -> None:
-    for activate_jit in [True, False]:
-        Re = 1.5e0
+def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:
+    Equation.initialize()
+    Re = 1.5e0
 
-        dt = 1e-7
-        end_time = 1e5 * dt
-        domain = PhysicalDomain.create(
-            (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93)
-        )
+    dt = 1e-5
+    end_time = 1
+    domain = PhysicalDomain.create(
+        (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93), aliasing=1
+    )
 
-        u_max_over_u_tau = 1.0
+    u_max_over_u_tau = 1.0
 
-        vel_x_fn_ana: "Vel_fn_type" = (
-            lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
-            + 0.0 * X[0] * X[2]
-        )
+    vel_x_fn_ana: "Vel_fn_type" = (
+        lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+    )
 
-        vel_x_fn: "Vel_fn_type" = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
-            perturbation_factor
-            * jnp.cos(X[1] * jnp.pi / 2)
-            * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
-        ) + (1 - perturbation_factor) * vel_x_fn_ana(X)
+    vel_x_fn: "Vel_fn_type" = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
+        perturbation_factor
+        * jnp.cos(X[1] * jnp.pi / 2)
+        * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
+    ) + (1 - perturbation_factor) * vel_x_fn_ana(X)
 
-        # add small perturbation in y and z to see if it decays
-        vel_y_fn: "Vel_fn_type" = (
-            lambda X: 0.1
-            * perturbation_factor
-            * u_max_over_u_tau
-            * (
-                jnp.pi
-                / 3
-                # * jnp.cos(X[1] * jnp.pi / 2)
-                * (1 - X[1] ** 2) ** 2
-                * jnp.cos(3 * X[0])
-                * jnp.cos(4 * X[2])
-            )
-        )
-        vel_z_fn: "Vel_fn_type" = (
-            lambda X: 0.1
-            * jnp.pi
+    # add small perturbation in y and z to see if it decays
+    vel_y_fn: "Vel_fn_type" = (
+        lambda X: 0.1
+        * perturbation_factor
+        * u_max_over_u_tau
+        * (
+            jnp.pi
             / 3
-            * perturbation_factor
-            * u_max_over_u_tau
-            * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
+            # * jnp.cos(X[1] * jnp.pi / 2)
+            * (1 - X[1] ** 2) ** 2
+            * jnp.cos(3 * X[0])
+            * jnp.cos(4 * X[2])
         )
-        vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="velocity_x")
-        vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="velocity_y")
-        vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
-        vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
+    )
+    vel_z_fn: "Vel_fn_type" = (
+        lambda X: 0.1
+        * jnp.pi
+        / 3
+        * perturbation_factor
+        * u_max_over_u_tau
+        * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
+    )
+    vel_x_ana = PhysicalField.FromFunc(domain, vel_x_fn_ana, name="velocity_x_ana")
+    vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="velocity_x")
+    vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="velocity_y")
+    vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
+    vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
-        nse = NavierStokesEDAC(vel, dt=dt, end_time=end_time, Re=Re)
+    def post_process(nse: NavierStokesEDAC, i: int) -> None:
+        vel = nse.get_field("velocity", i)
+        vel.set_time_step(i)
+        vel.plot_3d(2)
+        vel[0].plot_center(1, vel_x_ana)
+        p = nse.get_field("pressure", i)
+        p.set_time_step(i)
+        p.plot_3d(2)
+
+    def run_case(vel_: "jnp_array", out: bool = False) -> jsd_float:
+        vel__: VectorField[PhysicalField] = VectorField.FromData(
+            PhysicalField, domain, vel_, name="velocity"
+        )
+        nse = NavierStokesEDAC(vel__, dt=dt, end_time=end_time, Re=Re)
         nse.end_time = end_time
         nse.activate_jit()
         nse.before_time_step_fn = None
+
+        nse.write_intermediate_output = out
         nse.solve()
 
-        print_verb("Doing post-processing")
-        vel = nse.get_latest_field("velocity")
-        vel.plot_3d(2)
-        p = nse.get_latest_field("pressure")
-        p.plot_3d(2)
-        # tol = 5e-7
-        # print_verb(abs(vel[0]), verbosity_level=3)
-        # print_verb(abs(vel[1]), verbosity_level=3)
-        # print_verb(abs(vel[2]), verbosity_level=3)
+        if out:
+            nse.set_post_process_fn(post_process)
+            nse.post_process()
+
+        gain = nse.get_latest_field("velocity").energy() / vel__.energy()
+        return gain
+
+    gain, corr = jax.value_and_grad(run_case)(vel.get_data())
+    print_verb(gain)
+
+    # tol = 5e-7
+    print_verb(abs(vel[0] - vel_x_ana))
+    print_verb(abs(vel[1]))
+    print_verb(abs(vel[2]))

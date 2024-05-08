@@ -226,108 +226,125 @@ class NavierStokesVelVort(Equation):
         return self.nse_fixed_parameters.poisson_mat
 
     def get_rk_mats_lhs_inv(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        dt = self.get_dt()
-        domain = self.get_domain()
-        physical_domain = self.get_physical_domain()
-        Re_tau = self.get_Re_tau()
-        alpha, beta, _, _ = self.get_rk_parameters()
-        D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        Ly = 1 / Re_tau * D2
-        n = Ly.shape[0]
-        I = np.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        rk_mat_lhs = I - beta[step] * dt * L
-        rk_mat_lhs = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
-        return jnp.linalg.inv(rk_mat_lhs)
-        # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz])
+        # dt = self.get_dt()
+        # domain = self.get_domain()
+        # physical_domain = self.get_physical_domain()
+        # Re_tau = self.get_Re_tau()
+        # alpha, beta, _, _ = self.get_rk_parameters()
+        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+        # Ly = 1 / Re_tau * D2
+        # n = Ly.shape[0]
+        # I = np.eye(n)
+        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
+        # rk_mat_lhs = I - beta[step] * dt * L
+        # rk_mat_lhs_ = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
+        # return cast("np_jnp_array", jnp.linalg.inv(rk_mat_lhs_))
+        return cast(
+            "np_jnp_array",
+            jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz],
+        )
 
     def get_rk_mats_rhs(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        dt = self.get_dt()
-        physical_domain = self.get_physical_domain()
-        Re_tau = self.get_Re_tau()
-        alpha, beta, _, _ = self.get_rk_parameters()
-        D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        Ly = 1 / Re_tau * D2
-        n = Ly.shape[0]
-        I = np.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        rk_mat_rhs = I + alpha[step] * dt * L
-        return rk_mat_rhs
-        # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs)[step, kx, kz])
+        # dt = self.get_dt()
+        # physical_domain = self.get_physical_domain()
+        # Re_tau = self.get_Re_tau()
+        # alpha, beta, _, _ = self.get_rk_parameters()
+        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+        # Ly = 1 / Re_tau * D2
+        # n = Ly.shape[0]
+        # I = np.eye(n)
+        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
+        # rk_mat_rhs = I + alpha[step] * dt * L
+        # return rk_mat_rhs
+        return cast(
+            "np_jnp_array",
+            jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs)[step, kx, kz],
+        )
 
     def get_rk_mats_lhs_inv_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        dt = self.get_dt()
-        physical_domain = self.get_physical_domain()
-        domain = self.get_domain()
-        Re_tau = self.get_Re_tau()
-        alpha, beta, _, _ = self.get_rk_parameters()
-        D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        Ly = 1 / Re_tau * D2
-        n = Ly.shape[0]
-        I = np.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        rhs_inhom = np.zeros(n)
-        lhs_mat_inhom = I - beta[step] * dt * L
-        (
-            lhs_mat_inhom,
-            rhs_inhom,
-        ) = domain.enforce_inhomogeneous_dirichlet_jnp(
-            lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+        # dt = self.get_dt()
+        # physical_domain = self.get_physical_domain()
+        # domain = self.get_domain()
+        # Re_tau = self.get_Re_tau()
+        # alpha, beta, _, _ = self.get_rk_parameters()
+        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+        # Ly = 1 / Re_tau * D2
+        # n = Ly.shape[0]
+        # I = np.eye(n)
+        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
+        # rhs_inhom = np.zeros(n)
+        # lhs_mat_inhom = I - beta[step] * dt * L
+        # (
+        #     lhs_mat_inhom_,
+        #     _,
+        # ) = domain.enforce_inhomogeneous_dirichlet_jnp(
+        #     lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+        # )
+        # lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom_)
+        # return cast("np_jnp_array", lhs_mat_inv_inhom)
+        return cast(
+            "np_jnp_array",
+            jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[step, kx, kz],
         )
-        lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom)
-        return lhs_mat_inv_inhom
-        # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[step, kx, kz])
 
     def get_rk_rhs_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        dt = self.get_dt()
-        physical_domain = self.get_physical_domain()
-        domain = self.get_domain()
-        Re_tau = self.get_Re_tau()
-        alpha, beta, _, _ = self.get_rk_parameters()
-        D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        Ly = 1 / Re_tau * D2
-        n = Ly.shape[0]
-        I = np.eye(n)
-        L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        rhs_inhom = np.zeros(n)
-        lhs_mat_inhom = I - beta[step] * dt * L
-        (
-            lhs_mat_inhom,
-            rhs_inhom,
-        ) = domain.enforce_inhomogeneous_dirichlet_jnp(
-            lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+        # dt = self.get_dt()
+        # physical_domain = self.get_physical_domain()
+        # domain = self.get_domain()
+        # Re_tau = self.get_Re_tau()
+        # alpha, beta, _, _ = self.get_rk_parameters()
+        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+        # Ly = 1 / Re_tau * D2
+        # n = Ly.shape[0]
+        # I = np.eye(n)
+        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
+        # rhs_inhom = np.zeros(n)
+        # lhs_mat_inhom = I - beta[step] * dt * L
+        # (
+        #     _,
+        #     rhs_inhom_,
+        # ) = domain.enforce_inhomogeneous_dirichlet_jnp(
+        #     lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+        # )
+        # return rhs_inhom_
+        return cast(
+            "np_jnp_array",
+            jnp.asarray(self.nse_fixed_parameters.rk_rhs_inhom)[step, kx, kz],
         )
-        return rhs_inhom
-        # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_rhs_inhom)[step, kx, kz])
 
     def get_rk_mats_lhs_inv_ns(self, step: int) -> "np_jnp_array":
-        dt = self.get_dt()
-        alpha, beta, _, _ = self.get_rk_parameters()
-        Re_tau = self.get_Re_tau()
-        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-        n = D2_hom_diri.shape[0]
-        Z = np.zeros((n, n))
-        L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        I_ns = np.eye(2 * n)
-        L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
-        lhs_mat_ns = I_ns - beta[step] * dt * L_ns
-        lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
-        return lhs_mat_inv_ns
-        # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step])
+        # dt = self.get_dt()
+        # alpha, beta, _, _ = self.get_rk_parameters()
+        # Re_tau = self.get_Re_tau()
+        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        # n = D2_hom_diri.shape[0]
+        # Z = np.zeros((n, n))
+        # L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        # I_ns = np.eye(2 * n)
+        # L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
+        # lhs_mat_ns = I_ns - beta[step] * dt * L_ns
+        # lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
+        # return cast("np_jnp_array", lhs_mat_inv_ns)
+        return cast(
+            "np_jnp_array",
+            jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step],
+        )
 
     def get_rk_mats_rhs_ns(self, step: int) -> "np_jnp_array":
-        dt = self.get_dt()
-        alpha, beta, _, _ = self.get_rk_parameters()
-        Re_tau = self.get_Re_tau()
-        D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-        n = D2_hom_diri.shape[0]
-        Z = np.zeros((n, n))
-        L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        I_ns = np.eye(2 * n)
-        L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
-        rhs_mat_ns = I_ns + alpha[step] * dt * L_ns
-        return rhs_mat_ns
-        # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs_ns)[step])
+        # dt = self.get_dt()
+        # alpha, beta, _, _ = self.get_rk_parameters()
+        # Re_tau = self.get_Re_tau()
+        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+        # n = D2_hom_diri.shape[0]
+        # Z = np.zeros((n, n))
+        # L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+        # I_ns = np.eye(2 * n)
+        # L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
+        # rhs_mat_ns = I_ns + alpha[step] * dt * L_ns
+        # return rhs_mat_ns
+        return cast(
+            "np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs_ns)[step]
+        )
 
     def get_Re_tau(self) -> "jsd_float":
         return self.nse_fixed_parameters.Re_tau
@@ -513,7 +530,7 @@ class NavierStokesVelVort(Equation):
         def rk_00() -> Tuple["jnp_array", ...]:
             return (
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
-                vel_y[0, :, 0],
+                # vel_y[0, :, 0],
                 (vel_z_00 * (1 + 0j)).astype(jnp.complex128),
             )
 
@@ -541,7 +558,7 @@ class NavierStokesVelVort(Equation):
             # )
             return (
                 vel_x_.astype(jnp.complex128),
-                vel_y_.astype(jnp.complex128),
+                # vel_y_.astype(jnp.complex128),
                 vel_z_.astype(jnp.complex128),
             )
 
@@ -613,7 +630,8 @@ class NavierStokesVelVort(Equation):
         )
         out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
         u_w = [jnp.moveaxis(v, 1, 2) for v in out]
-        return jnp.array([u_w[0], u_w[1], u_w[2]])
+        # return jnp.array([u_w[0], u_w[1], u_w[2]])
+        return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(
         self, vel_hat_data: "jnp_array", time_step: int

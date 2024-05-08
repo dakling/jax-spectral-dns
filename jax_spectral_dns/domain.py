@@ -265,7 +265,7 @@ class Domain(ABC):
         ) -> "jnp_array":
             N = matr.shape[0]
             return jnp.block(
-                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]
+                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]  # type: ignore[arg-type]
             )
 
         def set_last_mat_row_and_col_to_unit(
@@ -273,10 +273,12 @@ class Domain(ABC):
         ) -> "jnp_array":
             N = matr.shape[0]
             return jnp.block(
-                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]
+                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]  # type: ignore[arg-type]
             )
 
-        return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
+        return set_last_mat_row_and_col_to_unit(
+            set_first_mat_row_and_col_to_unit(jnp.asarray(mat))
+        )
 
     def enforce_inhomogeneous_dirichlet(
         self,
@@ -317,13 +319,13 @@ class Domain(ABC):
         # rhs to the desired values bc_left and bc_right."""
         def set_first_mat_row_to_unit(matr: "jnp_array") -> "jnp_array":
             N = matr.shape[0]
-            return jnp.block([[1, jnp.zeros((1, N - 1))], [matr[1:, :]]])
+            return jnp.block([[1, jnp.zeros((1, N - 1))], [matr[1:, :]]])  # type: ignore[arg-type]
 
         def set_last_mat_row_to_unit(matr: "jnp_array") -> "jnp_array":
             N = matr.shape[0]
-            return jnp.block([[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]])
+            return jnp.block([[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]])  # type: ignore[arg-type]
 
-        out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
+        out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(jnp.asarray(mat)))
         out_rhs = jnp.block([bc_right, rhs[1:-1], bc_left])
 
         return (out_mat, out_rhs)

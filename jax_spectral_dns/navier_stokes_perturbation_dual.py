@@ -37,36 +37,17 @@ if TYPE_CHECKING:
 def update_nonlinear_terms_high_performance_perturbation_dual(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
-    vel_hat_new: "jnp_array",
-    vel_base_hat: "jnp_array",
-    vel_u_hat: "jnp_array",
+    vel_hat_new: "jnp_array",  # v
+    vel_base_hat: "jnp_array",  # U
+    vel_u_hat: "jnp_array",  # u
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
-    vort_hat_new = fourier_domain.curl(vel_hat_new)
-    vort_u_hat = fourier_domain.curl(vel_u_hat - vel_base_hat)
+    vort_u_hat = fourier_domain.curl(vel_u_hat + vel_base_hat)
     vel_new = jnp.array(
         [
             fourier_domain.filter_field_nonfourier_only(
                 fourier_domain.field_no_hat(vel_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vel_hat_new[i])
-            for i in physical_domain.all_dimensions()
-        ]
-    )
-    vort_new = jnp.array(
-        [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vort_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vort_hat_new[i])
-            for i in physical_domain.all_dimensions()
-        ]
-    )
-    vel_u_new = jnp.array(
-        [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vel_u_hat[i] + vel_base_hat[i])
             )
             # fourier_domain.field_no_hat(vel_hat_new[i])
             for i in physical_domain.all_dimensions()
@@ -77,10 +58,12 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
             fourier_domain.filter_field_nonfourier_only(
                 fourier_domain.field_no_hat(vort_u_hat[i])
             )
-            # fourier_domain.field_no_hat(vort_hat_new[i])
+            # fourier_domain.field_no_hat(vort_u_hat[i])
             for i in physical_domain.all_dimensions()
         ]
     )
+
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
 
     vel_vort_new = physical_domain.cross_product(vel_new, vort_u_new)
     vel_vort_new_hat = jnp.array(
@@ -134,18 +117,23 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
-            self.get_physical_domain(),
-            self.get_domain(),
-            vel,
-            velocity_base_hat.get_data(),
-            self.velocity_field_u_history.at[-1 - t].get(),
-            # self.velocity_field_u_history[-1 - t],
-            linearize=self.linearize,
+        self.nonlinear_update_fn = (
+            lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
+                self.get_physical_domain(),
+                self.get_domain(),
+                vel,
+                velocity_base_hat.get_data(),
+                self.velocity_field_u_history.at[-1 - t].get(),
+                linearize=self.linearize,
+            )
         )
 
     def get_Re_tau(self) -> "jsd_float":
         return -self.nse_fixed_parameters.Re_tau
+
+    def get_dt(self) -> "jsd_float":
+        # return self.fixed_parameters.dt
+        return -self.fixed_parameters.dt  # TODO
 
     def prepare_assemble_rk_matrices(
         self,
@@ -155,7 +143,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         dt: "jsd_float",
     ) -> Tuple["np_complex_array", ...]:
         return super().prepare_assemble_rk_matrices(
-            domain, physical_domain, -Re_tau, -dt
+            # domain, physical_domain, -Re_tau, dt
+            domain,
+            physical_domain,
+            -Re_tau,
+            -dt,  # TODO
         )
 
 
@@ -185,7 +177,7 @@ def perform_step_navier_stokes_perturbation_dual(
         u_hat_final, velocity_u_hat_history, Re=Re, dt=dt
     )
 
-    nse_dual.end_time = nse.end_time
+    nse_dual.end_time = -nse.end_time
 
     nse_dual.before_time_step_fn = None
     nse_dual.after_time_step_fn = None
