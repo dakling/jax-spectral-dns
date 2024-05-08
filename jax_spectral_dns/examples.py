@@ -26,6 +26,7 @@ from jax_spectral_dns.navier_stokes import (
     NavierStokesVelVort,
     solve_navier_stokes_laminar,
 )
+from jax_spectral_dns.navier_stokes_edac import NavierStokesEDAC
 from jax_spectral_dns.navier_stokes_perturbation import (
     NavierStokesVelVortPerturbation,
     solve_navier_stokes_perturbation,
@@ -2432,7 +2433,8 @@ def run_ld_2021(
 
     # max_cfl = 0.65
     max_cfl = 0.10
-    end_time = 0.35  # the target time (in ld2021 units)
+    # end_time = 0.35  # the target time (in ld2021 units)
+    end_time = 0.35 / 10  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -2671,10 +2673,29 @@ def run_ld_2021(
         noise_amplitude=1e-6,
         learning_rate=1e-6,
     )
-    # optimiser.optimise()
-    gain, corr = jax.value_and_grad(optimiser.run_fn)(optimiser.parameters)
-    print_verb(corr)
-    print_verb(gain)
+    optimiser.optimise()
+    # gain, corr = jax.value_and_grad(optimiser.run_fn)(optimiser.parameters)
+
+    # raise Exception("break")
+    # U_norm = v0_0.normalize_by_energy()
+    # U_norm *= e_0
+    # # U_norm.set_name("vel_norm")
+    # # U_norm.plot_3d(2)
+    # nse = NavierStokesVelVortPerturbation.FromVelocityField(
+    #     U_norm, Re=Re, dt=dt, velocity_base_hat=vel_base.hat()
+    # )
+    # nse.activate_jit()
+    # nse.end_time = end_time_
+    # gain_dual, corr_dual = perform_step_navier_stokes_perturbation_dual(nse)
+    # print_verb(gain)
+    # print_verb(gain_dual)
+
+    # corr_field = optimiser.parameters_to_run_input(corr)
+    # corr_field.print_3d(2)
+
+    # corr_dual_field = VectorField.FromData(FourierField, nse.get_physical_domain, corr_field)
+
+    # corr_dual_field.plot_3d(2)
 
 
 def run_white_noise() -> None:
@@ -3006,3 +3027,68 @@ def run_optimisation_transient_growth_dual(
         v0.plot_3d(0)
         v0.plot_3d(2)
         old_gain = gain
+
+
+def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.01) -> None:
+    for activate_jit in [True, False]:
+        Re = 1.5e0
+
+        end_time = 1.0e-3
+        domain = PhysicalDomain.create(
+            (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93)
+        )
+
+        u_max_over_u_tau = 1.0
+
+        vel_x_fn_ana: "Vel_fn_type" = (
+            lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1)
+            + 0.0 * X[0] * X[2]
+        )
+
+        vel_x_fn: "Vel_fn_type" = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
+            perturbation_factor
+            * jnp.cos(X[1] * jnp.pi / 2)
+            * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
+        ) + (1 - perturbation_factor) * vel_x_fn_ana(X)
+
+        # add small perturbation in y and z to see if it decays
+        vel_y_fn: "Vel_fn_type" = (
+            lambda X: 0.1
+            * perturbation_factor
+            * u_max_over_u_tau
+            * (
+                jnp.pi
+                / 3
+                # * jnp.cos(X[1] * jnp.pi / 2)
+                * (1 - X[1] ** 2) ** 2
+                * jnp.cos(3 * X[0])
+                * jnp.cos(4 * X[2])
+            )
+        )
+        vel_z_fn: "Vel_fn_type" = (
+            lambda X: 0.1
+            * jnp.pi
+            / 3
+            * perturbation_factor
+            * u_max_over_u_tau
+            * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
+        )
+        vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="velocity_x")
+        vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="velocity_y")
+        vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
+        vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
+
+        dt = 1e-5
+        nse = NavierStokesEDAC(vel, dt=dt, end_time=end_time, Re=Re)
+        nse.end_time = end_time
+        nse.activate_jit()
+        nse.before_time_step_fn = None
+        nse.solve()
+
+        print_verb("Doing post-processing")
+        vel = nse.get_latest_field("velocity")
+        vel.plot_3d(2)
+        # tol = 5e-7
+        # print_verb(abs(vel[0]), verbosity_level=3)
+        # print_verb(abs(vel[1]), verbosity_level=3)
+        # print_verb(abs(vel[2]), verbosity_level=3)

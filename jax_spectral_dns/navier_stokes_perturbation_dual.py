@@ -195,6 +195,6 @@ def perform_step_navier_stokes_perturbation_dual(
     nse_dual.solve_scan()
 
     vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
-    lam = 1
+    lam = 0
 
     return (gain, lam * u_hat_initial.get_data() - vel_v_0_hat.get_data())

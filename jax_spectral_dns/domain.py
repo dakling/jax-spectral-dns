@@ -477,6 +477,14 @@ class Domain(ABC):
         out_2 = field_1[0, ...] * field_2[1, ...] - field_1[1, ...] * field_2[0, ...]
         return jnp.array([out_0, out_1, out_2])
 
+    def laplacian(self, field: "jnp_array") -> "jnp_array":
+        # TODO generalize dimensions
+        return self.diff(field, 0, 2) + self.diff(field, 1, 2) + self.diff(field, 2, 2)
+
+    def divergence(self, field: "jnp_array") -> "jnp_array":
+        # TODO generalize dimensions
+        return self.diff(field[0], 0) + self.diff(field[1], 1) + self.diff(field[2], 2)
+
 
 # @dataclasses.dataclass(frozen=True, kw_only=True)
 @dataclasses.dataclass(frozen=True)
