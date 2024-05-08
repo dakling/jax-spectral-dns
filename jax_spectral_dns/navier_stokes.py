@@ -238,7 +238,7 @@ class NavierStokesVelVort(Equation):
         L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
         rk_mat_lhs = I - beta[step] * dt * L
         rk_mat_lhs = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
-        return np.linalg.inv(rk_mat_lhs)
+        return jnp.linalg.inv(rk_mat_lhs)
         # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz])
 
     def get_rk_mats_rhs(self, step: int, kx: int, kz: int) -> "np_jnp_array":
@@ -274,7 +274,7 @@ class NavierStokesVelVort(Equation):
         ) = domain.enforce_inhomogeneous_dirichlet_jnp(
             lhs_mat_inhom, rhs_inhom, 0.0, 1.0
         )
-        lhs_mat_inv_inhom = np.linalg.inv(lhs_mat_inhom)
+        lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom)
         return lhs_mat_inv_inhom
         # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[step, kx, kz])
 
@@ -311,7 +311,7 @@ class NavierStokesVelVort(Equation):
         I_ns = np.eye(2 * n)
         L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
         lhs_mat_ns = I_ns - beta[step] * dt * L_ns
-        lhs_mat_inv_ns = np.linalg.inv(lhs_mat_ns)
+        lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
         return lhs_mat_inv_ns
         # return cast("np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step])
 
