@@ -2003,8 +2003,8 @@ def run_optimisation_transient_growth_nonlinear_3d(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        # add_noise=False,
-        add_noise=True,
+        add_noise=False,
+        # add_noise=True,
         noise_amplitude=1e-3,
     )
     optimiser.optimise()
@@ -2444,14 +2444,14 @@ def run_ld_2021(
         dealias_nonperiodic=False,
     )
 
-    coarse_domain = PhysicalDomain.create(
-        (Nx, Ny - Ny // 3, Nz),
-        # (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
-        aliasing=1,
-    )
-    # coarse_domain = domain
+    # coarse_domain = PhysicalDomain.create(
+    #     (Nx, Ny - Ny // 3, Nz),
+    #     # (Nx, Ny, Nz),
+    #     (True, False, True),
+    #     scale_factors=(1.87, 1.0, 0.93),
+    #     aliasing=1,
+    # )
+    coarse_domain = domain
     avg_vel_coeffs = np.loadtxt(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
@@ -2667,34 +2667,12 @@ def run_ld_2021(
         use_optax=min_number_of_optax_steps >= 0,
         min_optax_steps=min_number_of_optax_steps,
         objective_fn_name="gain",
-        add_noise=True,
-        # add_noise=False,
+        # add_noise=True,
+        add_noise=False,
         noise_amplitude=1e-6,
         learning_rate=1e-6,
     )
     optimiser.optimise()
-    # gain, corr = jax.value_and_grad(optimiser.run_fn)(optimiser.parameters)
-
-    # raise Exception("break")
-    # U_norm = v0_0.normalize_by_energy()
-    # U_norm *= e_0
-    # # U_norm.set_name("vel_norm")
-    # # U_norm.plot_3d(2)
-    # nse = NavierStokesVelVortPerturbation.FromVelocityField(
-    #     U_norm, Re=Re, dt=dt, velocity_base_hat=vel_base.hat()
-    # )
-    # nse.activate_jit()
-    # nse.end_time = end_time_
-    # gain_dual, corr_dual = perform_step_navier_stokes_perturbation_dual(nse)
-    # print_verb(gain)
-    # print_verb(gain_dual)
-
-    # corr_field = optimiser.parameters_to_run_input(corr)
-    # corr_field.print_3d(2)
-
-    # corr_dual_field = VectorField.FromData(FourierField, nse.get_physical_domain, corr_field)
-
-    # corr_dual_field.plot_3d(2)
 
 
 def run_white_noise() -> None:
@@ -2935,7 +2913,7 @@ def run_optimisation_transient_growth_dual(
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-2
-    end_time = T
+    end_time = dt * 2
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
