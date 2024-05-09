@@ -48,19 +48,19 @@ def update_nonlinear_terms_high_performance(
     vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vel_hat_new.at[i].get())
-            )
-            # fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            # )
+            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vort_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vort_hat_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
@@ -895,13 +895,13 @@ class NavierStokesVelVort(Equation):
         for step in range(number_of_rk_steps):
 
             # filter out high wavenumbers to dealias
-            vel_hat_data = jnp.array(
-                [
-                    self.get_domain().filter_field_fourier_only(vel_hat_data[i])
-                    # self.get_domain().filter_field(vel_hat_data[i])
-                    for i in self.all_dimensions()
-                ]
-            )
+            # vel_hat_data = jnp.array(
+            #     [
+            #         self.get_domain().filter_field_fourier_only(vel_hat_data[i])
+            #         # self.get_domain().filter_field(vel_hat_data[i])
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
             # update nonlinear terms
             (
                 h_v_hat,

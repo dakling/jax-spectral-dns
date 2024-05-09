@@ -123,7 +123,7 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        shape = tuple(
+        physical_shape = tuple(
             (
                 int(
                     shape[i]
@@ -144,15 +144,23 @@ class Domain(ABC):
             )
             for i in range(len(shape))
         )
+        shape = tuple(
+            (
+                int(shape[i])
+                if not periodic_directions[i] or int(shape[i]) % 2 != 0
+                else int(shape[i]) + 1
+            )
+            for i in range(len(shape))
+        )
         grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):
             if periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
-                grid.append(get_fourier_grid(shape[dim], scale_factors_[dim]))
+                grid.append(get_fourier_grid(physical_shape[dim], scale_factors_[dim]))
                 diff_mats.append(
-                    assemble_fourier_diff_mat(N=shape[dim], order=1)
+                    assemble_fourier_diff_mat(N=physical_shape[dim], order=1)
                     * (2 * np.pi)
                     / scale_factors_[dim]
                 )
@@ -584,7 +592,11 @@ class PhysicalDomain(Domain):
         )
 
         Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
-        ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
+        ks = [
+            int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
+            for i in self.all_dimensions()
+        ]
+
         for i in self.all_periodic_dimensions():
             out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
             out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
@@ -941,8 +953,8 @@ class FourierDomain(Domain):
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
-                # field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
-                field_1.shape[dim] if dim != i else int(Ns[i] * 0)
+                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
+                # field_1.shape[dim] if dim != i else int(Ns[i] * 0)
                 for dim in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)
