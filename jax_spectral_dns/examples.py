@@ -3083,6 +3083,7 @@ def run_optimisation_transient_growth_dual(
         v0.set_time_step(i)
         v0.plot_3d(2)
         old_gain = gain
+        raise Exception("break")
 
 
 def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:
