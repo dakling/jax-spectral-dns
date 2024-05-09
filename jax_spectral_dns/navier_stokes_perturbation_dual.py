@@ -174,6 +174,7 @@ def perform_step_navier_stokes_perturbation_dual(
     dt = nse.get_dt()
 
     v_hat_initial = -1 * u_hat_final
+    v_hat_initial.set_name("velocity_hat")
     # TODO add constructor taking only nse as input argument
     nse_dual = NavierStokesVelVortPerturbationDual(
         v_hat_initial, velocity_u_hat_history, Re=Re, dt=dt

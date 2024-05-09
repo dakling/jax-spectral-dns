@@ -282,7 +282,9 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _: Optional[Any] = None) -> Any:
+    def perform_time_step(
+        self, _: Optional[Any] = None, time_step: Optional[int] = None
+    ) -> Any:
         raise NotImplementedError()
 
     def set_before_time_step_fn(self: E, fn: Optional[Callable[[E], None]]) -> None:
