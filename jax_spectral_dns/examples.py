@@ -2913,7 +2913,7 @@ def run_optimisation_transient_growth_dual(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
-    dt = 1e-2
+    dt = 1e-3
     # end_time = dt * 100
     end_time = T
     number_of_modes = 20  # deliberately low value so that there is room for improvement
@@ -3023,7 +3023,7 @@ def run_optimisation_transient_growth_dual(
 
     def run_adjoint(
         U_hat_: "VectorField[FourierField]",
-    ) -> Tuple[jsd_float, "jnp_array", NavierStokesVelVortPerturbation]:
+    ) -> Tuple[jsd_float, "jnp_array"]:
         U_hat_.set_name("velocity_hat")
         # U = U_hat_.no_hat()
         # U.update_boundary_conditions()
@@ -3033,12 +3033,11 @@ def run_optimisation_transient_growth_dual(
         # U_norm_hat.set_name("velocity_hat")
 
         # nse = NavierStokesVelVortPerturbation(U_norm_hat, Re=Re, dt=dt)
-        nse = NavierStokesVelVortPerturbation(U_hat_, Re=Re, dt=dt)
+        nse = NavierStokesVelVortPerturbation(U_hat_, Re=Re, dt=dt, end_time=end_time)
         nse.set_linearize(True)
-        nse.end_time = end_time
 
         gain, corr = perform_step_navier_stokes_perturbation_dual(nse, eps)
-        return gain, corr, nse
+        return gain, corr
 
     run_input_initial = v0_0_hat
 
@@ -3067,7 +3066,7 @@ def run_optimisation_transient_growth_dual(
         # nse.set_linearize(True)
         # nse.end_time = end_time
 
-        gain, corr, nse = run_adjoint(v0_hat)
+        gain, corr = run_adjoint(v0_hat)
 
         corr_field: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, corr, name="corr_hat"
@@ -3110,7 +3109,12 @@ def run_optimisation_transient_growth_dual(
         v0.plot_3d(2)
         old_gain = gain
 
+    nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
+    nse.set_linearize(True)
     nse.set_post_process_fn(post_process)
+    nse.write_intermediate_output = True
+    nse.activate_jit()
+    nse.solve()
     nse.post_process()
 
 
