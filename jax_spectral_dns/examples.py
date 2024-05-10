@@ -2938,7 +2938,7 @@ def run_optimisation_transient_growth_dual(
         save_final=False,
     )
 
-    eps = 1e-1  # step size
+    eps = 1e-2  # step size
 
     e_0 = 1e-0
     v0_0_norm = v0_0.normalize_by_energy()
@@ -3110,6 +3110,7 @@ def run_optimisation_transient_growth_dual(
         v0.plot_3d(2)
         old_gain = gain
 
+    nse.set_post_process_fn(post_process)
     nse.post_process()
 
 
