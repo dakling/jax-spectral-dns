@@ -518,10 +518,14 @@ class VectorField(Generic[T]):
         return out
 
     def hat(self: VectorField[PhysicalField]) -> VectorField[FourierField]:
-        return VectorField([f.hat() for f in self])
+        out = VectorField([f.hat() for f in self])
+        out.set_name(out.get_name())
+        return out
 
     def no_hat(self: VectorField[FourierField]) -> VectorField[PhysicalField]:
-        return VectorField([f.no_hat() for f in self])
+        out = VectorField([f.no_hat() for f in self])
+        out.set_name(out.get_name())
+        return out
 
     def plot(self, *other_fields: VectorField[PhysicalField]) -> None:
         try:

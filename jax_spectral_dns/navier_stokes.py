@@ -121,8 +121,6 @@ class NavierStokesVelVort(Equation):
 
         dt = params.get("dt", 1e-2)
 
-        self.end_time = params.get("end_time", -1.0)
-
         max_cfl = params.get("max_cfl", 0.7)
 
         try:
@@ -138,7 +136,7 @@ class NavierStokesVelVort(Equation):
         ] = lambda vel, _: update_nonlinear_terms_high_performance(
             self.get_physical_domain(), self.get_domain(), vel
         )
-        super().__init__(domain, velocity_field, dt=dt)
+        super().__init__(domain, velocity_field, **params)
 
         poisson_mat = domain.assemble_poisson_matrix()
         (

@@ -25,7 +25,6 @@ setup(
         "contributing": [
             "mypy",
             "pytest",
-            "pytest-xdist",
             "black",
             "pre-commit",  # for automatic formatting
         ],

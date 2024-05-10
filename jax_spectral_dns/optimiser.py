@@ -110,6 +110,7 @@ class Optimiser(ABC, Generic[I]):
         self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
             run_fn(self.parameters_to_run_input_(v), out)
         )
+        self.value_and_grad_fn = jax.value_and_grad(self.run_fn)
         self.objective_fn_name = params.get("objective_fn_name", "objective function")
         if max_iter > 0:
             if use_optax:
@@ -190,13 +191,13 @@ class Optimiser(ABC, Generic[I]):
         )
         opt = optax.adam(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
-            opt=opt, fun=jax.value_and_grad(self.run_fn), value_and_grad=True, jit=True
+            opt=opt, fun=self.value_and_grad_fn, value_and_grad=True, jit=True
         )
         return solver
 
     def get_jaxopt_solver(self) -> jaxopt.LBFGS:
         solver = jaxopt.LBFGS(
-            jax.value_and_grad(self.run_fn),
+            self.value_and_grad_fn,
             value_and_grad=True,
             implicit_diff=True,
             jit=True,

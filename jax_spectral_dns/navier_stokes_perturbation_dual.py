@@ -10,6 +10,7 @@ from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from typing import TYPE_CHECKING, Any, Tuple, cast, List
+from typing_extensions import Self
 
 # from importlib import reload
 import sys
@@ -46,19 +47,19 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     vort_u_hat = fourier_domain.curl(vel_u_hat + vel_base_hat)
     vel_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vel_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vel_hat_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
     vort_u_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vort_u_hat[i])
-            )
-            # fourier_domain.field_no_hat(vort_u_hat[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_u_hat[i])
+            # )
+            fourier_domain.field_no_hat(vort_u_hat[i])
             for i in physical_domain.all_dimensions()
         ]
     )
@@ -91,10 +92,10 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     )
 
     return (
-        h_v_hat_new * 0,  # TODO
-        h_g_hat_new * 0,
+        h_v_hat_new * 1,  # TODO
+        h_g_hat_new * 1,
         jnp.array(vort_hat_new),
-        jnp.array(conv_ns_hat_new) * 0,
+        jnp.array(conv_ns_hat_new) * 1,
     )
 
 
@@ -107,6 +108,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         velocity_field_u_history: "jnp_array",
         **params: Any,
     ):
+
+        self.epsilon = params.get("epsilon", 1e-5)
 
         super().__init__(velocity_field, **params)
         # self.add_field_history("velocity_u_hat", velocity_field_u_history)
@@ -128,68 +131,129 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             )
         )
 
-    def get_Re_tau(self) -> "jsd_float":
-        return -self.nse_fixed_parameters.Re_tau
+    @classmethod
+    def FromNavierStokesVelVortPerturbation(
+        cls, nse: NavierStokesVelVortPerturbation
+    ) -> Self:
 
-    def get_dt(self) -> "jsd_float":
-        # return self.fixed_parameters.dt
-        return -self.fixed_parameters.dt  # TODO
+        nse.write_entire_output = True
+        nse.write_intermediate_output = False
 
-    def prepare_assemble_rk_matrices(
-        self,
-        domain: FourierDomain,
-        physical_domain: PhysicalDomain,
-        Re_tau: "jsd_float",
-        dt: "jsd_float",
-    ) -> Tuple["np_complex_array", ...]:
-        return super().prepare_assemble_rk_matrices(
-            # domain, physical_domain, -Re_tau, dt
-            domain,
-            physical_domain,
-            -Re_tau,
-            -dt,  # TODO
+        velocity_u_hat_history_, _ = nse.solve_scan()
+        velocity_u_hat_history = cast("jnp_array", velocity_u_hat_history_)
+        u_hat_final = nse.get_latest_field("velocity_hat")
+        u_hat_final.set_name("velocity_hat")
+
+        Re_tau = nse.get_Re_tau()
+        dt = nse.get_dt()
+        end_time = nse.end_time
+
+        v_hat_initial = -1 * u_hat_final
+        v_hat_initial.set_name("velocity_hat")
+        nse_dual = cls(
+            v_hat_initial,
+            velocity_u_hat_history,
+            Re_tau=-Re_tau,
+            dt=-dt,
+            end_time=-end_time,
         )
+        nse_dual.set_linearize(nse.linearize)
+        return nse_dual
+
+    # def get_Re_tau(self) -> "jsd_float":
+    #     return -self.nse_fixed_parameters.Re_tau
+
+    # def get_dt(self) -> "jsd_float":
+    #     # return self.fixed_parameters.dt
+    #     return -self.fixed_parameters.dt
+
+    # def prepare_assemble_rk_matrices(
+    #     self,
+    #     domain: FourierDomain,
+    #     physical_domain: PhysicalDomain,
+    #     Re_tau: "jsd_float",
+    #     dt: "jsd_float",
+    # ) -> Tuple["np_complex_array", ...]:
+    #     return super().prepare_assemble_rk_matrices(
+    #         domain,
+    #         physical_domain,
+    #         -Re_tau,
+    #         # dt,  # TODO
+    #         -dt,  # TODO
+    #     )
 
 
 def perform_step_navier_stokes_perturbation_dual(
-    nse: NavierStokesVelVortPerturbation,
-) -> Tuple[jsd_float, jnp_array]:
+    nse: NavierStokesVelVortPerturbation, eps: float
+) -> Tuple[jsd_float, "jnp_array"]:
 
-    domain = nse.get_physical_domain()
+    # nse.write_entire_output = True
+    # nse.write_intermediate_output = False
 
-    nse.write_entire_output = True
-    nse.write_intermediate_output = False
+    # # nse.set_post_process_fn(post_process)
+    # velocity_u_hat_history_, _ = nse.solve_scan()
+    # velocity_u_hat_history = cast("jnp_array", velocity_u_hat_history_)
+    # u_hat_final = nse.get_latest_field("velocity_hat")
+    # u_hat_final.set_name("velocity_hat")
 
-    # nse.set_post_process_fn(post_process)
-    velocity_u_hat_history_, _ = nse.solve_scan()
-    velocity_u_hat_history = cast("jnp_array", velocity_u_hat_history_)
-    u_hat_final = nse.get_latest_field("velocity_hat")
-    u_hat_final.set_name("velocity_hat")
+    # u_hat_initial = nse.get_initial_field("velocity_hat")
 
-    u_hat_initial = nse.get_initial_field("velocity_hat")
+    # gain = u_hat_final.no_hat().energy() / u_hat_initial.no_hat().energy()
 
-    gain = u_hat_final.no_hat().energy() / u_hat_initial.no_hat().energy()
+    # Re_tau = nse.get_Re_tau()
+    # dt = nse.get_dt()
 
-    Re = nse.get_Re_tau()
-    dt = nse.get_dt()
+    # v_hat_initial = -1 * u_hat_final
+    # # v_hat_initial = -1 * u_hat_initial # for testing only
+    # v_hat_initial.set_name("velocity_hat")
+    # # TODO add constructor taking only nse as input argument
+    # nse_dual = NavierStokesVelVortPerturbationDual(
+    #     v_hat_initial, velocity_u_hat_history, Re_tau=-Re_tau, dt=-dt, end_time=-nse.end_time
+    # )
 
-    v_hat_initial = -1 * u_hat_final
-    v_hat_initial.set_name("velocity_hat")
-    # TODO add constructor taking only nse as input argument
-    nse_dual = NavierStokesVelVortPerturbationDual(
-        v_hat_initial, velocity_u_hat_history, Re=Re, dt=dt
+    # nse_dual.end_time = nse.end_time
+    # nse_dual.end_time = -nse.end_time
+
+    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+        nse
     )
 
-    nse_dual.end_time = -nse.end_time
+    u_hat_initial = nse.get_initial_field("velocity_hat")
+    u_hat_final = nse.get_latest_field("velocity_hat")
+    gain = u_hat_final.no_hat().energy() / u_hat_initial.no_hat().energy()
 
+    nse_dual.epsilon = eps
     nse_dual.before_time_step_fn = None
     nse_dual.after_time_step_fn = None
     nse_dual.write_entire_output = False
     nse_dual.write_intermediate_output = False
+    nse_dual.activate_jit()
 
-    nse_dual.solve_scan()
+    nse_dual.solve()
 
+    e0 = 1.0
     vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
-    lam = 0
+    lam = 0.0  # TODO
+
+    def get_new_energy_0(l: float) -> float:
+        return cast(
+            float,
+            (
+                (1 + nse_dual.epsilon * l) * u_hat_initial
+                - nse_dual.epsilon * vel_v_0_hat
+            )
+            .no_hat()
+            .energy(),
+        )
+
+    print_verb("optimising lambda...")
+    i = 0
+    while abs(get_new_energy_0(lam) - e0) > 1e-20 and i < 1000:
+        lam = lam - (get_new_energy_0(lam) - e0) / jax.grad(get_new_energy_0)(lam)
+        i += 1
+    print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
+    print_verb("energy:", get_new_energy_0(lam))
+
+    # lam = - vel_v_0_hat.max() / u_hat_initial.max()
 
     return (gain, lam * u_hat_initial.get_data() - vel_v_0_hat.get_data())
