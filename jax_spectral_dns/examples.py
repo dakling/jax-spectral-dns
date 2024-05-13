@@ -2937,6 +2937,13 @@ def run_optimisation_transient_growth_dual(
         recompute_full=True,
         save_final=False,
     )
+    print_verb(
+        "expected energy gain:",
+        lsc.calculate_transient_growth_max_energy(T, number_of_modes),
+    )
+    print_verb(
+        "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
+    )
 
     eps = 1e-2  # step size
 
@@ -3107,6 +3114,7 @@ def run_optimisation_transient_growth_dual(
         v0.set_name("vel_0")
         v0.set_time_step(i)
         v0.plot_3d(2)
+        print_verb("v0 energy:", v0.energy())
         old_gain = gain
 
     nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
