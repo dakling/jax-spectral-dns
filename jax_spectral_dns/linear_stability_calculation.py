@@ -505,6 +505,12 @@ class LinearStabilityCalculation:
             self.S, _ = self.calculate_transient_growth_svd(
                 T, number_of_modes, save=False
             )
+        else:
+            assert self.S is not None
+            if self.S.shape[0] != number_of_modes:
+                self.S, _ = self.calculate_transient_growth_svd(
+                    T, number_of_modes, save=False
+                )
         assert self.S is not None
         return cast(float, self.S[0] ** 2)
 
@@ -570,6 +576,12 @@ class LinearStabilityCalculation:
                 self.S, factors = self.calculate_transient_growth_svd(
                     T, number_of_modes, save=False, recompute=recompute_full
                 )
+            else:
+                assert self.coeffs is not None
+                if self.coeffs.shape[0] != number_of_modes:
+                    self.S, factors = self.calculate_transient_growth_svd(
+                        T, number_of_modes, save=False, recompute=recompute_full
+                    )
 
             u = self.calculate_transient_growth_initial_condition_from_coefficients(
                 domain, factors, recompute_full
