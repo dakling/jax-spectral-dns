@@ -1149,7 +1149,7 @@ class NavierStokesVelVort(Equation):
         devices = mesh_utils.create_device_mesh((n,))
         mesh = jax.sharding.Mesh(devices, ("x",))
         sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
-        u0 = jax.device_put(self.get_latest_field("velocity_hat").get_data(), sharding)
+        u0 = jax.device_put(self.get_initial_field("velocity_hat").get_data(), sharding)
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 

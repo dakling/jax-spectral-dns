@@ -44,7 +44,9 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
-    vort_u_hat = fourier_domain.curl(vel_u_hat + vel_base_hat)
+    vort_u_hat = fourier_domain.curl(
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_u_hat + vel_base_hat
+    )
     vel_new = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
@@ -148,7 +150,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         dt = nse.get_dt()
         end_time = nse.end_time
 
-        v_hat_initial = -1 * u_hat_final
+        u_hat_initial = nse.get_initial_field("velocity_hat").no_hat()
+        e0 = u_hat_initial.energy()
+
+        v_hat_initial = -1 / e0 * u_hat_final
         v_hat_initial.set_name("velocity_hat")
         nse_dual = cls(
             v_hat_initial,
@@ -184,7 +189,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
 
 def perform_step_navier_stokes_perturbation_dual(
-    nse: NavierStokesVelVortPerturbation, eps: float
+    nse: NavierStokesVelVortPerturbation, step_size: float = 1e-2
 ) -> Tuple[jsd_float, "jnp_array"]:
 
     # nse.write_entire_output = True
@@ -220,9 +225,10 @@ def perform_step_navier_stokes_perturbation_dual(
 
     u_hat_initial = nse.get_initial_field("velocity_hat")
     u_hat_final = nse.get_latest_field("velocity_hat")
-    gain = u_hat_final.no_hat().energy() / u_hat_initial.no_hat().energy()
+    e0 = u_hat_initial.no_hat().energy()
+    gain = u_hat_final.no_hat().energy() / e0
 
-    nse_dual.epsilon = eps
+    nse_dual.epsilon = step_size
     nse_dual.before_time_step_fn = None
     nse_dual.after_time_step_fn = None
     nse_dual.write_entire_output = False
@@ -231,9 +237,8 @@ def perform_step_navier_stokes_perturbation_dual(
 
     nse_dual.solve()
 
-    e0 = 1.0
     vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
-    lam = 0.0  # TODO
+    lam = -gain / e0
 
     def get_new_energy_0(l: float) -> float:
         return cast(
@@ -253,7 +258,5 @@ def perform_step_navier_stokes_perturbation_dual(
         i += 1
     print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
     print_verb("energy:", get_new_energy_0(lam))
-
-    # lam = - vel_v_0_hat.max() / u_hat_initial.max()
 
     return (gain, lam * u_hat_initial.get_data() - vel_v_0_hat.get_data())
