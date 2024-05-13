@@ -238,7 +238,8 @@ def perform_step_navier_stokes_perturbation_dual(
     nse_dual.solve()
 
     vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
-    lam = -gain / e0
+    # lam = -gain / e0
+    lam = 0.0
 
     def get_new_energy_0(l: float) -> float:
         return cast(
@@ -254,7 +255,7 @@ def perform_step_navier_stokes_perturbation_dual(
     print_verb("optimising lambda...")
     i = 0
     while abs(get_new_energy_0(lam) - e0) > 1e-20 and i < 1000:
-        lam = lam - (get_new_energy_0(lam) - e0) / jax.grad(get_new_energy_0)(lam)
+        lam += -(get_new_energy_0(lam) - e0) / jax.grad(get_new_energy_0)(lam)
         i += 1
     print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
     print_verb("energy:", get_new_energy_0(lam))
