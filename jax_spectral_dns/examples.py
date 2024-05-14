@@ -3143,6 +3143,7 @@ def run_optimisation_transient_growth_dual(
             old_gain = cast(float, gain)
         else:
             v0_hat = v0_hat_old
+            gain = old_gain
             eps /= 1.5
             print_verb("repeating step with smaller step size")
         print_verb("")
