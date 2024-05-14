@@ -96,7 +96,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     return (
         h_v_hat_new * 1,  # TODO
         h_g_hat_new * 1,
-        jnp.array(vort_hat_new),
+        jnp.array(vort_hat_new) * 1,
         jnp.array(conv_ns_hat_new) * 1,
     )
 
@@ -114,7 +114,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self.epsilon = params.get("epsilon", 1e-5)
 
         super().__init__(velocity_field, **params)
-        # self.add_field_history("velocity_u_hat", velocity_field_u_history)
         self.velocity_field_u_history = velocity_field_u_history
 
     def set_linearize(self, lin: bool) -> None:
@@ -146,14 +145,20 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_hat_final = nse.get_latest_field("velocity_hat")
         u_hat_final.set_name("velocity_hat")
 
+        u_final = u_hat_final.no_hat()
+        u_final.set_name("vel_u_T_classmethod")
+        u_final.plot_3d(2)
+        u_final[0].plot_center(1)
+
         Re_tau = nse.get_Re_tau()
         dt = nse.get_dt()
         end_time = nse.end_time
 
-        u_hat_initial = nse.get_initial_field("velocity_hat").no_hat()
-        e0 = u_hat_initial.energy()
-
-        v_hat_initial = -1 / e0 * u_hat_final
+        v_hat_initial = -1 * u_hat_final
+        v_init = v_hat_initial.no_hat()
+        v_init.set_name("vel_v_T_classmethod")
+        v_init.plot_3d(2)
+        v_init[0].plot_center(1)
         v_hat_initial.set_name("velocity_hat")
         nse_dual = cls(
             v_hat_initial,
@@ -166,11 +171,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         return nse_dual
 
     # def get_Re_tau(self) -> "jsd_float":
-    #     return -self.nse_fixed_parameters.Re_tau
+    #     return -abs(self.nse_fixed_parameters.Re_tau)
 
     # def get_dt(self) -> "jsd_float":
     #     # return self.fixed_parameters.dt
-    #     return -self.fixed_parameters.dt
+    #     return -abs(self.fixed_parameters.dt)
 
     # def prepare_assemble_rk_matrices(
     #     self,
@@ -182,42 +187,15 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     #     return super().prepare_assemble_rk_matrices(
     #         domain,
     #         physical_domain,
-    #         -Re_tau,
+    #         -abs(Re_tau),
     #         # dt,  # TODO
-    #         -dt,  # TODO
+    #         -abs(dt),  # TODO
     #     )
 
 
 def perform_step_navier_stokes_perturbation_dual(
     nse: NavierStokesVelVortPerturbation, step_size: float = 1e-2
 ) -> Tuple[jsd_float, "jnp_array"]:
-
-    # nse.write_entire_output = True
-    # nse.write_intermediate_output = False
-
-    # # nse.set_post_process_fn(post_process)
-    # velocity_u_hat_history_, _ = nse.solve_scan()
-    # velocity_u_hat_history = cast("jnp_array", velocity_u_hat_history_)
-    # u_hat_final = nse.get_latest_field("velocity_hat")
-    # u_hat_final.set_name("velocity_hat")
-
-    # u_hat_initial = nse.get_initial_field("velocity_hat")
-
-    # gain = u_hat_final.no_hat().energy() / u_hat_initial.no_hat().energy()
-
-    # Re_tau = nse.get_Re_tau()
-    # dt = nse.get_dt()
-
-    # v_hat_initial = -1 * u_hat_final
-    # # v_hat_initial = -1 * u_hat_initial # for testing only
-    # v_hat_initial.set_name("velocity_hat")
-    # # TODO add constructor taking only nse as input argument
-    # nse_dual = NavierStokesVelVortPerturbationDual(
-    #     v_hat_initial, velocity_u_hat_history, Re_tau=-Re_tau, dt=-dt, end_time=-nse.end_time
-    # )
-
-    # nse_dual.end_time = nse.end_time
-    # nse_dual.end_time = -nse.end_time
 
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
@@ -235,11 +213,24 @@ def perform_step_navier_stokes_perturbation_dual(
     nse_dual.write_intermediate_output = False
     nse_dual.activate_jit()
 
-    nse_dual.solve()
+    if gain >= 0.0:
+        nse_dual.solve()
+    else:
+        print_verb("not solving dual problem due to gain decrease.")
 
     vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
     # lam = -gain / e0
     lam = 0.0
+
+    # # TODO
+    # vel_v_0 = vel_v_0_hat.no_hat()
+    # vel_v_0.set_name("vel_v0")
+    # vel_v_0.plot_3d(2)
+    # vel_v_0[0].plot_center(1)
+    # vel_v_0_T = nse_dual.get_initial_field("velocity_hat").no_hat()
+    # vel_v_0_T.set_name("vel_vT")
+    # vel_v_0_T.plot_3d(2)
+    # vel_v_0_T[0].plot_center(1)
 
     def get_new_energy_0(l: float) -> float:
         return cast(

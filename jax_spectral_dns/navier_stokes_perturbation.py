@@ -148,7 +148,7 @@ def update_nonlinear_terms_high_performance_perturbation(
     return (
         h_v_hat_new * 1,  # TODO
         h_g_hat_new * 1,
-        jnp.array(vort_hat_new),
+        jnp.array(vort_hat_new) * 1,
         jnp.array(conv_ns_hat_new) * 1,
     )
 

@@ -1220,7 +1220,7 @@ class NavierStokesVelVort(Equation):
                 [
                     FourierField(
                         self.get_physical_domain(),
-                        u_final[0][i],
+                        trajectory[0][-1][i],
                         name="velocity_hat_" + "xyz"[i],
                     )
                     for i in self.all_dimensions()

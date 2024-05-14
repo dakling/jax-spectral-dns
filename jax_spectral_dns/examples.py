@@ -651,7 +651,7 @@ def run_pseudo_2d_perturbation(
     # Ny = float(Ny)
     # Nz = float(Nz)
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=96)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
 
     if not rotated:
         nse = solve_navier_stokes_perturbation(
@@ -2914,9 +2914,9 @@ def run_optimisation_transient_growth_dual(
     number_of_steps = int(number_of_steps)
     min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-3
-    # end_time = dt * 100
+    # end_time = dt * 1
     end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
+    number_of_modes = 15  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     # aliasing = 3 / 2
@@ -2937,19 +2937,25 @@ def run_optimisation_transient_growth_dual(
         recompute_full=True,
         save_final=False,
     )
-    print_verb(
-        "expected energy gain:",
-        lsc.calculate_transient_growth_max_energy(T, number_of_modes),
-    )
-    print_verb(
-        "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
-    )
+    # v0_0_x = PhysicalField.FromFunc(domain, lambda X: jnp.cos(X[2] * 2 * jnp.pi / scale_factors[2]) * (1 - X[1] ** 2))
+    # v0_0_y = PhysicalField.FromFunc(domain, lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
+    # v0_0_z = PhysicalField.FromFunc(domain, lambda X: 0.1 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
+    # v0_0 = VectorField([v0_0_x, v0_0_y, v0_0_z])
 
-    eps = 1e-2  # step size
+    # print_verb(
+    #     "expected energy gain:",
+    #     lsc.calculate_transient_growth_max_energy(T, number_of_modes),
+    # )
+    # print_verb(
+    #     "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
+    # )
 
-    e_0 = 1e-0
+    e_0 = 1e-6
+    # e_0 = 1.0
+    # eps = 1e-2 * e_0  # step size
+    eps = 1e-1  # step size
     v0_0_norm = v0_0.normalize_by_energy()
-    v0_0_norm *= e_0
+    v0_0_norm *= e_0 ** (1 / 2)
     v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
@@ -2967,6 +2973,7 @@ def run_optimisation_transient_growth_dual(
         vort[2].plot_3d(2)
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
+        vel[0].plot_center(1, nse.get_initial_field("velocity_hat").no_hat()[0])
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
@@ -3002,15 +3009,16 @@ def run_optimisation_transient_growth_dual(
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
-        U_norm *= e_0
+        U_norm *= e_0 ** (1 / 2)
 
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
+
+        # nse = NavierStokesVelVortPerturbation(U_hat, dt=dt, Re=Re)
         nse.end_time = end_time
 
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
+        nse.set_linearize(False)
+        # nse.set_linearize(True)
 
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         nse.activate_jit()
         if out:
             nse.write_intermediate_output = True
@@ -3025,7 +3033,7 @@ def run_optimisation_transient_growth_dual(
         if out:
             nse.post_process()
 
-        gain = vel.energy() / vel_0.energy()
+        gain = vel.energy() / U_norm.energy()
         return gain
 
     def run_adjoint(
@@ -3041,7 +3049,8 @@ def run_optimisation_transient_growth_dual(
 
         # nse = NavierStokesVelVortPerturbation(U_norm_hat, Re=Re, dt=dt)
         nse = NavierStokesVelVortPerturbation(U_hat_, Re=Re, dt=dt, end_time=end_time)
-        nse.set_linearize(True)
+        # nse.set_linearize(True)
+        nse.set_linearize(False)
 
         gain, corr = perform_step_navier_stokes_perturbation_dual(nse, eps)
         return gain, corr
@@ -3070,8 +3079,10 @@ def run_optimisation_transient_growth_dual(
         print_verb("iteration", i + 1, "of", number_of_steps)
         # v0_hat.set_name("velocity_hat")
         # nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt)
-        # nse.set_linearize(True)
+        # nse.set_linearize(False)
         # nse.end_time = end_time
+        # nse.activate_jit()
+        # nse.solve()
 
         gain, corr = run_adjoint(v0_hat)
 
@@ -3081,41 +3092,59 @@ def run_optimisation_transient_growth_dual(
         corr_nh = corr_field.no_hat()
         corr_nh.set_name("corr")
         corr_nh.plot_3d(2)
+        corr_nh[0].plot_center(1)
 
+        # vel_initial_hat = nse.get_initial_field("velocity_hat")
+        # vel_initial = vel_initial_hat.no_hat()
+        # vel_initial.set_name("vel_initial")
+        # vel_initial.plot_3d(2)
         # vel_final_hat = nse.get_latest_field("velocity_hat")
-        # vel_final_hat.no_hat().plot_3d(2)
+        # vel_final = vel_final_hat.no_hat()
+        # vel_final.set_name("vel_final")
+        # vel_final.plot_3d(2)
 
         # print_verb("diff:", (vel_final_hat - corr).no_hat().energy())
 
+        # run_case(v0_hat.get_data(), True)
         # gain_, corr_ = jax.value_and_grad(run_case)(v0_hat.get_data())
         # corr_field_: VectorField[FourierField] = VectorField.FromData(
         #     FourierField, domain, corr_, name="corr_hat_"
         # )
         # corr_nh_ = corr_field_.no_hat()
-        # corr_nh_.set_name("corr_")
+        # corr_nh_.set_name("corr_jax")
         # corr_nh_.plot_3d(2)
+        # corr_nh_[0].plot_center(1)
 
         # diff_field = corr_nh - corr_nh_
         # diff_field.set_name("diff")
         # diff_field.plot_3d(2)
-
-        v0_hat = VectorField.FromData(
-            FourierField, domain, v0_hat.get_data() + eps * corr, name="velocity_hat"
-        )
 
         print_verb("")
         print_verb("gain:", gain)
         # print_verb("gain_:", gain_)
         if old_gain is not None:
             print_verb("gain change:", gain - old_gain)
+            if gain - old_gain >= 0.0:
+                v0_hat = VectorField.FromData(
+                    FourierField,
+                    domain,
+                    v0_hat.get_data() + eps * corr,
+                    name="velocity_hat",
+                )
+                eps *= 1.2
+            else:
+                eps /= 1.2
+                print_verb("repeating step with smaller step size")
         print_verb("")
 
         v0 = v0_hat.no_hat()
         v0.set_name("vel_0")
         v0.set_time_step(i)
         v0.plot_3d(2)
+        v0[0].plot_center(1)
         print_verb("v0 energy:", v0.energy())
         old_gain = gain
+        raise Exception("break")
 
     nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
     nse.set_linearize(True)

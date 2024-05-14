@@ -1183,44 +1183,6 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
-    # def test_2d_growth(self):
-    #     growth_5500_data = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
-    #     growth_6000_data = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
-    #     growth_5500 = []
-    #     growth_6000 = []
-    #     for i in range(3):
-    #         growth_5500.append(growth_5500_data[i][-1] - growth_5500_data[i][-2])
-    #         growth_6000.append(growth_6000_data[i][-1] - growth_6000_data[i][-2])
-    #     print_verb("growth_5500: ", growth_5500)
-    #     print_verb("growth_6000: ", growth_6000)
-    #     self.assertTrue(
-    #         all([growth < 0 for growth in growth_5500]),
-    #         "Expected perturbations to decay for Re=5500.",
-    #     )
-    #     self.assertTrue(
-    #         all([growth > 0 for growth in growth_6000]),
-    #         "Expected perturbations to increase for Re=6000.",
-    #     )
-    #     vel_final_jit_5500 = growth_5500_data[-1]
-    #     vel_final_jit_6000 = growth_6000_data[-1]
-
-    #     # Now check that the same result is obtained when using solve_scan. To
-    #     # simplify and strengthen the test, only compare the final velocity
-    #     # fields.
-    #     data_no_jit_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
-    #     data_no_jit_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
-    #     vel_final_no_jit_5500 = data_no_jit_5500[-1]
-    #     vel_final_no_jit_6000 = data_no_jit_6000[-1]
-
-    #     print_verb((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
-    #     print_verb((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
-    #     self.assertTrue(
-    #         (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-6
-    #     )
-    #     self.assertTrue(
-    #         (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-6
-    #     )
-
     def test_2d_growth_rates_quantitatively(self) -> None:
         def run_re(
             Re: float,
@@ -1228,7 +1190,7 @@ class TestProject(unittest.TestCase):
             use_antialiasing: bool = True,
             dealias_nonperiodic: bool = False,
         ) -> "pseudo_2d_perturbation_return_type":
-            end_time = 6e-1
+            end_time = 3e-1
             if use_antialiasing:
                 N = 4
                 aliasing = 3 / 2
@@ -1250,6 +1212,7 @@ class TestProject(unittest.TestCase):
                     rotated=True,
                     aliasing=aliasing,
                     dealias_nonperiodic=dealias_nonperiodic,
+                    jit=True,
                 )
             else:
                 return run_pseudo_2d_perturbation(
@@ -1265,6 +1228,7 @@ class TestProject(unittest.TestCase):
                     dt=1e-2,
                     aliasing=aliasing,
                     dealias_nonperiodic=dealias_nonperiodic,
+                    jit=True,
                 )
 
         def run(

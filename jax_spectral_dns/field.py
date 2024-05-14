@@ -1909,9 +1909,12 @@ class FourierField(Field):
         if isinstance(other, Field):
             assert isinstance(
                 other, FourierField
-            ), "Attempted to multiply a Fourier Field and a Field."
+            ), "Attempted to multiply a FourierField and a PhysicalField."
 
         if isinstance(other, FourierField):
+            raise Exception(
+                "multiplication of FourierField and FourierField detected - this should probably be done in physical space."
+            )
             if self.activate_jit_:
                 new_name = ""
             else:
