@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import TYPE_CHECKING, Any, Tuple, cast, List
+from typing import TYPE_CHECKING, Any, Optional, Tuple, cast, List
 from typing_extensions import Self
 
 # from importlib import reload
@@ -194,17 +194,22 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
 
 def perform_step_navier_stokes_perturbation_dual(
-    nse: NavierStokesVelVortPerturbation, step_size: float = 1e-2
+    nse: NavierStokesVelVortPerturbation,
+    step_size: float = 1e-2,
+    old_gain: Optional[float] = None,
 ) -> Tuple[jsd_float, "jnp_array"]:
 
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-
     u_hat_initial = nse.get_initial_field("velocity_hat")
     u_hat_final = nse.get_latest_field("velocity_hat")
     e0 = u_hat_initial.no_hat().energy()
     gain = u_hat_final.no_hat().energy() / e0
+
+    if old_gain is not None and gain - old_gain < 0.0:
+        print_verb("not solving dual problem due to gain decrease.")
+        return (gain, jnp.zeros_like(u_hat_initial.get_data()))
 
     nse_dual.epsilon = step_size
     nse_dual.before_time_step_fn = None
@@ -212,25 +217,11 @@ def perform_step_navier_stokes_perturbation_dual(
     nse_dual.write_entire_output = False
     nse_dual.write_intermediate_output = False
     nse_dual.activate_jit()
-
-    if gain >= 0.0:
-        nse_dual.solve()
-    else:
-        print_verb("not solving dual problem due to gain decrease.")
+    nse_dual.solve()
 
     vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
     # lam = -gain / e0
     lam = 0.0
-
-    # # TODO
-    # vel_v_0 = vel_v_0_hat.no_hat()
-    # vel_v_0.set_name("vel_v0")
-    # vel_v_0.plot_3d(2)
-    # vel_v_0[0].plot_center(1)
-    # vel_v_0_T = nse_dual.get_initial_field("velocity_hat").no_hat()
-    # vel_v_0_T.set_name("vel_vT")
-    # vel_v_0_T.plot_3d(2)
-    # vel_v_0_T[0].plot_center(1)
 
     def get_new_energy_0(l: float) -> float:
         return cast(
