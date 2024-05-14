@@ -2,6 +2,11 @@
 from __future__ import annotations
 
 import sys
+
+try:
+    from humanfriendly import format_timespan  # type: ignore
+except ModuleNotFoundError:
+    pass
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -2941,27 +2946,28 @@ def run_optimisation_transient_growth_dual(
         "expected energy gain:",
         lsc.calculate_transient_growth_max_energy(T, number_of_modes),
     )
-    v0_0_linear = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        60,
-        recompute_full=True,
-        save_final=False,
-    )
-    print_verb(
-        "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
-    )
-    v0_0_linear.set_name("vel_lin_opt")
-    v0_0_linear.plot_3d(2)
+    # v0_0_linear = lsc.calculate_transient_growth_initial_condition(
+    #     domain,
+    #     T,
+    #     60,
+    #     recompute_full=True,
+    #     save_final=False,
+    # )
+    # print_verb(
+    #     "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
+    # )
+    # v0_0_linear.set_name("vel_lin_opt")
+    # v0_0_linear.plot_3d(2)
+
     # v0_0_x = PhysicalField.FromFunc(domain, lambda X: jnp.cos(X[2] * 2 * jnp.pi / scale_factors[2]) * (1 - X[1] ** 2))
     # v0_0_y = PhysicalField.FromFunc(domain, lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
     # v0_0_z = PhysicalField.FromFunc(domain, lambda X: 0.1 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
     # v0_0 = VectorField([v0_0_x, v0_0_y, v0_0_z])
 
-    e_0 = 1e-6
+    e_0 = 1e-9
     # e_0 = 1.0
-    eps = 1e-2 * e_0  # step size
-    # eps = 1e-0  # step size
+    # eps = 1e-2 * e_0  # step size
+    eps = 1e-1  # step size
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0 ** (1 / 2)
     v0_0_hat = v0_0_norm.hat()
@@ -3048,14 +3054,7 @@ def run_optimisation_transient_growth_dual(
         U_hat_: "VectorField[FourierField]", old_gain: Optional[float]
     ) -> Tuple[jsd_float, "jnp_array"]:
         U_hat_.set_name("velocity_hat")
-        # U = U_hat_.no_hat()
-        # U.update_boundary_conditions()
-        # U_norm = U.normalize_by_energy()
-        # U_norm *= e_0
-        # U_norm_hat = U_norm.hat()
-        # U_norm_hat.set_name("velocity_hat")
 
-        # nse = NavierStokesVelVortPerturbation(U_norm_hat, Re=Re, dt=dt)
         nse = NavierStokesVelVortPerturbation(U_hat_, Re=Re, dt=dt, end_time=end_time)
         # nse.set_linearize(True)
         nse.set_linearize(False)
@@ -3081,19 +3080,15 @@ def run_optimisation_transient_growth_dual(
     # optimiser.value_and_grad_fn = lambda prms: run_adjoint(optimiser.parameters_to_run_input(prms))
     # optimiser.optimise()
 
-    max_eps = 1e10
+    # max_eps = 1e10
+    max_eps = 0.999
 
     old_gain = None
     v0_hat = v0_0_hat
     for i in range(number_of_steps):
+        start_time = time.time()
         print_verb("iteration", i + 1, "of", number_of_steps)
         print_verb("step size:", eps)
-        # v0_hat.set_name("velocity_hat")
-        # nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt)
-        # nse.set_linearize(False)
-        # nse.end_time = end_time
-        # nse.activate_jit()
-        # nse.solve()
 
         gain, corr = run_adjoint(v0_hat, old_gain)
 
@@ -3143,6 +3138,7 @@ def run_optimisation_transient_growth_dual(
                 name="velocity_hat",
             )
             eps = min(1.5 * eps, max_eps)
+            old_gain = gain
         else:
             eps /= 1.5
             print_verb("repeating step with smaller step size")
@@ -3163,7 +3159,12 @@ def run_optimisation_transient_growth_dual(
             v0_hat = v0.hat()
             v0_hat.set_name("velocity_hat")
 
-        old_gain = gain
+        iteration_duration = time.time() - start_time
+        try:
+            print_verb("iteration took", format_timespan(iteration_duration))
+        except Exception:
+            print_verb("iteration took", iteration_duration, "seconds")
+        print_verb("\n")
 
     nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
     nse.set_linearize(True)

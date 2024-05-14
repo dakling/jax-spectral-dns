@@ -170,6 +170,38 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         nse_dual.set_linearize(nse.linearize)
         return nse_dual
 
+    def get_cfl(self, i: int = -1) -> "jnp_array":
+        dX = (
+            self.get_physical_domain().grid[0][1:]
+            - self.get_physical_domain().grid[0][:-1]
+        )
+        dY = (
+            self.get_physical_domain().grid[1][1:]
+            - self.get_physical_domain().grid[1][:-1]
+        )
+        dZ = (
+            self.get_physical_domain().grid[2][1:]
+            - self.get_physical_domain().grid[2][:-1]
+        )
+        DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+        vel_u_hat: VectorField[FourierField] = VectorField.FromData(
+            FourierField,
+            self.get_physical_domain(),
+            self.velocity_field_u_history[i, ...],
+        )
+        vel_u: VectorField[PhysicalField] = vel_u_hat.no_hat()
+        vel_base_hat: VectorField[FourierField] = self.get_latest_field(
+            "velocity_base_hat"
+        )
+        vel_base: VectorField[PhysicalField] = vel_base_hat.no_hat()
+        U = vel_u[0][1:, 1:, 1:] + vel_base[0][1:, 1:, 1:]
+        V = vel_u[1][1:, 1:, 1:] + vel_base[1][1:, 1:, 1:]
+        W = vel_u[2][1:, 1:, 1:] + vel_base[2][1:, 1:, 1:]
+        u_cfl = cast(float, (abs(DX) / abs(U)).min().real)
+        v_cfl = cast(float, (abs(DY) / abs(V)).min().real)
+        w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
+        return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
+
     # def get_Re_tau(self) -> "jsd_float":
     #     return -abs(self.nse_fixed_parameters.Re_tau)
 
