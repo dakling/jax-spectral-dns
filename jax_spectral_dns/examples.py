@@ -2960,8 +2960,8 @@ def run_optimisation_transient_growth_dual(
 
     e_0 = 1e-6
     # e_0 = 1.0
-    # eps = 1e-2 * e_0  # step size
-    eps = 1e-0  # step size
+    eps = 1e-2 * e_0  # step size
+    # eps = 1e-0  # step size
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0 ** (1 / 2)
     v0_0_hat = v0_0_norm.hat()
@@ -3135,17 +3135,17 @@ def run_optimisation_transient_growth_dual(
         # print_verb("gain_:", gain_)
         if old_gain is not None:
             print_verb("gain change:", gain - old_gain)
-            if gain - old_gain >= 0.0:
-                v0_hat = VectorField.FromData(
-                    FourierField,
-                    domain,
-                    v0_hat.get_data() + eps * corr,
-                    name="velocity_hat",
-                )
-                eps = min(1.5 * eps, max_eps)
-            else:
-                eps /= 1.5
-                print_verb("repeating step with smaller step size")
+        if old_gain is None or gain - old_gain >= 0.0:
+            v0_hat = VectorField.FromData(
+                FourierField,
+                domain,
+                v0_hat.get_data() + eps * corr,
+                name="velocity_hat",
+            )
+            eps = min(1.5 * eps, max_eps)
+        else:
+            eps /= 1.5
+            print_verb("repeating step with smaller step size")
         print_verb("")
 
         v0 = v0_hat.no_hat()
@@ -3153,7 +3153,16 @@ def run_optimisation_transient_growth_dual(
         v0.set_time_step(i)
         v0.plot_3d(2)
         v0[0].plot_center(1)
-        print_verb("v0 energy:", v0.energy())
+
+        energy = v0.energy()
+        print_verb("v0 energy:", energy)
+        if abs(energy - e_0) > 1e-10:
+            print_verb("WARNING: renormalizing v0")
+            v0 = v0.normalize_by_energy()
+            v0 *= e_0
+            v0_hat = v0.hat()
+            v0_hat.set_name("velocity_hat")
+
         old_gain = gain
 
     nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
