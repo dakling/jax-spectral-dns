@@ -3051,7 +3051,7 @@ def run_optimisation_transient_growth_dual(
         return gain
 
     def run_adjoint(
-        U_hat_: "VectorField[FourierField]", old_gain: Optional[float]
+        U_hat_: "VectorField[FourierField]", eps: float, old_gain: Optional[float]
     ) -> Tuple[jsd_float, "jnp_array"]:
         U_hat_.set_name("velocity_hat")
 
@@ -3085,12 +3085,13 @@ def run_optimisation_transient_growth_dual(
 
     old_gain = None
     v0_hat = v0_0_hat
+    v0_hat_old = v0_hat
     for i in range(number_of_steps):
         start_time = time.time()
         print_verb("iteration", i + 1, "of", number_of_steps)
         print_verb("step size:", eps)
 
-        gain, corr = run_adjoint(v0_hat, old_gain)
+        gain, corr = run_adjoint(v0_hat, eps, old_gain)
 
         corr_field: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, corr, name="corr_hat"
@@ -3131,6 +3132,7 @@ def run_optimisation_transient_growth_dual(
         if old_gain is not None:
             print_verb("gain change:", gain - old_gain)
         if old_gain is None or gain - old_gain >= 0.0:
+            v0_hat_old = v0_hat
             v0_hat = VectorField.FromData(
                 FourierField,
                 domain,
@@ -3138,8 +3140,9 @@ def run_optimisation_transient_growth_dual(
                 name="velocity_hat",
             )
             eps = min(1.5 * eps, max_eps)
-            old_gain = gain
+            old_gain = cast(float, gain)
         else:
+            v0_hat = v0_hat_old
             eps /= 1.5
             print_verb("repeating step with smaller step size")
         print_verb("")
