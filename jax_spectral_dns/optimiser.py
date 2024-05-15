@@ -36,7 +36,7 @@ from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPertu
 # sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
 
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array
+    from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array, jsd_array
 
 try:
     import optax  # type: ignore
@@ -60,8 +60,12 @@ class Optimiser(ABC, Generic[I]):
         self,
         calculation_domain: PhysicalDomain,
         optimisation_domain: PhysicalDomain,
-        run_fn: Callable[[I, bool], "jsd_float"],
+        run_fn: Union[
+            Callable[[I, bool], "jsd_float"],
+            Callable[[I, bool], Tuple["jsd_float", "jsd_array"]],
+        ],
         run_input_initial: Union[I, str],
+        value_and_grad: bool = False,
         minimise: bool = False,
         force_2d: bool = False,
         max_iter: int = 20,
@@ -107,10 +111,24 @@ class Optimiser(ABC, Generic[I]):
             self.inv_fn: Callable[["jsd_float"], "jsd_float"] = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
-            run_fn(self.parameters_to_run_input_(v), out)
-        )
-        self.value_and_grad_fn = jax.value_and_grad(self.run_fn)
+        if not value_and_grad:
+            run_fn_ = cast(Callable[[I, bool], "jsd_float"], run_fn)
+            self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
+                run_fn_(self.parameters_to_run_input_(v), out)
+            )
+            self.value_and_grad_fn = jax.value_and_grad(self.run_fn)
+        else:
+
+            def vg_fn(
+                v: "parameter_type", out: bool = False
+            ) -> Tuple["jsd_float", "jnp_array"]:
+                run_fn_ = cast(
+                    Callable[[I, bool], Tuple["jsd_float", "jnp_array"]], run_fn
+                )
+                obj, grad = run_fn_(self.parameters_to_run_input_(v), out)
+                return self.inv_fn(obj), grad
+
+            self.value_and_grad_fn = vg_fn
         self.objective_fn_name = params.get("objective_fn_name", "objective function")
         if max_iter > 0:
             if use_optax:

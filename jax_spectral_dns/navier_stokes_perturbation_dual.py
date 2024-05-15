@@ -106,30 +106,34 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def __init__(
         self,
-        velocity_field: VectorField[FourierField],
-        velocity_field_u_history: "jnp_array",
+        velocity_field: Optional[VectorField[FourierField]],
+        forward_equation: "NavierStokesVelVortPerturbation",
         **params: Any,
     ):
 
         self.epsilon = params.get("epsilon", 1e-5)
 
-        super().__init__(velocity_field, **params)
-        self.velocity_field_u_history = velocity_field_u_history
+        if velocity_field is None:
+            velocity_field_ = forward_equation.get_latest_field("velocity_hat") * 0.0
+        else:
+            velocity_field_ = velocity_field
+        velocity_field_.set_name("velocity_hat")
+        super().__init__(velocity_field_, **params)
+        self.velocity_field_u_history: Optional["jnp_array"] = None
+        self.forward_equation = forward_equation
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        self.nonlinear_update_fn = (
-            lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
-                self.get_physical_domain(),
-                self.get_domain(),
-                vel,
-                velocity_base_hat.get_data(),
-                self.velocity_field_u_history.at[-1 - t].get(),
-                linearize=self.linearize,
-            )
+        self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
+            self.get_physical_domain(),
+            self.get_domain(),
+            vel,
+            velocity_base_hat.get_data(),
+            self.velocity_field_u_history.at[-1 - t].get(),  # type: ignore[union-attr]
+            linearize=self.linearize,
         )
 
     @classmethod
@@ -140,29 +144,13 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         nse.write_entire_output = True
         nse.write_intermediate_output = False
 
-        velocity_u_hat_history_, _ = nse.solve_scan()
-        velocity_u_hat_history = cast("jnp_array", velocity_u_hat_history_)
-        u_hat_final = nse.get_latest_field("velocity_hat")
-        u_hat_final.set_name("velocity_hat")
-
-        u_final = u_hat_final.no_hat()
-        u_final.set_name("vel_u_T_classmethod")
-        u_final.plot_3d(2)
-        u_final[0].plot_center(1)
-
         Re_tau = nse.get_Re_tau()
         dt = nse.get_dt()
         end_time = nse.end_time
 
-        v_hat_initial = -1 * u_hat_final
-        v_init = v_hat_initial.no_hat()
-        v_init.set_name("vel_v_T_classmethod")
-        v_init.plot_3d(2)
-        v_init[0].plot_center(1)
-        v_hat_initial.set_name("velocity_hat")
         nse_dual = cls(
-            v_hat_initial,
-            velocity_u_hat_history,
+            None,
+            nse,
             Re_tau=-Re_tau,
             dt=-dt,
             end_time=-end_time,
@@ -184,6 +172,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             - self.get_physical_domain().grid[2][:-1]
         )
         DX, DY, DZ = jnp.meshgrid(dX, dY, dZ, indexing="ij")
+        assert self.velocity_field_u_history is not None
         vel_u_hat: VectorField[FourierField] = VectorField.FromData(
             FourierField,
             self.get_physical_domain(),
@@ -224,54 +213,79 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     #         -abs(dt),  # TODO
     #     )
 
+    def is_forward_calculation_done(self) -> bool:
+        return (
+            self.forward_equation.get_number_of_fields("velocity_hat") > 1
+            and type(self.velocity_field_u_history) is not NoneType
+        )
+
+    def is_backward_calculation_done(self) -> bool:
+        return self.get_number_of_fields("velocity_hat") > 1
+
+    def run_forward_calculation(self) -> None:
+        nse = self.forward_equation
+        nse.write_entire_output = True
+        nse.write_intermediate_output = False
+        if not self.is_forward_calculation_done():
+            velocity_u_hat_history_, _ = nse.solve_scan()
+            self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
+        self.set_field("velocity_hat", 0, -1 * nse.get_latest_field("velocity_hat"))
+        self.forward_equation = nse  # not sure if this is necessary
+
+    def run_backward_calculation(self) -> None:
+        if not self.is_backward_calculation_done():
+            self.run_forward_calculation()
+            self.before_time_step_fn = None
+            self.after_time_step_fn = None
+            self.write_entire_output = False
+            self.write_intermediate_output = False
+            self.activate_jit()
+            self.solve()
+
+    def get_gain(self) -> float:
+        self.run_forward_calculation()
+        u_0 = self.forward_equation.get_initial_field("velocity_hat").no_hat()
+        u_T = self.forward_equation.get_latest_field("velocity_hat").no_hat()
+        return u_T.energy() / u_0.energy()
+
+    def get_grad(self) -> "jnp_array":
+        self.run_backward_calculation()
+        u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
+        v_hat_0 = self.get_latest_field("velocity_hat")
+        gain = self.get_gain()
+        e_0 = u_hat_0.no_hat().energy()
+        return (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0
+
+    def get_projected_grad(self, step_size: float) -> "jnp_array":
+        self.run_backward_calculation()
+        u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
+        v_hat_0 = self.get_latest_field("velocity_hat")
+        e_0 = u_hat_0.no_hat().energy()
+        lam = 0.0
+
+        def get_new_energy_0(l: float) -> float:
+            return (
+                ((1 + step_size * l) * u_hat_0 - step_size * v_hat_0).no_hat().energy()
+            )
+
+        print_verb("optimising lambda...")
+        i = 0
+        while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < 1000:
+            lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
+            i += 1
+        print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
+        print_verb("energy:", get_new_energy_0(lam))
+        print_verb("e_0:", e_0)
+
+        return lam * u_hat_0.get_data() - v_hat_0.get_data()
+
 
 def perform_step_navier_stokes_perturbation_dual(
     nse: NavierStokesVelVortPerturbation,
     step_size: float = 1e-2,
-    old_gain: Optional[float] = None,
 ) -> Tuple[jsd_float, "jnp_array"]:
 
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    u_hat_initial = nse.get_initial_field("velocity_hat")
-    u_hat_final = nse.get_latest_field("velocity_hat")
-    e0 = u_hat_initial.no_hat().energy()
-    gain = u_hat_final.no_hat().energy() / e0
-
-    if old_gain is not None and gain - old_gain < 0.0:
-        print_verb("not solving dual problem due to gain decrease.")
-        return (gain, jnp.zeros_like(u_hat_initial.get_data()))
-
-    nse_dual.epsilon = step_size
-    nse_dual.before_time_step_fn = None
-    nse_dual.after_time_step_fn = None
-    nse_dual.write_entire_output = False
-    nse_dual.write_intermediate_output = False
-    nse_dual.activate_jit()
-    nse_dual.solve()
-
-    vel_v_0_hat = nse_dual.get_latest_field("velocity_hat")
-    # lam = -gain / e0
-    lam = 0.0
-
-    def get_new_energy_0(l: float) -> float:
-        return cast(
-            float,
-            (
-                (1 + nse_dual.epsilon * l) * u_hat_initial
-                - nse_dual.epsilon * vel_v_0_hat
-            )
-            .no_hat()
-            .energy(),
-        )
-
-    print_verb("optimising lambda...")
-    i = 0
-    while abs(get_new_energy_0(lam) - e0) > 1e-20 and i < 1000:
-        lam += -(get_new_energy_0(lam) - e0) / jax.grad(get_new_energy_0)(lam)
-        i += 1
-    print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
-    print_verb("energy:", get_new_energy_0(lam))
-
-    return (gain, lam * u_hat_initial.get_data() - vel_v_0_hat.get_data())
+    return (nse_dual.get_gain(), nse_dual.get_projected_grad(step_size))
