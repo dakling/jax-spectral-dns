@@ -26,6 +26,9 @@ class GradientDescentSolver(ABC):
         self.max_step_size = params.get("max_step_size", 0.999)
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("number_of_steps", 10)
+        self.max_number_of_sub_iterations = params.get(
+            "max_number_of_sub_iterations", 20
+        )
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
         )
@@ -33,6 +36,8 @@ class GradientDescentSolver(ABC):
         self.number_of_steps = params.get("max_iterations", 20)
 
         self.e_0 = 0.0
+
+        self.done = False
 
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
@@ -48,10 +53,14 @@ class GradientDescentSolver(ABC):
 
     def optimise(self) -> None:
         self.initialise()
-        for i in range(self.number_of_steps):
+        i = 0
+        while not self.done:
             self.i = i
             self.update()
             self.post_process_iteration()
+            i += 1
+            if i > self.number_of_steps or self.step_size < 1e-10:
+                self.done = True
         self.perform_final_run()
         self.perform_final_run()
 
@@ -124,8 +133,14 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         j = 0
         while not iteration_successful:
             start_time = time.time()
-            print_verb("iteration", self.i + 1, "of", self.number_of_steps)
-            print_verb("sub-iteration", j + 1)
+            print_verb("iteration", self.i + 1, "of at most", self.number_of_steps)
+            if j + 1 > 1:
+                print_verb(
+                    "sub-iteration",
+                    j + 1,
+                    "of at most",
+                    self.max_number_of_sub_iterations,
+                )
             print_verb("step size:", self.step_size)
 
             v0_hat_new: VectorField[FourierField] = VectorField.FromData(
@@ -181,6 +196,8 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 )
 
             j += 1
+            if j > self.max_number_of_sub_iterations:
+                iteration_successful = True
             iteration_duration = time.time() - start_time
             try:
                 print_verb("sub-iteration took", format_timespan(iteration_duration))
@@ -229,7 +246,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         while not iteration_successful:
             start_time = time.time()
             print_verb("iteration", self.i + 1, "of", self.number_of_steps)
-            print_verb("sub-iteration", j + 1)
+            if j + 1 > 1:
+                print_verb("sub-iteration", j + 1)
             print_verb("step size:", self.step_size)
             print_verb("beta:", self.beta)
 
@@ -288,6 +306,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 )
 
             j += 1
+            if j > self.max_number_of_sub_iterations:
+                iteration_successful = True
             iteration_duration = time.time() - start_time
             try:
                 print_verb("sub-iteration took", format_timespan(iteration_duration))
