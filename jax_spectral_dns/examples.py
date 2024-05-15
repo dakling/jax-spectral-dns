@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import sys
 
-from jax_spectral_dns.gradient_descent_solver import SteepestAdaptiveDescentSolver
+from jax_spectral_dns.gradient_descent_solver import (
+    ConjugateGradientDescentSolver,
+    SteepestAdaptiveDescentSolver,
+)
 
 try:
     from humanfriendly import format_timespan  # type: ignore
@@ -3073,9 +3076,11 @@ def run_optimisation_transient_growth_dual(
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iter=20, step_size=eps)
+    # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iter=20, step_size=eps)
+    optimiser = ConjugateGradientDescentSolver(nse_dual, max_iter=20, step_size=eps)
     optimiser.optimise()
     optimiser.perform_final_run()
+
     # run_input_initial = v0_0_hat
 
     # optimiser = OptimiserFourier(
