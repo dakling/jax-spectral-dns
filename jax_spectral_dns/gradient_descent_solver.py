@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 import time
-from typing import Any
+from typing import Any, cast
 import jax.numpy as jnp
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import FourierField, VectorField
@@ -32,6 +32,8 @@ class GradientDescentSolver(ABC):
         self.i = 0
         self.number_of_steps = params.get("max_iterations", 20)
 
+        self.e_0 = 0.0
+
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
 
@@ -50,6 +52,7 @@ class GradientDescentSolver(ABC):
             self.i = i
             self.update()
             self.post_process_iteration()
+        self.perform_final_run()
         self.perform_final_run()
 
     def post_process_iteration(self) -> None:
@@ -76,6 +79,21 @@ class GradientDescentSolver(ABC):
         nse.activate_jit()
         nse.solve()
         nse.post_process()
+
+    def normalize_field(
+        self, v0_hat: VectorField[FourierField]
+    ) -> VectorField[FourierField]:
+        v0 = v0_hat.no_hat()
+        v0_norm = v0.normalize_by_energy()
+        v0_norm *= self.e_0 ** (1 / 2)
+        v0_norm_hat = v0_norm.hat()
+        v0_norm_hat.set_name("velocity_hat")
+        return v0_norm_hat
+
+    def normalize_current_guess(self) -> None:
+        v0_hat = self.current_guess
+        v0_norm_hat = self.normalize_field(v0_hat)
+        self.current_guess = v0_norm_hat
 
 
 class SteepestAdaptiveDescentSolver(GradientDescentSolver):
@@ -116,6 +134,9 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 v0_hat.get_data() + self.step_size * self.grad,
                 name="velocity_hat",
             )
+            v0_hat_new = self.normalize_field(
+                v0_hat_new
+            )  # should not be necessary but is done for good measure
 
             v0_hat_new.set_name("velocity_hat")
             nse_ = self.dual_problem.forward_equation
@@ -168,16 +189,13 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             print_verb("\n")
 
         self.current_guess = v0_hat_new
+        self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
         energy = v0.energy()
         print_verb("v0 energy:", energy)
-        v0 = v0.normalize_by_energy()
-        v0 *= self.e_0**0.5
-        v0_hat = v0.hat()
-        v0_hat.set_name("velocity_hat")
         self.old_nse_dual = nse_dual
-        self.old_value = self.value
         self.value = gain
+        self.old_value = self.value
 
 
 class ConjugateGradientDescentSolver(GradientDescentSolver):
@@ -213,6 +231,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("iteration", self.i + 1, "of", self.number_of_steps)
             print_verb("sub-iteration", j + 1)
             print_verb("step size:", self.step_size)
+            print_verb("beta:", self.beta)
 
             v0_hat_new: VectorField[FourierField] = VectorField.FromData(
                 FourierField,
@@ -220,6 +239,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 v0_hat.get_data() + self.step_size * self.grad,
                 name="velocity_hat",
             )
+            v0_hat_new = self.normalize_field(v0_hat_new)
 
             v0_hat_new.set_name("velocity_hat")
             nse_ = self.dual_problem.forward_equation
@@ -277,22 +297,21 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.update_beta()
         self.current_guess = v0_hat_new
+        self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
         energy = v0.energy()
         print_verb("v0 energy:", energy)
-        v0 = v0.normalize_by_energy()
-        v0 *= self.e_0**0.5
-        v0_hat = v0.hat()
-        v0_hat.set_name("velocity_hat")
         self.old_nse_dual = nse_dual
-        self.old_value = self.value
         self.value = gain
+        self.old_value = self.value
         self.old_grad = self.grad
 
     def decrease_step_size(self) -> None:
         self.step_size /= 2.0
 
     def update_beta(self) -> None:
-        self.beta = jnp.dot(self.grad, (self.grad - self.old_grad)) / jnp.dot(
-            self.old_grad, self.old_grad
+        grad = self.grad.flatten()
+        old_grad = self.old_grad.flatten()
+        self.beta = cast(
+            float, jnp.dot(grad, (grad - old_grad)) / jnp.dot(old_grad, old_grad)
         )

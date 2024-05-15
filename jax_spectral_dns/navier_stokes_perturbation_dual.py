@@ -275,7 +275,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             i += 1
         print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
         print_verb("energy:", get_new_energy_0(lam))
-        print_verb("e_0:", e_0)
 
         return lam * u_hat_0.get_data() - v_hat_0.get_data()
 

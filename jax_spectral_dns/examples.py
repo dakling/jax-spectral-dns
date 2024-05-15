@@ -2972,8 +2972,7 @@ def run_optimisation_transient_growth_dual(
 
     e_0 = 1e-11
     # e_0 = 1.0
-    # eps = 1e-2 * e_0  # step size
-    eps = 1e-1  # step size
+    eps = 1e-2  # step size
     v0_0_norm = v0_0.normalize_by_energy()
     v0_0_norm *= e_0 ** (1 / 2)
     v0_0_hat = v0_0_norm.hat()
@@ -3020,7 +3019,6 @@ def run_optimisation_transient_growth_dual(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    # def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
     def run_case(U_hat_: "jnp_array", out: bool = False) -> "jsd_float":
 
         U_hat: VectorField[FourierField] = VectorField.FromData(
@@ -3056,18 +3054,6 @@ def run_optimisation_transient_growth_dual(
         gain = vel.energy() / U_norm.energy()
         return gain
 
-    def run_adjoint(
-        U_hat_: "VectorField[FourierField]", eps: float
-    ) -> Tuple[jsd_float, "jnp_array"]:
-        U_hat_.set_name("velocity_hat")
-
-        nse = NavierStokesVelVortPerturbation(U_hat_, Re=Re, dt=dt, end_time=end_time)
-        # nse.set_linearize(True)
-        nse.set_linearize(False)
-
-        gain, corr = perform_step_navier_stokes_perturbation_dual(nse, eps)
-        return gain, corr
-
     v0_hat = v0_0_hat
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
@@ -3076,10 +3062,29 @@ def run_optimisation_transient_growth_dual(
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iter=20, step_size=eps)
-    optimiser = ConjugateGradientDescentSolver(nse_dual, max_iter=20, step_size=eps)
+    # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iter=20, step_size=eps, max_step_size=0.1)
+    optimiser = ConjugateGradientDescentSolver(
+        nse_dual, max_iter=20, step_size=eps, max_step_size=0.1
+    )
     optimiser.optimise()
-    optimiser.perform_final_run()
+
+    gain_, grad_ = jax.value_and_grad(run_case)(v0_0_hat)
+    grad_field_: VectorField[FourierField] = VectorField.FromData(
+        FourierField, domain, grad_, name="grad_hat_"
+    )
+    grad_nh_ = grad_field_.no_hat()
+    grad_nh_.set_name("grad_")
+    grad_nh_.plot_3d(2)
+    grad_nh_[0].plot_center(1)
+
+    grad = nse_dual.get_grad()
+    grad_field: VectorField[FourierField] = VectorField.FromData(
+        FourierField, domain, grad, name="grad_hat"
+    )
+    grad_nh = grad_field.no_hat()
+    grad_nh.set_name("grad")
+    grad_nh.plot_3d(2)
+    grad_nh[0].plot_center(1)
 
     # run_input_initial = v0_0_hat
 
