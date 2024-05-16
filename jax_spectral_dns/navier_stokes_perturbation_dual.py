@@ -94,10 +94,10 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     )
 
     return (
-        h_v_hat_new * 1,  # TODO
-        h_g_hat_new * 1,
-        jnp.array(vort_hat_new) * 1,
-        jnp.array(conv_ns_hat_new) * 1,
+        h_v_hat_new,
+        h_g_hat_new,
+        jnp.array(vort_hat_new),
+        jnp.array(conv_ns_hat_new),
     )
 
 
@@ -270,7 +270,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         print_verb("optimising lambda...")
         i = 0
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < 1000:
+        while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < 100:
             lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
             i += 1
         print_verb("optimising lambda done in", i, "iterations, lambda:", lam)

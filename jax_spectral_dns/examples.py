@@ -3062,9 +3062,9 @@ def run_optimisation_transient_growth_dual(
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iter=20, step_size=eps, max_step_size=0.1)
+    # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
     optimiser = ConjugateGradientDescentSolver(
-        nse_dual, max_iter=20, step_size=eps, max_step_size=0.1
+        nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1
     )
     optimiser.optimise()
 

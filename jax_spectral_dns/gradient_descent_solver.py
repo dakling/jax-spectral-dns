@@ -25,18 +25,16 @@ class GradientDescentSolver(ABC):
         self.dual_problem = dual_problem
         self.max_step_size = params.get("max_step_size", 0.999)
         self.step_size = params.get("step_size", 1e-2)
-        self.number_of_steps = params.get("number_of_steps", 10)
+        self.number_of_steps = params.get("max_iterations", 20)
         self.max_number_of_sub_iterations = params.get(
-            "max_number_of_sub_iterations", 20
+            "max_number_of_sub_iterations", 100
         )
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
         )
+
         self.i = 0
-        self.number_of_steps = params.get("max_iterations", 20)
-
         self.e_0 = 0.0
-
         self.done = False
 
     def increase_step_size(self) -> None:
@@ -71,6 +69,7 @@ class GradientDescentSolver(ABC):
         v0.set_time_step(self.i)
         v0.plot_3d(2)
         v0[0].plot_center(1)
+        v0.save_to_file("velocity_latest")
 
     def perform_final_run(self) -> None:
         print_verb("performing final run with optimised initial condition.")
@@ -124,6 +123,9 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         self.grad = nse_dual.get_projected_grad(self.step_size)
         self.old_value = self.value
         self.old_nse_dual = nse_dual
+        print_verb("")
+        print_verb("gain:", self.value)
+        print_verb("")
 
     def update(self) -> None:
 
@@ -236,6 +238,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value = self.value
         self.old_grad = self.grad
         self.old_nse_dual = nse_dual
+        print_verb("")
+        print_verb("gain:", self.value)
+        print_verb("")
 
     def update(self) -> None:
 
