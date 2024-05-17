@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import time
 from typing import Any, cast
 import jax.numpy as jnp
+from matplotlib.axes import subplot_class_factory
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import FourierField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
@@ -248,6 +249,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         domain = v0_hat.get_physical_domain()
         iteration_successful = False
         j = 0
+        success = False
         while not iteration_successful:
             start_time = time.time()
             print_verb("iteration", self.i + 1, "of", self.number_of_steps)
@@ -293,8 +295,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.grad, success = nse_dual.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
                 )
-                if not success:
-                    self.beta = 0.0
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )
@@ -321,7 +321,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
 
-        self.update_beta()
+        self.update_beta(success)
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
@@ -335,9 +335,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
     def decrease_step_size(self) -> None:
         self.step_size /= 2.0
 
-    def update_beta(self) -> None:
-        grad = self.grad.flatten()
-        old_grad = self.old_grad.flatten()
-        self.beta = cast(
-            float, jnp.dot(grad, (grad - old_grad)) / jnp.dot(old_grad, old_grad)
-        )
+    def update_beta(self, last_iteration_successful: bool) -> None:
+        if last_iteration_successful:
+            grad = self.grad.flatten()
+            old_grad = self.old_grad.flatten()
+            self.beta = cast(
+                float, jnp.dot(grad, (grad - old_grad)) / jnp.dot(old_grad, old_grad)
+            )
+        else:
+            self.beta = 0.0

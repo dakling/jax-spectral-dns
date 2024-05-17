@@ -3128,7 +3128,7 @@ def run_optimisation_transient_growth_dual(
     dt = 1e-3
     # end_time = dt * 1
     end_time = T
-    number_of_modes = 15  # deliberately low value so that there is room for improvement
+    number_of_modes = 25  # deliberately low value so that there is room for improvement
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     # aliasing = 3 / 2
@@ -3142,32 +3142,36 @@ def run_optimisation_transient_growth_dual(
         aliasing=aliasing,
     )
 
-    v0_0 = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
-    if vel_0_path is None:
-        v0_0.set_name("vel_initial")
-        v0_0.plot_3d(2)
-    print_verb(
-        "expected energy gain:",
-        lsc.calculate_transient_growth_max_energy(T, number_of_modes),
-    )
-    v0_0_linear = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        60,
-        recompute_full=True,
-        save_final=False,
-    )
-    print_verb(
-        "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
-    )
-    v0_0_linear.set_name("vel_lin_opt")
-    v0_0_linear.plot_3d(2)
+    skip_preparation = True
+    if (not skip_preparation) or vel_0_path is None:
+        v0_0 = lsc.calculate_transient_growth_initial_condition(
+            domain,
+            T,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        if vel_0_path is None:
+            v0_0.set_name("vel_initial")
+            v0_0.plot_3d(2)
+        print_verb(
+            "expected energy gain:",
+            lsc.calculate_transient_growth_max_energy(T, number_of_modes),
+        )
+    if not skip_preparation:
+        v0_0_linear = lsc.calculate_transient_growth_initial_condition(
+            domain,
+            T,
+            60,
+            recompute_full=True,
+            save_final=False,
+        )
+        print_verb(
+            "expected final energy gain:",
+            lsc.calculate_transient_growth_max_energy(T, 60),
+        )
+        v0_0_linear.set_name("vel_lin_opt")
+        v0_0_linear.plot_3d(2)
 
     e_0 = 1e-10
     # e_0 = 1.0
