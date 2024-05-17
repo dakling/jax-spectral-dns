@@ -37,6 +37,7 @@ class GradientDescentSolver(ABC):
         self.i = 0
         self.e_0 = 0.0
         self.done = False
+        self.post_process_fn = params.get("post_process_function", None)
 
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
@@ -60,7 +61,6 @@ class GradientDescentSolver(ABC):
             i += 1
             if i >= self.number_of_steps or self.step_size < 1e-10:
                 self.done = True
-        self.perform_final_run()
         self.perform_final_run()
 
     def post_process_iteration(self) -> None:
@@ -86,6 +86,7 @@ class GradientDescentSolver(ABC):
         nse.set_linearize(False)
         nse.write_intermediate_output = True
         nse.activate_jit()
+        nse.set_post_process_fn(self.post_process_fn)
         nse.solve()
         nse.post_process()
 
@@ -164,7 +165,6 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             nse = NavierStokesVelVortPerturbation(
                 v0_hat_new, Re=Re, dt=dt, end_time=end_time
             )
-            # nse.set_linearize(True)
             nse.set_linearize(False)
             nse_dual = (
                 NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(

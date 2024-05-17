@@ -2708,7 +2708,7 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    max_cfl = 0.10
+    max_cfl = 0.03
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2879,11 +2879,16 @@ def run_ld_2021_dual(
         v0_hat, Re=Re, dt=dt, end_time=end_time, velocity_base_hat=vel_base.hat()
     )
     nse.set_linearize(False)
+    nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
     optimiser = ConjugateGradientDescentSolver(
-        nse_dual, max_iterations=number_of_steps, step_size=0.1, max_step_size=0.1
+        nse_dual,
+        max_iterations=number_of_steps,
+        step_size=0.1,
+        max_step_size=0.1,
+        post_process_function=post_process,
     )
     optimiser.optimise()
 
@@ -3125,7 +3130,7 @@ def run_optimisation_transient_growth_dual(
     Ny = int(Ny)
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
-    dt = 1e-3
+    dt = 5e-4
     # end_time = dt * 1
     end_time = T
     number_of_modes = 25  # deliberately low value so that there is room for improvement
@@ -3270,7 +3275,11 @@ def run_optimisation_transient_growth_dual(
     )
     # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
     optimiser = ConjugateGradientDescentSolver(
-        nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1
+        nse_dual,
+        max_iterations=number_of_steps,
+        step_size=eps,
+        max_step_size=0.1,
+        post_process_function=post_process,
     )
     optimiser.optimise()
 
