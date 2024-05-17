@@ -165,9 +165,11 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
         try:
             velocity_base_hat = params["velocity_base_hat"]
-            print_verb("Using provided velocity base profile")
+            if not params.get("non_verbose", False):
+                print_verb("Using provided velocity base profile")
         except KeyError:
-            print_verb("Using default laminar velocity base profile")
+            if not params.get("non_verbose", False):
+                print_verb("Using default laminar velocity base profile")
             velocity_x_base = PhysicalField.FromFunc(
                 self.get_physical_domain(),
                 lambda X: self.get_u_max_over_u_tau() * (1 - X[1] ** 2)

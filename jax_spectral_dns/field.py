@@ -296,6 +296,15 @@ class VectorField(Generic[T]):
         fs = cast(List[T], [field_cls(domain, data[i]) for i in range(dim)])
         return cls(fs, name)
 
+    @classmethod
+    def FromFile(
+        cls, domain: PhysicalDomain, filename: str, name: str = "field"
+    ) -> VectorField[PhysicalField]:
+        """Construct new field depending on the independent variables described
+        by domain by reading in a saved field from file filename."""
+        field_array = np.load(PhysicalField.field_dir + filename, allow_pickle=True)
+        return VectorField.FromData(PhysicalField, domain, field_array, name)
+
     def project_onto_domain(
         self: VectorField[FourierField], domain: PhysicalDomain
     ) -> VectorField[FourierField]:
@@ -465,9 +474,8 @@ class VectorField(Generic[T]):
             self.set_name("field")
         else:
             self.set_name(self.name)
-        for f in self:
-            field_array = np.array(f.data.tolist())
-            field_array.dump(f.field_dir + filename)
+        field_array = np.array(self.get_data().tolist())
+        field_array.dump(self[0].field_dir + filename)
 
     def get_data(self) -> "jnp_array":
         return jnp.array([f.data for f in self])
@@ -1530,10 +1538,14 @@ class PhysicalField(Field):
                     except FileNotFoundError:
                         Field.initialize(False)
                         save()
-        except Exception as e:
-            print("plot_3d failed with the following exception:")
-            print(e)
-            print("ignoring this and carrying on.")
+        except Exception:
+            for i in self.all_dimensions():
+                try:
+                    self.plot_3d_single(i)
+                except Exception as e:
+                    print("plot_3d failed with the following exception:")
+                    print(e)
+                    print("ignoring this and carrying on.")
 
     def plot_3d_single(self, dim: int) -> None:
         try:

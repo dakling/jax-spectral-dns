@@ -57,7 +57,7 @@ class GradientDescentSolver(ABC):
             self.update()
             self.post_process_iteration()
             i += 1
-            if i > self.number_of_steps or self.step_size < 1e-10:
+            if i >= self.number_of_steps or self.step_size < 1e-10:
                 self.done = True
         self.perform_final_run()
         self.perform_final_run()
@@ -72,7 +72,7 @@ class GradientDescentSolver(ABC):
         v0.save_to_file("velocity_latest")
 
     def perform_final_run(self) -> None:
-        print_verb("performing final run with optimised initial condition.")
+        print_verb("performing final run with optimised initial condition")
         v0_hat = self.current_guess
         v0_hat.set_name("velocity_hat")
 
@@ -290,9 +290,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             if gain_change > 0.0:
                 iteration_successful = True
                 self.increase_step_size()
-                self.grad = nse_dual.get_projected_cg_grad(
+                self.grad, success = nse_dual.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
                 )
+                if not success:
+                    self.beta = 0.0
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )

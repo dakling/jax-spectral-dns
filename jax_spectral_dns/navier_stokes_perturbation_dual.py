@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import TYPE_CHECKING, Any, Optional, Tuple, cast, List
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, cast, List
 from typing_extensions import Self
 
 # from importlib import reload
@@ -314,7 +314,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def get_projected_cg_grad(
         self, step_size: float, beta: float, old_grad: "jnp_array"
-    ) -> "jnp_array":
+    ) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
         u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
         v_hat_0 = self.get_latest_field("velocity_hat")
@@ -333,13 +333,17 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         print_verb("optimising lambda...")
         i = 0
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < 100:
+        max_iter = 100
+        while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < max_iter:
             lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
             i += 1
         print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
         print_verb("energy:", get_new_energy_0(lam))
 
-        return lam * u_hat_0.get_data() - v_hat_0.get_data() + beta * old_grad
+        return (
+            lam * u_hat_0.get_data() - v_hat_0.get_data() + beta * old_grad,
+            i < max_iter,
+        )
 
 
 def perform_step_navier_stokes_perturbation_dual(

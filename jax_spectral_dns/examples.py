@@ -2686,6 +2686,208 @@ def run_ld_2021(
     optimiser.optimise()
 
 
+def run_ld_2021_dual(
+    turb: float = 1.0,
+    Re_tau: float = 180,
+    Nx: int = 28,
+    Ny: int = 129,
+    Nz: int = 24,
+    number_of_steps: int = 10,
+    e_0: float = 1e-3,
+    init_file: Optional[str] = None,
+) -> None:
+    Re_tau = float(Re_tau)
+    turb = float(turb)
+    assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    aliasing = 3 / 2
+    e_0 = float(e_0)
+
+    Equation.initialize()
+
+    max_cfl = 0.10
+    end_time = 0.35  # the target time (in ld2021 units)
+
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=aliasing,
+        dealias_nonperiodic=False,
+    )
+
+    avg_vel_coeffs = np.loadtxt(
+        "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+    )
+
+    def get_vel_field(
+        domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
+        Ny = domain.number_of_cells(1)
+        U_mat = np.zeros((Ny, len(cheb_coeffs)))
+        for i in range(Ny):
+            for j in range(len(cheb_coeffs)):
+                U_mat[i, j] = cheb(j, 0)(domain.grid[1][i])
+        U_y_slice = U_mat @ cheb_coeffs
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(
+            np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+        )
+        max = np.max(u_data)
+        vel_base = VectorField(
+            [
+                PhysicalField(domain, jnp.asarray(u_data)),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+        return vel_base, U_y_slice, max
+
+    vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb = vel_base_turb.normalize_by_max_value()
+    u_max_over_u_tau = max
+    h_over_delta: float = (
+        1.0  # confusingly, LD2021 use channel half-height but call it channel height
+    )
+    vel_base_lam = VectorField(
+        [
+            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
+    )
+
+    vel_base = (
+        turb * vel_base_turb + (1 - turb) * vel_base_lam
+    )  # continuously blend from turbulent to laminar mean profile
+    vel_base.set_name("velocity_base")
+
+    Re = Re_tau * u_max_over_u_tau / h_over_delta
+    end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
+
+    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time_)
+
+    print_verb(
+        "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
+    )
+    print_verb("end time in dimensional units:", end_time_)
+    print_verb("Re:", Re)
+
+    if init_file is None:
+        number_of_modes = 60
+        n = 64
+        lsc_domain = PhysicalDomain.create(
+            (2, n, 2),
+            (True, False, True),
+            scale_factors=domain.scale_factors,
+            aliasing=1,
+        )
+        _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / np.max(U_base)
+        lsc = LinearStabilityCalculation(
+            Re=Re,
+            alpha=2 * jnp.pi / 1.87,
+            beta=0,
+            n=n,
+            U_base=cast("np_float_array", U_base),
+        )
+
+        v0_0 = lsc.calculate_transient_growth_initial_condition(
+            # coarse_domain,
+            domain,
+            end_time_,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        print_verb(
+            "expected gain:",
+            lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+        )
+        v0_0.normalize_by_energy()
+        v0_0 *= e_0
+        vel_hat = v0_0.hat()
+        vel_hat.set_name("velocity_hat")
+
+    run_input_initial = init_file or vel_hat
+    assert run_input_initial is not None
+
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
+        n_steps = nse.get_number_of_fields("velocity_hat")
+        # time = (i / (n_steps - 1)) * end_time
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vel_base_hat = nse.get_initial_field("velocity_base_hat")
+        vel_base = vel_base_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[2].plot_3d(2)
+        vel[0].plot_3d(0)
+        vel[1].plot_3d(0)
+        vel[2].plot_3d(0)
+        vort[2].plot_3d(2)
+        vel.plot_streamlines(2)
+        vel[0].plot_isolines(2)
+        vel[0].plot_isosurfaces(0.4)
+
+        vel_total = vel + vel_base
+        vel_total.set_name("velocity_total")
+        vel_total[0].plot_3d(0)
+        vel_total[0].plot_isosurfaces(0.4)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time_
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+
+    if init_file is None:
+        v0_hat = vel_hat
+    else:
+        v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
+    v0_hat.set_name("velocity_hat")
+    nse = NavierStokesVelVortPerturbation(
+        v0_hat, Re=Re, dt=dt, end_time=end_time, velocity_base_hat=vel_base.hat()
+    )
+    nse.set_linearize(False)
+    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+        nse
+    )
+    optimiser = ConjugateGradientDescentSolver(
+        nse_dual, max_iterations=number_of_steps, step_size=0.1, max_step_size=0.1
+    )
+    optimiser.optimise()
+
+
 def run_white_noise() -> None:
 
     Equation.initialize()
@@ -2911,7 +3113,7 @@ def run_optimisation_transient_growth_dual(
     Ny: int = 64,
     Nz: int = 4,
     number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
+    vel_0_path: Optional[str] = None,
 ) -> None:
     Re = float(Re)
     T = float(T)
@@ -2923,7 +3125,6 @@ def run_optimisation_transient_growth_dual(
     Ny = int(Ny)
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
     dt = 1e-3
     # end_time = dt * 1
     end_time = T
@@ -2948,29 +3149,27 @@ def run_optimisation_transient_growth_dual(
         recompute_full=True,
         save_final=False,
     )
+    if vel_0_path is None:
+        v0_0.set_name("vel_initial")
+        v0_0.plot_3d(2)
     print_verb(
         "expected energy gain:",
         lsc.calculate_transient_growth_max_energy(T, number_of_modes),
     )
-    # v0_0_linear = lsc.calculate_transient_growth_initial_condition(
-    #     domain,
-    #     T,
-    #     60,
-    #     recompute_full=True,
-    #     save_final=False,
-    # )
-    # print_verb(
-    #     "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
-    # )
-    # v0_0_linear.set_name("vel_lin_opt")
-    # v0_0_linear.plot_3d(2)
+    v0_0_linear = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        T,
+        60,
+        recompute_full=True,
+        save_final=False,
+    )
+    print_verb(
+        "expected final energy gain:", lsc.calculate_transient_growth_max_energy(T, 60)
+    )
+    v0_0_linear.set_name("vel_lin_opt")
+    v0_0_linear.plot_3d(2)
 
-    # v0_0_x = PhysicalField.FromFunc(domain, lambda X: jnp.cos(X[2] * 2 * jnp.pi / scale_factors[2]) * (1 - X[1] ** 2))
-    # v0_0_y = PhysicalField.FromFunc(domain, lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
-    # v0_0_z = PhysicalField.FromFunc(domain, lambda X: 0.1 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
-    # v0_0 = VectorField([v0_0_x, v0_0_y, v0_0_z])
-
-    e_0 = 1e-6
+    e_0 = 1e-10
     # e_0 = 1.0
     eps = 1e-2  # step size
     v0_0_norm = v0_0.normalize_by_energy()
@@ -3054,11 +3253,14 @@ def run_optimisation_transient_growth_dual(
         gain = vel.energy() / U_norm.energy()
         return gain
 
-    v0_hat = v0_0_hat
+    if vel_0_path is None:
+        v0_hat = v0_0_hat
+    else:
+        v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
-    # nse.set_linearize(True)
-    nse.set_linearize(False)
+    nse.set_linearize(True)
+    # nse.set_linearize(False)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
@@ -3067,24 +3269,6 @@ def run_optimisation_transient_growth_dual(
         nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1
     )
     optimiser.optimise()
-
-    # gain_, grad_ = jax.value_and_grad(run_case)(v0_0_hat.get_data())
-    # grad_field_: VectorField[FourierField] = VectorField.FromData(
-    #     FourierField, domain, grad_, name="grad_hat_"
-    # )
-    # grad_nh_ = grad_field_.no_hat()
-    # grad_nh_.set_name("grad_")
-    # grad_nh_.plot_3d(2)
-    # grad_nh_[0].plot_center(1)
-
-    # grad = nse_dual.get_grad()
-    # grad_field: VectorField[FourierField] = VectorField.FromData(
-    #     FourierField, domain, grad, name="grad_hat"
-    # )
-    # grad_nh = grad_field.no_hat()
-    # grad_nh.set_name("grad")
-    # grad_nh.plot_3d(2)
-    # grad_nh[0].plot_center(1)
 
     # run_input_initial = v0_0_hat
 
