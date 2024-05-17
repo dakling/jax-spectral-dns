@@ -53,7 +53,7 @@ class NavierStokesEDAC(Equation):
 
         self.max_cfl = params.get("max_cfl", 0.7)
 
-        self.Mach = params.get("Mach", 0.1)
+        self.Mach = params.get("Mach", 0.3)
 
         self.max_number_of_outer_steps = params.get("max_number_of_outer_steps", 100)
 
@@ -204,12 +204,87 @@ class NavierStokesEDAC(Equation):
         new_p_bc = new_p.at[0, 0, 0].set(0.0)
         return jnp.concatenate([new_u_bc, jnp.array([new_p_bc])], axis=0)
 
+    def perform_rk_step(self, U: jnp_array, i: int) -> jnp_array:
+        c = [0.0, 0.5, 0.5, 1.0]
+        b = [1 / 6, 1 / 3, 1 / 3, 1 / 6]
+        a = [[0.0], [0.5], [0.0, 0.5], [0.0, 0.0, 1.0]]
+
+        n_substeps = len(c)
+        Re_tau = self.get_Re_tau()
+        domain = self.get_domain()
+        dt = self.get_dt()
+
+        k = jnp.zeros_like(U)
+        ks = [k]
+        for step in range(n_substeps):
+            U_ = U
+            for i in range(step):
+                U_ += dt * a[step][i] * ks[i]
+
+            u = U_[0:3]
+            p = U_[3]
+
+            vort = domain.curl(u)
+
+            vel_sq = jnp.zeros_like(u[0])
+            for j in domain.all_dimensions():
+                vel_sq += u[j] * u[j]
+            vel_sq_nabla = []
+            for i in domain.all_dimensions():
+                vel_sq_nabla.append(domain.diff(vel_sq, i))
+
+            vel_vort = domain.cross_product(u, vort)
+
+            hel = vel_vort - 1 / 2 * jnp.array(vel_sq_nabla)
+
+            conv_ns = -hel
+            u_eq = (
+                conv_ns
+                - jnp.array(
+                    [
+                        domain.diff(p, 0) + self.dpdx.data,
+                        domain.diff(p, 1),
+                        domain.diff(p, 2),
+                    ]
+                )
+                + 1 / Re_tau * jnp.array([domain.laplacian(u[i]) for i in range(3)])
+            )
+
+            conv_p = -(
+                u[0] * domain.diff(p, 0)
+                + u[1] * domain.diff(p, 1)
+                + u[2] * domain.diff(p, 2)
+            )
+
+            conv_p = domain.update_boundary_conditions(conv_p)
+            diff_p = 1 / Re_tau * domain.laplacian(p)
+            diff_p = domain.update_boundary_conditions(diff_p)
+            p_eq = (
+                conv_p
+                # - 1 / self.Mach**2 * (domain.diff(u[0], 0) + domain.diff(u[2], 2)) # u[1]_y is zero
+                - 1 / self.Mach**2 * domain.divergence(u)
+                + diff_p
+            )
+            ks.append(jnp.concatenate([u_eq, jnp.array([p_eq])], axis=0))
+
+        for i in range(n_substeps):
+            U += dt * b[i] * ks[i]
+        new_u = U[:3]
+        new_p = U[3]
+        new_u_bc = jnp.array(
+            [domain.update_boundary_conditions(new_u[i]) for i in range(3)]
+        )
+        new_p_bc = new_p.at[0, 0, 0].set(0.0)
+        U = jnp.concatenate([new_u_bc, jnp.array([new_p_bc])], axis=0)
+        return U
+
     def perform_time_step(
         self, U: Optional["jnp_array"] = None, i: Optional[int] = None
     ) -> "jnp_array":
         assert U is not None
         assert i is not None
-        return self.perform_explicit_euler_step(U, i)
+        # return self.perform_explicit_euler_step(U, i)
+        return self.perform_rk_step(U, i)
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[PhysicalField]], int]:
         cfl_initial = self.get_cfl()

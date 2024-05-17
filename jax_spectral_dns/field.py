@@ -252,6 +252,8 @@ class VectorField(Generic[T]):
     def __init__(self, elements: Sequence[T], name: Optional[str] = None):
         self.elements = elements
         self.name = name
+        if name is not None:
+            self.set_name(name)
         self.domain = elements[0].get_domain()
 
     @classmethod

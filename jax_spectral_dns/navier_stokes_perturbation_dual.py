@@ -38,45 +38,78 @@ if TYPE_CHECKING:
 def update_nonlinear_terms_high_performance_perturbation_dual(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
-    vel_hat_new: "jnp_array",  # v
-    vel_base_hat: "jnp_array",  # U
-    vel_u_hat: "jnp_array",  # u
+    vel_v_hat_new: "jnp_array",  # v
+    vel_u_base_hat: "jnp_array",  # U
+    vel_small_u_hat: "jnp_array",  # u
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
-    vort_u_hat = fourier_domain.curl(
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_u_hat + vel_base_hat
+    vel_u_hat = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        + vel_u_base_hat
     )
-    vel_new = jnp.array(
+    vel_v_new = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
             #     fourier_domain.field_no_hat(vel_hat_new[i])
             # )
-            fourier_domain.field_no_hat(vel_hat_new[i])
+            fourier_domain.field_no_hat(vel_v_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
-    vort_u_new = jnp.array(
+    vel_u = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
             #     fourier_domain.field_no_hat(vort_u_hat[i])
             # )
-            fourier_domain.field_no_hat(vort_u_hat[i])
+            fourier_domain.field_no_hat(vel_u_hat[i])
             for i in physical_domain.all_dimensions()
         ]
     )
 
-    vort_hat_new = fourier_domain.curl(vel_hat_new)
-
-    vel_vort_new = physical_domain.cross_product(vel_new, vort_u_new)
-    vel_vort_new_hat = jnp.array(
+    vort_v_hat_new = fourier_domain.curl(vel_v_hat_new)
+    vort_v_new = jnp.array(
         [
-            physical_domain.field_hat(vel_vort_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vort_v_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
 
-    hel_new_hat = vel_vort_new_hat
+    # the first term: (U + u) \times (\nabla \times v)
+    vel_u_vort_v_new = physical_domain.cross_product(vel_u, vort_v_new)
+    vel_u_vort_v_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(vel_u_vort_v_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+
+    # the second term: \nabla ((U + u) \dot v)
+    vel_uv_sq = jnp.zeros_like(vel_v_new[0])
+    for j in physical_domain.all_dimensions():
+        vel_uv_sq += vel_u[j] * vel_v_new[j]
+    vel_uv_sq_hat = physical_domain.field_hat(vel_uv_sq)
+    vel_uv_sq_nabla_hat = []
+    for i in physical_domain.all_dimensions():
+        vel_uv_sq_nabla_hat.append(fourier_domain.diff(vel_uv_sq_hat, i))
+
+    # the third term: 2 v \dot (\nabla (U + u))^T
+    v_nabla_u_hat = []
+    for i in physical_domain.all_dimensions():
+        acc = jnp.zeros_like(vel_v_new[0])
+        for j in physical_domain.all_dimensions():
+            acc += (
+                2 * vel_v_new[j] * physical_domain.diff(vel_u[j], i)
+            )  # TODO do diff in fourier space?
+        acc_hat = jnp.array(physical_domain.field_hat(acc))
+        v_nabla_u_hat.append(acc_hat)
+
+    hel_new_hat = (
+        vel_u_vort_v_new_hat - jnp.array(vel_uv_sq_nabla_hat) + jnp.array(v_nabla_u_hat)
+    )
 
     conv_ns_hat_new = -hel_new_hat
 
@@ -96,7 +129,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     return (
         h_v_hat_new,
         h_g_hat_new,
-        jnp.array(vort_hat_new),
+        jnp.array(vort_v_hat_new),
         jnp.array(conv_ns_hat_new),
     )
 
@@ -154,6 +187,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             Re_tau=-Re_tau,
             dt=-dt,
             end_time=-end_time,
+            velocity_base_hat=nse.get_latest_field("velocity_base_hat"),
         )
         nse_dual.set_linearize(nse.linearize)
         return nse_dual
@@ -277,6 +311,35 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("energy:", get_new_energy_0(lam))
 
         return lam * u_hat_0.get_data() - v_hat_0.get_data()
+
+    def get_projected_cg_grad(
+        self, step_size: float, beta: float, old_grad: "jnp_array"
+    ) -> "jnp_array":
+        self.run_backward_calculation()
+        u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
+        v_hat_0 = self.get_latest_field("velocity_hat")
+        e_0 = u_hat_0.no_hat().energy()
+        lam = 0.0
+
+        def get_new_energy_0(l: float) -> float:
+            return (
+                (
+                    (1 - step_size * l) * u_hat_0
+                    + step_size * (-1 * v_hat_0 + beta * old_grad)
+                )
+                .no_hat()
+                .energy()
+            )
+
+        print_verb("optimising lambda...")
+        i = 0
+        while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < 100:
+            lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
+            i += 1
+        print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
+        print_verb("energy:", get_new_energy_0(lam))
+
+        return lam * u_hat_0.get_data() - v_hat_0.get_data() + beta * old_grad
 
 
 def perform_step_navier_stokes_perturbation_dual(

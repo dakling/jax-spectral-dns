@@ -2970,7 +2970,7 @@ def run_optimisation_transient_growth_dual(
     # v0_0_z = PhysicalField.FromFunc(domain, lambda X: 0.1 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2))
     # v0_0 = VectorField([v0_0_x, v0_0_y, v0_0_z])
 
-    e_0 = 1e-11
+    e_0 = 1e-6
     # e_0 = 1.0
     eps = 1e-2  # step size
     v0_0_norm = v0_0.normalize_by_energy()
@@ -3068,23 +3068,23 @@ def run_optimisation_transient_growth_dual(
     )
     optimiser.optimise()
 
-    gain_, grad_ = jax.value_and_grad(run_case)(v0_0_hat)
-    grad_field_: VectorField[FourierField] = VectorField.FromData(
-        FourierField, domain, grad_, name="grad_hat_"
-    )
-    grad_nh_ = grad_field_.no_hat()
-    grad_nh_.set_name("grad_")
-    grad_nh_.plot_3d(2)
-    grad_nh_[0].plot_center(1)
+    # gain_, grad_ = jax.value_and_grad(run_case)(v0_0_hat.get_data())
+    # grad_field_: VectorField[FourierField] = VectorField.FromData(
+    #     FourierField, domain, grad_, name="grad_hat_"
+    # )
+    # grad_nh_ = grad_field_.no_hat()
+    # grad_nh_.set_name("grad_")
+    # grad_nh_.plot_3d(2)
+    # grad_nh_[0].plot_center(1)
 
-    grad = nse_dual.get_grad()
-    grad_field: VectorField[FourierField] = VectorField.FromData(
-        FourierField, domain, grad, name="grad_hat"
-    )
-    grad_nh = grad_field.no_hat()
-    grad_nh.set_name("grad")
-    grad_nh.plot_3d(2)
-    grad_nh[0].plot_center(1)
+    # grad = nse_dual.get_grad()
+    # grad_field: VectorField[FourierField] = VectorField.FromData(
+    #     FourierField, domain, grad, name="grad_hat"
+    # )
+    # grad_nh = grad_field.no_hat()
+    # grad_nh.set_name("grad")
+    # grad_nh.plot_3d(2)
+    # grad_nh[0].plot_center(1)
 
     # run_input_initial = v0_0_hat
 
@@ -3105,11 +3105,85 @@ def run_optimisation_transient_growth_dual(
     # optimiser.optimise()
 
 
+def run_test_dual() -> None:
+    Equation.initialize()
+    Re = 1.5e-1
+
+    dt = 1e-2
+    end_time = dt * 1
+    scale_factors = (1.87, 1, 0.93)
+    domain = PhysicalDomain.create(
+        (16, 32, 16), (True, False, True), scale_factors=scale_factors, aliasing=1
+    )
+    vT_x = PhysicalField.FromFunc(
+        domain,
+        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
+    )
+    # vT_y = PhysicalField.FromFunc(domain, lambda X: (1 - X[1] ** 2))
+    vT_y = PhysicalField.FromFunc(domain, lambda X: 1.0 + 0.0 * X[2])
+    vT_z = PhysicalField.FromFunc(
+        domain,
+        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
+    )
+    vT = VectorField([vT_x, vT_y, vT_z], name="velocity")
+
+    U0_0_x = PhysicalField.FromFunc(domain, lambda X: 1.0 * X[1])
+    U0_0_y = PhysicalField.FromFunc(
+        domain,
+        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
+    )
+    U0_0_z = PhysicalField.FromFunc(
+        domain,
+        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
+    )
+    U0_0 = VectorField([U0_0_x, U0_0_y, U0_0_z], name="velocity_base")
+    nse = NavierStokesVelVortPerturbation.FromVelocityField(
+        vT, Re=Re, dt=dt, end_time=end_time, velocity_base_hat=U0_0.hat()
+    )
+
+    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+        nse
+    )
+    nse_dual.run_forward_calculation()
+    assert nse_dual.velocity_field_u_history is not None
+    nse_dual.velocity_field_u_history = jnp.zeros_like(
+        nse_dual.velocity_field_u_history
+    )
+    nse_dual.set_field("velocity_hat", 0, vT.hat())
+
+    nse_dual.run_backward_calculation()
+    u_base = nse_dual.get_latest_field("velocity_base_hat").no_hat()
+    u_base.set_name("u_base")
+    u_base.plot_3d(2)
+
+    vT_ = nse_dual.get_initial_field("velocity_hat").no_hat()
+    vT_.set_name("vT")
+    vT.set_name("vT__")
+    v0 = nse_dual.get_latest_field("velocity_hat").no_hat()
+
+    v0.plot_3d(2)
+    vT_.plot_3d(2)
+    vT.plot_3d(2)
+
+    # "analytical" solution
+    v0_x = PhysicalField.FromFunc(domain, lambda X: dt + 0.0 * X[2])
+    v0_y = PhysicalField.FromFunc(domain, lambda X: 1.0 + 0.0 * X[2])
+    v0_z = PhysicalField.FromFunc(domain, lambda X: 0.0 * X[2])
+    v0_ana = VectorField([v0_x, v0_y, v0_z])
+    v0_ana.set_name("velocity_ana")
+
+    v0_ana.plot_3d(2)
+    for i in [0, 1]:
+        # v0[i].plot_center(1, v0_ana[i], vT_[i])
+        v0[i].plot_center(1, v0_ana[i])
+        # v0[i].plot_center(1, vT_[i])
+
+
 def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:
     Equation.initialize()
-    Re = 1.5e0
+    Re = 3e3
 
-    dt = 1e-5
+    dt = 4e-5
     end_time = 1
     domain = PhysicalDomain.create(
         (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93), aliasing=1
@@ -3183,10 +3257,13 @@ def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:
         gain = nse.get_latest_field("velocity").energy() / vel__.energy()
         return gain
 
-    gain, corr = jax.value_and_grad(run_case)(vel.get_data())
-    print_verb(gain)
+    # gain, corr = jax.value_and_grad(run_case)(vel.get_data())
+    # print_verb(gain)
+    gain = run_case(vel.get_data(), True)
+
+    # vel_final = nse.get_latest_field("velocity")
 
     # tol = 5e-7
-    print_verb(abs(vel[0] - vel_x_ana))
-    print_verb(abs(vel[1]))
-    print_verb(abs(vel[2]))
+    # print_verb(abs(vel_final[0] - vel_x_ana))
+    # print_verb(abs(vel_final[1]))
+    # print_verb(abs(vel_final[2]))
