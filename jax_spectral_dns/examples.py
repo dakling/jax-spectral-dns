@@ -2876,7 +2876,7 @@ def run_ld_2021_dual(
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(
-        v0_hat, Re=Re, dt=dt, end_time=end_time, velocity_base_hat=vel_base.hat()
+        v0_hat, Re=Re, dt=dt, end_time=end_time_, velocity_base_hat=vel_base.hat()
     )
     nse.set_linearize(False)
     nse.set_post_process_fn(post_process)
