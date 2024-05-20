@@ -289,7 +289,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("gain change:", gain_change)
             print_verb("")
 
-            if (gain_change > 0.0) and success and (gain_change / self.old_value > 0.1):
+            if (gain_change > 0.0) and success and (gain_change / self.old_value < 0.1):
                 iteration_successful = True
                 self.increase_step_size()
                 self.grad, success = nse_dual.get_projected_cg_grad(

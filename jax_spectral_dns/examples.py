@@ -19,7 +19,7 @@ from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from functools import partial, reduce
-from typing import TYPE_CHECKING, Callable, Optional, Union, cast, Tuple, List
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast, Tuple, List
 import time
 
 from jax_spectral_dns import navier_stokes_perturbation
@@ -2708,7 +2708,7 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    max_cfl = 0.03
+    max_cfl = 0.1
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -3130,7 +3130,7 @@ def run_optimisation_transient_growth_dual(
     Ny = int(Ny)
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
-    dt = 5e-4
+    dt = 1e-3
     # end_time = dt * 1
     end_time = T
     number_of_modes = 25  # deliberately low value so that there is room for improvement
@@ -3227,79 +3227,70 @@ def run_optimisation_transient_growth_dual(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U_hat_: "jnp_array", out: bool = False) -> "jsd_float":
-
-        U_hat: VectorField[FourierField] = VectorField.FromData(
-            FourierField, domain, U_hat_, name="velocity_hat"
-        )
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
-        U_norm *= e_0 ** (1 / 2)
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
-
-        # nse = NavierStokesVelVortPerturbation(U_hat, dt=dt, Re=Re)
-        nse.end_time = end_time
-
-        nse.set_linearize(False)
-        # nse.set_linearize(True)
-
-        nse.activate_jit()
-        if out:
-            nse.write_intermediate_output = True
-            nse.set_post_process_fn(post_process)
+    # use_custom_optimiser = False
+    use_custom_optimiser = True
+    if use_custom_optimiser:
+        if vel_0_path is None:
+            v0_hat = v0_0_hat
         else:
-            nse.write_intermediate_output = False
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
+            v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
+        v0_hat.set_name("velocity_hat")
+        nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
+        # nse.set_linearize(True)
+        nse.set_linearize(False)
+        nse_dual = (
+            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
+        )
+        # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
+        optimiser = ConjugateGradientDescentSolver(
+            nse_dual,
+            max_iterations=number_of_steps,
+            step_size=eps,
+            max_step_size=0.1,
+            post_process_function=post_process,
+        )
+        optimiser.optimise()
 
-        nse.set_before_time_step_fn(None)
-        nse.set_after_time_step_fn(None)
-        if out:
-            nse.post_process()
-
-        gain = vel.energy() / U_norm.energy()
-        return gain
-
-    if vel_0_path is None:
-        v0_hat = v0_0_hat
     else:
-        v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
-    v0_hat.set_name("velocity_hat")
-    nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
-    nse.set_linearize(True)
-    # nse.set_linearize(False)
-    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse
-    )
-    # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
-    optimiser = ConjugateGradientDescentSolver(
-        nse_dual,
-        max_iterations=number_of_steps,
-        step_size=eps,
-        max_step_size=0.1,
-        post_process_function=post_process,
-    )
-    optimiser.optimise()
 
-    # run_input_initial = v0_0_hat
+        def id(x: Any) -> Any:
+            return x
 
-    # optimiser = OptimiserFourier(
-    #     domain,
-    #     domain,
-    #     run_adjoint,
-    #     run_input_initial,
-    #     value_and_grad=True,
-    #     minimise=False,
-    #     force_2d=False,
-    #     max_iter=number_of_steps,
-    #     use_optax=min_number_of_optax_steps >= 0,
-    #     min_optax_steps=min_number_of_optax_steps,
-    #     objective_fn_name="gain",
-    #     add_noise=False
-    # )
-    # optimiser.optimise()
+        def run_adjoint(v0_hat: "jnp_array"):
+            vel_0_hat = VectorField.FromData(
+                FourierField, domain, v0_hat, "velocity_hat"
+            )
+            nse = NavierStokesVelVortPerturbation(
+                vel_0_hat, Re=Re, dt=dt, end_time=end_time
+            )
+            # nse.set_linearize(True)
+            nse.set_linearize(False)
+            nse_dual = (
+                NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                    nse
+                )
+            )
+            return nse_dual.get_gain(), nse_dual.get_grad()
+
+        run_input_initial = v0_0_hat
+
+        optimiser = OptimiserFourier(
+            domain,
+            domain,
+            run_adjoint,
+            run_input_initial,
+            value_and_grad=True,
+            minimise=False,
+            force_2d=False,
+            max_iter=number_of_steps,
+            use_optax=False,
+            min_optax_steps=0,
+            objective_fn_name="gain",
+            add_noise=False,
+            parameter_to_run_input_fn=id,
+            run_input_to_parameter_fn=id,
+        )
+        optimiser.optimise()
 
 
 def run_test_dual() -> None:
