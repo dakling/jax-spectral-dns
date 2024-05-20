@@ -3119,7 +3119,7 @@ def run_optimisation_transient_growth_dual(
     Nz: int = 4,
     number_of_steps: int = 20,
     vel_0_path: Optional[str] = None,
-    use_custom_optimiser: bool = False,
+    use_custom_optimiser: bool = True,
 ) -> None:
     Re = float(Re)
     T = float(T)
@@ -3273,7 +3273,7 @@ def run_optimisation_transient_growth_dual(
 
         def run_adjoint(
             v0_hat: VectorField[FourierField], out: bool = False
-        ) -> Tuple[float, "jnp_array"]:
+        ) -> Tuple[float, Tuple["jnp_array"]]:
             v0_hat.set_name("velocity_hat")
             nse = NavierStokesVelVortPerturbation(
                 v0_hat, Re=Re, dt=dt, end_time=end_time
@@ -3285,7 +3285,7 @@ def run_optimisation_transient_growth_dual(
                     nse
                 )
             )
-            return (nse_dual.get_gain(), nse_dual.get_grad())
+            return (nse_dual.get_gain(), (nse_dual.get_grad(),))
 
         run_input_initial = v0_0_hat
 
