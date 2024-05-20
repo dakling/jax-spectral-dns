@@ -289,7 +289,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("gain change:", gain_change)
             print_verb("")
 
-            if gain_change > 0.0:
+            if (gain_change > 0.0) and success and (gain_change / self.old_value > 0.1):
                 iteration_successful = True
                 self.increase_step_size()
                 self.grad, success = nse_dual.get_projected_cg_grad(
@@ -305,7 +305,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             else:
                 self.decrease_step_size()
                 assert self.old_nse_dual is not None
-                self.beta = 0.0
+                if gain_change <= 0.0:
+                    self.beta = 0.0
                 self.grad = self.old_nse_dual.get_projected_grad(self.step_size)
                 print_verb(
                     "gain decrease/stagnation detected, repeating iteration with smaller step size."
@@ -321,7 +322,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
 
-        self.update_beta(success)
+        # self.update_beta(success)
+        self.update_beta(True)
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
