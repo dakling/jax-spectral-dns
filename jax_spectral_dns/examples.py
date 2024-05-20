@@ -3119,11 +3119,15 @@ def run_optimisation_transient_growth_dual(
     Nz: int = 4,
     number_of_steps: int = 20,
     vel_0_path: Optional[str] = None,
+    use_custom_optimiser: bool = True,
 ) -> None:
     Re = float(Re)
     T = float(T)
     alpha = 1.0
     beta = 0.0
+
+    if type(use_custom_optimiser) is str:
+        use_custom_optimiser = use_custom_optimiser == "True"
 
     Equation.initialize()
     Nx = int(Nx)
@@ -3227,9 +3231,8 @@ def run_optimisation_transient_growth_dual(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    # use_custom_optimiser = False
-    use_custom_optimiser = True
     if use_custom_optimiser:
+        print_verb("using custom optimiser")
         if vel_0_path is None:
             v0_hat = v0_0_hat
         else:
@@ -3253,15 +3256,22 @@ def run_optimisation_transient_growth_dual(
 
     else:
 
-        def id(x: Any) -> Any:
-            return x
+        print_verb("using optimiser from external library")
 
-        def run_adjoint(v0_hat: "jnp_array"):
-            vel_0_hat = VectorField.FromData(
-                FourierField, domain, v0_hat, "velocity_hat"
+        def run_input_to_parameters(x: VectorField[FourierField]) -> parameter_type:
+            return (x.get_data(),)
+
+        def parameters_to_run_input(x: parameter_type) -> VectorField[FourierField]:
+            vel_0_hat: VectorField[FourierField] = VectorField.FromData(
+                FourierField, domain, x[0], "velocity_hat"
             )
+            return vel_0_hat
+
+        def run_adjoint(
+            v0_hat: VectorField[FourierField], out: bool = False
+        ) -> Tuple[float, "jnp_array"]:
             nse = NavierStokesVelVortPerturbation(
-                vel_0_hat, Re=Re, dt=dt, end_time=end_time
+                v0_hat, Re=Re, dt=dt, end_time=end_time
             )
             # nse.set_linearize(True)
             nse.set_linearize(False)
@@ -3274,7 +3284,7 @@ def run_optimisation_transient_growth_dual(
 
         run_input_initial = v0_0_hat
 
-        optimiser = OptimiserFourier(
+        optimiser_ = OptimiserFourier(
             domain,
             domain,
             run_adjoint,
@@ -3287,10 +3297,10 @@ def run_optimisation_transient_growth_dual(
             min_optax_steps=0,
             objective_fn_name="gain",
             add_noise=False,
-            parameter_to_run_input_fn=id,
-            run_input_to_parameter_fn=id,
+            parameter_to_run_input_fn=parameters_to_run_input,
+            run_input_to_parameter_fn=run_input_to_parameters,
         )
-        optimiser.optimise()
+        optimiser_.optimise()
 
 
 def run_test_dual() -> None:
