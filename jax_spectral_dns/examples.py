@@ -2886,8 +2886,8 @@ def run_ld_2021_dual(
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,
         max_iterations=number_of_steps,
-        step_size=0.1,
-        max_step_size=0.1,
+        step_size=0.001,
+        max_step_size=0.01,
         post_process_function=post_process,
     )
     optimiser.optimise()
@@ -3285,7 +3285,7 @@ def run_optimisation_transient_growth_dual(
                     nse
                 )
             )
-            return (nse_dual.get_gain(), (nse_dual.get_grad(),))
+            return (nse_dual.get_gain(), nse_dual.get_grad())
 
         run_input_initial = v0_0_hat
 
@@ -3302,8 +3302,8 @@ def run_optimisation_transient_growth_dual(
             min_optax_steps=0,
             objective_fn_name="gain",
             add_noise=False,
-            parameter_to_run_input_fn=parameters_to_run_input,
-            run_input_to_parameter_fn=run_input_to_parameters,
+            parameters_to_run_input_fn=parameters_to_run_input,
+            run_input_to_parameters_fn=run_input_to_parameters,
         )
         optimiser_.optimise()
 
