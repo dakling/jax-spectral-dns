@@ -3126,8 +3126,8 @@ def run_optimisation_transient_growth_dual(
     alpha = 1.0
     beta = 0.0
 
-    if type(use_custom_optimiser) is str:
-        use_custom_optimiser = use_custom_optimiser == "True"
+    if type(use_custom_optimiser) is str:  # type: ignore
+        use_custom_optimiser = use_custom_optimiser == "True"  # type: ignore
 
     Equation.initialize()
     Nx = int(Nx)
@@ -3142,6 +3142,9 @@ def run_optimisation_transient_growth_dual(
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     # aliasing = 3 / 2
     aliasing = 1
+
+    if vel_0_path is not None and vel_0_path == "None":
+        vel_0_path = None
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
@@ -3265,11 +3268,13 @@ def run_optimisation_transient_growth_dual(
             vel_0_hat: VectorField[FourierField] = VectorField.FromData(
                 FourierField, domain, x[0], "velocity_hat"
             )
+            vel_0_hat.set_name("velocity_hat")
             return vel_0_hat
 
         def run_adjoint(
             v0_hat: VectorField[FourierField], out: bool = False
         ) -> Tuple[float, "jnp_array"]:
+            v0_hat.set_name("velocity_hat")
             nse = NavierStokesVelVortPerturbation(
                 v0_hat, Re=Re, dt=dt, end_time=end_time
             )
@@ -3280,7 +3285,7 @@ def run_optimisation_transient_growth_dual(
                     nse
                 )
             )
-            return nse_dual.get_gain(), nse_dual.get_grad()
+            return (nse_dual.get_gain(), (nse_dual.get_grad(),))
 
         run_input_initial = v0_0_hat
 
