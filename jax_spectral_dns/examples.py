@@ -2886,7 +2886,7 @@ def run_ld_2021_dual(
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,
         max_iterations=number_of_steps,
-        step_size=0.001,
+        step_size=1e-6,
         max_step_size=0.01,
         post_process_function=post_process,
     )

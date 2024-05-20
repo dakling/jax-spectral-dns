@@ -289,12 +289,18 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("gain change:", gain_change)
             print_verb("")
 
-            if (gain_change > 0.0) and success and (gain_change / self.old_value < 0.1):
+            gain_change_ok: bool = (gain_change > 0.0) and (
+                gain_change / self.old_value < 0.1
+            )
+            if gain_change_ok:
                 iteration_successful = True
                 self.increase_step_size()
-                self.grad, success = nse_dual.get_projected_cg_grad(
-                    self.step_size, self.beta, self.old_grad
-                )
+                while not success:
+                    self.grad, success = nse_dual.get_projected_cg_grad(
+                        self.step_size, self.beta, self.old_grad
+                    )
+                    if not success:
+                        self.decrease_step_size()
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )
