@@ -3119,7 +3119,7 @@ def run_optimisation_transient_growth_dual(
     Nz: int = 4,
     number_of_steps: int = 20,
     vel_0_path: Optional[str] = None,
-    use_custom_optimiser: bool = True,
+    use_custom_optimiser: bool = False,
 ) -> None:
     Re = float(Re)
     T = float(T)
