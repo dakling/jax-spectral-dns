@@ -122,7 +122,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
         self.value = nse_dual.get_gain()
-        self.grad = nse_dual.get_projected_grad(self.step_size)
+        self.grad, _ = nse_dual.get_projected_grad(self.step_size)
         self.old_value = self.value
         self.old_nse_dual = nse_dual
         print_verb("")
@@ -182,7 +182,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             if gain_change > 0.0:
                 iteration_successful = True
                 self.increase_step_size()
-                self.grad = nse_dual.get_projected_grad(self.step_size)
+                self.grad, _ = nse_dual.get_projected_grad(self.step_size)
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )
@@ -193,7 +193,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             else:
                 self.decrease_step_size()
                 assert self.old_nse_dual is not None
-                self.grad = self.old_nse_dual.get_projected_grad(self.step_size)
+                self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
                 print_verb(
                     "gain decrease/stagnation detected, repeating iteration with smaller step size."
                 )
@@ -235,7 +235,16 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
         self.value = nse_dual.get_gain()
-        self.grad = nse_dual.get_projected_grad(self.step_size)
+        success = False
+        while not success:
+            self.grad, success = nse_dual.get_projected_grad(self.step_size)
+            if not success:
+                print_verb("")
+                print_verb(
+                    "problems with finding lambda detected, repeating gradient calculation with smaller step size."
+                )
+                self.decrease_step_size()
+                print_verb("step size:", self.step_size)
         self.old_value = self.value
         self.old_grad = self.grad
         self.old_nse_dual = nse_dual
@@ -300,7 +309,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         self.step_size, self.beta, self.old_grad
                     )
                     if not success:
+                        print_verb(
+                            "problems with finding lambda detected, repeating gradient calculation with smaller step size."
+                        )
                         self.decrease_step_size()
+                        print_verb("step size:", self.step_size)
+                        print_verb("beta:", self.beta)
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )
@@ -313,10 +327,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 assert self.old_nse_dual is not None
                 if gain_change <= 0.0:
                     self.beta = 0.0
-                self.grad = self.old_nse_dual.get_projected_grad(self.step_size)
-                print_verb(
-                    "gain decrease/stagnation detected, repeating iteration with smaller step size."
-                )
+                self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
+                if gain_change <= 0.0:
+                    print_verb(
+                        "gain decrease/stagnation detected, repeating iteration with smaller step size."
+                    )
+                if gain_change / self.old_value >= 0.1:
+                    print_verb(
+                        "high gain increase detected, repeating iteration with smaller step size."
+                    )
 
             j += 1
             if j > self.max_number_of_sub_iterations:

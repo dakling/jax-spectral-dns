@@ -290,7 +290,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         e_0 = u_hat_0.no_hat().energy()
         return (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0
 
-    def get_projected_grad(self, step_size: float) -> "jnp_array":
+    def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
         u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
         v_hat_0 = self.get_latest_field("velocity_hat")
@@ -310,7 +310,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
         print_verb("energy:", get_new_energy_0(lam))
 
-        return lam * u_hat_0.get_data() - v_hat_0.get_data()
+        return (lam * u_hat_0.get_data() - v_hat_0.get_data(), i < 100)
 
     def get_projected_cg_grad(
         self, step_size: float, beta: float, old_grad: "jnp_array"

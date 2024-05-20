@@ -3285,7 +3285,7 @@ def run_optimisation_transient_growth_dual(
                     nse
                 )
             )
-            return (nse_dual.get_gain(), (nse_dual.get_grad(),))
+            return (nse_dual.get_gain(), (-1 * nse_dual.get_grad(),))
 
         run_input_initial = v0_0_hat
 
