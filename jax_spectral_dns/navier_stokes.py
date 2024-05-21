@@ -427,7 +427,7 @@ class NavierStokesVelVort(Equation):
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
     def get_rk_parameters(
-        self, n_steps: Optional[int]
+        self, n_steps: Optional[int] = None
     ) -> Tuple[List["jsd_float"], ...]:
         if n_steps is None:
             n_steps = self.get_number_of_rk_steps()
