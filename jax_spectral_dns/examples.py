@@ -3137,7 +3137,14 @@ def run_optimisation_transient_growth_dual(
     dt = 1e-3
     # end_time = dt * 1
     end_time = T
-    number_of_modes = 25  # deliberately low value so that there is room for improvement
+    if Re < 1000:
+        number_of_modes = (
+            15  # deliberately low value so that there is room for improvement
+        )
+    else:
+        number_of_modes = (
+            25  # deliberately low value so that there is room for improvement
+        )
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     # aliasing = 3 / 2
@@ -3285,7 +3292,10 @@ def run_optimisation_transient_growth_dual(
                     nse
                 )
             )
-            return (nse_dual.get_gain(), (-1 * nse_dual.get_grad(),))
+            if out:
+                return (nse_dual.get_gain(), (jnp.array([0.0]),))
+            else:
+                return (nse_dual.get_gain(), (-1 * nse_dual.get_grad(),))
 
         run_input_initial = v0_0_hat
 

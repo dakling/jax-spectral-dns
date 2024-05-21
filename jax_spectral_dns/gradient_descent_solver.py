@@ -323,11 +323,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 grad_nh.plot_3d(2)
                 grad_nh[0].plot_center(1)
             else:
-                self.decrease_step_size()
-                assert self.old_nse_dual is not None
-                if gain_change <= 0.0:
-                    self.beta = 0.0
-                self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
                 if gain_change <= 0.0:
                     print_verb(
                         "gain decrease/stagnation detected, repeating iteration with smaller step size."
@@ -336,6 +331,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     print_verb(
                         "high gain increase detected, repeating iteration with smaller step size."
                     )
+                self.decrease_step_size()
+                assert self.old_nse_dual is not None
+                if gain_change <= 0.0:
+                    self.beta = 0.0
+                self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
 
             j += 1
             if j > self.max_number_of_sub_iterations:

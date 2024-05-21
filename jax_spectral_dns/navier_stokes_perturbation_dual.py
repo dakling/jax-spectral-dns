@@ -275,6 +275,15 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.write_intermediate_output = False
             self.activate_jit()
             self.solve()
+            # TODO
+            vT = self.get_initial_field("velocity_hat").no_hat()
+            vT.set_name("vT")
+            vT.plot_3d(2)
+            print_verb("vT energy", vT.energy())
+            v0 = self.get_latest_field("velocity_hat").no_hat()
+            v0.set_name("v0")
+            v0.plot_3d(2)
+            print_verb("v0 energy", v0.energy())
 
     def get_gain(self) -> float:
         self.run_forward_calculation()
@@ -354,4 +363,4 @@ def perform_step_navier_stokes_perturbation_dual(
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    return (nse_dual.get_gain(), nse_dual.get_projected_grad(step_size))
+    return (nse_dual.get_gain(), nse_dual.get_projected_grad(step_size)[0])
