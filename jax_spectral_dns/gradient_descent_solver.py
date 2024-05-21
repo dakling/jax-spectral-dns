@@ -373,5 +373,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.beta = cast(
                 float, jnp.dot(grad, (grad - old_grad)) / jnp.dot(old_grad, old_grad)
             )
+            if self.beta.real < 0.0:
+                self.beta = 0.0
         else:
             self.beta = 0.0
