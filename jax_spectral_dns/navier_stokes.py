@@ -426,8 +426,11 @@ class NavierStokesVelVort(Equation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
-    def get_rk_parameters(self) -> Tuple[List["jsd_float"], ...]:
-        n_steps = self.get_number_of_rk_steps()
+    def get_rk_parameters(
+        self, n_steps: Optional[int]
+    ) -> Tuple[List["jsd_float"], ...]:
+        if n_steps is None:
+            n_steps = self.get_number_of_rk_steps()
         if n_steps == 1:
             return (
                 [1.0],
@@ -453,7 +456,7 @@ class NavierStokesVelVort(Equation):
         dt: "jsd_float",
         number_of_rk_steps: int,
     ) -> Tuple["np_complex_array", ...]:
-        alpha, beta, _, _ = self.get_rk_parameters()
+        alpha, beta, _, _ = self.get_rk_parameters(number_of_rk_steps)
         D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
         Ly = 1 / Re_tau * D2
         n = Ly.shape[0]
