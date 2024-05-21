@@ -59,7 +59,7 @@ class GradientDescentSolver(ABC):
             self.update()
             self.post_process_iteration()
             i += 1
-            if i >= self.number_of_steps or self.step_size < 1e-10:
+            if i >= self.number_of_steps or self.step_size < 1e-20:
                 self.done = True
         self.perform_final_run()
 
@@ -244,6 +244,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     "problems with finding lambda detected, repeating gradient calculation with smaller step size."
                 )
                 self.decrease_step_size()
+                if abs(self.beta > 1e2):
+                    self.beta = 0.0
                 print_verb("step size:", self.step_size)
         self.old_value = self.value
         self.old_grad = self.grad
@@ -313,6 +315,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
                         )
                         self.decrease_step_size()
+                        if abs(self.beta > 1e2):
+                            self.beta = 0.0
                         print_verb("step size:", self.step_size)
                         print_verb("beta:", self.beta)
                 grad_field: VectorField[FourierField] = VectorField.FromData(
