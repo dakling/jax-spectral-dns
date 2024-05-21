@@ -33,3 +33,4 @@ class NavierStokesVelVortFixedParameters:
         10  # update the timestep every time_step_udate_frequency time steps
     )
     u_max_over_u_tau: float = 1e0
+    number_of_rk_steps: int = 3

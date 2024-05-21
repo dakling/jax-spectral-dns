@@ -168,6 +168,7 @@ class NavierStokesVelVort(Equation):
             Re_tau,
             max_cfl,
             u_max_over_u_tau,
+            3,
         )
         self.update_flow_rate()
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
@@ -356,6 +357,9 @@ class NavierStokesVelVort(Equation):
     def get_u_max_over_u_tau(self) -> "jsd_float":
         return self.nse_fixed_parameters.u_max_over_u_tau
 
+    def get_number_of_rk_steps(self) -> "int":
+        return self.nse_fixed_parameters.number_of_rk_steps
+
     def init_velocity(self, velocity_hat: VectorField[FourierField]) -> None:
         self.set_field("velocity_hat", 0, velocity_hat)
 
@@ -419,12 +423,23 @@ class NavierStokesVelVort(Equation):
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
     def get_rk_parameters(self) -> Tuple[List["jsd_float"], ...]:
-        return (
-            [29 / 96, -3 / 40, 1 / 6],
-            [37 / 160, 5 / 24, 1 / 6],
-            [8 / 15, 5 / 12, 3 / 4],
-            [0, -17 / 60, -5 / 12],
-        )
+        n_steps = self.get_number_of_rk_steps()
+        if n_steps == 1:
+            return (
+                [1.0],
+                [1.0],
+                [1.0],
+                [0.0],
+            )
+        elif n_steps == 3:
+            return (
+                [29 / 96, -3 / 40, 1 / 6],
+                [37 / 160, 5 / 24, 1 / 6],
+                [8 / 15, 5 / 12, 3 / 4],
+                [0, -17 / 60, -5 / 12],
+            )
+        else:
+            raise Exception("number of rk steps not supported")
 
     def prepare_assemble_rk_matrices(
         self,
@@ -441,25 +456,55 @@ class NavierStokesVelVort(Equation):
         Z = np.zeros((n, n))
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+
+        number_of_rk_steps = self.get_number_of_rk_steps()
+
         rk_mats_rhs = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+                n,
+            ),
             dtype=np.complex128,
         )
         rk_mats_lhs_inv = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+                n,
+            ),
             dtype=np.complex128,
         )
         rk_rhs_inhom = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+            ),
             dtype=np.complex128,
         )
         rk_mats_lhs_inv_inhom = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+                n,
+            ),
             dtype=np.complex128,
         )
-        rk_mats_rhs_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex128)
-        rk_mats_lhs_inv_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex128)
-        for i in range(3):
+        rk_mats_rhs_ns = np.zeros(
+            (number_of_rk_steps, 2 * n, 2 * n), dtype=np.complex128
+        )
+        rk_mats_lhs_inv_ns = np.zeros(
+            (number_of_rk_steps, 2 * n, 2 * n), dtype=np.complex128
+        )
+        for i in range(number_of_rk_steps):
             for xi, kx in enumerate(domain.grid[0]):
                 for zi, kz in enumerate(domain.grid[2]):
                     L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
@@ -886,7 +931,7 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
-        number_of_rk_steps = 3
+        number_of_rk_steps = self.get_number_of_rk_steps()
 
         h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (None, None, None)
 

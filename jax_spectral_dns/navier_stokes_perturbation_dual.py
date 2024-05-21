@@ -101,9 +101,8 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
     for i in physical_domain.all_dimensions():
         acc = jnp.zeros_like(vel_v_new[0])
         for j in physical_domain.all_dimensions():
-            acc += (
-                2 * vel_v_new[j] * physical_domain.diff(vel_u[j], i)
-            )  # TODO do diff in fourier space?
+            vel_u_hat_j_diff_i = fourier_domain.diff(vel_u_hat[j], i)
+            acc += 2 * vel_v_new[j] * fourier_domain.field_no_hat(vel_u_hat_j_diff_i)
         acc_hat = jnp.array(physical_domain.field_hat(acc))
         v_nabla_u_hat.append(acc_hat)
 
