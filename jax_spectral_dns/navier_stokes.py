@@ -138,6 +138,7 @@ class NavierStokesVelVort(Equation):
         )
         super().__init__(domain, velocity_field, **params)
 
+        n_rk_steps = 3
         poisson_mat = domain.assemble_poisson_matrix()
         (
             rk_mats_rhs,
@@ -146,7 +147,9 @@ class NavierStokesVelVort(Equation):
             rk_mats_lhs_inv_inhom,
             rk_mats_rhs_ns,
             rk_mats_lhs_inv_ns,
-        ) = self.prepare_assemble_rk_matrices(domain, physical_domain, Re_tau, dt)
+        ) = self.prepare_assemble_rk_matrices(
+            domain, physical_domain, Re_tau, dt, n_rk_steps
+        )
 
         poisson_mat.setflags(write=False)
         rk_mats_rhs.setflags(write=False)
@@ -156,7 +159,6 @@ class NavierStokesVelVort(Equation):
         rk_mats_rhs_ns.setflags(write=False)
         rk_mats_lhs_inv_ns.setflags(write=False)
 
-        n_rk_steps = 3
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
             physical_domain,
             poisson_mat,
@@ -449,6 +451,7 @@ class NavierStokesVelVort(Equation):
         physical_domain: PhysicalDomain,
         Re_tau: "jsd_float",
         dt: "jsd_float",
+        number_of_rk_steps: int,
     ) -> Tuple["np_complex_array", ...]:
         alpha, beta, _, _ = self.get_rk_parameters()
         D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
@@ -458,8 +461,6 @@ class NavierStokesVelVort(Equation):
         Z = np.zeros((n, n))
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-
-        number_of_rk_steps = self.get_number_of_rk_steps()
 
         rk_mats_rhs = np.zeros(
             (
