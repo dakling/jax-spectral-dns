@@ -82,7 +82,13 @@ class GradientDescentSolver(ABC):
         dt = nse_.get_dt()
         end_time = nse_.end_time
 
-        nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
+        nse = NavierStokesVelVortPerturbation(
+            v0_hat,
+            Re=Re,
+            dt=dt,
+            end_time=end_time,
+            velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
+        )
         nse.set_linearize(False)
         nse.write_intermediate_output = True
         nse.activate_jit()
@@ -163,7 +169,11 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             dt = nse_.get_dt()
             end_time = nse_.end_time
             nse = NavierStokesVelVortPerturbation(
-                v0_hat_new, Re=Re, dt=dt, end_time=end_time
+                v0_hat_new,
+                Re=Re,
+                dt=dt,
+                end_time=end_time,
+                velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
             )
             nse.set_linearize(False)
             nse_dual = (
@@ -283,7 +293,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             dt = nse_.get_dt()
             end_time = nse_.end_time
             nse = NavierStokesVelVortPerturbation(
-                v0_hat_new, Re=Re, dt=dt, end_time=end_time
+                v0_hat_new,
+                Re=Re,
+                dt=dt,
+                end_time=end_time,
+                velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
             )
             # nse.set_linearize(True)
             nse.set_linearize(False)

@@ -3148,8 +3148,8 @@ def run_optimisation_transient_growth_dual(
         )
     # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    # aliasing = 3 / 2
-    aliasing = 1
+    aliasing = 3 / 2
+    # aliasing = 1
 
     if vel_0_path is not None and vel_0_path == "None":
         vel_0_path = None
