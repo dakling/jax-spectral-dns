@@ -160,18 +160,18 @@ class NavierStokesVelVort(Equation):
         rk_mats_lhs_inv_ns.setflags(write=False)
 
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
-            physical_domain,
-            poisson_mat,
-            rk_mats_rhs,
-            rk_mats_lhs_inv,
-            rk_rhs_inhom,
-            rk_mats_lhs_inv_inhom,
-            rk_mats_rhs_ns,
-            rk_mats_lhs_inv_ns,
-            Re_tau,
-            max_cfl,
-            u_max_over_u_tau,
-            n_rk_steps,
+            physical_domain=physical_domain,
+            poisson_mat=poisson_mat,
+            rk_mats_rhs=rk_mats_rhs,
+            rk_mats_lhs_inv=rk_mats_lhs_inv,
+            rk_rhs_inhom=rk_rhs_inhom,
+            rk_mats_lhs_inv_inhom=rk_mats_lhs_inv_inhom,
+            rk_mats_rhs_ns=rk_mats_rhs_ns,
+            rk_mats_lhs_inv_ns=rk_mats_lhs_inv_ns,
+            Re_tau=Re_tau,
+            max_cfl=max_cfl,
+            u_max_over_u_tau=u_max_over_u_tau,
+            number_of_rk_steps=n_rk_steps,
         )
         print_verb("using RK" + str(n_rk_steps) + " time stepper")
         self.update_flow_rate()
