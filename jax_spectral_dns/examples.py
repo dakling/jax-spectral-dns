@@ -2808,7 +2808,7 @@ def run_ld_2021_dual(
             lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
-        v0_0 *= e_0
+        v0_0 *= jnp.sqrt(e_0)
         vel_hat = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
