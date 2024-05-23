@@ -229,9 +229,9 @@ def run_navier_stokes_turbulent() -> None:
     end_time = 1
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Nx=64,
-        Ny=64,
-        Nz=64,
+        Nx=32,
+        Ny=96,
+        Nz=28,
         # Nx=92,
         # Ny=128,
         # Nz=92,

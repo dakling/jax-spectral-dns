@@ -972,8 +972,8 @@ class NavierStokesVelVort(Equation):
 
             def outer_map(
                 kzs_: "np_jnp_array",
-            ) -> Callable[["np_jnp_array"], List["jnp_array"]]:
-                def fn(kx_state: "np_jnp_array") -> List["jnp_array"]:
+            ) -> Callable[["np_jnp_array"], "jnp_array"]:
+                def fn(kx_state: "np_jnp_array") -> "jnp_array":
                     kx = kx_state[0]
                     fields_2d = jnp.split(
                         kx_state[1:], number_of_input_arguments, axis=0
@@ -990,8 +990,8 @@ class NavierStokesVelVort(Equation):
 
             def inner_map(
                 kx: "np_jnp_array",
-            ) -> Callable[["np_jnp_array"], List["jnp_array"]]:
-                def fn(kz_one_pt_state: "np_jnp_array") -> List["jnp_array"]:
+            ) -> Callable[["np_jnp_array"], "jnp_array"]:
+                def fn(kz_one_pt_state: "np_jnp_array") -> "jnp_array":
                     kz = kz_one_pt_state[0]
                     fields_1d = jnp.split(
                         kz_one_pt_state[1:],
@@ -1015,7 +1015,7 @@ class NavierStokesVelVort(Equation):
                         conv_ns_hat_0_00_old,
                         conv_ns_hat_2_00_old,
                     )  # type: ignore[call-arg]
-                    return [v_0_new_field, v_1_hat_new, v_2_new_field]
+                    return jnp.array([v_0_new_field, v_1_hat_new, v_2_new_field])
 
                 return fn
 
@@ -1043,7 +1043,9 @@ class NavierStokesVelVort(Equation):
 
             # out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
             out = jax.vmap(outer_map(kz_arr))(kx_state)
-            return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
+            # return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
+            out_ = jnp.moveaxis(out, 2, 0)
+            return jnp.moveaxis(out_, 2, 3)
 
         for step in range(number_of_rk_steps):
 
