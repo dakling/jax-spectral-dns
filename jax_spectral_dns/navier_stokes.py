@@ -713,7 +713,6 @@ class NavierStokesVelVort(Equation):
             ],
             Tuple["jnp_array", ...],
         ]:
-            @jax.jit
             def fn(
                 K: Tuple[int, int],
                 v_1_lap_hat_sw: "jnp_array",
@@ -944,6 +943,106 @@ class NavierStokesVelVort(Equation):
 
         h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (None, None, None)
 
+        Nx = self.get_domain().number_of_cells(0)
+        Ny = self.get_domain().number_of_cells(1)
+        Nz = self.get_domain().number_of_cells(2)
+
+        @partial(jax.jit, static_argnums=(0,))
+        def get_new_vel_field_map(
+            step: int,
+            v_1_lap_hat: "jnp_array",
+            vort_hat_1: "jnp_array",
+            conv_ns_hat_0: "jnp_array",
+            conv_ns_hat_2: "jnp_array",
+            conv_ns_hat_old_0: "jnp_array",
+            conv_ns_hat_old_2: "jnp_array",
+            h_v_hat: "jnp_array",
+            h_g_hat: "jnp_array",
+            h_v_hat_old: "jnp_array",
+            h_g_hat_old: "jnp_array",
+        ) -> "jnp_array":
+            number_of_input_arguments = 6
+
+            conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
+            conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
+            conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
+            conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
+            v_0_hat_00 = vel_hat_data[0][0, :, 0]
+            v_2_hat_00 = vel_hat_data[2][0, :, 0]
+
+            def outer_map(
+                kzs_: "np_jnp_array",
+            ) -> Callable[["np_jnp_array"], "jnp_array"]:
+                def fn(kx_state: "np_jnp_array") -> "jnp_array":
+                    kx = kx_state[0]
+                    fields_2d = jnp.split(
+                        kx_state[1:], number_of_input_arguments, axis=0
+                    )
+                    for i in range(len(fields_2d)):
+                        fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
+                    state_slice = jnp.concatenate(fields_2d).T
+                    kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
+                    out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
+                    return out
+
+                return fn
+
+            def inner_map(
+                kx: "np_jnp_array",
+            ) -> Callable[["np_jnp_array"], List["jnp_array"]]:
+                def fn(kz_one_pt_state: "np_jnp_array") -> List["jnp_array"]:
+                    kz = kz_one_pt_state[0]
+                    fields_1d = jnp.split(
+                        kz_one_pt_state[1:],
+                        number_of_input_arguments,
+                        axis=0,
+                    )
+                    kx_int: int = kx.real.astype(int)  # type: ignore[assignment]
+                    kz_int: int = kz.real.astype(int)  # type: ignore[assignment]
+                    (
+                        v_0_new_field,
+                        v_1_hat_new,
+                        v_2_new_field,
+                        _,
+                    ) = perform_single_rk_step_for_single_wavenumber(step)(
+                        (kx_int, kz_int),
+                        *fields_1d,
+                        v_0_hat_00,
+                        v_2_hat_00,
+                        conv_ns_hat_0_00,
+                        conv_ns_hat_2_00,
+                        conv_ns_hat_0_00_old,
+                        conv_ns_hat_2_00_old,
+                    )  # type: ignore[call-arg]
+                    return [v_0_new_field, v_1_hat_new, v_2_new_field]
+
+                return fn
+
+            kx_arr = np.atleast_2d(np.arange(Nx))
+            kz_arr = np.atleast_2d(np.arange(Nz))
+            state = jnp.concatenate(
+                [
+                    jnp.moveaxis(v_1_lap_hat, 1, 2),
+                    jnp.moveaxis(vort_hat_1, 1, 2),
+                    jnp.moveaxis(h_v_hat, 1, 2),
+                    jnp.moveaxis(h_g_hat, 1, 2),
+                    jnp.moveaxis(h_v_hat_old, 1, 2),
+                    jnp.moveaxis(h_g_hat_old, 1, 2),
+                ],
+                axis=1,
+            )
+            # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
+            kx_state = jnp.concatenate(
+                [
+                    kx_arr.T,
+                    jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
+                ],
+                axis=1,
+            )
+
+            out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
+            return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
+
         for step in range(number_of_rk_steps):
 
             # filter out high wavenumbers to dealias
@@ -985,112 +1084,8 @@ class NavierStokesVelVort(Equation):
                 axis=0,
             )
 
-            @partial(jax.jit, static_argnums=(0, 1, 2))
-            def get_new_vel_field_map(
-                Nx: int,
-                Ny: int,
-                Nz: int,
-                v_1_lap_hat: "jnp_array",
-                vort_hat_1: "jnp_array",
-                conv_ns_hat_0: "jnp_array",
-                conv_ns_hat_2: "jnp_array",
-                conv_ns_hat_old_0: "jnp_array",
-                conv_ns_hat_old_2: "jnp_array",
-                h_v_hat: "jnp_array",
-                h_g_hat: "jnp_array",
-                h_v_hat_old: "jnp_array",
-                h_g_hat_old: "jnp_array",
-            ) -> "jnp_array":
-                number_of_input_arguments = 6
-
-                conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
-                conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
-                conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
-                conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
-                v_0_hat_00 = vel_hat_data[0][0, :, 0]
-                v_2_hat_00 = vel_hat_data[2][0, :, 0]
-
-                def outer_map(
-                    kzs_: "np_jnp_array",
-                ) -> Callable[["np_jnp_array"], "jnp_array"]:
-                    def fn(kx_state: "np_jnp_array") -> "jnp_array":
-                        kx = kx_state[0]
-                        fields_2d = jnp.split(
-                            kx_state[1:], number_of_input_arguments, axis=0
-                        )
-                        for i in range(len(fields_2d)):
-                            fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
-                        state_slice = jnp.concatenate(fields_2d).T
-                        kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
-                        out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
-                        return out
-
-                    return fn
-
-                def inner_map(
-                    kx: "np_jnp_array",
-                ) -> Callable[["np_jnp_array"], List["jnp_array"]]:
-                    def fn(kz_one_pt_state: "np_jnp_array") -> List["jnp_array"]:
-                        kz = kz_one_pt_state[0]
-                        fields_1d = jnp.split(
-                            kz_one_pt_state[1:],
-                            number_of_input_arguments,
-                            axis=0,
-                        )
-                        kx_int: int = kx.real.astype(int)  # type: ignore[assignment]
-                        kz_int: int = kz.real.astype(int)  # type: ignore[assignment]
-                        (
-                            v_0_new_field,
-                            v_1_hat_new,
-                            v_2_new_field,
-                            _,
-                        ) = perform_single_rk_step_for_single_wavenumber(step)(
-                            (kx_int, kz_int),
-                            *fields_1d,
-                            v_0_hat_00,
-                            v_2_hat_00,
-                            conv_ns_hat_0_00,
-                            conv_ns_hat_2_00,
-                            conv_ns_hat_0_00_old,
-                            conv_ns_hat_2_00_old,
-                        )  # type: ignore[call-arg]
-                        return [v_0_new_field, v_1_hat_new, v_2_new_field]
-
-                    return fn
-
-                kx_arr = np.atleast_2d(np.arange(Nx))
-                kz_arr = np.atleast_2d(np.arange(Nz))
-                state = jnp.concatenate(
-                    [
-                        jnp.moveaxis(v_1_lap_hat, 1, 2),
-                        jnp.moveaxis(vort_hat_1, 1, 2),
-                        jnp.moveaxis(h_v_hat, 1, 2),
-                        jnp.moveaxis(h_g_hat, 1, 2),
-                        jnp.moveaxis(h_v_hat_old, 1, 2),
-                        jnp.moveaxis(h_g_hat_old, 1, 2),
-                    ],
-                    axis=1,
-                )
-                # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
-                kx_state = jnp.concatenate(
-                    [
-                        kx_arr.T,
-                        jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
-                    ],
-                    axis=1,
-                )
-
-                out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
-                return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
-
-            Nx = self.get_domain().number_of_cells(0)
-            Ny = self.get_domain().number_of_cells(1)
-            Nz = self.get_domain().number_of_cells(2)
-
             vel_new_hat_field = get_new_vel_field_map(
-                Nx,
-                Ny,
-                Nz,
+                step,
                 v_1_lap_hat,
                 vort_hat[1],
                 conv_ns_hat[0],
@@ -1133,7 +1128,7 @@ class NavierStokesVelVort(Equation):
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
         # return vel_new_hat.get_data()
-        return vel_new_hat_field
+        return cast("jnp_array", vel_new_hat_field)
 
     def perform_time_step(
         self,
