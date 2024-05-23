@@ -337,7 +337,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.grad, success = nse_dual.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
                 )
-                if not success and abs(self.beta > 1e2):
+                if not success and abs(self.beta) > 1e2:
                     print_verb(
                         "problems with finding lambda due to high beta detected, repeating gradient calculation with beta=0."
                     )
