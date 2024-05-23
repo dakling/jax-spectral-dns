@@ -3283,11 +3283,11 @@ def run_optimisation_transient_growth_dual(
         def run_adjoint(
             v0_hat: VectorField[FourierField], out: bool = False
         ) -> Tuple[float, Tuple["jnp_array"]]:
-            v0_hat.set_name("velocity_hat")
             v0 = v0_hat.no_hat()
             v0 = v0.normalize_by_energy()
             v0 *= e_0
             v0_hat_ = v0.hat()
+            v0_hat_.set_name("velocity_hat")
             nse = NavierStokesVelVortPerturbation(
                 v0_hat_, Re=Re, dt=dt, end_time=end_time
             )
