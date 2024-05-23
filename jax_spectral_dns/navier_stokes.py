@@ -713,6 +713,7 @@ class NavierStokesVelVort(Equation):
             ],
             Tuple["jnp_array", ...],
         ]:
+            @jax.jit
             def fn(
                 K: Tuple[int, int],
                 v_1_lap_hat_sw: "jnp_array",
@@ -984,6 +985,7 @@ class NavierStokesVelVort(Equation):
                 axis=0,
             )
 
+            @partial(jax.jit, static_argnums=(0, 1, 2))
             def get_new_vel_field_map(
                 Nx: int,
                 Ny: int,
