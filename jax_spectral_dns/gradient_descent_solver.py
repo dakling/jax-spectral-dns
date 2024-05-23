@@ -245,18 +245,18 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
         self.value = nse_dual.get_gain()
-        success = False
-        while not success:
-            self.grad, success = nse_dual.get_projected_grad(self.step_size)
-            if not success:
-                print_verb("")
-                print_verb(
-                    "problems with finding lambda detected, repeating gradient calculation with smaller step size."
-                )
-                self.decrease_step_size()
-                if abs(self.beta > 1e2):
-                    self.beta = 0.0
-                print_verb("step size:", self.step_size)
+        # while not success:
+        #     self.grad, success = nse_dual.get_projected_grad(self.step_size)
+        #     if not success:
+        #         print_verb("")
+        #         print_verb(
+        #             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
+        #         )
+        #         self.decrease_step_size()
+        #         if abs(self.beta > 1e2):
+        #             self.beta = 0.0
+        #         print_verb("step size:", self.step_size)
+        self.grad, _ = nse_dual.get_projected_grad(self.step_size)
         self.old_value = self.value
         self.old_grad = self.grad
         self.old_nse_dual = nse_dual
@@ -320,19 +320,31 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             if gain_change_ok:
                 iteration_successful = True
                 self.increase_step_size()
-                while not success:
+                # while not success:
+                #     self.grad, success = nse_dual.get_projected_cg_grad(
+                #         self.step_size, self.beta, self.old_grad
+                #     )
+                #     if not success:
+                #         print_verb(
+                #             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
+                #         )
+                #         self.decrease_step_size()
+                #         if abs(self.beta > 1e2):
+                #             self.beta = 0.0
+                #         print_verb("step size:", self.step_size)
+                #         print_verb("beta:", self.beta)
+
+                self.grad, success = nse_dual.get_projected_cg_grad(
+                    self.step_size, self.beta, self.old_grad
+                )
+                if not success and abs(self.beta > 1e2):
+                    print_verb(
+                        "problems with finding lambda due to high beta detected, repeating gradient calculation with beta=0."
+                    )
+                    self.beta = 0.0
                     self.grad, success = nse_dual.get_projected_cg_grad(
                         self.step_size, self.beta, self.old_grad
                     )
-                    if not success:
-                        print_verb(
-                            "problems with finding lambda detected, repeating gradient calculation with smaller step size."
-                        )
-                        self.decrease_step_size()
-                        if abs(self.beta > 1e2):
-                            self.beta = 0.0
-                        print_verb("step size:", self.step_size)
-                        print_verb("beta:", self.beta)
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )
