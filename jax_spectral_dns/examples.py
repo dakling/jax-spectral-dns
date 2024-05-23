@@ -3163,6 +3163,7 @@ def run_optimisation_transient_growth_dual(
     )
 
     skip_preparation = True
+    # skip_preparation = False
     if (not skip_preparation) or vel_0_path is None:
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             domain,
@@ -3311,6 +3312,8 @@ def run_optimisation_transient_growth_dual(
             max_iter=number_of_steps,
             use_optax=True,
             min_optax_steps=number_of_steps,
+            learning_rate=1e-2 / jnp.sqrt(e_0),
+            scale_by_norm=False,
             objective_fn_name="gain",
             add_noise=False,
             parameters_to_run_input_fn=parameters_to_run_input,
