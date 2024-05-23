@@ -112,13 +112,19 @@ class Optimiser(ABC, Generic[I]):
         else:
             self.inv_fn = lambda x: -x
 
-        run_fn_ = cast(Callable[[I, bool], "jsd_float"], run_fn)
-        self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
-            run_fn_(self.parameters_to_run_input_(v), out)
-        )
         if not value_and_grad:
+            run_fn_ = cast(Callable[[I, bool], "jsd_float"], run_fn)
+            self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
+                run_fn_(self.parameters_to_run_input_(v), out)
+            )
             self.value_and_grad_fn = jax.value_and_grad(self.run_fn)
         else:
+            run_fn__ = cast(
+                Callable[[I, bool], Tuple["jsd_float", "jnp_array"]], run_fn
+            )
+            self.run_fn = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
+                run_fn__(self.parameters_to_run_input_(v), out)[0]
+            )
 
             def vg_fn(
                 v: "parameter_type", out: bool = False
