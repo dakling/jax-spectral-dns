@@ -3263,6 +3263,7 @@ def run_optimisation_transient_growth_dual(
             step_size=eps,
             max_step_size=0.1,
             post_process_function=post_process,
+            relative_gain_increase_threshold=0.3,
         )
         optimiser.optimise()
 

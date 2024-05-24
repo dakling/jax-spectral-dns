@@ -27,6 +27,9 @@ class GradientDescentSolver(ABC):
         self.max_step_size = params.get("max_step_size", 0.999)
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("max_iterations", 20)
+        self.relative_gain_increase_threshold = params.get(
+            "relative_gain_increase_threshold", 0.2
+        )
         self.max_number_of_sub_iterations = params.get(
             "max_number_of_sub_iterations", 100
         )
@@ -357,7 +360,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     print_verb(
                         "gain decrease/stagnation detected, repeating iteration with smaller step size."
                     )
-                if gain_change / self.old_value >= 0.1:
+                if (
+                    gain_change / self.old_value
+                    >= self.relative_gain_increase_threshold
+                ):
                     print_verb(
                         "high gain increase detected, repeating iteration with smaller step size."
                     )
