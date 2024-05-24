@@ -10,6 +10,23 @@ jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 import logging
 
 import os
+import os
+
+os.environ["XLA_FLAGS"] = (
+    "--xla_gpu_enable_triton_softmax_fusion=true "
+    "--xla_gpu_triton_gemm_any=True "
+    "--xla_gpu_enable_async_collectives=true "
+    "--xla_gpu_enable_latency_hiding_scheduler=true "
+    "--xla_gpu_enable_highest_priority_async_stream=true "
+)
+os.environ.update(
+    {
+        "NCCL_LL128_BUFFSIZE": "-2",
+        "NCCL_LL_BUFFSIZE": "-2",
+        "NCCL_PROTO": "SIMPLE,LL,LL128",
+    }
+)
+
 import multiprocessing
 
 logging.getLogger("jax").setLevel(logging.WARNING)

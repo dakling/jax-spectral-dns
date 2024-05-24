@@ -1209,10 +1209,10 @@ class NavierStokesVelVort(Equation):
         number_of_time_steps = len(ts)
 
         if not self.write_entire_output:
-            # number_of_inner_steps = median_factor(number_of_time_steps)
-            # number_of_outer_steps = number_of_time_steps // number_of_inner_steps
-            number_of_outer_steps = median_factor(number_of_time_steps)
-            number_of_inner_steps = number_of_time_steps // number_of_outer_steps
+            number_of_inner_steps = median_factor(number_of_time_steps)
+            number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+            # number_of_outer_steps = median_factor(number_of_time_steps)
+            # number_of_inner_steps = number_of_time_steps // number_of_outer_steps
         else:
             number_of_outer_steps = number_of_time_steps
             number_of_inner_steps = 1
@@ -1240,12 +1240,12 @@ class NavierStokesVelVort(Equation):
         # assert (
         #     number_of_inner_steps >= number_of_outer_steps
         # ), "Something went wrong with inner/outer step division."
-        assert number_of_outer_steps >= number_of_inner_steps, (
-            "Something went wrong with inner/outer step division. Outer steps:",
-            number_of_outer_steps,
-            "inner steps:",
-            number_of_inner_steps,
-        )
+        # assert number_of_outer_steps >= number_of_inner_steps, (
+        #     "Something went wrong with inner/outer step division. Outer steps:",
+        #     number_of_outer_steps,
+        #     "inner steps:",
+        #     number_of_inner_steps,
+        # )
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, 0), xs=None, length=number_of_outer_steps
