@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 import time
 from typing import Any, cast
+import jax
 import jax.numpy as jnp
 from matplotlib.axes import subplot_class_factory
 from jax_spectral_dns.equation import print_verb
@@ -382,6 +383,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             except Exception:
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
+            jax.clear_caches()  # type: ignore[no-untyped-call] # TODO does this help? how much does it hurt?
 
         # self.update_beta(success)
         self.update_beta(True)
