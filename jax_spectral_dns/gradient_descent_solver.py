@@ -379,7 +379,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     )
                 self.decrease_step_size()
                 assert self.old_nse_dual is not None
-                if gain_change <= 0.0:
+                if gain_change <= 0.0 or abs(self.beta > 1e2):
                     self.beta = 0.0
                 self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
 
