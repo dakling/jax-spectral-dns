@@ -18,10 +18,6 @@ try:
 except ModuleNotFoundError:
     pass
 
-from pympler import tracker
-
-tr = tracker.SummaryTracker()
-
 
 class GradientDescentSolver(ABC):
 
