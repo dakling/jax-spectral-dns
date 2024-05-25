@@ -18,6 +18,10 @@ try:
 except ModuleNotFoundError:
     pass
 
+from pympler import tracker
+
+tr = tracker.SummaryTracker()
+
 
 class GradientDescentSolver(ABC):
 
@@ -401,8 +405,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.value = gain
         self.old_value = self.value
         self.old_grad = self.grad
-
-        tr.print_diff()
 
     def decrease_step_size(self) -> None:
         self.step_size /= 2.0

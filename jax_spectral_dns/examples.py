@@ -2444,8 +2444,7 @@ def run_ld_2021(
 
     # max_cfl = 0.65
     max_cfl = 0.10
-    # end_time = 0.35  # the target time (in ld2021 units)
-    end_time = 0.35 / 10  # the target time (in ld2021 units)
+    end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
