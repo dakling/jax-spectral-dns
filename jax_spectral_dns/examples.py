@@ -3154,13 +3154,17 @@ def run_optimisation_transient_growth_dual(
     if vel_0_path is not None and vel_0_path == "None":
         vel_0_path = None
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=min(Ny, 64))
     domain: PhysicalDomain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=aliasing,
     )
+
+    e_0 = 1e-10
+    # e_0 = 1.0
+    eps = 1e-2  # step size
 
     skip_preparation = True
     # skip_preparation = False
@@ -3179,6 +3183,9 @@ def run_optimisation_transient_growth_dual(
             "expected energy gain:",
             lsc.calculate_transient_growth_max_energy(T, number_of_modes),
         )
+        v0_0_norm = v0_0.normalize_by_energy()
+        v0_0_norm *= e_0 ** (1 / 2)
+        v0_0_hat = v0_0_norm.hat()
     if not skip_preparation:
         v0_0_linear = lsc.calculate_transient_growth_initial_condition(
             domain,
@@ -3193,13 +3200,6 @@ def run_optimisation_transient_growth_dual(
         )
         v0_0_linear.set_name("vel_lin_opt")
         v0_0_linear.plot_3d(2)
-
-    e_0 = 1e-10
-    # e_0 = 1.0
-    eps = 1e-2  # step size
-    v0_0_norm = v0_0.normalize_by_energy()
-    v0_0_norm *= e_0 ** (1 / 2)
-    v0_0_hat = v0_0_norm.hat()
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")

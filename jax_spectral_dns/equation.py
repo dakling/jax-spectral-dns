@@ -205,6 +205,13 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
+    def set_initial_field(self, name: str, field: "AnyField") -> None:
+        self.clear_field("velocity_hat")
+        try:
+            self.append_field(name, field)
+        except KeyError:
+            raise KeyError("Expected field named " + name + " in " + self.name + ".")
+
     def append_field(self, name: str, field: "AnyField", in_place: bool = True) -> None:
         try:
             if in_place and len(self.fields[name]) > 0:
@@ -228,6 +235,9 @@ class Equation:
     def add_field_history(self, name: str, field_history: "AnyFieldList") -> None:
         assert name not in self.fields, "Field " + name + " already exists!"
         self.fields[name] = cast(List["AnyField"], field_history)
+
+    def clear_field(self, name: str) -> None:
+        self.fields[name] = []
 
     def activate_jit(self) -> None:
         Field.activate_jit_ = True

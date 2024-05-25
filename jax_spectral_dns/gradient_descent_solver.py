@@ -125,16 +125,16 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         nse = self.dual_problem.forward_equation
         # nse.set_linearize(True)
         nse.set_linearize(False)
-        nse_dual = (
+        self.dual_problem = (
             NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
         )
 
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
-        self.value = nse_dual.get_gain()
-        self.grad, _ = nse_dual.get_projected_grad(self.step_size)
+        self.value = self.dual_problem.get_gain()
+        self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
         self.old_value = self.value
-        self.old_nse_dual = nse_dual
+        self.old_nse_dual = self.dual_problem
         print_verb("")
         print_verb("gain:", self.value)
         print_verb("")
@@ -180,13 +180,13 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
             )
             nse.set_linearize(False)
-            nse_dual = (
+            self.dual_problem = (
                 NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
                     nse
                 )
             )
 
-            gain = nse_dual.get_gain()
+            gain = self.dual_problem.get_gain()
             gain_change = gain - self.old_value
             print_verb("")
             print_verb("gain:", gain)
@@ -196,7 +196,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             if gain_change > 0.0:
                 iteration_successful = True
                 self.increase_step_size()
-                self.grad, _ = nse_dual.get_projected_grad(self.step_size)
+                self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
                 grad_field: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, self.grad, name="grad_hat"
                 )
@@ -227,7 +227,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         v0 = self.current_guess.no_hat()
         energy = v0.energy()
         print_verb("v0 energy:", energy)
-        self.old_nse_dual = nse_dual
+        self.old_nse_dual = self.dual_problem
         self.value = gain
         self.old_value = self.value
 
@@ -242,13 +242,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         nse = self.dual_problem.forward_equation
         # nse.set_linearize(True)
         nse.set_linearize(False)
-        nse_dual = (
-            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
-        )
+        self.dual_problem.update_with_nse()
+        # self.dual_problem = (
+        #     NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
+        # )
 
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
-        self.value = nse_dual.get_gain()
+        self.value = self.dual_problem.get_gain()
         # while not success:
         #     self.grad, success = nse_dual.get_projected_grad(self.step_size)
         #     if not success:
@@ -260,10 +261,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         #         if abs(self.beta > 1e2):
         #             self.beta = 0.0
         #         print_verb("step size:", self.step_size)
-        self.grad, _ = nse_dual.get_projected_grad(self.step_size)
+        self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
         self.old_value = self.value
         self.old_grad = self.grad
-        self.old_nse_dual = nse_dual
+        self.old_nse_dual = self.dual_problem
         print_verb("")
         print_verb("gain:", self.value)
         print_verb("")
@@ -296,22 +297,26 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             Re = nse_.get_Re_tau() * nse_.get_u_max_over_u_tau()
             dt = nse_.get_dt()
             end_time = nse_.end_time
-            nse = NavierStokesVelVortPerturbation(
-                v0_hat_new,
-                Re=Re,
-                dt=dt,
-                end_time=end_time,
-                velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
+            self.dual_problem.forward_equation.set_initial_field(
+                "velocity_hat", v0_hat_new
             )
-            # nse.set_linearize(True)
-            nse.set_linearize(False)
-            nse_dual = (
-                NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-                    nse
-                )
-            )
+            # nse = NavierStokesVelVortPerturbation(
+            #     v0_hat_new,
+            #     Re=Re,
+            #     dt=dt,
+            #     end_time=end_time,
+            #     velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
+            # )
+            # # nse.set_linearize(True)
+            # nse.set_linearize(False)
+            # self.dual_problem = (
+            #     NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+            #         nse
+            #     )
+            # )
+            self.dual_problem.update_with_nse()
 
-            gain = nse_dual.get_gain()
+            gain = self.dual_problem.get_gain()
             gain_change = gain - self.old_value
             print_verb("")
             print_verb("gain:", gain)
@@ -325,7 +330,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 iteration_successful = True
                 self.increase_step_size()
                 # while not success:
-                #     self.grad, success = nse_dual.get_projected_cg_grad(
+                #     self.grad, success = self.dual_problem.get_projected_cg_grad(
                 #         self.step_size, self.beta, self.old_grad
                 #     )
                 #     if not success:
@@ -338,7 +343,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 #         print_verb("step size:", self.step_size)
                 #         print_verb("beta:", self.beta)
 
-                self.grad, success = nse_dual.get_projected_cg_grad(
+                self.grad, success = self.dual_problem.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
                 )
                 if not success and abs(self.beta) > 1e2:
@@ -346,7 +351,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         "problems with finding lambda due to high beta detected, repeating gradient calculation with beta=0."
                     )
                     self.beta = 0.0
-                    self.grad, success = nse_dual.get_projected_cg_grad(
+                    self.grad, success = self.dual_problem.get_projected_cg_grad(
                         self.step_size, self.beta, self.old_grad
                     )
                 grad_field: VectorField[FourierField] = VectorField.FromData(
@@ -392,10 +397,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0 = self.current_guess.no_hat()
         energy = v0.energy()
         print_verb("v0 energy:", energy)
-        self.old_nse_dual = nse_dual
+        self.old_nse_dual = self.dual_problem
         self.value = gain
         self.old_value = self.value
         self.old_grad = self.grad
+
+        tr.print_diff()
 
     def decrease_step_size(self) -> None:
         self.step_size /= 2.0

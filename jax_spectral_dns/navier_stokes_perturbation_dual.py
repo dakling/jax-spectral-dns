@@ -191,6 +191,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         nse_dual.set_linearize(nse.linearize)
         return nse_dual
 
+    def update_with_nse(self) -> None:
+        self.forward_equation.write_entire_output = True
+        self.forward_equation.write_intermediate_output = False
+        self.clear_field("velocity_hat")
+        print(self.fields["velocity_hat"])
+
     def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
             self.get_physical_domain().grid[0][1:]
@@ -262,7 +268,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if not self.is_forward_calculation_done():
             velocity_u_hat_history_, _ = nse.solve_scan()
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
-        self.set_field("velocity_hat", 0, -1 * nse.get_latest_field("velocity_hat"))
+        self.set_initial_field(
+            "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
+        )
         self.forward_equation = nse  # not sure if this is necessary
 
     def run_backward_calculation(self) -> None:
