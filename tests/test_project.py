@@ -44,8 +44,7 @@ NoneType = type(None)
 class TestProject(unittest.TestCase):
     def setUp(self) -> None:
         Equation.initialize()
-        # Equation.verbosity_level = 0  # suppress output
-        Equation.verbosity_level = 3  # enable output
+        Equation.verbosity_level = 0  # suppress output
 
     def test_1D_cheb(self) -> None:
         Nx = 48
@@ -1458,7 +1457,7 @@ class TestProject(unittest.TestCase):
 
         error = (v0_no_cp_nh - v0_cp_nh).energy()
         print_verb("error:", error)
-        assert error < 1e-20
+        assert error < 1e-100
 
 
 if __name__ == "__main__":
