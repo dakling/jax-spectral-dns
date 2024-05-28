@@ -9,7 +9,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, cast, List
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, cast, List, Union
 from typing_extensions import Self
 
 # from importlib import reload
@@ -153,24 +153,36 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         super().__init__(velocity_field_, **params)
         self.velocity_field_u_history: Optional["jnp_array"] = None
         self.forward_equation = forward_equation
+        calculation_size = self.end_time / self.get_dt()
+        for i in self.all_dimensions():
+            calculation_size *= self.get_domain().number_of_cells(i)
+        checkpointing_threshold = params.get("checkpointing_threshold", 2e8)
+        self.checkpointing = params.get(
+            "checkpointing", calculation_size > checkpointing_threshold
+        )
+        if self.checkpointing:
+            self.current_velocity_field_u_history: Optional["jnp_array"] = None
+            self.current_u_history_start_step = -1
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
-            self.get_physical_domain(),
-            self.get_domain(),
-            vel,
-            velocity_base_hat.get_data(),
-            self.velocity_field_u_history.at[-1 - t].get(),  # type: ignore[union-attr]
-            linearize=self.linearize,
+        self.nonlinear_update_fn = (
+            lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
+                self.get_physical_domain(),
+                self.get_domain(),
+                vel,
+                velocity_base_hat.get_data(),
+                self.get_velocity_u_hat(t),
+                linearize=self.linearize,
+            )
         )
 
     @classmethod
     def FromNavierStokesVelVortPerturbation(
-        cls, nse: NavierStokesVelVortPerturbation
+        cls, nse: NavierStokesVelVortPerturbation, **params: Any
     ) -> Self:
 
         nse.write_entire_output = True
@@ -187,15 +199,28 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             dt=-dt,
             end_time=-end_time,
             velocity_base_hat=nse.get_latest_field("velocity_base_hat"),
+            **params,
         )
         nse_dual.set_linearize(nse.linearize)
         return nse_dual
+
+    def get_velocity_u_hat(self, timestep: int) -> "jnp_array":
+        if self.checkpointing:
+            assert self.current_velocity_field_u_history is not None
+            return self.current_velocity_field_u_history[
+                -1
+                - (
+                    timestep
+                    - self.current_u_history_start_step * self.number_of_inner_steps
+                )
+            ]
+        else:
+            return self.velocity_field_u_history.at[-1 - timestep].get()  # type: ignore[union-attr]
 
     def update_with_nse(self) -> None:
         self.forward_equation.write_entire_output = True
         self.forward_equation.write_intermediate_output = False
         self.clear_field("velocity_hat")
-        print(self.fields["velocity_hat"])
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
@@ -230,27 +255,101 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
-    # def get_Re_tau(self) -> "jsd_float":
-    #     return -abs(self.nse_fixed_parameters.Re_tau)
+    def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
+        if not self.checkpointing:
+            return super().solve_scan()
+        else:
+            nse = self.forward_equation
+            self.number_of_time_steps = nse.number_of_time_steps
+            self.number_of_outer_steps = nse.number_of_outer_steps
+            self.number_of_inner_steps = nse.number_of_inner_steps
 
-    # def get_dt(self) -> "jsd_float":
-    #     # return self.fixed_parameters.dt
-    #     return -abs(self.fixed_parameters.dt)
+            def inner_step_fn(
+                u0: Tuple["jnp_array", int], _: Any
+            ) -> Tuple[Tuple["jnp_array", int], None]:
+                u0_, time_step = u0
+                out = self.perform_time_step(u0_, time_step)
+                return ((out, time_step + 1), None)
 
-    # def prepare_assemble_rk_matrices(
-    #     self,
-    #     domain: FourierDomain,
-    #     physical_domain: PhysicalDomain,
-    #     Re_tau: "jsd_float",
-    #     dt: "jsd_float",
-    # ) -> Tuple["np_complex_array", ...]:
-    #     return super().prepare_assemble_rk_matrices(
-    #         domain,
-    #         physical_domain,
-    #         -abs(Re_tau),
-    #         # dt,  # TODO
-    #         -abs(dt),  # TODO
-    #     )
+            def step_fn(
+                u0: Tuple["jnp_array", int], _: Any
+            ) -> Tuple[Tuple["jnp_array", int], Tuple["jnp_array", int]]:
+                timestep = u0[1]
+                outer_start_step = timestep // self.number_of_inner_steps
+                self.current_u_history_start_step = outer_start_step
+                self.current_velocity_field_u_history = (
+                    self.run_forward_calculation_subrange(outer_start_step)
+                )
+                out, _ = jax.lax.scan(
+                    jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
+                    u0,
+                    xs=None,
+                    length=self.number_of_inner_steps,
+                    # inner_step_fn, u0, xs=None, length=number_of_inner_steps
+                )
+                return out, out
+
+            u0 = self.get_initial_field("velocity_hat").get_data()
+            ts = jnp.arange(0, self.end_time, self.get_dt())
+
+            if self.write_intermediate_output and not self.write_entire_output:
+                u_final, trajectory = jax.lax.scan(
+                    step_fn, (u0, 0), xs=None, length=self.number_of_outer_steps
+                )
+                for u in trajectory[0]:
+                    velocity = VectorField(
+                        [
+                            FourierField(
+                                self.get_physical_domain(),
+                                u[i],
+                                name="velocity_hat_" + "xyz"[i],
+                            )
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    self.append_field("velocity_hat", velocity, in_place=False)
+                # for i in range(self.get_number_of_fields("velocity_hat")):
+                #     cfl_s = self.get_cfl(i)
+                #     print_verb("i: ", i, "cfl:", cfl_s)
+                cfl_final = self.get_cfl()
+                print_verb("final cfl:", cfl_final, debug=True)
+                return (trajectory[0], len(ts))
+            elif self.write_entire_output:
+                u_final, trajectory = jax.lax.scan(
+                    step_fn, (u0, 0), xs=None, length=self.number_of_outer_steps
+                )
+                velocity_final = VectorField(
+                    [
+                        FourierField(
+                            self.get_physical_domain(),
+                            trajectory[0][-1][i],
+                            name="velocity_hat_" + "xyz"[i],
+                        )
+                        for i in self.all_dimensions()
+                    ]
+                )
+                self.append_field("velocity_hat", velocity_final, in_place=False)
+                cfl_final = self.get_cfl()
+                print_verb("final cfl:", cfl_final, debug=True)
+                return (trajectory[0], len(ts))
+            else:
+                u_final, _ = jax.lax.scan(
+                    step_fn, (u0, 0), xs=None, length=self.number_of_outer_steps
+                )
+                velocity_final = VectorField(
+                    [
+                        FourierField(
+                            self.get_physical_domain(),
+                            u_final[0][i],
+                            name="velocity_hat_" + "xyz"[i],
+                        )
+                        for i in self.all_dimensions()
+                    ]
+                )
+                self.append_field("velocity_hat", velocity_final, in_place=False)
+                cfl_final = self.get_cfl()
+                print_verb("final cfl:", cfl_final, debug=True)
+                return (velocity_final, len(ts))
 
     def is_forward_calculation_done(self) -> bool:
         return (
@@ -263,15 +362,46 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def run_forward_calculation(self) -> None:
         nse = self.forward_equation
-        nse.write_entire_output = True
-        nse.write_intermediate_output = False
+        nse.write_intermediate_output = True
+        nse.end_time = -1.0 * self.end_time
+        if self.checkpointing:
+            nse.write_entire_output = False
+            self.current_velocity_field_u_history = None
+        else:
+            nse.write_entire_output = True
         if not self.is_forward_calculation_done():
             velocity_u_hat_history_, _ = nse.solve_scan()
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
+            self.velocity_field_u_history = jnp.insert(
+                self.velocity_field_u_history,
+                0,
+                nse.get_initial_field("velocity_hat").get_data(),
+                axis=0,
+            )
         self.set_initial_field(
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
         )
         self.forward_equation = nse  # not sure if this is necessary
+
+    def run_forward_calculation_subrange(self, outer_timestep: int) -> "jnp_array":
+        nse = self.forward_equation
+        nse.write_intermediate_output = True
+        nse.write_entire_output = True
+        nse.clear_field("velocity_hat")
+        assert self.velocity_field_u_history is not None
+        step = -1 - (outer_timestep + 1)
+        init_field_data = self.velocity_field_u_history[step]
+        init_field: VectorField[FourierField] = VectorField.FromData(
+            FourierField,
+            self.get_physical_domain(),
+            init_field_data,
+            name="velocity_hat",
+        )
+        nse.set_initial_field("velocity_hat", init_field)
+        nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
+        velocity_u_hat_history_, _ = nse.solve_scan()
+        current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
+        return current_velocity_field_u_history
 
     def run_backward_calculation(self) -> None:
         if not self.is_backward_calculation_done():

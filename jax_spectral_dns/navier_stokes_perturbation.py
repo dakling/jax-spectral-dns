@@ -257,7 +257,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 def solve_navier_stokes_perturbation(
     Re: float = 1.8e2,
     end_time: float = 1e1,
-    max_iter: int = 10000,
     Nx: int = 8,
     Ny: int = 40,
     Nz: int = 8,
@@ -339,13 +338,13 @@ def solve_navier_stokes_perturbation(
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     if not rotated:
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re=Re, dt=dt)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            vel, Re=Re, dt=dt, end_time=end_time
+        )
     else:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            vel, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
+            vel, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat, end_time=end_time
         )
-    nse.end_time = end_time
-    nse.max_iter = max_iter
 
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None

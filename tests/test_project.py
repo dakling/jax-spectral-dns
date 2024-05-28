@@ -8,6 +8,10 @@ import numpy as np
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 
+from jax_spectral_dns.navier_stokes_perturbation_dual import (
+    NavierStokesVelVortPerturbationDual,
+)
+
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 from typing import TYPE_CHECKING, List, Tuple, cast
@@ -19,7 +23,10 @@ from jax_spectral_dns.navier_stokes import (
     NavierStokesVelVort,
     solve_navier_stokes_laminar,
 )
-from jax_spectral_dns.navier_stokes_perturbation import solve_navier_stokes_perturbation
+from jax_spectral_dns.navier_stokes_perturbation import (
+    NavierStokesVelVortPerturbation,
+    solve_navier_stokes_perturbation,
+)
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.examples import (
     run_pseudo_2d_perturbation,
@@ -37,7 +44,8 @@ NoneType = type(None)
 class TestProject(unittest.TestCase):
     def setUp(self) -> None:
         Equation.initialize()
-        Equation.verbosity_level = 0  # suppress output
+        # Equation.verbosity_level = 0  # suppress output
+        Equation.verbosity_level = 3  # enable output
 
     def test_1D_cheb(self) -> None:
         Nx = 48
@@ -1396,6 +1404,61 @@ class TestProject(unittest.TestCase):
             rel_error = abs((gain - expected_gain) / expected_gain)
             print_verb(rel_error, verbosity_level=3)
             assert rel_error < err
+
+    def test_checkpointing(self) -> None:
+        Re = 100.0
+        Nx = 12
+        Ny = 32
+        Nz = 12
+        dt = 1e-2
+        end_time = 0.5
+        alpha = 1.0
+
+        def get_nse() -> NavierStokesVelVortPerturbation:
+            return solve_navier_stokes_perturbation(
+                Re=Re,
+                Nx=Nx,
+                Ny=Ny,
+                Nz=Nz,
+                dt=dt,
+                end_time=end_time,
+                perturbation_factor=0.1,
+                scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-3),
+                aliasing=True,
+                rotated=False,
+            )
+
+        nse_dual_cp = (
+            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                get_nse(), checkpointing=True
+            )
+        )
+        nse_dual_cp.run_backward_calculation()
+        v0_cp = nse_dual_cp.get_latest_field("velocity_hat")
+
+        nse_dual_no_cp = (
+            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                get_nse(), checkpointing=False
+            )
+        )
+        nse_dual_no_cp.run_backward_calculation()
+
+        v0_no_cp = nse_dual_no_cp.get_latest_field("velocity_hat")
+
+        v0_no_cp_nh = v0_no_cp.no_hat()
+        v0_no_cp_nh.set_name("no_cp")
+        v0_cp_nh = v0_cp.no_hat()
+        v0_cp_nh.set_name("cp")
+        v0_no_cp_nh.plot_3d(2)
+        v0_cp_nh.plot_3d(2)
+
+        vel_u0 = get_nse().get_initial_field("velocity_hat").no_hat()
+        vel_u0.set_name("init")
+        vel_u0.plot_3d(2)
+
+        error = (v0_no_cp_nh - v0_cp_nh).energy()
+        print_verb("error:", error)
+        assert error < 1e-20
 
 
 if __name__ == "__main__":

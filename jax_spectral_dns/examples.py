@@ -570,7 +570,6 @@ def run_dummy_velocity_field() -> None:
     )
 
     sc_x = 1.87
-    nse.max_iter = 1e10
     vel_x_fn = (
         lambda X: 0.0 * X[0] * X[1] * X[2]
         + jnp.cos(X[0] * 2 * jnp.pi / sc_x)

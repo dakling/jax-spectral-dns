@@ -1131,9 +1131,9 @@ class NavierStokesVelVort(Equation):
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
-        # return vel_new_hat.get_data()
         return cast("jnp_array", vel_new_hat_field)
 
+    @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
         self,
         vel_hat_data: Optional["jnp_array"] = None,
@@ -1226,6 +1226,9 @@ class NavierStokesVelVort(Equation):
                 "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
             )
             vb = 1
+        self.number_of_time_steps = number_of_time_steps
+        self.number_of_outer_steps = number_of_outer_steps
+        self.number_of_inner_steps = number_of_inner_steps
 
         print_verb(
             "Dividing "
@@ -1263,10 +1266,12 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 self.append_field("velocity_hat", velocity, in_place=False)
-            for i in range(self.get_number_of_fields("velocity_hat")):
-                cfl_s = self.get_cfl(i)
-                print_verb("i: ", i, "cfl:", cfl_s)
-            return (velocity, len(ts))
+            # for i in range(self.get_number_of_fields("velocity_hat")):
+            #     cfl_s = self.get_cfl(i)
+            #     print_verb("i: ", i, "cfl:", cfl_s)
+            cfl_final = self.get_cfl()
+            print_verb("final cfl:", cfl_final, debug=True)
+            return (trajectory[0], len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, 0), xs=None, length=number_of_outer_steps
@@ -1314,7 +1319,6 @@ class NavierStokesVelVort(Equation):
 def solve_navier_stokes_laminar(
     Re: float = 1.8e2,
     end_time: float = 1e1,
-    max_iter: int = 10000,
     Nx: int = 8,
     Ny: int = 40,
     Nz: int = 8,
@@ -1372,7 +1376,6 @@ def solve_navier_stokes_laminar(
 
     nse = NavierStokesVelVort.FromVelocityField(vel, Re=Re, **params)
     nse.end_time = end_time
-    nse.max_iter = max_iter
 
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None
