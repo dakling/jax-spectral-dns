@@ -2825,16 +2825,12 @@ def run_ld_2021_dual(
         v0_0.plot_3d(2)
         raise Exception("break")
         print_verb(
-            "expected gain (assuming linearity):",
-            (
-                lsc_x.calculate_transient_growth_max_energy(end_time_, number_of_modes)
-                ** 2
-                + lsc_z.calculate_transient_growth_max_energy(
-                    end_time_, number_of_modes
-                )
-                ** 2
-            )
-            ** 0.5,
+            "expected gain (x):",
+            lsc_x.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+        )
+        print_verb(
+            "expected gain (z):",
+            lsc_z.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0)
