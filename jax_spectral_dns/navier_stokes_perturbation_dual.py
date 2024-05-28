@@ -264,12 +264,22 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.number_of_outer_steps = nse.number_of_outer_steps
             self.number_of_inner_steps = nse.number_of_inner_steps
 
-            def inner_step_fn(
-                u0: Tuple["jnp_array", int], _: Any
-            ) -> Tuple[Tuple["jnp_array", int], None]:
-                u0_, time_step = u0
-                out = self.perform_time_step(u0_, time_step)
-                return ((out, time_step + 1), None)
+            def get_inner_step_fn(
+                current_velocity_field_u_history: "jnp_array",
+            ) -> Callable[
+                [Tuple["jnp_array", int], Any], Tuple[Tuple["jnp_array", int], None]
+            ]:
+                def inner_step_fn(
+                    u0: Tuple["jnp_array", int], _: Any
+                ) -> Tuple[Tuple["jnp_array", int], None]:
+                    u0_, time_step = u0
+                    self.current_velocity_field_u_history = (
+                        current_velocity_field_u_history
+                    )
+                    out = self.perform_time_step(u0_, time_step)
+                    return ((out, time_step + 1), None)
+
+                return inner_step_fn
 
             def step_fn(
                 u0: Tuple["jnp_array", int], _: Any
@@ -277,11 +287,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 timestep = u0[1]
                 outer_start_step = timestep // self.number_of_inner_steps
                 self.current_u_history_start_step = outer_start_step
-                self.current_velocity_field_u_history = (
+                current_velocity_field_u_history = (
                     self.run_forward_calculation_subrange(outer_start_step)
                 )
                 out, _ = jax.lax.scan(
-                    jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
+                    jax.checkpoint(get_inner_step_fn(current_velocity_field_u_history)),  # type: ignore[attr-defined]
                     u0,
                     xs=None,
                     length=self.number_of_inner_steps,

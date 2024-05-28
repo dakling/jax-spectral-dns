@@ -2792,13 +2792,13 @@ def run_ld_2021_dual(
             n=n,
             U_base=cast("np_float_array", U_base),
         )
-        lsc_z = LinearStabilityCalculation(
-            Re=Re,
-            alpha=0.0,
-            beta=2 * jnp.pi / 0.93,
-            n=n,
-            U_base=cast("np_float_array", U_base),
-        )
+        # lsc_z = LinearStabilityCalculation(
+        #     Re=Re,
+        #     alpha=0.0,
+        #     beta=2 * jnp.pi / 0.93,
+        #     n=n,
+        #     U_base=cast("np_float_array", U_base),
+        # )
 
         v0_0_x = lsc_x.calculate_transient_growth_initial_condition(
             # coarse_domain,
@@ -2808,30 +2808,31 @@ def run_ld_2021_dual(
             recompute_full=True,
             save_final=False,
         )
-        v0_0_z = lsc_z.calculate_transient_growth_initial_condition(
-            # coarse_domain,
-            domain,
-            end_time_,
-            number_of_modes,
-            recompute_full=True,
-            save_final=False,
-        )
-        v0_0_x.set_name("vel_x")
-        v0_0_z.set_name("vel_z")
-        v0_0_x.plot_3d(2)
-        v0_0_z.plot_3d(2)
-        v0_0 = v0_0_x + v0_0_z
-        v0_0.set_name("vel")
-        v0_0.plot_3d(2)
-        raise Exception("break")
+        # v0_0_z = lsc_z.calculate_transient_growth_initial_condition(
+        #     # coarse_domain,
+        #     domain,
+        #     end_time_,
+        #     number_of_modes,
+        #     recompute_full=True,
+        #     save_final=False,
+        # )
+        # v0_0_x.set_name("vel_x")
+        # v0_0_z.set_name("vel_z")
+        # v0_0_x.plot_3d(2)
+        # v0_0_z.plot_3d(2)
+        # v0_0 = v0_0_x + v0_0_z
+        v0_0 = v0_0_x
+        # v0_0.set_name("vel")
+        # v0_0.plot_3d(2)
+        # raise Exception("break")
         print_verb(
             "expected gain (x):",
             lsc_x.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
-        print_verb(
-            "expected gain (z):",
-            lsc_z.calculate_transient_growth_max_energy(end_time_, number_of_modes),
-        )
+        # print_verb(
+        #     "expected gain (z):",
+        #     lsc_z.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+        # )
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()
