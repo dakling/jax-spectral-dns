@@ -1249,6 +1249,7 @@ class NavierStokesVelVort(Equation):
         #     "inner steps:",
         #     number_of_inner_steps,
         # )
+        self.allow_side_effects = False  # TODO
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, 0), xs=None, length=number_of_outer_steps
@@ -1265,7 +1266,8 @@ class NavierStokesVelVort(Equation):
                         for i in self.all_dimensions()
                     ]
                 )
-                self.append_field("velocity_hat", velocity, in_place=False)
+                if self.allow_side_effects:
+                    self.append_field("velocity_hat", velocity, in_place=False)
             # for i in range(self.get_number_of_fields("velocity_hat")):
             #     cfl_s = self.get_cfl(i)
             #     print_verb("i: ", i, "cfl:", cfl_s)
@@ -1286,7 +1288,8 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
-            self.append_field("velocity_hat", velocity_final, in_place=False)
+            if self.allow_side_effects:
+                self.append_field("velocity_hat", velocity_final, in_place=False)
             # cfl_final = self.get_cfl()
             # print_verb("final cfl:", cfl_final, debug=True)
             return (trajectory[0], len(ts))
@@ -1304,7 +1307,8 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
-            self.append_field("velocity_hat", velocity_final, in_place=False)
+            if self.allow_side_effects:
+                self.append_field("velocity_hat", velocity_final, in_place=False)
             # cfl_final = self.get_cfl()
             # print_verb("final cfl:", cfl_final, debug=True)
             return (velocity_final, len(ts))
