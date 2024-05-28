@@ -2789,7 +2789,7 @@ def run_ld_2021_dual(
         lsc = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
-            beta=0,
+            beta=2 * jnp.pi / 0.93,
             n=n,
             U_base=cast("np_float_array", U_base),
         )

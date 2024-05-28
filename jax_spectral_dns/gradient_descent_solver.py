@@ -50,14 +50,16 @@ class GradientDescentSolver(ABC):
         self.step_size /= 5.0
 
     @abstractmethod
-    def initialise(self) -> None: ...
+    def initialise(self, prepare_for_iterations: bool = True) -> None: ...
 
     @abstractmethod
     def update(self) -> None: ...
 
     def optimise(self) -> None:
-        self.initialise()
+        self.initialise(self.number_of_steps >= 0)
         i = 0
+        if i >= self.number_of_steps or self.step_size < 1e-20:
+            self.done = True
         while not self.done:
             self.i = i
             self.update()
@@ -118,7 +120,7 @@ class GradientDescentSolver(ABC):
 
 class SteepestAdaptiveDescentSolver(GradientDescentSolver):
 
-    def initialise(self) -> None:
+    def initialise(self, prepare_for_iterations: bool = True) -> None:
         v0_hat = self.current_guess
         v0_hat.set_name("velocity_hat")
 
@@ -131,13 +133,14 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
 
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
-        self.value = self.dual_problem.get_gain()
-        self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
-        self.old_value = self.value
-        self.old_nse_dual = self.dual_problem
-        print_verb("")
-        print_verb("gain:", self.value)
-        print_verb("")
+        if prepare_for_iterations:
+            self.value = self.dual_problem.get_gain()
+            self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+            self.old_value = self.value
+            self.old_nse_dual = self.dual_problem
+            print_verb("")
+            print_verb("gain:", self.value)
+            print_verb("")
 
     def update(self) -> None:
 
@@ -234,7 +237,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
 
 class ConjugateGradientDescentSolver(GradientDescentSolver):
 
-    def initialise(self) -> None:
+    def initialise(self, prepare_for_iterations: bool = True) -> None:
         self.beta = 0.0
         v0_hat = self.current_guess
         v0_hat.set_name("velocity_hat")
@@ -249,25 +252,26 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
-        self.value = self.dual_problem.get_gain()
-        # while not success:
-        #     self.grad, success = nse_dual.get_projected_grad(self.step_size)
-        #     if not success:
-        #         print_verb("")
-        #         print_verb(
-        #             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
-        #         )
-        #         self.decrease_step_size()
-        #         if abs(self.beta > 1e2):
-        #             self.beta = 0.0
-        #         print_verb("step size:", self.step_size)
-        self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
-        self.old_value = self.value
-        self.old_grad = self.grad
-        self.old_nse_dual = self.dual_problem
-        print_verb("")
-        print_verb("gain:", self.value)
-        print_verb("")
+        if prepare_for_iterations:
+            self.value = self.dual_problem.get_gain()
+            # while not success:
+            #     self.grad, success = nse_dual.get_projected_grad(self.step_size)
+            #     if not success:
+            #         print_verb("")
+            #         print_verb(
+            #             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
+            #         )
+            #         self.decrease_step_size()
+            #         if abs(self.beta > 1e2):
+            #             self.beta = 0.0
+            #         print_verb("step size:", self.step_size)
+            self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+            self.old_value = self.value
+            self.old_grad = self.grad
+            self.old_nse_dual = self.dual_problem
+            print_verb("")
+            print_verb("gain:", self.value)
+            print_verb("")
 
     def update(self) -> None:
 
@@ -375,7 +379,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     )
                 self.decrease_step_size()
                 assert self.old_nse_dual is not None
-                if gain_change <= 0.0 or abs(self.beta > 1e2):
+                if gain_change <= 0.0:
                     self.beta = 0.0
                 self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
 
