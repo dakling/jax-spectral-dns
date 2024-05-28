@@ -1133,7 +1133,7 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
         return cast("jnp_array", vel_new_hat_field)
 
-    @partial(jax.jit, static_argnums=(0, 2))
+    # @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
         self,
         vel_hat_data: Optional["jnp_array"] = None,
