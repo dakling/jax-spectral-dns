@@ -412,15 +412,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.write_intermediate_output = False
             self.activate_jit()
             self.solve()
-            # TODO
-            vT = self.get_initial_field("velocity_hat").no_hat()
-            vT.set_name("vT")
-            vT.plot_3d(2)
-            print_verb("vT energy", vT.energy())
-            v0 = self.get_latest_field("velocity_hat").no_hat()
-            v0.set_name("v0")
-            v0.plot_3d(2)
-            print_verb("v0 energy", v0.energy())
 
     def get_gain(self) -> float:
         self.run_forward_calculation()
@@ -435,7 +426,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         gain = self.get_gain()
         e_0 = u_hat_0.no_hat().energy()
 
-        # TODO
         grad_field = VectorField.FromData(
             FourierField,
             self.forward_equation.get_physical_domain(),

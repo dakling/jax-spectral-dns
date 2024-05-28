@@ -1161,8 +1161,8 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
-        cfl_initial = self.get_cfl()
-        print_verb("initial cfl:", cfl_initial, debug=True)
+        # cfl_initial = self.get_cfl()
+        # print_verb("initial cfl:", cfl_initial, debug=True)
 
         def inner_step_fn(
             u0: Tuple["jnp_array", int], _: Any
@@ -1269,8 +1269,8 @@ class NavierStokesVelVort(Equation):
             # for i in range(self.get_number_of_fields("velocity_hat")):
             #     cfl_s = self.get_cfl(i)
             #     print_verb("i: ", i, "cfl:", cfl_s)
-            cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            # cfl_final = self.get_cfl()
+            # print_verb("final cfl:", cfl_final, debug=True)
             return (trajectory[0], len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
@@ -1287,8 +1287,8 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
-            cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            # cfl_final = self.get_cfl()
+            # print_verb("final cfl:", cfl_final, debug=True)
             return (trajectory[0], len(ts))
         else:
             u_final, _ = jax.lax.scan(
@@ -1305,8 +1305,8 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
-            cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            # cfl_final = self.get_cfl()
+            # print_verb("final cfl:", cfl_final, debug=True)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:
