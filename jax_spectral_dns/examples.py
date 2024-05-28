@@ -2816,7 +2816,14 @@ def run_ld_2021_dual(
             recompute_full=True,
             save_final=False,
         )
+        v0_0_x.set_name("vel_x")
+        v0_0_z.set_name("vel_z")
+        v0_0_x.plot_3d(2)
+        v0_0_z.plot_3d(2)
         v0_0 = v0_0_x + v0_0_z
+        v0_0.set_name("vel")
+        v0_0.plot_3d(2)
+        raise Exception("break")
         print_verb(
             "expected gain (assuming linearity):",
             (
@@ -2831,7 +2838,7 @@ def run_ld_2021_dual(
         )
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0)
-        vel_hat = v0_0.hat()
+        vel_hat: VectorField[FourierField] = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
     run_input_initial = init_file or vel_hat
@@ -3276,7 +3283,9 @@ def run_optimisation_transient_growth_dual(
         # nse.set_linearize(True)
         nse.set_linearize(False)
         nse_dual = (
-            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
+            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                nse, checkpointing=True
+            )
         )
         # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
         optimiser = ConjugateGradientDescentSolver(
