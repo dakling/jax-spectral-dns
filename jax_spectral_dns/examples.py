@@ -2785,15 +2785,22 @@ def run_ld_2021_dual(
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         U_base = U_base / np.max(U_base)
-        lsc = LinearStabilityCalculation(
+        lsc_x = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
+            beta=0.0,
+            n=n,
+            U_base=cast("np_float_array", U_base),
+        )
+        lsc_z = LinearStabilityCalculation(
+            Re=Re,
+            alpha=0.0,
             beta=2 * jnp.pi / 0.93,
             n=n,
             U_base=cast("np_float_array", U_base),
         )
 
-        v0_0 = lsc.calculate_transient_growth_initial_condition(
+        v0_0_x = lsc_x.calculate_transient_growth_initial_condition(
             # coarse_domain,
             domain,
             end_time_,
@@ -2801,9 +2808,26 @@ def run_ld_2021_dual(
             recompute_full=True,
             save_final=False,
         )
+        v0_0_z = lsc_z.calculate_transient_growth_initial_condition(
+            # coarse_domain,
+            domain,
+            end_time_,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        v0_0 = v0_0_x + v0_0_z
         print_verb(
-            "expected gain:",
-            lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+            "expected gain (assuming linearity):",
+            (
+                lsc_x.calculate_transient_growth_max_energy(end_time_, number_of_modes)
+                ** 2
+                + lsc_z.calculate_transient_growth_max_energy(
+                    end_time_, number_of_modes
+                )
+                ** 2
+            )
+            ** 0.5,
         )
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0)
