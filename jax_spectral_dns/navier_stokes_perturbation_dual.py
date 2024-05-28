@@ -277,6 +277,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                         current_velocity_field_u_history
                     )
                     out = self.perform_time_step(u0_, time_step)
+                    self.current_velocity_field_u_history = None
+
                     return ((out, time_step + 1), None)
 
                 return inner_step_fn
