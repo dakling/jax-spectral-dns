@@ -228,8 +228,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
-        energy = v0.energy()
-        print_verb("v0 energy:", energy)
+        print_verb("v0 energy:", v0.energy(), verbosity_level=2)
         self.old_nse_dual = self.dual_problem
         self.value = gain
         self.old_value = self.value
@@ -356,8 +355,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
-        energy = v0.energy()
-        print_verb("v0 energy:", energy)
+        print_verb("v0 energy:", v0.energy(), verbosity_level=2)
         self.old_nse_dual = self.dual_problem
         self.value = gain
         self.old_value = self.value

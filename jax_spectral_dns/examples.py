@@ -2560,30 +2560,6 @@ def run_ld_2021(
     run_input_initial = init_file or vel_hat
     assert run_input_initial is not None
 
-    # assert vel_hat is not None
-    # print("vel_coarse")
-    # vel_hat.no_hat().plot_3d(2)
-    # vel_hat_coarse = vel_hat.project_onto_domain(coarse_domain)
-    # vel_hat_coarse.set_name("vel_hat_coarse")
-    # vel_hat_coarse.no_hat().plot_3d(2)
-    # print("vel_fine")
-    # vel_hat_fine = vel_hat_coarse.project_onto_domain(domain)
-    # vel_hat_fine.set_name("vel_hat_fine")
-    # vel_hat_fine.no_hat().plot_3d(2)
-    # print("vel_filtered")
-    # print(vel_hat[0].data.shape)
-    # vel_hat_filtered = VectorField(
-    #     [
-    #         FourierField(domain, domain.hat().filter_field(vel_hat[i].data))
-    #         for i in range(3)
-    #     ]
-    # )
-    # vel_hat_filtered.set_name("vel_hat_filtered")
-    # vel_hat_filtered.no_hat().plot_3d(2)
-    # print("vel_hat.no_hat().energy()")
-    # print(vel_hat.no_hat().energy())
-    # raise Exception("break")
-
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         # time = (i / (n_steps - 1)) * end_time
@@ -2677,7 +2653,7 @@ def run_ld_2021(
         min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
         add_noise=False,
-        learning_rate=1e-4,
+        learning_rate=1e-5,
     )
     optimiser.optimise()
 
@@ -2773,7 +2749,7 @@ def run_ld_2021_dual(
     print_verb("Re:", Re)
 
     if init_file is None:
-        number_of_modes = 60
+        number_of_modes = 10
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2783,22 +2759,15 @@ def run_ld_2021_dual(
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         U_base = U_base / np.max(U_base)
-        lsc_x = LinearStabilityCalculation(
+        lsc_xz = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
-            beta=0.0,
+            beta=2 * jnp.pi / 0.93,
             n=n,
             U_base=cast("np_float_array", U_base),
         )
-        # lsc_z = LinearStabilityCalculation(
-        #     Re=Re,
-        #     alpha=0.0,
-        #     beta=2 * jnp.pi / 0.93,
-        #     n=n,
-        #     U_base=cast("np_float_array", U_base),
-        # )
 
-        v0_0_x = lsc_x.calculate_transient_growth_initial_condition(
+        v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             # coarse_domain,
             domain,
             end_time_,
@@ -2806,31 +2775,14 @@ def run_ld_2021_dual(
             recompute_full=True,
             save_final=False,
         )
-        # v0_0_z = lsc_z.calculate_transient_growth_initial_condition(
-        #     # coarse_domain,
-        #     domain,
-        #     end_time_,
-        #     number_of_modes,
-        #     recompute_full=True,
-        #     save_final=False,
-        # )
-        # v0_0_x.set_name("vel_x")
-        # v0_0_z.set_name("vel_z")
-        # v0_0_x.plot_3d(2)
-        # v0_0_z.plot_3d(2)
-        # v0_0 = v0_0_x + v0_0_z
-        v0_0 = v0_0_x
-        # v0_0.set_name("vel")
-        # v0_0.plot_3d(2)
+        v0_0.set_name("vel")
+        v0_0.plot_3d(0)
+        v0_0.plot_3d(2)
         # raise Exception("break")
         print_verb(
             "expected gain (x):",
-            lsc_x.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+            lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
-        # print_verb(
-        #     "expected gain (z):",
-        #     lsc_z.calculate_transient_growth_max_energy(end_time_, number_of_modes),
-        # )
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()
@@ -2903,7 +2855,6 @@ def run_ld_2021_dual(
         v0_hat, Re=Re, dt=dt, end_time=end_time_, velocity_base_hat=vel_base.hat()
     )
     nse.set_linearize(False)
-    # nse.set_linearize(True) # TODO
     nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
@@ -3075,37 +3026,17 @@ def run_white_noise() -> None:
     vel_hat[1].diff(1).no_hat().plot_3d(0)
     vel_hat[2].diff(2).no_hat().plot_3d(0)
     (vel_hat[0].diff(0) + vel_hat[2].diff(2)).no_hat().plot_3d(0)
-    # raise Exception("break")
-    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
-    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
-    # vel_hat.no_hat().plot_3d(2)
-    # fig.savefig("plots/spectrum.png")
     U = vel_hat.project_onto_domain(domain).no_hat()
     U.update_boundary_conditions()
-    # U[1].data = jnp.zeros_like(U[1].data)
     U_norm = U.normalize_by_energy()
-    # U_norm *= jnp.sqrt(e_0)
     U_norm *= e_0
     nse = NavierStokesVelVortPerturbation.FromVelocityField(
         U_norm, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
     )
-    # energy_0_ = U_norm.energy()
     nse.set_linearize(False)
     nse.activate_jit()
-    # nse.end_time = dt
     nse.end_time = end_time
     vel_hat = nse.get_latest_field("velocity_hat")
-    energy_0 = vel_hat.no_hat().energy()
-    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
-    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
-    # nse.perform_time_step()
-    # nse.perform_time_step()
-    # nse.perform_time_step()
-
-    # vel_hat = nse.get_latest_field("velocity_hat")
-    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
-    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
-    # fig.savefig("plots/spectrum.png")
     nse.write_intermediate_output = True
     nse.set_post_process_fn(post_process)
     nse.solve()
@@ -3114,26 +3045,6 @@ def run_white_noise() -> None:
     # gain = vel_final.energy() / energy_0
     gain = vel_final.energy()
     print_verb("gain:", gain)
-
-    # nse_small_dt = NavierStokesVelVortPerturbation.FromVelocityField(
-    #     U_norm, Re=Re, dt=dt/10, velocity_base_hat=velocity_base_hat
-    # )
-    # energy_0_ = U_norm.energy()
-    # nse_small_dt.set_linearize(False)
-    # nse_small_dt.activate_jit()
-    # nse_small_dt.end_time = dt
-    # nse_small_dt.write_intermediate_output = True
-    # nse_small_dt.set_post_process_fn(post_process)
-    # nse_small_dt.solve()
-
-    # vel_final_ = nse_small_dt.get_latest_field("velocity_hat").no_hat()
-    # gain_ = vel_final_.energy() / energy_0_
-    # print_verb("gain:", gain_)
-
-    # vel_diff = vel_final - vel_final_
-    # vel_diff.set_name("vel_diff")
-    # vel_diff.plot_3d(0)
-    # vel_diff.plot_3d(2)
 
 
 def run_optimisation_transient_growth_dual(
@@ -3351,80 +3262,6 @@ def run_optimisation_transient_growth_dual(
             run_input_to_parameters_fn=run_input_to_parameters,
         )
         optimiser_.optimise()
-
-
-def run_test_dual() -> None:
-    Equation.initialize()
-    Re = 1.5e-1
-
-    dt = 1e-2
-    end_time = dt * 1
-    scale_factors = (1.87, 1, 0.93)
-    domain = PhysicalDomain.create(
-        (16, 32, 16), (True, False, True), scale_factors=scale_factors, aliasing=1
-    )
-    vT_x = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
-    )
-    # vT_y = PhysicalField.FromFunc(domain, lambda X: (1 - X[1] ** 2))
-    vT_y = PhysicalField.FromFunc(domain, lambda X: 1.0 + 0.0 * X[2])
-    vT_z = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
-    )
-    vT = VectorField([vT_x, vT_y, vT_z], name="velocity")
-
-    U0_0_x = PhysicalField.FromFunc(domain, lambda X: 1.0 * X[1])
-    U0_0_y = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
-    )
-    U0_0_z = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0]) * (1 - X[1] ** 2),
-    )
-    U0_0 = VectorField([U0_0_x, U0_0_y, U0_0_z], name="velocity_base")
-    nse = NavierStokesVelVortPerturbation.FromVelocityField(
-        vT, Re=Re, dt=dt, end_time=end_time, velocity_base_hat=U0_0.hat()
-    )
-
-    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse
-    )
-    nse_dual.run_forward_calculation()
-    assert nse_dual.velocity_field_u_history is not None
-    nse_dual.velocity_field_u_history = jnp.zeros_like(
-        nse_dual.velocity_field_u_history
-    )
-    nse_dual.set_field("velocity_hat", 0, vT.hat())
-
-    nse_dual.run_backward_calculation()
-    u_base = nse_dual.get_latest_field("velocity_base_hat").no_hat()
-    u_base.set_name("u_base")
-    u_base.plot_3d(2)
-
-    vT_ = nse_dual.get_initial_field("velocity_hat").no_hat()
-    vT_.set_name("vT")
-    vT.set_name("vT__")
-    v0 = nse_dual.get_latest_field("velocity_hat").no_hat()
-
-    v0.plot_3d(2)
-    vT_.plot_3d(2)
-    vT.plot_3d(2)
-
-    # "analytical" solution
-    v0_x = PhysicalField.FromFunc(domain, lambda X: dt + 0.0 * X[2])
-    v0_y = PhysicalField.FromFunc(domain, lambda X: 1.0 + 0.0 * X[2])
-    v0_z = PhysicalField.FromFunc(domain, lambda X: 0.0 * X[2])
-    v0_ana = VectorField([v0_x, v0_y, v0_z])
-    v0_ana.set_name("velocity_ana")
-
-    v0_ana.plot_3d(2)
-    for i in [0, 1]:
-        # v0[i].plot_center(1, v0_ana[i], vT_[i])
-        v0[i].plot_center(1, v0_ana[i])
-        # v0[i].plot_center(1, vT_[i])
 
 
 def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:
