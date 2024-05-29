@@ -2680,8 +2680,7 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    # max_cfl = 0.02
-    max_cfl = 0.07
+    max_cfl = 0.02
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(

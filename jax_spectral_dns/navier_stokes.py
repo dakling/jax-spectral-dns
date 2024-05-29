@@ -731,18 +731,11 @@ class NavierStokesVelVort(Equation):
                 domain = self.get_domain()
                 kx = K[0]
                 kz = K[1]
-                # kx_ = domain.grid[0][kx]
-                # kz_ = domain.grid[2][kz]
 
                 # wall-normal velocity
                 # p-part
-                # L_p_y = 1 / Re * D2
-                # lhs_mat_p_, rhs_mat_p_ = self.assemble_rk_matrices(L_p_y, kx_, kz_, step)
-                # lhs_mat_p_ = domain.enforce_homogeneous_dirichlet(lhs_mat_p_)
                 lhs_mat_p_inv = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
                 rhs_mat_p = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
-                # jax.debug.print("{x}", x = np.linalg.norm(rhs_mat_p - rhs_mat_p_))
-                # jax.debug.print("{x}", x = np.linalg.norm(lhs_mat_p_inv - np.linalg.inv(lhs_mat_p_)))
 
                 phi_hat_lap = v_1_lap_hat_sw
 
@@ -840,7 +833,7 @@ class NavierStokesVelVort(Equation):
                     rhs_vort, 1
                 )
 
-                phi_hat_vort_new = lhs_mat_vort_inv @ (rhs_vort)
+                phi_hat_vort_new = lhs_mat_vort_inv @ rhs_vort
 
                 vort_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     phi_hat_vort_new, 1
@@ -902,19 +895,19 @@ class NavierStokesVelVort(Equation):
                     j_kz = 1j * kz_
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
-                    v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
-                        v_1_new_y, 1
-                    )
-                    vort_1_hat_new_: "jnp_array" = (
-                        domain.update_boundary_conditions_fourier_field_slice(
-                            vort_1_hat_new, 1
-                        )
-                    )
+                    # v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
+                    #     v_1_new_y, 1
+                    # )
+                    # vort_1_hat_new_: "jnp_array" = (
+                    #     domain.update_boundary_conditions_fourier_field_slice(
+                    #         vort_1_hat_new, 1
+                    #     )
+                    # )
                     v_0_new = (
-                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new_
+                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new_
+                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
