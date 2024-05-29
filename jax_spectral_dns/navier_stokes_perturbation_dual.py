@@ -166,6 +166,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.current_u_history_start_step = -1
         else:
             print_verb("not using checkpointing.")
+        self.forward_equation.activate_jit()
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
@@ -377,6 +378,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def run_forward_calculation(self) -> None:
         nse = self.forward_equation
+        nse.activate_jit()
         nse.write_intermediate_output = True
         nse.end_time = -1.0 * self.end_time
         if self.checkpointing:
@@ -387,12 +389,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if not self.is_forward_calculation_done():
             velocity_u_hat_history_, _ = nse.solve_scan()
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
-            self.velocity_field_u_history = jnp.insert(
-                self.velocity_field_u_history,
-                0,
-                nse.get_initial_field("velocity_hat").get_data(),
-                axis=0,
-            )
         self.set_initial_field(
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
         )

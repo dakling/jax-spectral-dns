@@ -1161,8 +1161,8 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
-        # cfl_initial = self.get_cfl()
-        # print_verb("initial cfl:", cfl_initial, debug=True)
+        cfl_initial = self.get_cfl()
+        print_verb("initial cfl:", cfl_initial, debug=True)
 
         def inner_step_fn(
             u0: Tuple["jnp_array", int], _: Any
@@ -1240,22 +1240,12 @@ class NavierStokesVelVort(Equation):
             + " outer steps.",
             verbosity_level=vb,
         )
-        # assert (
-        #     number_of_inner_steps >= number_of_outer_steps
-        # ), "Something went wrong with inner/outer step division."
-        # assert number_of_outer_steps >= number_of_inner_steps, (
-        #     "Something went wrong with inner/outer step division. Outer steps:",
-        #     number_of_outer_steps,
-        #     "inner steps:",
-        #     number_of_inner_steps,
-        # )
-        self.allow_side_effects = False  # TODO
+
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, 0), xs=None, length=number_of_outer_steps
             )
             for u in trajectory[0]:
-                # u_, _ = u
                 velocity = VectorField(
                     [
                         FourierField(
@@ -1266,14 +1256,19 @@ class NavierStokesVelVort(Equation):
                         for i in self.all_dimensions()
                     ]
                 )
-                if self.allow_side_effects:
-                    self.append_field("velocity_hat", velocity, in_place=False)
-            # for i in range(self.get_number_of_fields("velocity_hat")):
-            #     cfl_s = self.get_cfl(i)
-            #     print_verb("i: ", i, "cfl:", cfl_s)
-            # cfl_final = self.get_cfl()
-            # print_verb("final cfl:", cfl_final, debug=True)
-            return (trajectory[0], len(ts))
+                self.append_field("velocity_hat", velocity, in_place=False)
+            for i in range(self.get_number_of_fields("velocity_hat")):
+                cfl_s = self.get_cfl(i)
+                print_verb("i: ", i, "cfl:", cfl_s)
+            cfl_final = self.get_cfl()
+            print_verb("final cfl:", cfl_final, debug=True)
+            out = jnp.insert(
+                trajectory[0],
+                0,
+                self.get_initial_field("velocity_hat").get_data(),
+                axis=0,
+            )
+            return (out, len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, 0), xs=None, length=number_of_outer_steps
@@ -1288,11 +1283,16 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
-            if self.allow_side_effects:
-                self.append_field("velocity_hat", velocity_final, in_place=False)
-            # cfl_final = self.get_cfl()
-            # print_verb("final cfl:", cfl_final, debug=True)
-            return (trajectory[0], len(ts))
+            self.append_field("velocity_hat", velocity_final, in_place=False)
+            cfl_final = self.get_cfl()
+            print_verb("final cfl:", cfl_final, debug=True)
+            out = jnp.insert(
+                trajectory[0],
+                0,
+                self.get_initial_field("velocity_hat").get_data(),
+                axis=0,
+            )
+            return (out, len(ts))
         else:
             u_final, _ = jax.lax.scan(
                 step_fn, (u0, 0), xs=None, length=number_of_outer_steps
@@ -1307,8 +1307,7 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
-            if self.allow_side_effects:
-                self.append_field("velocity_hat", velocity_final, in_place=False)
+            self.append_field("velocity_hat", velocity_final, in_place=False)
             # cfl_final = self.get_cfl()
             # print_verb("final cfl:", cfl_final, debug=True)
             return (velocity_final, len(ts))
