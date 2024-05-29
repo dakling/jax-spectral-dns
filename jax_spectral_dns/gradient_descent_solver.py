@@ -243,28 +243,13 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0_hat.set_name("velocity_hat")
 
         nse = self.dual_problem.forward_equation
-        # nse.set_linearize(True)
         nse.set_linearize(False)
         self.dual_problem.update_with_nse()
-        # self.dual_problem = (
-        #     NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
-        # )
 
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
 
         if prepare_for_iterations:
             self.value = self.dual_problem.get_gain()
-            # while not success:
-            #     self.grad, success = nse_dual.get_projected_grad(self.step_size)
-            #     if not success:
-            #         print_verb("")
-            #         print_verb(
-            #             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
-            #         )
-            #         self.decrease_step_size()
-            #         if abs(self.beta > 1e2):
-            #             self.beta = 0.0
-            #         print_verb("step size:", self.step_size)
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
             self.old_value = self.value
             self.old_grad = self.grad
@@ -304,20 +289,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.dual_problem.forward_equation.set_initial_field(
                 "velocity_hat", v0_hat_new
             )
-            # nse = NavierStokesVelVortPerturbation(
-            #     v0_hat_new,
-            #     Re=Re,
-            #     dt=dt,
-            #     end_time=end_time,
-            #     velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
-            # )
-            # # nse.set_linearize(True)
-            # nse.set_linearize(False)
-            # self.dual_problem = (
-            #     NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-            #         nse
-            #     )
-            # )
             self.dual_problem.update_with_nse()
 
             gain = self.dual_problem.get_gain()
@@ -328,24 +299,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("")
 
             gain_change_ok: bool = (gain_change > 0.0) and (
-                gain_change / self.old_value < 0.1
+                gain_change / self.old_value < self.relative_gain_increase_threshold
             )
             if gain_change_ok:
                 iteration_successful = True
                 self.increase_step_size()
-                # while not success:
-                #     self.grad, success = self.dual_problem.get_projected_cg_grad(
-                #         self.step_size, self.beta, self.old_grad
-                #     )
-                #     if not success:
-                #         print_verb(
-                #             "problems with finding lambda detected, repeating gradient calculation with smaller step size."
-                #         )
-                #         self.decrease_step_size()
-                #         if abs(self.beta > 1e2):
-                #             self.beta = 0.0
-                #         print_verb("step size:", self.step_size)
-                #         print_verb("beta:", self.beta)
 
                 self.grad, success = self.dual_problem.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
@@ -392,9 +350,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             except Exception:
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
-            jax.clear_caches()  # type: ignore[no-untyped-call] # TODO does this help? how much does it hurt?
+            # jax.clear_caches()  # type: ignore[no-untyped-call] # TODO does this help? how much does it hurt?
 
-        # self.update_beta(success)
         self.update_beta(True)
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
