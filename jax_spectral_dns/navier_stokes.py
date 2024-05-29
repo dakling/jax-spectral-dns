@@ -819,7 +819,7 @@ class NavierStokesVelVort(Equation):
 
                 N_vort_new = h_g_hat_sw
                 if type(h_g_hat_old_sw == NoneType):
-                    N_vort_old = N_vort_new
+                    N_vort_old = N_vort_new  # does not matter as xi[0] is zero
                 else:
                     N_vort_old = h_g_hat_old_sw  # type: ignore[assignment]
 

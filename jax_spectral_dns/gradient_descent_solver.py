@@ -58,7 +58,7 @@ class GradientDescentSolver(ABC):
 
     def optimise(self) -> None:
         self.initialise(self.number_of_steps >= 0)
-        assert math.is_finite(self.value), "calculation failure detected."
+        assert math.isfinite(self.value), "calculation failure detected."
         i = 0
         if i >= self.number_of_steps or self.step_size < 1e-20:
             self.done = True
@@ -69,7 +69,7 @@ class GradientDescentSolver(ABC):
             i += 1
             if i >= self.number_of_steps or self.step_size < 1e-20:
                 self.done = True
-            assert math.is_finite(self.value), "calculation failure detected."
+            assert math.isfinite(self.value), "calculation failure detected."
         self.perform_final_run()
 
     def post_process_iteration(self) -> None:
