@@ -1274,7 +1274,7 @@ class NavierStokesVelVort(Equation):
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             out = jnp.insert(
                 trajectory[0],
                 0,
@@ -1298,7 +1298,7 @@ class NavierStokesVelVort(Equation):
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:

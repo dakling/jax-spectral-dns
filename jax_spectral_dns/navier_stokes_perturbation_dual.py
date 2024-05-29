@@ -329,7 +329,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 #     cfl_s = self.get_cfl(i)
                 #     print_verb("i: ", i, "cfl:", cfl_s)
                 cfl_final = self.get_cfl()
-                print_verb("final cfl:", cfl_final, debug=True)
+                print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
                 return (trajectory[0], len(ts))
             elif self.write_entire_output:
                 u_final, trajectory = jax.lax.scan(
@@ -347,7 +347,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 )
                 self.append_field("velocity_hat", velocity_final, in_place=False)
                 cfl_final = self.get_cfl()
-                print_verb("final cfl:", cfl_final, debug=True)
+                print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
                 return (trajectory[0], len(ts))
             else:
                 u_final, _ = jax.lax.scan(
@@ -365,7 +365,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 )
                 self.append_field("velocity_hat", velocity_final, in_place=False)
                 cfl_final = self.get_cfl()
-                print_verb("final cfl:", cfl_final, debug=True)
+                print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
                 return (velocity_final, len(ts))
 
     def is_forward_calculation_done(self) -> bool:
