@@ -1162,7 +1162,7 @@ class NavierStokesVelVort(Equation):
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
         cfl_initial = self.get_cfl()
-        print_verb("initial cfl:", cfl_initial, debug=True)
+        print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
         def inner_step_fn(
             u0: Tuple["jnp_array", int], _: Any
@@ -1193,17 +1193,6 @@ class NavierStokesVelVort(Equation):
             number_of_factors = len(factors)  # should always be divisible by 2
             return factors[number_of_factors // 2]
 
-        # from jax.sharding import Mesh
-        # from jax.sharding import PartitionSpec
-        # from jax.sharding import NamedSharding
-        # from jax.experimental import mesh_utils
-
-        # P = jax.sharding.PartitionSpec
-        # n = jax.local_device_count()
-        # devices = mesh_utils.create_device_mesh((n,))
-        # mesh = jax.sharding.Mesh(devices, ("x",))
-        # sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
-        # u0 = jax.device_put(self.get_initial_field("velocity_hat").get_data(), sharding)
         u0 = self.get_initial_field("velocity_hat").get_data()
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
@@ -1259,9 +1248,9 @@ class NavierStokesVelVort(Equation):
                 self.append_field("velocity_hat", velocity, in_place=False)
             for i in range(self.get_number_of_fields("velocity_hat")):
                 cfl_s = self.get_cfl(i)
-                print_verb("i: ", i, "cfl:", cfl_s)
+                print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=2)
             cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             out = jnp.insert(
                 trajectory[0],
                 0,
@@ -1308,8 +1297,8 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
-            # cfl_final = self.get_cfl()
-            # print_verb("final cfl:", cfl_final, debug=True)
+            cfl_final = self.get_cfl()
+            print_verb("final cfl:", cfl_final, debug=True)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:

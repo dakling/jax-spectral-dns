@@ -153,6 +153,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         super().__init__(velocity_field_, **params)
         self.velocity_field_u_history: Optional["jnp_array"] = None
         self.forward_equation = forward_equation
+        self.velocity_u_hat_0 = forward_equation.get_initial_field("velocity_hat")
         calculation_size = self.end_time / self.get_dt()
         for i in self.all_dimensions():
             calculation_size *= self.get_domain().number_of_cells(i)
@@ -449,7 +450,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
-        u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
+        u_hat_0 = self.velocity_u_hat_0
         v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
         lam = 0.0
@@ -473,7 +474,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self, step_size: float, beta: float, old_grad: "jnp_array"
     ) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
-        u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
+        u_hat_0 = self.velocity_u_hat_0
         v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
         lam = 0.0
