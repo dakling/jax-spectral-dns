@@ -56,7 +56,11 @@ class GradientDescentSolver(ABC):
     def update(self) -> None: ...
 
     def optimise(self) -> None:
+        def is_not_nan(x: Any) -> bool:
+            return x == x
+
         self.initialise(self.number_of_steps >= 0)
+        assert is_not_nan(self.value), "calculation failure detected."
         i = 0
         if i >= self.number_of_steps or self.step_size < 1e-20:
             self.done = True
@@ -67,6 +71,7 @@ class GradientDescentSolver(ABC):
             i += 1
             if i >= self.number_of_steps or self.step_size < 1e-20:
                 self.done = True
+            assert is_not_nan(self.value), "calculation failure detected."
         self.perform_final_run()
 
     def post_process_iteration(self) -> None:
