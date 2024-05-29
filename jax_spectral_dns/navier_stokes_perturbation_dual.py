@@ -11,6 +11,12 @@ import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, cast, List, Union
 from typing_extensions import Self
+import time
+
+try:
+    from humanfriendly import format_timespan  # type: ignore
+except ModuleNotFoundError:
+    pass
 
 # from importlib import reload
 import sys
@@ -388,7 +394,15 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             nse.write_entire_output = True
         if not self.is_forward_calculation_done():
+            start_time = time.time()
             velocity_u_hat_history_, _ = nse.solve_scan()
+            iteration_duration = time.time() - start_time
+            try:
+                print_verb(
+                    "forward calculation took", format_timespan(iteration_duration)
+                )
+            except Exception:
+                print_verb("forward calculation took", iteration_duration, "seconds")
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
         self.set_initial_field(
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
@@ -423,6 +437,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.write_entire_output = False
             self.write_intermediate_output = False
             self.activate_jit()
+            print_verb("performing backward (adjoint) calculation...")
             self.solve()
 
     def get_gain(self) -> float:

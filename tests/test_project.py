@@ -1406,9 +1406,9 @@ class TestProject(unittest.TestCase):
 
     def test_checkpointing(self) -> None:
         Re = 100.0
-        Nx = 12
-        Ny = 32
-        Nz = 12
+        Nx = 8
+        Ny = 20
+        Nz = 4
         dt = 1e-2
         end_time = 0.5
         alpha = 1.0
@@ -1448,16 +1448,10 @@ class TestProject(unittest.TestCase):
         v0_no_cp_nh.set_name("no_cp")
         v0_cp_nh = v0_cp.no_hat()
         v0_cp_nh.set_name("cp")
-        v0_no_cp_nh.plot_3d(2)
-        v0_cp_nh.plot_3d(2)
-
-        vel_u0 = get_nse().get_initial_field("velocity_hat").no_hat()
-        vel_u0.set_name("init")
-        vel_u0.plot_3d(2)
 
         error = (v0_no_cp_nh - v0_cp_nh).energy()
-        print_verb("error:", error)
-        assert error < 1e-100
+        print_verb("error:", error, verbosity_level=3)
+        assert error < 1e-100  # should be machine (or even exactly) zero
 
 
 if __name__ == "__main__":
