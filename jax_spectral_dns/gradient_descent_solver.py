@@ -43,6 +43,7 @@ class GradientDescentSolver(ABC):
         self.e_0 = 0.0
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
+        self.value = -1.0
 
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
