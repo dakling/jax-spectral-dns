@@ -270,7 +270,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             if j + 1 > 1:
                 print_verb("sub-iteration", j + 1)
             print_verb("step size:", self.step_size)
-            print_verb("beta:", self.beta)
+            print_verb("beta:", self.beta, verbosity_level=2)
 
             v0_hat_new: VectorField[FourierField] = VectorField.FromData(
                 FourierField,
@@ -281,10 +281,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             v0_hat_new = self.normalize_field(v0_hat_new)
 
             v0_hat_new.set_name("velocity_hat")
-            nse_ = self.dual_problem.forward_equation
-            Re = nse_.get_Re_tau() * nse_.get_u_max_over_u_tau()
-            dt = nse_.get_dt()
-            end_time = nse_.end_time
             self.dual_problem.forward_equation.set_initial_field(
                 "velocity_hat", v0_hat_new
             )

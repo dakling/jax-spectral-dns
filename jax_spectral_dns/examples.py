@@ -2680,7 +2680,8 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    max_cfl = 0.02
+    # max_cfl = 0.02
+    max_cfl = 0.07
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2749,7 +2750,7 @@ def run_ld_2021_dual(
     print_verb("Re:", Re)
 
     if init_file is None:
-        number_of_modes = 10
+        number_of_modes = 20
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2780,7 +2781,7 @@ def run_ld_2021_dual(
         v0_0.plot_3d(2)
         # raise Exception("break")
         print_verb(
-            "expected gain (x):",
+            "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()

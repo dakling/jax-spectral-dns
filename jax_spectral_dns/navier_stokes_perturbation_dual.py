@@ -475,13 +475,19 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 ((1 + step_size * l) * u_hat_0 - step_size * v_hat_0).no_hat().energy()
             )
 
-        print_verb("optimising lambda...")
+        print_verb("optimising lambda...", verbosity_level=2)
         i = 0
         while abs(get_new_energy_0(lam) - e_0) / e_0 > 1e-20 and i < 100:
             lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
             i += 1
-        print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
-        print_verb("energy:", get_new_energy_0(lam))
+        print_verb(
+            "optimising lambda done in",
+            i,
+            "iterations, lambda:",
+            lam,
+            verbosity_level=2,
+        )
+        print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
         return (lam * u_hat_0.get_data() - v_hat_0.get_data(), i < 100)
 
