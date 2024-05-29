@@ -63,6 +63,17 @@ def print_goodbye() -> None:
     print("")
 
 
+def print_failure() -> None:
+    vl = 0
+    print("")
+    print("")
+    print_verb("##############", verbosity_level=vl)
+    print_verb("# Run failed #", verbosity_level=vl, notify=True)
+    print_verb("##############", verbosity_level=vl)
+    print("")
+    print("")
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         raise Exception(
@@ -70,6 +81,10 @@ if __name__ == "__main__":
         )
     else:
         print_welcome()
-        args = sys.argv[2:]
-        globals()[sys.argv[1]](*args)
+        try:
+            args = sys.argv[2:]
+            globals()[sys.argv[1]](*args)
+        except Exception as e:
+            print(e)
+            print_failure()
         print_goodbye()
