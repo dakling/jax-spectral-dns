@@ -2749,7 +2749,7 @@ def run_ld_2021_dual(
     print_verb("Re:", Re)
 
     if init_file is None:
-        number_of_modes = 60
+        number_of_modes = 5
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2762,8 +2762,8 @@ def run_ld_2021_dual(
         lsc_xz = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
-            # beta=2 * jnp.pi / 0.93,
-            beta=0.0,
+            beta=2 * jnp.pi / 0.93,
+            # beta=0.0,
             n=n,
             U_base=cast("np_float_array", U_base),
         )
