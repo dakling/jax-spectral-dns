@@ -156,7 +156,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         calculation_size = self.end_time / self.get_dt()
         for i in self.all_dimensions():
             calculation_size *= self.get_domain().number_of_cells(i)
-        checkpointing_threshold = params.get("checkpointing_threshold", 2e8)
+        checkpointing_threshold = params.get("checkpointing_threshold", 1.4e8)
         self.checkpointing = params.get(
             "checkpointing", calculation_size > checkpointing_threshold
         )
