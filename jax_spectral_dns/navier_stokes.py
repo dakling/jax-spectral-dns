@@ -48,19 +48,19 @@ def update_nonlinear_terms_high_performance(
     vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vel_hat_new.at[i].get())
-            )
-            # fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            # )
+            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vort_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vort_hat_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
