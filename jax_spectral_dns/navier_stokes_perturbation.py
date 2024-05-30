@@ -77,8 +77,7 @@ def update_nonlinear_terms_high_performance_perturbation(
         ]
     )
 
-    # hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
-    hel_new_hat = vel_vort_new_hat
+    hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
 
     # a-term
     vel_base = jnp.array(
@@ -101,10 +100,9 @@ def update_nonlinear_terms_high_performance_perturbation(
             for i in physical_domain.all_dimensions()
         ]
     )
-    # hel_new_a_hat = jnp.array(vel_vort_new_a_hat) - 1 / 2 * jnp.array(
-    #     vel_new_sq_a_hat_nabla
-    # )
-    hel_new_a_hat = jnp.array(vel_vort_new_a_hat)
+    hel_new_a_hat = jnp.array(vel_vort_new_a_hat) - 1 / 2 * jnp.array(
+        vel_new_sq_a_hat_nabla
+    )
 
     # b-term
     vort_base_hat = fourier_domain.curl(vel_base_hat)
@@ -122,8 +120,7 @@ def update_nonlinear_terms_high_performance_perturbation(
             for i in physical_domain.all_dimensions()
         ]
     )
-    # hel_new_b_hat = vel_vort_new_b_hat - 1 / 2 * jnp.array(vel_new_sq_b_hat_nabla)
-    hel_new_b_hat = vel_vort_new_b_hat
+    hel_new_b_hat = vel_vort_new_b_hat - 1 / 2 * jnp.array(vel_new_sq_b_hat_nabla)
 
     # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
     hel_new_hat = (
@@ -146,13 +143,7 @@ def update_nonlinear_terms_high_performance_perturbation(
         hel_new_hat[2], 0
     )
 
-    # conv_ns_hat_new = -hel_new_hat
-    conv_ns_hat_new = -(
-        hel_new_hat
-        - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
-        - 1 / 2 * jnp.array(vel_new_sq_a_hat_nabla)
-        - 1 / 2 * jnp.array(vel_new_sq_b_hat_nabla)
-    )
+    conv_ns_hat_new = -hel_new_hat
 
     return (
         h_v_hat_new,
