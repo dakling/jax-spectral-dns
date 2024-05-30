@@ -77,7 +77,8 @@ def update_nonlinear_terms_high_performance_perturbation(
         ]
     )
 
-    hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
+    # hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
+    hel_new_hat = vel_vort_new_hat
 
     # a-term
     vel_base = jnp.array(
@@ -143,7 +144,8 @@ def update_nonlinear_terms_high_performance_perturbation(
         hel_new_hat[2], 0
     )
 
-    conv_ns_hat_new = -hel_new_hat
+    # conv_ns_hat_new = -hel_new_hat
+    conv_ns_hat_new = -(hel_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla))
 
     return (
         h_v_hat_new,
