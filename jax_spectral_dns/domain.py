@@ -874,10 +874,6 @@ class FourierDomain(Domain):
         coarse_domain_hat = coarse_domain.hat()
 
         coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
-        print("coarse_field_hat.shape")
-        print(coarse_field_hat.shape)
-        print("field_hat.shape")
-        print(field_hat.shape)
         assert self.physical_domain is not None
         fine_field_hat = coarse_domain_hat.project_onto_domain(
             self.physical_domain, coarse_field_hat
@@ -959,8 +955,16 @@ class FourierDomain(Domain):
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
-                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1) + 2)
+                (
+                    field_1.shape[dim]
+                    if dim != i
+                    else math.ceil(Ns[i] * (self.aliasing - 1))
+                )
                 for dim in self.all_dimensions()
+            ]
+            zeros_shape = [
+                zeros_shape[i] if zeros_shape[i] % 2 == 0 else zeros_shape[i] + 1
+                for i in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
