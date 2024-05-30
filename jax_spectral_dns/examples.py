@@ -238,6 +238,7 @@ def run_navier_stokes_turbulent() -> None:
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=aliasing,
+        dealias_nonperiodic=True,
     )
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-2, 1e-2), end_time)
     nse = solve_navier_stokes_laminar(
@@ -249,6 +250,7 @@ def run_navier_stokes_turbulent() -> None:
         end_time=end_time,
         scale_factors=scale_factors,
         aliasing=aliasing,
+        dealias_nonperiodic=True,
     )
 
     u_fn = (
