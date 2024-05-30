@@ -6,7 +6,6 @@ import jax
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 # import warnings
 # warnings.filterwarnings('error')
-# import jax.profiler
 import logging
 import argparse
 
@@ -24,8 +23,6 @@ os.environ.update(
     }
 )
 
-import multiprocessing
-
 logging.getLogger("jax").setLevel(logging.WARNING)
 
 # max_devices = 1
@@ -38,16 +35,6 @@ logging.getLogger("jax").setLevel(logging.WARNING)
 import sys
 from jax_spectral_dns.examples import *
 from jax_spectral_dns.equation import print_verb, Equation
-
-parser = argparse.ArgumentParser(description="Run a spectral DNS.")
-parser.add_argument("--verbose", "-v", action="count")
-args = parser.parse_args()
-verbose = args.verbose
-
-if verbose is None:
-    verbose = 1
-
-args = parser.parse_args()
 
 
 def print_welcome() -> None:
@@ -92,7 +79,6 @@ if __name__ == "__main__":
         )
     else:
         print_welcome()
-        Equation.verbosity_level = verbose
         try:
             args = sys.argv[2:]
             globals()[sys.argv[1]](*args)
