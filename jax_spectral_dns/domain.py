@@ -965,7 +965,7 @@ class FourierDomain(Domain):
             zeros_shape = [
                 (
                     zeros_shape[dim]
-                    if dim == i and zeros_shape[dim] % 2 == 0
+                    if dim != i or zeros_shape[dim] % 2 == 0
                     else zeros_shape[dim] + 1
                 )
                 for dim in self.all_dimensions()
