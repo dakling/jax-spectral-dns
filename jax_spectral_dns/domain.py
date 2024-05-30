@@ -964,11 +964,11 @@ class FourierDomain(Domain):
             ]
             zeros_shape = [
                 (
-                    zeros_shape[i]
-                    if dim == i and zeros_shape[i] % 2 == 0
-                    else zeros_shape[i] + 1
+                    zeros_shape[dim]
+                    if dim == i and zeros_shape[dim] % 2 == 0
+                    else zeros_shape[dim] + 1
                 )
-                for i in self.all_dimensions()
+                for dim in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
