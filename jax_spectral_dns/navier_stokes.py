@@ -861,23 +861,17 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    if type(conv_ns_hat_old == NoneType):
-                        N_00_old = N_00_new
-                    else:
-                        assert conv_ns_hat_old_sw_0_00 is not None
-                        assert conv_ns_hat_old_sw_2_00 is not None
-                        N_00_old = jnp.block(
-                            [
-                                -conv_ns_hat_old_sw_0_00,
-                                -conv_ns_hat_old_sw_2_00,
-                            ]
-                        ) + jnp.block(
-                            [
-                                -self.dpdx[kx__, :, kz__],
-                                -self.dpdz[kx__, :, kz__],
-                            ]
-                        )
-                    assert N_00_old is not None
+                    N_00_old = jnp.block(
+                        [
+                            -conv_ns_hat_old_sw_0_00,
+                            -conv_ns_hat_old_sw_2_00,
+                        ]
+                    ) + jnp.block(
+                        [
+                            -self.dpdx[kx__, :, kz__],
+                            -self.dpdz[kx__, :, kz__],
+                        ]
+                    )
                     v_hat_new = lhs_mat_inv_00 @ (
                         rhs_mat_00 @ v_hat
                         + (self.get_dt() * gamma[step]) * N_00_new
