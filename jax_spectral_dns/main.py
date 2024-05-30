@@ -32,7 +32,7 @@ logging.getLogger("jax").setLevel(logging.WARNING)
 #     min(multiprocessing.cpu_count(), max_devices)
 # )
 
-verbose = os.environ.get("JAX_SPECTRAL_DNS_VERBOSITY_LEVEL", 1)
+verbose = int(os.environ.get("JAX_SPECTRAL_DNS_VERBOSITY_LEVEL", 1))
 
 import sys
 from jax_spectral_dns.examples import *
