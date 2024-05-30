@@ -2680,8 +2680,8 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    max_cfl = 0.02
-    end_time = 0.35 / 6  # the target time (in ld2021 units)
+    max_cfl = 0.1
+    end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -2740,7 +2740,8 @@ def run_ld_2021_dual(
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
 
-    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time_)
+    v_scale = e_0**0.5 * 1.5
+    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, v_scale, v_scale), end_time_)
 
     print_verb(
         "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
