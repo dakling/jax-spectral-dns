@@ -323,19 +323,12 @@ def run_navier_stokes_turbulent() -> None:
         vel_pert = vel - vel_base
         vel_pert.set_name("velocity_pert")
         vel_pert.set_time_step(i)
-        vort_hat, _ = nse.get_vorticity_and_helicity()
-        vort = vort_hat.no_hat()
-        vort.set_time_step(i)
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
         vel_pert[0].plot_3d(2)
         vel_pert[1].plot_3d(2)
         vel_pert[2].plot_3d(2)
-        # vort[0].plot_3d(2)
-        vort[1].plot_3d(0)
-        vort[1].plot_3d(2)
-        # vort[2].plot_3d(2)
         vel[0].plot_center(1)
         vel[1].plot_center(1)
         vel[2].plot_center(1)
@@ -2699,7 +2692,7 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    max_cfl = 0.1
+    max_cfl = 0.5
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2769,7 +2762,7 @@ def run_ld_2021_dual(
     print_verb("Re:", Re)
 
     if init_file is None:
-        number_of_modes = 5
+        number_of_modes = 20
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),

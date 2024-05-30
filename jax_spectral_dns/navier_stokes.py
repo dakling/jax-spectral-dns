@@ -380,7 +380,7 @@ class NavierStokesVelVort(Equation):
         for i in jnp.arange(3):
             vort_hat[i].name = "vort_hat_" + str(i)
 
-        hel_hat = velocity_field_hat.cross_product(vort_hat)
+        hel_hat = velocity_field_hat.no_hat().cross_product(vort_hat.no_hat()).hat()
         for i in jnp.arange(3):
             hel_hat[i].name = "hel_hat_" + str(i)
         return (vort_hat, hel_hat)
