@@ -2675,8 +2675,7 @@ def run_ld_2021_dual(
     Ny = int(Ny)
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
-    # aliasing = 3 / 2
-    aliasing = 1
+    aliasing = 3 / 2
     e_0 = float(e_0)
 
     Equation.initialize()
