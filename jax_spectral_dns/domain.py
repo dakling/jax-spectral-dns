@@ -852,7 +852,8 @@ class FourierDomain(Domain):
         N_coarse = tuple(
             self.shape[i]
             - (
-                int(self.shape[i] * (1 - 1 / self.aliasing))
+                # int(self.shape[i] * (1 - 1 / self.aliasing))
+                int(self.shape[i] - 2)
                 if self.is_periodic(i)
                 else 0
             )
