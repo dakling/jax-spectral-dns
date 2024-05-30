@@ -850,16 +850,18 @@ class FourierDomain(Domain):
             return self.filter_field_fourier_only(field_hat)
 
     def filter_field_fourier_only(self, field_hat: "jnp_array") -> "jnp_array":
+        print(self.shape)
         N_coarse = tuple(
             self.shape[i]
             - (
                 # int(self.shape[i] * (1 - 1 / self.aliasing))
-                int(self.shape[i] - 2)
+                3
                 if self.is_periodic(i)
                 else 0
             )
             for i in self.all_dimensions()
         )
+        print(N_coarse)
         N_coarse = tuple(
             (
                 N_coarse[i]
@@ -868,12 +870,17 @@ class FourierDomain(Domain):
             )
             for i in self.all_dimensions()
         )
+        print(N_coarse)
         coarse_domain = PhysicalDomain.create(
             N_coarse, self.periodic_directions, self.scale_factors, 1
         )
         coarse_domain_hat = coarse_domain.hat()
 
         coarse_field_hat = self.project_onto_domain(coarse_domain, field_hat)
+        print("coarse_field_hat.shape")
+        print(coarse_field_hat.shape)
+        print("field_hat.shape")
+        print(field_hat.shape)
         assert self.physical_domain is not None
         fine_field_hat = coarse_domain_hat.project_onto_domain(
             self.physical_domain, coarse_field_hat

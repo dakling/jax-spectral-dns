@@ -1040,13 +1040,13 @@ class NavierStokesVelVort(Equation):
         for step in range(number_of_rk_steps):
 
             # filter out high wavenumbers to dealias
-            # vel_hat_data = jnp.array(
-            #     [
-            #         self.get_domain().filter_field_fourier_only(vel_hat_data[i])
-            #         # self.get_domain().filter_field(vel_hat_data[i])
-            #         for i in self.all_dimensions()
-            #     ]
-            # )
+            vel_hat_data = jnp.array(
+                [
+                    self.get_domain().filter_field_fourier_only(vel_hat_data[i])
+                    # self.get_domain().filter_field(vel_hat_data[i])
+                    for i in self.all_dimensions()
+                ]
+            )
             # update nonlinear terms
             (
                 h_v_hat,
