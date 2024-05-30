@@ -916,9 +916,9 @@ def run_transient_growth_nonpert(
     beta: float = 0.0,
     end_time: Optional[float] = None,
     eps: float = 1e-3,
-    Nx: int = 6,
+    Nx: int = 4,
     Ny: int = 80,
-    Nz: int = 6,
+    Nz: int = 4,
     plot: bool = True,
 ) -> Tuple[float, float, List[float], List[float]]:
 
