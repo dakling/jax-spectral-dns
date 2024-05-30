@@ -105,6 +105,11 @@ class GradientDescentSolver(ABC):
         nse.activate_jit()
         nse.set_post_process_fn(self.post_process_fn)
         nse.solve()
+        gain = (
+            nse.get_latest_field("velocity_hat").no_hat().energy()
+            / nse.get_initial_field("velocity_hat").no_hat().energy()
+        )
+        print_verb("final gain:", gain)
         nse.post_process()
 
     def normalize_field(
