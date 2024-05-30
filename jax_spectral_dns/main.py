@@ -32,6 +32,8 @@ logging.getLogger("jax").setLevel(logging.WARNING)
 #     min(multiprocessing.cpu_count(), max_devices)
 # )
 
+verbose = os.environ.get("JAX_SPECTRAL_DNS_VERBOSITY_LEVEL", 1)
+
 import sys
 from jax_spectral_dns.examples import *
 from jax_spectral_dns.equation import print_verb, Equation
@@ -79,6 +81,7 @@ if __name__ == "__main__":
         )
     else:
         print_welcome()
+        Equation.verbosity_level = verbose
         try:
             args = sys.argv[2:]
             globals()[sys.argv[1]](*args)
