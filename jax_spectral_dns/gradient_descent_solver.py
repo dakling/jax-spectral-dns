@@ -62,7 +62,7 @@ class GradientDescentSolver(ABC):
         if self.number_of_steps >= 0:
             assert math.isfinite(self.value), "calculation failure detected."
         i = 0
-        if i >= self.number_of_steps or self.step_size < 1e-20:
+        if i >= self.number_of_steps or self.step_size < 1e-4:
             self.done = True
         while not self.done:
             self.i = i
