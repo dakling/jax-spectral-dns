@@ -705,14 +705,14 @@ class NavierStokesVelVort(Equation):
                 "jnp_array",
                 "jnp_array",
                 "jnp_array",
-                Optional["jnp_array"],
-                Optional["jnp_array"],
                 "jnp_array",
                 "jnp_array",
                 "jnp_array",
                 "jnp_array",
-                Optional["jnp_array"],
-                Optional["jnp_array"],
+                "jnp_array",
+                "jnp_array",
+                "jnp_array",
+                "jnp_array",
             ],
             Tuple["jnp_array", ...],
         ]:
@@ -722,14 +722,14 @@ class NavierStokesVelVort(Equation):
                 vort_1_hat_sw: "jnp_array",
                 h_v_hat_sw: "jnp_array",
                 h_g_hat_sw: "jnp_array",
-                h_v_hat_old_sw: Optional["jnp_array"],
-                h_g_hat_old_sw: Optional["jnp_array"],
+                h_v_hat_old_sw: "jnp_array",
+                h_g_hat_old_sw: "jnp_array",
                 v_0_hat_sw_00: "jnp_array",
                 v_2_hat_sw_00: "jnp_array",
                 conv_ns_hat_sw_0_00: "jnp_array",
                 conv_ns_hat_sw_2_00: "jnp_array",
-                conv_ns_hat_old_sw_0_00: Optional["jnp_array"],
-                conv_ns_hat_old_sw_2_00: Optional["jnp_array"],
+                conv_ns_hat_old_sw_0_00: "jnp_array",
+                conv_ns_hat_old_sw_2_00: "jnp_array",
             ) -> Tuple["jnp_array", ...]:
                 domain = self.get_domain()
                 kx = K[0]
@@ -743,10 +743,7 @@ class NavierStokesVelVort(Equation):
                 phi_hat_lap = v_1_lap_hat_sw
 
                 N_p_new = h_v_hat_sw
-                if type(h_v_hat_old_sw) == NoneType:
-                    N_p_old: "jnp_array" = N_p_new
-                else:
-                    N_p_old = h_v_hat_old_sw  # type: ignore[assignment]
+                N_p_old = h_v_hat_old_sw
 
                 rhs_p = (
                     rhs_mat_p @ phi_hat_lap
@@ -821,10 +818,7 @@ class NavierStokesVelVort(Equation):
                 phi_vort_hat = vort_1_hat_sw
 
                 N_vort_new = h_g_hat_sw
-                if type(h_g_hat_old_sw) == NoneType:
-                    N_vort_old = N_vort_new  # does not matter as xi[0] is zero
-                else:
-                    N_vort_old = h_g_hat_old_sw  # type: ignore[assignment]
+                N_vort_old = h_g_hat_old_sw
 
                 rhs_vort = (
                     rhs_mat_vort @ phi_vort_hat
@@ -1046,13 +1040,13 @@ class NavierStokesVelVort(Equation):
         for step in range(number_of_rk_steps):
 
             # filter out high wavenumbers to dealias
-            vel_hat_data = jnp.array(
-                [
-                    self.get_domain().filter_field_fourier_only(vel_hat_data[i])
-                    # self.get_domain().filter_field(vel_hat_data[i])
-                    for i in self.all_dimensions()
-                ]
-            )
+            # vel_hat_data = jnp.array(
+            #     [
+            #         self.get_domain().filter_field_fourier_only(vel_hat_data[i])
+            #         # self.get_domain().filter_field(vel_hat_data[i])
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
             # update nonlinear terms
             (
                 h_v_hat,
@@ -1061,12 +1055,10 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat,
             ) = self.nonlinear_update_fn(vel_hat_data, time_step)
 
-            if type(h_v_hat_old) == NoneType:
-                h_v_hat_old = h_v_hat
-            if type(h_g_hat_old) == NoneType:
-                h_g_hat_old = h_g_hat
-            if type(conv_ns_hat_old) == NoneType:
-                conv_ns_hat_old = conv_ns_hat
+            if step == 0:
+                h_v_hat_old = jnp.zeros_like(h_v_hat)
+                h_g_hat_old = jnp.zeros_like(h_g_hat)
+                conv_ns_hat_old = jnp.zeros_like(conv_ns_hat)
 
             assert h_v_hat_old is not None
             assert h_g_hat_old is not None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import math
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
@@ -123,32 +124,32 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        physical_shape = tuple(
-            (
-                int(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                if not periodic_directions[i]
-                or int(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                % 2
-                != 0
-                else int(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                + 1
-            )
-            for i in range(len(shape))
-        )
         shape = tuple(
             (
                 int(shape[i])
                 if not periodic_directions[i] or int(shape[i]) % 2 != 0
                 else int(shape[i]) + 1
+            )
+            for i in range(len(shape))
+        )
+        physical_shape = tuple(
+            (
+                math.ceil(
+                    shape[i]
+                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+                )
+                if not periodic_directions[i]
+                or math.ceil(
+                    shape[i]
+                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+                )
+                % 2
+                != 0
+                else math.ceil(
+                    shape[i]
+                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+                )
+                + 1
             )
             for i in range(len(shape))
         )
@@ -954,8 +955,7 @@ class FourierDomain(Domain):
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
-                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
-                # field_1.shape[dim] if dim != i else int(Ns[i] * 0)
+                field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1) + 2)
                 for dim in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)

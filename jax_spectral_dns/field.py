@@ -1987,6 +1987,14 @@ class FourierField(Field):
         out_data = self.get_domain().filter_field(self.data)
         return FourierField(self.get_physical_domain(), out_data, name=self.name)
 
+    def filter_fourier(self) -> FourierField:
+        out_data = self.get_domain().filter_field_fourier_only(self.data)
+        return FourierField(self.get_physical_domain(), out_data, name=self.name)
+
+    def filter_nonfourier(self) -> FourierField:
+        out_data = self.get_domain().filter_field_nonfourier_only(self.data)
+        return FourierField(self.get_physical_domain(), out_data, name=self.name)
+
     def number_of_dofs_aliasing(self) -> int:
         return int(math.prod(self.get_physical_domain().shape))
 
