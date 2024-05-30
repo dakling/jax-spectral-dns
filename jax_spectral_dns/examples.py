@@ -227,7 +227,7 @@ def run_navier_stokes_turbulent() -> None:
     Re = 3000
 
     end_time = 5
-    max_cfl = 0.7
+    max_cfl = 0.1
     Nx = 32
     Ny = 129
     Nz = 32
@@ -323,9 +323,9 @@ def run_navier_stokes_turbulent() -> None:
         vel_pert = vel - vel_base
         vel_pert.set_name("velocity_pert")
         vel_pert.set_time_step(i)
-        # vort_hat, _ = nse.get_vorticity_and_helicity()
-        # vort = vort_hat.no_hat()
-        # vort.set_time_step(i)
+        vort_hat, _ = nse.get_vorticity_and_helicity()
+        vort = vort_hat.no_hat()
+        vort.set_time_step(i)
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
@@ -333,7 +333,8 @@ def run_navier_stokes_turbulent() -> None:
         vel_pert[1].plot_3d(2)
         vel_pert[2].plot_3d(2)
         # vort[0].plot_3d(2)
-        # vort[1].plot_3d(2)
+        vort[1].plot_3d(0)
+        vort[1].plot_3d(2)
         # vort[2].plot_3d(2)
         vel[0].plot_center(1)
         vel[1].plot_center(1)
