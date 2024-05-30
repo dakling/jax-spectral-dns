@@ -950,8 +950,8 @@ def run_transient_growth_nonpert(
         perturbation_factor=0.0,
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
         dt=1e-2,
-        # aliasing=3 / 2,
-        aliasing=1,
+        aliasing=3 / 2,
+        # aliasing=1,
     )
     # nse.initialize()
 

@@ -963,7 +963,11 @@ class FourierDomain(Domain):
                 for dim in self.all_dimensions()
             ]
             zeros_shape = [
-                zeros_shape[i] if zeros_shape[i] % 2 == 0 else zeros_shape[i] + 1
+                (
+                    zeros_shape[i]
+                    if dim == i and zeros_shape[i] % 2 == 0
+                    else zeros_shape[i] + 1
+                )
                 for i in self.all_dimensions()
             ]
             extra_zeros = jnp.zeros(zeros_shape)
