@@ -177,6 +177,9 @@ class NavierStokesVelVort(Equation):
         self.update_flow_rate()
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
+        cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
+        print_verb("continuity error of initial condition:", cont_error)
+
     @classmethod
     def FromDomain(cls, domain: PhysicalDomain, **params: Any) -> Self:
         velocity_field: VectorField[PhysicalField] = VectorField.Zeros(

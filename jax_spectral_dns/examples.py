@@ -256,20 +256,29 @@ def run_navier_stokes_turbulent() -> None:
         - X[1] ** 2
         + 0.1
         * (
-            jnp.sin(X[0])
+            jnp.sin(X[0] * 2 * jnp.pi / scale_factors[0])
             * (
                 jnp.cos(jnp.pi / 2 * X[1]) * (-2 * X[1])
                 - jnp.pi / 2 * jnp.sin(jnp.pi / 2 * X[1]) * (1 - X[1] ** 2)
             )
         )
-        * jnp.sin(X[2])
+        * jnp.sin(X[2] * 2 * jnp.pi / scale_factors[2])
     )
     v_fn = (
         lambda X: 0.1
-        * (-jnp.cos(X[0]) * (1 - X[1] ** 2) * jnp.cos(jnp.pi / 2 * X[1]))
-        * jnp.sin(X[2])
+        * (
+            -jnp.cos(X[0] * 2 * jnp.pi / scale_factors[0])
+            * (1 - X[1] ** 2)
+            * jnp.cos(jnp.pi / 2 * X[1])
+        )
+        * jnp.sin(X[2] * 2 * jnp.pi / scale_factors[2])
     )
-    w_fn = lambda X: 0.05 * jnp.cos(jnp.pi / 2 * X[1]) * jnp.sin(2 * X[0]) + 0 * X[2]
+    w_fn = (
+        lambda X: 0.05
+        * jnp.cos(jnp.pi / 2 * X[1])
+        * jnp.sin(2 * X[0] * 2 * jnp.pi / scale_factors[0])
+        + 0 * X[2]
+    )
 
     vel_x = PhysicalField.FromFunc(nse.get_physical_domain(), u_fn, name="velocity_x")
     vel_y = PhysicalField.FromFunc(nse.get_physical_domain(), v_fn, name="velocity_y")
