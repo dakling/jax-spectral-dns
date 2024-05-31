@@ -2342,9 +2342,9 @@ def run_optimisation_transient_growth_mean_y_profile(
 
 def run_ld_2021_get_mean() -> None:
     Re = 3275
-    Nx: int = 64
+    Nx: int = 48
     Ny: int = 129
-    Nz: int = 64
+    Nz: int = 48
     max_cfl = 0.7
     end_time = 100
 
