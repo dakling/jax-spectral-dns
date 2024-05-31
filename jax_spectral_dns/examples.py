@@ -1455,7 +1455,7 @@ def run_optimisation_transient_growth(
         force_2d=True,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
         add_noise=False,
     )
@@ -1589,7 +1589,7 @@ def run_optimisation_transient_growth_nonfourier(
         force_2d=True,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
         add_noise=False,
     )
@@ -1743,7 +1743,7 @@ def run_optimisation_transient_growth_y_profile(
         force_2d=True,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         run_input_to_parameters_fn=run_input_to_params,
         parameters_to_run_input_fn=params_to_run_input,
         objective_fn_name="gain",
@@ -1881,7 +1881,7 @@ def run_optimisation_transient_growth_nonlinear(
         force_2d=True,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
     )
     optimiser.optimise()
@@ -2026,7 +2026,7 @@ def run_optimisation_transient_growth_nonlinear_3d(
         force_2d=False,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
         add_noise=False,
         # add_noise=True,
@@ -2167,7 +2167,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         force_2d=False,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
     )
     optimiser.optimise()
@@ -2334,7 +2334,7 @@ def run_optimisation_transient_growth_mean_y_profile(
         force_2d=True,
         max_iter=number_of_steps,
         use_optax=min_number_of_optax_steps >= 0,
-        min_optax_steps=min_number_of_optax_steps,
+        min_optax_iter=min_number_of_optax_steps,
         objective_fn_name="gain",
     )
     optimiser.optimise()
@@ -3273,7 +3273,7 @@ def run_optimisation_transient_growth_dual(
             force_2d=False,
             max_iter=number_of_steps,
             use_optax=True,
-            min_optax_steps=number_of_steps,
+            min_optax_iter=number_of_steps,
             learning_rate=1e-2 / jnp.sqrt(e_0),
             scale_by_norm=False,
             objective_fn_name="gain",
