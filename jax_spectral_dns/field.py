@@ -1700,7 +1700,6 @@ class PhysicalField(Field):
                 fig.savefig(
                     self.plotting_dir
                     + "plot_isosurfaces_"
-                    + "_"
                     + self.name
                     + "_t_"
                     + "{:06}".format(self.time_step)
@@ -1709,7 +1708,6 @@ class PhysicalField(Field):
                 fig.savefig(
                     self.plotting_dir
                     + "plot_isosurfaces_"
-                    + "_"
                     + self.name
                     + "_latest"
                     + self.plotting_format
@@ -2198,13 +2196,15 @@ class FourierField(Field):
                         other_dim = [i for i in self.all_dimensions() if i != dim]
                         ims.append(
                             ax[dim].imshow(
-                                abs(self.data.take(indices=N_c, axis=dim)),
+                                np.fft.fftshift(
+                                    abs(self.data.take(indices=N_c, axis=dim))
+                                ),
                                 interpolation=None,
                                 extent=(
-                                    self.get_domain().grid[other_dim[1]][0],
-                                    self.get_domain().grid[other_dim[1]][-1],
-                                    self.get_domain().grid[other_dim[0]][0],
-                                    self.get_domain().grid[other_dim[0]][-1],
+                                    min(self.get_domain().grid[other_dim[0]]),
+                                    max(self.get_domain().grid[other_dim[0]]),
+                                    min(self.get_domain().grid[other_dim[1]]),
+                                    max(self.get_domain().grid[other_dim[1]]),
                                 ),
                             )
                         )

@@ -62,14 +62,26 @@ class GradientDescentSolver(ABC):
         if self.number_of_steps >= 0:
             assert math.isfinite(self.value), "calculation failure detected."
         i = 0
-        if i >= self.number_of_steps or self.step_size < 1e-4:
+        step_size_threshold = 1e-4
+        value_change_threshold = 1e-10
+        min_iterations = 3
+        if i >= self.number_of_steps:
             self.done = True
         while not self.done:
             self.i = i
             self.update()
             self.post_process_iteration()
             i += 1
-            if i >= self.number_of_steps or self.step_size < 1e-20:
+            if (
+                i >= self.number_of_steps
+                or self.step_size < step_size_threshold
+                or (
+                    value_change_threshold > 0.0
+                    and i > min_iterations
+                    and abs(self.value - self.old_value) / self.value
+                    < value_change_threshold
+                )
+            ):
                 self.done = True
             assert math.isfinite(self.value), "calculation failure detected."
         self.perform_final_run()
@@ -79,8 +91,9 @@ class GradientDescentSolver(ABC):
         v0 = v0_hat.no_hat()
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
+        v0.plot_3d(0)
         v0.plot_3d(2)
-        v0[0].plot_center(1)
+        v0[1].plot_isosurfaces(0.4)
         v0.save_to_file("velocity_latest")
 
     def perform_final_run(self) -> None:

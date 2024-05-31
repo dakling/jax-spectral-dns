@@ -2823,15 +2823,13 @@ def run_ld_2021_dual(
         vel[0].plot_3d(0)
         vel[1].plot_3d(0)
         vel[2].plot_3d(0)
-        vort[2].plot_3d(2)
         vel.plot_streamlines(2)
-        vel[0].plot_isolines(2)
-        vel[0].plot_isosurfaces(0.4)
+        vel[1].plot_isolines(2)
+        vel[1].plot_isosurfaces(0.4)
 
         vel_total = vel + vel_base
         vel_total.set_name("velocity_total")
         vel_total[0].plot_3d(0)
-        vel_total[0].plot_isosurfaces(0.4)
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)

@@ -117,6 +117,7 @@ class Equation:
         max_cfl: float = 0.7,
         U_max: tuple[float, ...] = (1.0, 1e-10, 1e-10),
         end_time: Optional[float] = None,
+        safety_factor: float = 0.9,
     ) -> float:
         """Returns a suitable time step based on the given CFL number. If
         end_time is provided, it is assumed that a number of time steps allowing
@@ -132,7 +133,7 @@ class Equation:
             / U_max[i]
             for i in domain.all_dimensions()
         ]
-        dt = min(dT)
+        dt = safety_factor * min(dT)
         if end_time is None:
             return dt
 
