@@ -31,6 +31,6 @@ test:   # This job runs in the test stage.
         - mypy jax_spectral_dns/
         - mypy tests/test_project.py
         - echo "Running unit tests..."
-        - pytest
+        - pytest -n auto
     rules:
         - if: $CI_PIPELINE_SOURCE == "merge_request_event"
