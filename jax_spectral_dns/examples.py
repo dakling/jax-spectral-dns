@@ -2348,7 +2348,7 @@ def run_ld_2021_get_mean() -> None:
     max_cfl = 0.7
     end_time = 100
 
-    e_0 = 1e-2
+    e_0 = 1e-1
 
     Equation.initialize()
 
@@ -2375,7 +2375,7 @@ def run_ld_2021_get_mean() -> None:
     lsc = LinearStabilityCalculation(
         Re=Re,
         alpha=2 * jnp.pi / 1.87,
-        beta=0,
+        beta=2 * jnp.pi / 0.93,
         n=n,
     )
 
@@ -2411,6 +2411,40 @@ def run_ld_2021_get_mean() -> None:
             avg_vel[0].plot_3d(2)
             avg_vel[1].plot_3d(2)
             avg_vel[2].plot_3d(2)
+            try:
+                avg_vel_coeffs = np.loadtxt(
+                    "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+                )
+
+                def get_vel_field(
+                    domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
+                ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
+                    Ny = domain.number_of_cells(1)
+                    U_mat = np.zeros((Ny, len(cheb_coeffs)))
+                    for i in range(Ny):
+                        for j in range(len(cheb_coeffs)):
+                            U_mat[i, j] = cheb(j, 0)(domain.grid[1][i])
+                    U_y_slice = U_mat @ cheb_coeffs
+                    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+                    u_data = np.moveaxis(
+                        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+                    )
+                    max = np.max(u_data)
+                    vel_base = VectorField(
+                        [
+                            PhysicalField(domain, jnp.asarray(u_data)),
+                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                        ]
+                    )
+                    return vel_base, U_y_slice, max
+
+                vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
+                vel_base_turb = vel_base_turb.normalize_by_max_value()
+                avg_vel[0].plot_center(0, vel_base_turb[0])
+            except Exception:
+                print_verb("plotting of reference profile failed.")
+                avg_vel[0].plot_center(0)
             avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
             for i_x in range(Nx):
                 for i_z in range(Nz):
