@@ -25,7 +25,16 @@ class GradientDescentSolver(ABC):
     def __init__(
         self, dual_problem: NavierStokesVelVortPerturbationDual, **params: Any
     ):
+        # initialisation
         self.dual_problem = dual_problem
+        self.i = 0
+        self.e_0 = 0.0
+        self.done = False
+        self.post_process_fn = params.get("post_process_function", None)
+        self.value = -1.0
+        self.old_value = self.value
+
+        # set various solver options
         self.max_step_size = params.get("max_step_size", 0.999)
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("max_iterations", 20)
@@ -33,18 +42,14 @@ class GradientDescentSolver(ABC):
             "relative_gain_increase_threshold", 0.2
         )
         self.max_number_of_sub_iterations = params.get(
-            "max_number_of_sub_iterations", 100
+            "max_number_of_sub_iterations", 10
         )
+        self.value_change_threshold = params.get("value_change_threshold", 1e-15)
+        self.step_size_threshold = params.get("step_size_threshold", 1e-5)
+
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
         )
-
-        self.i = 0
-        self.e_0 = 0.0
-        self.done = False
-        self.post_process_fn = params.get("post_process_function", None)
-        self.value = -1.0
-        self.old_value = self.value
 
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
@@ -59,9 +64,8 @@ class GradientDescentSolver(ABC):
     def update(self) -> None: ...
 
     def is_done(self, i: int) -> bool:
-        step_size_threshold = 1e-4
         done: bool = (i >= self.number_of_steps) or (
-            self.step_size < step_size_threshold
+            self.step_size < self.step_size_threshold
         )
         return done
 
@@ -375,10 +379,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_nse_dual = self.dual_problem
         self.value = gain
 
-        value_change_threshold = 1e-10
         if (
-            value_change_threshold > 0.0
-            and abs(self.value - self.old_value) / self.value < value_change_threshold
+            self.value_change_threshold > 0.0
+            and abs(self.value - self.old_value) / self.value
+            < self.value_change_threshold
         ):
             self.done = True
 

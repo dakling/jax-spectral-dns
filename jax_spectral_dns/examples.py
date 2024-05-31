@@ -2342,11 +2342,11 @@ def run_optimisation_transient_growth_mean_y_profile(
 
 def run_ld_2021_get_mean() -> None:
     Re = 3275
-    Nx: int = 48
+    Nx: int = 64
     Ny: int = 129
-    Nz: int = 48
+    Nz: int = 64
     max_cfl = 0.7
-    end_time = 100
+    end_time = 1e3
 
     e_0 = 1e-1
 
@@ -2441,10 +2441,10 @@ def run_ld_2021_get_mean() -> None:
 
                 vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
                 vel_base_turb = vel_base_turb.normalize_by_max_value()
-                avg_vel[0].plot_center(0, vel_base_turb[0])
+                avg_vel[0].plot_center(1, vel_base_turb[0])
             except Exception:
                 print_verb("plotting of reference profile failed.")
-                avg_vel[0].plot_center(0)
+                avg_vel[0].plot_center(1)
             avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
             for i_x in range(Nx):
                 for i_z in range(Nz):
