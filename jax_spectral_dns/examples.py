@@ -227,7 +227,7 @@ def run_navier_stokes_turbulent() -> None:
     Re = 3000
 
     end_time = 10
-    max_cfl = 0.65
+    max_cfl = 0.7
     Nx = 32
     Ny = 129
     Nz = 32
@@ -2346,7 +2346,7 @@ def run_ld_2021_get_mean() -> None:
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
-    max_cfl = 0.3
+    max_cfl = 0.7
     end_time = 100
 
     Equation.initialize()
@@ -2456,7 +2456,7 @@ def run_ld_2021(
 
     Equation.initialize()
 
-    max_cfl = 0.65
+    max_cfl = 0.7
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2694,7 +2694,7 @@ def run_ld_2021_dual(
 
     Equation.initialize()
 
-    max_cfl = 0.65
+    max_cfl = 0.7
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
@@ -2884,7 +2884,7 @@ def run_white_noise() -> None:
     Re = 3000
     e_0 = 1e-4
     Nx, Ny, Nz = 44, 129, 36
-    max_cfl = 0.4
+    max_cfl = 0.7
     end_time = 5e-1
 
     domain = PhysicalDomain.create(
