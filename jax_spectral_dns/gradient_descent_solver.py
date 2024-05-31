@@ -44,6 +44,7 @@ class GradientDescentSolver(ABC):
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
         self.value = -1.0
+        self.old_value = self.value
 
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
@@ -57,32 +58,37 @@ class GradientDescentSolver(ABC):
     @abstractmethod
     def update(self) -> None: ...
 
+    def is_done(self, i: int) -> bool:
+        step_size_threshold = 1e-4
+        value_change_threshold = 1e-10
+        min_iterations = 3
+        return (
+            i >= self.number_of_steps
+            or self.step_size < step_size_threshold
+            or (
+                value_change_threshold > 0.0
+                and i > min_iterations
+                and abs(self.value - self.old_value) / self.value
+                < value_change_threshold
+            )
+        )
+
+    def update_done(self, i: int) -> None:
+        if self.is_done(i):
+            self.done = True
+
     def optimise(self) -> None:
         self.initialise(self.number_of_steps >= 0)
         if self.number_of_steps >= 0:
             assert math.isfinite(self.value), "calculation failure detected."
         i = 0
-        step_size_threshold = 1e-4
-        value_change_threshold = 1e-10
-        min_iterations = 3
-        if i >= self.number_of_steps:
-            self.done = True
+        self.update_done(i)
         while not self.done:
             self.i = i
             self.update()
             self.post_process_iteration()
             i += 1
-            if (
-                i >= self.number_of_steps
-                or self.step_size < step_size_threshold
-                or (
-                    value_change_threshold > 0.0
-                    and i > min_iterations
-                    and abs(self.value - self.old_value) / self.value
-                    < value_change_threshold
-                )
-            ):
-                self.done = True
+            self.update_done(i)
             assert math.isfinite(self.value), "calculation failure detected."
         self.perform_final_run()
 
