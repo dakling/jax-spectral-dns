@@ -226,13 +226,15 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
 def run_navier_stokes_turbulent() -> None:
     Re = 3000
 
-    end_time = 5
-    max_cfl = 0.1
+    end_time = 10
+    max_cfl = 0.65
     Nx = 32
     Ny = 129
     Nz = 32
-    scale_factors = (1.87, 1.0, 0.93)
+    # scale_factors = (1.87, 1.0, 0.93)
+    scale_factors = (2 * np.pi, 1.0, 2 * np.pi)
     aliasing = 3 / 2
+    # aliasing = 1
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -241,6 +243,7 @@ def run_navier_stokes_turbulent() -> None:
         # dealias_nonperiodic=True,
     )
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-2, 1e-2), end_time)
+    print_verb("dt:", dt)
     nse = solve_navier_stokes_laminar(
         Re=Re,
         Nx=Nx,

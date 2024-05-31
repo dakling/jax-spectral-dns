@@ -1033,7 +1033,7 @@ class NavierStokesVelVort(Equation):
 
         for step in range(number_of_rk_steps):
 
-            # filter out high wavenumbers to dealias
+            # filter out highest wavenumbers
             # vel_hat_data = jnp.array(
             #     [
             #         self.get_domain().filter_field_fourier_only(vel_hat_data[i])

@@ -2168,9 +2168,9 @@ class FourierField(Field):
                         fig = figure.Figure()
                     base_len = 100
                     grd = (base_len, base_len)
-                    lx = self.domain.get_shape()[0]
-                    ly = self.domain.get_shape()[1]
-                    lz = self.domain.get_shape()[2]
+                    lx = self.get_domain().get_shape()[0]
+                    ly = self.get_domain().get_shape()[1]
+                    lz = self.get_domain().get_shape()[2]
                     rows_x = int(ly / (ly + lx) * base_len)
                     cols_x = int(lz / (lz + ly) * base_len)
                     rows_y = int(lx / (ly + lx) * base_len)
@@ -2194,17 +2194,17 @@ class FourierField(Field):
                     ]
                     ims = []
                     for dim in self.all_dimensions():
-                        N_c = (self.domain.get_shape()[dim] - 1) // 2
+                        N_c = (self.get_domain().get_shape()[dim] - 1) // 2
                         other_dim = [i for i in self.all_dimensions() if i != dim]
                         ims.append(
                             ax[dim].imshow(
                                 abs(self.data.take(indices=N_c, axis=dim)),
                                 interpolation=None,
                                 extent=(
-                                    self.domain.grid[other_dim[1]][0],
-                                    self.domain.grid[other_dim[1]][-1],
-                                    self.domain.grid[other_dim[0]][0],
-                                    self.domain.grid[other_dim[0]][-1],
+                                    self.get_domain().grid[other_dim[1]][0],
+                                    self.get_domain().grid[other_dim[1]][-1],
+                                    self.get_domain().grid[other_dim[0]][0],
+                                    self.get_domain().grid[other_dim[0]][-1],
                                 ),
                             )
                         )
@@ -2255,17 +2255,17 @@ class FourierField(Field):
                 ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 ims = []
-                N_c = (self.domain.get_shape()[dim] - 1) // 2
+                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
                 other_dim = [i for i in self.all_dimensions() if i != dim]
                 ims.append(
                     ax.imshow(
-                        abs(self.data.take(indices=N_c, axis=dim).T),
+                        np.fft.fftshift(abs(self.data.take(indices=N_c, axis=dim).T)),
                         interpolation=None,
                         extent=(
-                            self.domain.grid[other_dim[0]][0],
-                            self.domain.grid[other_dim[0]][-1],
-                            self.domain.grid[other_dim[1]][0],
-                            self.domain.grid[other_dim[1]][-1],
+                            min(self.get_domain().grid[other_dim[0]]),
+                            max(self.get_domain().grid[other_dim[0]]),
+                            min(self.get_domain().grid[other_dim[1]]),
+                            max(self.get_domain().grid[other_dim[1]]),
                         ),
                     )
                 )

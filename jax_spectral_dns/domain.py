@@ -950,16 +950,12 @@ class FourierDomain(Domain):
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
         Ns = [int(self.number_of_cells(i)) for i in self.all_dimensions()]
-        ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
+        ks = [math.ceil((Ns[i]) / 2) for i in self.all_dimensions()]
         for i in self.all_periodic_dimensions():
             field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
-                (
-                    field_1.shape[dim]
-                    if dim != i
-                    else math.ceil(Ns[i] * (self.aliasing - 1))
-                )
+                (field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1)))
                 for dim in self.all_dimensions()
             ]
             zeros_shape = [

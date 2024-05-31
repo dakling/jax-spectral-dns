@@ -116,8 +116,6 @@ def solve_heat_eq_1D() -> None:
     heat_eq.plot()
     v_final = heat_eq.get_latest_field("u")
     e0 = u.energy()
-    print(e0)
-    print(v_final.energy())
 
 
 def optimize_heat_eq_1D() -> None:
