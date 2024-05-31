@@ -60,18 +60,7 @@ class GradientDescentSolver(ABC):
 
     def is_done(self, i: int) -> bool:
         step_size_threshold = 1e-4
-        value_change_threshold = 1e-10
-        min_iterations = 3
-        return (
-            i >= self.number_of_steps
-            or self.step_size < step_size_threshold
-            or (
-                value_change_threshold > 0.0
-                and i > min_iterations
-                and abs(self.value - self.old_value) / self.value
-                < value_change_threshold
-            )
-        )
+        return i >= self.number_of_steps or self.step_size < step_size_threshold
 
     def update_done(self, i: int) -> None:
         if self.is_done(i):
@@ -374,7 +363,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             except Exception:
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
-            # jax.clear_caches()  # type: ignore[no-untyped-call] # TODO does this help? how much does it hurt?
 
         self.update_beta(True)
         self.current_guess = v0_hat_new
@@ -383,6 +371,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("v0 energy:", v0.energy(), verbosity_level=2)
         self.old_nse_dual = self.dual_problem
         self.value = gain
+
+        value_change_threshold = 1e-10
+        if (
+            value_change_threshold > 0.0
+            and abs(self.value - self.old_value) / self.value < value_change_threshold
+        ):
+            self.done = True
+
         self.old_value = self.value
         self.old_grad = self.grad
 
