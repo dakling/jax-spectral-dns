@@ -963,7 +963,7 @@ class FourierDomain(Domain):
                 for dim in self.all_dimensions()
             ]
             if zeros_shape[i] == 0:
-                field_1 = field_1.take(indices=jnp.arange(0, ks[i]), axis=i)
+                field_2 = field_2.take(indices=jnp.arange(1, field_2.shape[i]), axis=i)
             extra_zeros = jnp.zeros(zeros_shape)
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
 
