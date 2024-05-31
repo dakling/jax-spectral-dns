@@ -2200,7 +2200,6 @@ def run_optimisation_transient_growth_mean_y_profile(
     aliasing = 3 / 2
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-    lsc0 = LinearStabilityCalculation(Re=Re, alpha=0, beta=0, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -2349,6 +2348,8 @@ def run_ld_2021_get_mean() -> None:
     max_cfl = 0.7
     end_time = 100
 
+    e_0 = 1e-2
+
     Equation.initialize()
 
     domain = PhysicalDomain.create(
@@ -2357,14 +2358,36 @@ def run_ld_2021_get_mean() -> None:
         scale_factors=(1.87, 1.0, 0.93),
         aliasing=1,
     )
-    coarse_domain = PhysicalDomain.create(
-        (16, Ny, 16),
-        (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
-        aliasing=1,
-    )
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
+
+    number_of_modes = 60
+    n = 64
+    lsc_domain = PhysicalDomain.create(
+        (2, n, 2),
+        (True, False, True),
+        scale_factors=domain.scale_factors,
+        aliasing=1,
+    )
+    _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+    U_base = U_base / np.max(U_base)
+    lsc = LinearStabilityCalculation(
+        Re=Re,
+        alpha=2 * jnp.pi / 1.87,
+        beta=0,
+        n=n,
+        U_base=cast("np_float_array", U_base),
+    )
+
+    v0_0 = lsc.calculate_transient_growth_initial_condition(
+        domain,
+        1,
+        number_of_modes,
+        recompute_full=True,
+        save_final=False,
+    )
+    v0_0.normalize_by_energy()
+    v0_0 *= e_0
 
     def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -2411,13 +2434,8 @@ def run_ld_2021_get_mean() -> None:
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
-    noise_field = (
-        FourierField.FromWhiteNoise(coarse_domain, 1e-4)
-        .project_onto_domain(domain)
-        .no_hat()
-    )
-    U = vel_base_lam + VectorField([noise_field for _ in range(3)])
-    # U = vel_base_lam
+
+    U = vel_base_lam + v0_0
     nse = NavierStokesVelVort.FromVelocityField(U, Re=Re, dt=dt)
     nse.end_time = end_time
 
