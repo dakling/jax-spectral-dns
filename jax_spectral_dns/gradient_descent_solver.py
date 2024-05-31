@@ -60,7 +60,10 @@ class GradientDescentSolver(ABC):
 
     def is_done(self, i: int) -> bool:
         step_size_threshold = 1e-4
-        return i >= self.number_of_steps or self.step_size < step_size_threshold
+        done: bool = (i >= self.number_of_steps) or (
+            self.step_size < step_size_threshold
+        )
+        return done
 
     def update_done(self, i: int) -> None:
         if self.is_done(i):
