@@ -2377,7 +2377,6 @@ def run_ld_2021_get_mean() -> None:
         alpha=2 * jnp.pi / 1.87,
         beta=0,
         n=n,
-        U_base=cast("np_float_array", vel_base_lam),
     )
 
     v0_0 = lsc.calculate_transient_growth_initial_condition(
