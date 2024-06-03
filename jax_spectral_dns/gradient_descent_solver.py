@@ -103,29 +103,21 @@ class GradientDescentSolver(ABC):
         v0_hat = self.current_guess
         v0_hat.set_name("velocity_hat")
 
-        nse_ = self.dual_problem.forward_equation
-        Re = nse_.get_Re_tau() * nse_.get_u_max_over_u_tau()
-        dt = nse_.get_dt()
-        end_time = nse_.end_time
-
-        nse = NavierStokesVelVortPerturbation(
-            v0_hat,
-            Re=Re,
-            dt=dt,
-            end_time=end_time,
-            velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
-        )
-        nse.set_linearize(False)
-        nse.write_intermediate_output = True
-        nse.activate_jit()
-        nse.set_post_process_fn(self.post_process_fn)
-        nse.solve()
+        self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat)
+        self.dual_problem.forward_equation.write_intermediate_output = True
+        self.dual_problem.forward_equation.activate_jit()
+        self.dual_problem.forward_equation.set_post_process_fn(self.post_process_fn)
+        self.dual_problem.forward_equation.solve()
         gain = (
-            nse.get_latest_field("velocity_hat").no_hat().energy()
-            / nse.get_initial_field("velocity_hat").no_hat().energy()
+            self.dual_problem.forward_equation.get_latest_field("velocity_hat")
+            .no_hat()
+            .energy()
+            / self.dual_problem.forward_equation.get_initial_field("velocity_hat")
+            .no_hat()
+            .energy()
         )
         print_verb("final gain:", gain)
-        nse.post_process()
+        self.dual_problem.forward_equation.post_process()
 
     def normalize_field(
         self, v0_hat: VectorField[FourierField]
