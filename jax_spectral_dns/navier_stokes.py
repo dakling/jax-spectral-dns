@@ -148,7 +148,7 @@ class NavierStokesVelVort(Equation):
             "prepare_matrices", calculation_size < prepare_matrices_threshold
         )
         if self.prepare_matrices:
-            print_verb("preparing differentiation matrices")
+            print_verb("preparing differentiation matrices...", verbosity_level=2)
             poisson_mat = domain.assemble_poisson_matrix()
             (
                 rk_mats_rhs,
@@ -168,8 +168,14 @@ class NavierStokesVelVort(Equation):
             rk_mats_lhs_inv_inhom.setflags(write=False)
             rk_mats_rhs_ns.setflags(write=False)
             rk_mats_lhs_inv_ns.setflags(write=False)
+            print_verb("done preparing differentiation matrices", verbosity_level=2)
         else:
-            print_verb("not preparing differentiation matrices")
+            print_verb(
+                "not preparing differentiation matrices - \
+                this may reduce memory usage but can carry \
+                a significant runtime penalty!",
+                verbosity_level=1,
+            )
             poisson_mat = None
             (
                 rk_mats_rhs,
@@ -201,12 +207,14 @@ class NavierStokesVelVort(Equation):
             u_max_over_u_tau=u_max_over_u_tau,
             number_of_rk_steps=n_rk_steps,
         )
-        print_verb("using RK" + str(n_rk_steps) + " time stepper")
+        print_verb("using RK" + str(n_rk_steps) + " time stepper", verbosity_level=2)
         self.update_flow_rate()
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
         cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
-        print_verb("continuity error of initial condition:", cont_error)
+        print_verb(
+            "continuity error of initial condition:", cont_error, verbosity_level=2
+        )
 
     @classmethod
     def FromDomain(cls, domain: PhysicalDomain, **params: Any) -> Self:
@@ -256,12 +264,14 @@ class NavierStokesVelVort(Equation):
         out = cast(VectorField[FourierField], super().get_latest_field(name))
         return out
 
+    @partial(jax.jit, static_argnums=0)
     def get_poisson_mat(self) -> "np_complex_array":
         if self.prepare_matrices:
             return cast("np_complex_array", self.nse_fixed_parameters.poisson_mat)
         else:
             return self.get_domain().assemble_poisson_matrix()
 
+    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_mats_lhs_inv(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -285,6 +295,7 @@ class NavierStokesVelVort(Equation):
             rk_mat_lhs_ = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
             return cast("np_jnp_array", jnp.linalg.inv(rk_mat_lhs_))
 
+    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_mats_rhs(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -306,6 +317,7 @@ class NavierStokesVelVort(Equation):
             rk_mat_rhs = I + alpha[step] * dt * L
             return rk_mat_rhs
 
+    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_mats_lhs_inv_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -338,6 +350,7 @@ class NavierStokesVelVort(Equation):
             lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom_)
             return cast("np_jnp_array", lhs_mat_inv_inhom)
 
+    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_rhs_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -367,6 +380,7 @@ class NavierStokesVelVort(Equation):
             )
             return rhs_inhom_
 
+    @partial(jax.jit, static_argnums=(0, 1))
     def get_rk_mats_lhs_inv_ns(self, step: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -387,6 +401,7 @@ class NavierStokesVelVort(Equation):
             lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
             return cast("np_jnp_array", lhs_mat_inv_ns)
 
+    @partial(jax.jit, static_argnums=(0, 1))
     def get_rk_mats_rhs_ns(self, step: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -794,7 +809,7 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_p_inv = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
                 rhs_mat_p = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
 
-                TEST_MATRICES = os.environ.get("JAX_SPECTRAL_DNS_TEST_DIFF_MATS", False)
+                TEST_MATRICES = "JAX_SPECTRAL_DNS_TEST_DIFF_MATS" in os.environ
                 if TEST_MATRICES:
                     print_verb(
                         "WARNING: testing matrix assembly. Should only be done for testing purposes."

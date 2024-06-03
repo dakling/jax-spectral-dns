@@ -2411,7 +2411,7 @@ def run_ld_2021_get_mean(
                 scale_factors=(1.0,),
                 aliasing=1,
             )
-            avg_vel.normalize_by_max_value()
+            avg_vel = avg_vel.normalize_by_max_value()
             avg_vel.set_time_step(0)
             avg_vel.set_name("average_velocity")
             avg_vel.save_to_file("avg_vel")
@@ -2823,7 +2823,7 @@ def run_ld_2021_dual(
     print_verb("Re:", Re)
 
     if init_file is None:
-        number_of_modes = 60
+        number_of_modes = 120
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),

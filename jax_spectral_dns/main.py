@@ -47,7 +47,7 @@ def print_welcome() -> None:
     print_verb("# Starting jax-spectral-dns #", verbosity_level=vl, notify=True)
     print_verb("#############################", verbosity_level=vl)
     print("")
-    print_verb("jax.local_devices(): ", jax.local_devices(), verbosity_level=vl)
+    print_verb("jax.local_devices(): ", jax.local_devices(), verbosity_level=2)
     print("")
     print("")
 

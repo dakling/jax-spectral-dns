@@ -168,11 +168,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             "checkpointing", calculation_size > checkpointing_threshold
         )
         if self.checkpointing:
-            print_verb("using checkpointing to reduce peak memory usage.")
+            print_verb("using checkpointing to reduce peak memory usage")
             self.current_velocity_field_u_history: Optional["jnp_array"] = None
             self.current_u_history_start_step = -1
         else:
-            print_verb("not using checkpointing.")
+            print_verb("not using checkpointing")
         self.forward_equation.activate_jit()
 
     def set_linearize(self, lin: bool) -> None:
