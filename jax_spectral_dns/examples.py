@@ -2351,13 +2351,15 @@ def run_ld_2021_get_mean(
     end_time = 5e2
 
     e_0 = 1e-1
+    # scale_factors=(1.87, 1.0, 0.93),
+    scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
     Equation.initialize()
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
+        scale_factors=scale_factors,
         aliasing=3 / 2,
     )
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
@@ -2376,8 +2378,8 @@ def run_ld_2021_get_mean(
 
     lsc = LinearStabilityCalculation(
         Re=Re,
-        alpha=2 * jnp.pi / 1.87,
-        beta=2 * jnp.pi / 0.93,
+        alpha=2 * jnp.pi / scale_factors[0],
+        beta=2 * jnp.pi / scale_factors[2],
         n=n,
     )
 
