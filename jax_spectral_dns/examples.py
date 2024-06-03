@@ -2474,6 +2474,7 @@ def run_ld_2021_get_mean(
             vel.save_to_file("vel_latest")
 
     nse = NavierStokesVelVort.FromVelocityField(U, Re=Re, dt=dt)
+    print_verb("Re_tau:", nse.get_Re_tau())
     nse.end_time = end_time
 
     # nse.deactivate_jit()

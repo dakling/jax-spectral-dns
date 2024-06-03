@@ -339,11 +339,16 @@ def solve_navier_stokes_perturbation(
 
     if not rotated:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            vel, Re=Re, dt=dt, end_time=end_time
+            vel, Re=Re, dt=dt, end_time=end_time, prepare_matrices=False
         )
     else:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            vel, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat, end_time=end_time
+            vel,
+            Re=Re,
+            dt=dt,
+            velocity_base_hat=velocity_base_hat,
+            end_time=end_time,
+            prepare_matrices=False,
         )
 
     nse.before_time_step_fn = None

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 NoneType = type(None)
+import os
 from operator import rshift
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union, cast
 from typing_extensions import Self
@@ -139,25 +140,52 @@ class NavierStokesVelVort(Equation):
         super().__init__(domain, velocity_field, **params)
 
         n_rk_steps = 3
-        poisson_mat = domain.assemble_poisson_matrix()
-        (
-            rk_mats_rhs,
-            rk_mats_lhs_inv,
-            rk_rhs_inhom,
-            rk_mats_lhs_inv_inhom,
-            rk_mats_rhs_ns,
-            rk_mats_lhs_inv_ns,
-        ) = self.prepare_assemble_rk_matrices(
-            domain, physical_domain, Re_tau, dt, n_rk_steps
+        calculation_size = self.end_time / self.get_dt()
+        for i in self.all_dimensions():
+            calculation_size *= self.get_domain().number_of_cells(i)
+        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 2.5e8)
+        self.prepare_matrices = params.get(
+            "prepare_matrices", calculation_size < prepare_matrices_threshold
         )
+        if self.prepare_matrices:
+            print_verb("preparing differentiation matrices")
+            poisson_mat = domain.assemble_poisson_matrix()
+            (
+                rk_mats_rhs,
+                rk_mats_lhs_inv,
+                rk_rhs_inhom,
+                rk_mats_lhs_inv_inhom,
+                rk_mats_rhs_ns,
+                rk_mats_lhs_inv_ns,
+            ) = self.prepare_assemble_rk_matrices(
+                domain, physical_domain, Re_tau, dt, n_rk_steps
+            )
 
-        poisson_mat.setflags(write=False)
-        rk_mats_rhs.setflags(write=False)
-        rk_mats_lhs_inv.setflags(write=False)
-        rk_rhs_inhom.setflags(write=False)
-        rk_mats_lhs_inv_inhom.setflags(write=False)
-        rk_mats_rhs_ns.setflags(write=False)
-        rk_mats_lhs_inv_ns.setflags(write=False)
+            poisson_mat.setflags(write=False)
+            rk_mats_rhs.setflags(write=False)
+            rk_mats_lhs_inv.setflags(write=False)
+            rk_rhs_inhom.setflags(write=False)
+            rk_mats_lhs_inv_inhom.setflags(write=False)
+            rk_mats_rhs_ns.setflags(write=False)
+            rk_mats_lhs_inv_ns.setflags(write=False)
+        else:
+            print_verb("not preparing differentiation matrices")
+            poisson_mat = None
+            (
+                rk_mats_rhs,
+                rk_mats_lhs_inv,
+                rk_rhs_inhom,
+                rk_mats_lhs_inv_inhom,
+                rk_mats_rhs_ns,
+                rk_mats_lhs_inv_ns,
+            ) = (
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
 
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
             physical_domain=physical_domain,
@@ -229,128 +257,154 @@ class NavierStokesVelVort(Equation):
         return out
 
     def get_poisson_mat(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.poisson_mat
+        if self.prepare_matrices:
+            return cast("np_complex_array", self.nse_fixed_parameters.poisson_mat)
+        else:
+            return self.get_domain().assemble_poisson_matrix()
 
     def get_rk_mats_lhs_inv(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        # dt = self.get_dt()
-        # domain = self.get_domain()
-        # physical_domain = self.get_physical_domain()
-        # Re_tau = self.get_Re_tau()
-        # alpha, beta, _, _ = self.get_rk_parameters()
-        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        # Ly = 1 / Re_tau * D2
-        # n = Ly.shape[0]
-        # I = np.eye(n)
-        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        # rk_mat_lhs = I - beta[step] * dt * L
-        # rk_mat_lhs_ = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
-        # return cast("np_jnp_array", jnp.linalg.inv(rk_mat_lhs_))
-        return cast(
-            "np_jnp_array",
-            jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz],
-        )
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            domain = self.get_domain()
+            physical_domain = self.get_physical_domain()
+            Re_tau = self.get_Re_tau()
+            _, beta, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rk_mat_lhs = I - beta[step] * dt * L
+            rk_mat_lhs_ = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
+            return cast("np_jnp_array", jnp.linalg.inv(rk_mat_lhs_))
 
     def get_rk_mats_rhs(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        # dt = self.get_dt()
-        # physical_domain = self.get_physical_domain()
-        # Re_tau = self.get_Re_tau()
-        # alpha, beta, _, _ = self.get_rk_parameters()
-        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        # Ly = 1 / Re_tau * D2
-        # n = Ly.shape[0]
-        # I = np.eye(n)
-        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        # rk_mat_rhs = I + alpha[step] * dt * L
-        # return rk_mat_rhs
-        return cast(
-            "np_jnp_array",
-            jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs)[step, kx, kz],
-        )
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs)[step, kx, kz],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            physical_domain = self.get_physical_domain()
+            Re_tau = self.get_Re_tau()
+            alpha, _, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rk_mat_rhs = I + alpha[step] * dt * L
+            return rk_mat_rhs
 
     def get_rk_mats_lhs_inv_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        # dt = self.get_dt()
-        # physical_domain = self.get_physical_domain()
-        # domain = self.get_domain()
-        # Re_tau = self.get_Re_tau()
-        # alpha, beta, _, _ = self.get_rk_parameters()
-        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        # Ly = 1 / Re_tau * D2
-        # n = Ly.shape[0]
-        # I = np.eye(n)
-        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        # rhs_inhom = np.zeros(n)
-        # lhs_mat_inhom = I - beta[step] * dt * L
-        # (
-        #     lhs_mat_inhom_,
-        #     _,
-        # ) = domain.enforce_inhomogeneous_dirichlet_jnp(
-        #     lhs_mat_inhom, rhs_inhom, 0.0, 1.0
-        # )
-        # lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom_)
-        # return cast("np_jnp_array", lhs_mat_inv_inhom)
-        return cast(
-            "np_jnp_array",
-            jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[step, kx, kz],
-        )
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[
+                    step, kx, kz
+                ],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            physical_domain = self.get_physical_domain()
+            domain = self.get_domain()
+            Re_tau = self.get_Re_tau()
+            _, beta, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rhs_inhom = np.zeros(n)
+            lhs_mat_inhom = I - beta[step] * dt * L
+            (
+                lhs_mat_inhom_,
+                _,
+            ) = domain.enforce_inhomogeneous_dirichlet_jnp(
+                lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+            )
+            lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom_)
+            return cast("np_jnp_array", lhs_mat_inv_inhom)
 
     def get_rk_rhs_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
-        # dt = self.get_dt()
-        # physical_domain = self.get_physical_domain()
-        # domain = self.get_domain()
-        # Re_tau = self.get_Re_tau()
-        # alpha, beta, _, _ = self.get_rk_parameters()
-        # D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
-        # Ly = 1 / Re_tau * D2
-        # n = Ly.shape[0]
-        # I = np.eye(n)
-        # L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
-        # rhs_inhom = np.zeros(n)
-        # lhs_mat_inhom = I - beta[step] * dt * L
-        # (
-        #     _,
-        #     rhs_inhom_,
-        # ) = domain.enforce_inhomogeneous_dirichlet_jnp(
-        #     lhs_mat_inhom, rhs_inhom, 0.0, 1.0
-        # )
-        # return rhs_inhom_
-        return cast(
-            "np_jnp_array",
-            jnp.asarray(self.nse_fixed_parameters.rk_rhs_inhom)[step, kx, kz],
-        )
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_rhs_inhom)[step, kx, kz],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            physical_domain = self.get_physical_domain()
+            domain = self.get_domain()
+            Re_tau = self.get_Re_tau()
+            _, beta, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rhs_inhom = np.zeros(n)
+            lhs_mat_inhom = I - beta[step] * dt * L
+            (
+                _,
+                rhs_inhom_,
+            ) = domain.enforce_inhomogeneous_dirichlet_jnp(
+                lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+            )
+            return rhs_inhom_
 
     def get_rk_mats_lhs_inv_ns(self, step: int) -> "np_jnp_array":
-        # dt = self.get_dt()
-        # alpha, beta, _, _ = self.get_rk_parameters()
-        # Re_tau = self.get_Re_tau()
-        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-        # n = D2_hom_diri.shape[0]
-        # Z = np.zeros((n, n))
-        # L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        # I_ns = np.eye(2 * n)
-        # L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
-        # lhs_mat_ns = I_ns - beta[step] * dt * L_ns
-        # lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
-        # return cast("np_jnp_array", lhs_mat_inv_ns)
-        return cast(
-            "np_jnp_array",
-            jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step],
-        )
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step],
+            )
+        else:
+            dt = self.get_dt()
+            _, beta, _, _ = self.get_rk_parameters()
+            Re_tau = self.get_Re_tau()
+            D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+            n = D2_hom_diri.shape[0]
+            Z = np.zeros((n, n))
+            L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+            I_ns = np.eye(2 * n)
+            L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
+            lhs_mat_ns = I_ns - beta[step] * dt * L_ns
+            lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
+            return cast("np_jnp_array", lhs_mat_inv_ns)
 
     def get_rk_mats_rhs_ns(self, step: int) -> "np_jnp_array":
-        # dt = self.get_dt()
-        # alpha, beta, _, _ = self.get_rk_parameters()
-        # Re_tau = self.get_Re_tau()
-        # D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
-        # n = D2_hom_diri.shape[0]
-        # Z = np.zeros((n, n))
-        # L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
-        # I_ns = np.eye(2 * n)
-        # L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
-        # rhs_mat_ns = I_ns + alpha[step] * dt * L_ns
-        # return rhs_mat_ns
-        return cast(
-            "np_jnp_array", jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs_ns)[step]
-        )
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs_ns)[step],
+            )
+        else:
+            dt = self.get_dt()
+            alpha, _, _, _ = self.get_rk_parameters()
+            Re_tau = self.get_Re_tau()
+            D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+            n = D2_hom_diri.shape[0]
+            Z = np.zeros((n, n))
+            L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+            I_ns = np.eye(2 * n)
+            L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
+            rhs_mat_ns = I_ns + alpha[step] * dt * L_ns
+            return rhs_mat_ns
 
     def get_Re_tau(self) -> "jsd_float":
         return self.nse_fixed_parameters.Re_tau
@@ -740,6 +794,25 @@ class NavierStokesVelVort(Equation):
                 lhs_mat_p_inv = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
                 rhs_mat_p = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
 
+                TEST_MATRICES = os.environ.get("JAX_SPECTRAL_DNS_TEST_DIFF_MATS", False)
+                if TEST_MATRICES:
+                    print_verb(
+                        "WARNING: testing matrix assembly. Should only be done for testing purposes."
+                    )
+                    assert (
+                        self.prepare_matrices == True
+                    ), "this test only makes sense with prepare_matrices set to True"
+                    self.prepare_matrices = False
+                    lhs_mat_p_inv_ = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
+                    rhs_mat_p_ = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
+                    jax.debug.print(
+                        "lhs: {x}", x=jnp.linalg.norm(lhs_mat_p_inv - lhs_mat_p_inv_)
+                    )
+                    jax.debug.print(
+                        "rhs: {x}", x=jnp.linalg.norm(rhs_mat_p - rhs_mat_p_)
+                    )
+                    self.prepare_matrices = True
+
                 phi_hat_lap = v_1_lap_hat_sw
 
                 N_p_new = h_v_hat_sw
@@ -775,6 +848,35 @@ class NavierStokesVelVort(Equation):
                     self.get_rk_mats_lhs_inv_inhom(step, kx, kz)
                 )
                 rhs_a = jnp.asarray(self.get_rk_rhs_inhom(step, kx, kz))
+
+                if TEST_MATRICES:
+                    assert (
+                        self.prepare_matrices == True
+                    ), "this test only makes sense with prepare_matrices set to True"
+                    self.prepare_matrices = False
+                    lhs_mat_a_inv_ = jnp.asarray(
+                        self.get_rk_mats_lhs_inv_inhom(step, kx, kz)
+                    )
+                    rhs_a_ = jnp.asarray(self.get_rk_rhs_inhom(step, kx, kz))
+                    jax.debug.print(
+                        "inhom lhs: {x}",
+                        x=jnp.linalg.norm(lhs_mat_a_inv - lhs_mat_a_inv_),
+                    )
+                    jax.debug.print("inhom rhs: {x}", x=jnp.linalg.norm(rhs_a - rhs_a_))
+                    self.prepare_matrices = True
+
+                if TEST_MATRICES:
+                    assert (
+                        self.prepare_matrices == True
+                    ), "this test only makes sense with prepare_matrices set to True"
+                    poisson_mat = jnp.asarray(self.get_poisson_mat())
+                    self.prepare_matrices = False
+                    poisson_mat_ = jnp.asarray(self.get_poisson_mat())
+                    jax.debug.print(
+                        "poisson: {x}", x=jnp.linalg.norm(poisson_mat - poisson_mat_)
+                    )
+                    self.prepare_matrices = True
+
                 phi_a_hat_new = lhs_mat_a_inv @ rhs_a
                 v_1_lap_hat_new_a = phi_a_hat_new
 
@@ -842,6 +944,22 @@ class NavierStokesVelVort(Equation):
                     kz__ = 0
                     lhs_mat_inv_00 = jnp.asarray(self.get_rk_mats_lhs_inv_ns(step))
                     rhs_mat_00 = jnp.asarray(self.get_rk_mats_rhs_ns(step))
+
+                    if TEST_MATRICES:
+                        assert (
+                            self.prepare_matrices == True
+                        ), "this test only makes sense with prepare_matrices set to True"
+                        self.prepare_matrices = False
+                        lhs_mat_inv_00_ = jnp.asarray(self.get_rk_mats_lhs_inv_ns(step))
+                        rhs_mat_00_ = jnp.asarray(self.get_rk_mats_rhs_ns(step))
+                        jax.debug.print(
+                            "ns lhs: {x}",
+                            x=jnp.linalg.norm(lhs_mat_inv_00 - lhs_mat_inv_00_),
+                        )
+                        jax.debug.print(
+                            "ns rhs: {x}", x=jnp.linalg.norm(rhs_mat_00 - rhs_mat_00_)
+                        )
+                        self.prepare_matrices = True
 
                     v_hat = jnp.block(
                         [
