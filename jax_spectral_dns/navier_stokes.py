@@ -264,14 +264,14 @@ class NavierStokesVelVort(Equation):
         out = cast(VectorField[FourierField], super().get_latest_field(name))
         return out
 
-    @partial(jax.jit, static_argnums=0)
+    # @partial(jax.jit, static_argnums=0)
     def get_poisson_mat(self) -> "np_complex_array":
         if self.prepare_matrices:
             return cast("np_complex_array", self.nse_fixed_parameters.poisson_mat)
         else:
             return self.get_domain().assemble_poisson_matrix()
 
-    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_mats_lhs_inv(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -295,7 +295,7 @@ class NavierStokesVelVort(Equation):
             rk_mat_lhs_ = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
             return cast("np_jnp_array", jnp.linalg.inv(rk_mat_lhs_))
 
-    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_mats_rhs(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -317,7 +317,7 @@ class NavierStokesVelVort(Equation):
             rk_mat_rhs = I + alpha[step] * dt * L
             return rk_mat_rhs
 
-    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_mats_lhs_inv_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -350,7 +350,7 @@ class NavierStokesVelVort(Equation):
             lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom_)
             return cast("np_jnp_array", lhs_mat_inv_inhom)
 
-    @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
     def get_rk_rhs_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -380,7 +380,7 @@ class NavierStokesVelVort(Equation):
             )
             return rhs_inhom_
 
-    @partial(jax.jit, static_argnums=(0, 1))
+    # @partial(jax.jit, static_argnums=(0, 1))
     def get_rk_mats_lhs_inv_ns(self, step: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
@@ -401,7 +401,7 @@ class NavierStokesVelVort(Equation):
             lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
             return cast("np_jnp_array", lhs_mat_inv_ns)
 
-    @partial(jax.jit, static_argnums=(0, 1))
+    # @partial(jax.jit, static_argnums=(0, 1))
     def get_rk_mats_rhs_ns(self, step: int) -> "np_jnp_array":
         if self.prepare_matrices:
             return cast(
