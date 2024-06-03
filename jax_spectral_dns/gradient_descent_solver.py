@@ -27,7 +27,6 @@ class GradientDescentSolver(ABC):
     ):
         # initialisation
         self.dual_problem = dual_problem
-        self.i = 0
         self.e_0 = 0.0
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
@@ -35,6 +34,7 @@ class GradientDescentSolver(ABC):
         self.old_value = self.value
 
         # set various solver options
+        self.i = params.get("start_iteration", 0)
         self.max_step_size = params.get("max_step_size", 0.999)
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("max_iterations", 20)

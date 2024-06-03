@@ -2719,12 +2719,13 @@ def run_ld_2021(
 def run_ld_2021_dual(
     turb: float = 1.0,
     Re_tau: float = 180,
-    Nx: int = 28,
+    Nx: int = 40,
     Ny: int = 129,
-    Nz: int = 24,
+    Nz: int = 40,
     number_of_steps: int = 10,
     e_0: float = 1e-3,
     init_file: Optional[str] = None,
+    start_iteration: int = 0,
 ) -> None:
     Re_tau = float(Re_tau)
     turb = float(turb)
@@ -2735,8 +2736,10 @@ def run_ld_2021_dual(
     number_of_steps = int(number_of_steps)
     aliasing = 3 / 2
     e_0 = float(e_0)
+    start_iteration = int(start_iteration)
 
-    Equation.initialize()
+    if start_iteration <= 0:
+        Equation.initialize()
 
     max_cfl = 0.7
     end_time = 0.35  # the target time (in ld2021 units)
@@ -2918,6 +2921,7 @@ def run_ld_2021_dual(
         step_size=1e-2,
         max_step_size=0.1,
         post_process_function=post_process,
+        start_iteration=start_iteration,
     )
     optimiser.optimise()
 
