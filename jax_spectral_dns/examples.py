@@ -2411,6 +2411,7 @@ def run_ld_2021_get_mean(
                 scale_factors=(1.0,),
                 aliasing=1,
             )
+            avg_vel.normalize_by_max_value()
             avg_vel.set_time_step(0)
             avg_vel.set_name("average_velocity")
             avg_vel.save_to_file("avg_vel")
