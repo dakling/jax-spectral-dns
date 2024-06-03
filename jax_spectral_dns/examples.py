@@ -2340,13 +2340,15 @@ def run_optimisation_transient_growth_mean_y_profile(
     optimiser.optimise()
 
 
-def run_ld_2021_get_mean() -> None:
+def run_ld_2021_get_mean(
+    init_file: Optional[str] = None,
+) -> None:
     Re = 3275
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
     max_cfl = 0.7
-    end_time = 1e3
+    end_time = 5e2
 
     e_0 = 1e-1
 
@@ -2379,15 +2381,19 @@ def run_ld_2021_get_mean() -> None:
         n=n,
     )
 
-    v0_0 = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        1,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
-    v0_0.normalize_by_energy()
-    v0_0 *= e_0
+    if init_file is None:
+        v0_0 = lsc.calculate_transient_growth_initial_condition(
+            domain,
+            1,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        v0_0.normalize_by_energy()
+        v0_0 *= e_0
+        U = vel_base_lam + v0_0
+    else:
+        U = VectorField.FromFile(domain, init_file, "velocity")
 
     def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -2461,7 +2467,11 @@ def run_ld_2021_get_mean() -> None:
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
 
-    U = vel_base_lam + v0_0
+        if i >= n_steps - 1:
+            vel.set_time_step(i)
+            vel.set_name("velocity")
+            vel.save_to_file("vel_latest")
+
     nse = NavierStokesVelVort.FromVelocityField(U, Re=Re, dt=dt)
     nse.end_time = end_time
 
