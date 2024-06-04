@@ -2819,7 +2819,7 @@ def run_ld_2021_dual(
     end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
 
     v_scale = e_0**0.5 * 1.5
-    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, v_scale, v_scale), end_time_)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (20, v_scale, v_scale), end_time_)
 
     print_verb(
         "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
