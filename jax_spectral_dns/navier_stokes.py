@@ -462,7 +462,8 @@ class NavierStokesVelVort(Equation):
 
     def update_flow_rate(self) -> None:
         self.flow_rate = self.get_flow_rate()
-        dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
+        # dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
+        dPdx = -1
         self.dpdx = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()

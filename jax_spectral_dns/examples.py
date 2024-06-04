@@ -2343,16 +2343,16 @@ def run_optimisation_transient_growth_mean_y_profile(
 def run_ld_2021_get_mean(
     init_file: Optional[str] = None,
 ) -> None:
-    Re = 3275
+    Re_tau = 180
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
     max_cfl = 0.4
     end_time = 4e2
 
-    e_0 = 1e-1
-    # scale_factors=(1.87, 1.0, 0.93)
-    scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
+    e_0 = 1e-1 * 18.5**2
+    scale_factors = (1.87, 1.0, 0.93)
+    # scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
     Equation.initialize()
 
@@ -2362,7 +2362,7 @@ def run_ld_2021_get_mean(
         scale_factors=scale_factors,
         aliasing=3 / 2,
     )
-    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (18.5, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
 
     number_of_modes = 60
@@ -2377,7 +2377,7 @@ def run_ld_2021_get_mean(
     )
 
     lsc = LinearStabilityCalculation(
-        Re=Re,
+        Re=Re_tau * 18.5,
         alpha=2 * jnp.pi / scale_factors[0],
         beta=2 * jnp.pi / scale_factors[2],
         n=n,
@@ -2475,7 +2475,7 @@ def run_ld_2021_get_mean(
             vel.set_name("velocity")
             vel.save_to_file("vel_latest")
 
-    nse = NavierStokesVelVort.FromVelocityField(U, Re=Re, dt=dt)
+    nse = NavierStokesVelVort.FromVelocityField(U, Re_tau=Re_tau, dt=dt)
     print_verb("Re_tau:", nse.get_Re_tau())
     nse.end_time = end_time
 
@@ -2848,11 +2848,6 @@ def run_ld_2021_dual(
             n=n,
             U_base=cast("np_float_array", vel_base_y_slice),
         )
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ax.plot(lsc_domain.grid[1], vel_base_y_slice)
-        fig.savefig("plt.png")
 
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             # coarse_domain,
