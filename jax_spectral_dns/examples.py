@@ -2481,6 +2481,7 @@ def run_ld_2021_get_mean(
 
     # nse.deactivate_jit()
     nse.activate_jit()
+    nse.set_linearize(False)
     nse.write_intermediate_output = True
     nse.solve()
 
@@ -2838,13 +2839,21 @@ def run_ld_2021_dual(
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         U_base = U_base / np.max(U_base)
+        vel_base_y_slice = turb * U_base + (1 - turb) * (
+            1 - lsc_domain.grid[1] ** 2
+        )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re,
             alpha=2 * jnp.pi / 1.87,
             beta=2 * jnp.pi / 0.93,
             n=n,
-            U_base=cast("np_float_array", U_base),
+            U_base=cast("np_float_array", vel_base_y_slice),
         )
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ax.plot(lsc_domain.grid[1], vel_base_y_slice)
+        fig.savefig("plt.png")
 
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             # coarse_domain,
