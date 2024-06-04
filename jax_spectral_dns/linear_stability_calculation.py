@@ -428,7 +428,7 @@ class LinearStabilityCalculation:
         assert self.eigenvalues is not None
         assert self.eigenvectors is not None
 
-        number_of_modes = max(number_of_modes, len(self.eigenvectors))
+        number_of_modes = min(number_of_modes, len(self.eigenvectors))
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
 
