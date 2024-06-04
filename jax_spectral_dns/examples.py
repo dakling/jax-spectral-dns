@@ -2381,7 +2381,7 @@ def run_ld_2021_get_mean(
         alpha=2 * jnp.pi / scale_factors[0],
         beta=2 * jnp.pi / scale_factors[2],
         n=n,
-        U_base=cast("np_float_array", vel_base_lam),
+        U_base=cast("np_float_array", vel_base_lam[0].get_data()),
     )
 
     if init_file is None:
