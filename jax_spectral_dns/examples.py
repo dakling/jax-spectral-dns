@@ -2922,6 +2922,10 @@ def run_ld_2021_dual(
     if init_file is None:
         v0_hat = vel_hat
     else:
+        v0 = VectorField.FromFile(domain, init_file, "velocity")
+        v0.normalize_by_energy()
+        v0 *= jnp.sqrt(e_0)
+        v0_hat: VectorField[FourierField] = v0.hat()
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(
