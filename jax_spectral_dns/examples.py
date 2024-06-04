@@ -2370,7 +2370,7 @@ def run_ld_2021_get_mean(
 
     vel_base_lam = VectorField(
         [
-            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 18.5 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
@@ -2923,7 +2923,7 @@ def run_ld_2021_dual(
         v0 = VectorField.FromFile(domain, init_file, "velocity")
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0)
-        v0_hat: VectorField[FourierField] = v0.hat()
+        v0_hat = v0.hat()
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(
