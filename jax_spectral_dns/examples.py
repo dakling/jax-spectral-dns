@@ -24,7 +24,7 @@ import time
 
 from jax_spectral_dns import navier_stokes_perturbation
 from jax_spectral_dns.cheb import cheb
-from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.domain import PhysicalDomain, get_cheb_grid
 from jax_spectral_dns.field import (
     FourierField,
     PhysicalField,
@@ -2381,7 +2381,7 @@ def run_ld_2021_get_mean(
         alpha=2 * jnp.pi / scale_factors[0],
         beta=2 * jnp.pi / scale_factors[2],
         n=n,
-        U_base=cast("np_float_array", vel_base_lam[0].get_data()),
+        U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
     )
 
     if init_file is None:
