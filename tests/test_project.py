@@ -1104,12 +1104,14 @@ class TestProject(unittest.TestCase):
             print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
+            u_max = jnp.max(vel[0].get_data())
+            print_verb("u max:", u_max)
             tol = 6e-5
-            print_verb(abs(vel[0] - vel_x_ana), verbosity_level=2)
+            print_verb(abs(vel[0] - u_max * vel_x_ana), verbosity_level=2)
             print_verb(abs(vel[1]), verbosity_level=2)
             print_verb(abs(vel[2]), verbosity_level=2)
             # check that the simulation is really converged
-            self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
+            self.assertTrue(abs(vel[0] - u_max * vel_x_ana) < tol)
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 

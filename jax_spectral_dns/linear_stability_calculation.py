@@ -59,7 +59,6 @@ class LinearStabilityCalculation:
         self.coeffs: Optional["np_complex_array"] = None
 
         self.symm: bool = False
-        # self.symm: bool = True
 
         self.make_field_file_name_mode: Callable[[PhysicalDomain, str, int], str] = (
             lambda domain_, field_name, mode: field_name
@@ -90,7 +89,6 @@ class LinearStabilityCalculation:
             self.U_base = U_base
         else:
             self.U_base = np.array([1 - self.ys[i] ** 2 for i in range(self.n)])
-        # Equation.initialize()
 
     def assemble_matrix_fast(self) -> tuple["np_complex_array", "np_complex_array"]:
         alpha = self.alpha
@@ -142,8 +140,8 @@ class LinearStabilityCalculation:
                     w = u
                     d2w = d2u
 
-                    p = phi_pressure(k, 0)(y)
-                    dp = phi_pressure(k, 1)(y)
+                    p = cheb(k, 0)(y)
+                    dp = cheb(k, 1)(y)
                 else:
                     u = phi(k, 0)(y)
                     d2u = phi(k, 2)(y)
@@ -268,7 +266,6 @@ class LinearStabilityCalculation:
         domain: PhysicalDomain,
         evec: "np_jnp_array",
         factor: float = 1.0,
-        symm: bool = False,
     ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
@@ -280,7 +277,7 @@ class LinearStabilityCalculation:
         n = u_vec.shape[0]
         # phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
         phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
-        if not symm:
+        if not self.symm:
             for i in range(N_domain):
                 for k in range(n):
                     phi_mat = phi_mat.at[i, k].set(phi(k, 0)(ys[i]))
@@ -431,6 +428,7 @@ class LinearStabilityCalculation:
         assert self.eigenvalues is not None
         assert self.eigenvectors is not None
 
+        number_of_modes = max(number_of_modes, len(self.eigenvectors))
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
 
@@ -446,9 +444,9 @@ class LinearStabilityCalculation:
         ) -> tuple["jsd_float", "jsd_float"]:
             f_s = lambda y: phi_s(p, 0)(y) * phi_s(q, 0)(y)
             f_a = lambda y: phi_a(p, 0)(y) * phi_a(q, 0)(y)
-            out_s, _ = quad(f_s, -1, 1, limit=100)
-            out_a, _ = quad(f_a, -1, 1, limit=100)
-            return (out_s, out_a)
+            out_s, _ = quad(f_s, 0, 1, limit=100)
+            out_a, _ = quad(f_a, 0, 1, limit=100)
+            return (2 * out_s, 2 * out_a)
 
         integ = np.zeros([n, n])
         integ_s = np.zeros([n, n])

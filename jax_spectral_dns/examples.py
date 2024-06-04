@@ -2348,7 +2348,7 @@ def run_ld_2021_get_mean(
     Ny: int = 129
     Nz: int = 64
     max_cfl = 0.4
-    end_time = 2e1
+    end_time = 1e1
 
     e_0 = 1e-1
     scale_factors = (1.87, 1.0, 0.93)
@@ -2377,10 +2377,11 @@ def run_ld_2021_get_mean(
     )
 
     lsc = LinearStabilityCalculation(
-        Re=Re_tau * 18.5,
+        Re=Re_tau,
         alpha=2 * jnp.pi / scale_factors[0],
         beta=2 * jnp.pi / scale_factors[2],
         n=n,
+        U_base=cast("np_float_array", vel_base_lam),
     )
 
     if init_file is None:
@@ -2413,7 +2414,8 @@ def run_ld_2021_get_mean(
                 scale_factors=(1.0,),
                 aliasing=1,
             )
-            avg_vel = avg_vel.normalize_by_max_value()
+            print_verb("max value (avg):", jnp.max(avg_vel[0].get_data()))
+            # avg_vel = avg_vel.normalize_by_max_value()
             avg_vel.set_time_step(0)
             avg_vel.set_name("average_velocity")
             avg_vel.save_to_file("avg_vel")
@@ -2749,7 +2751,7 @@ def run_ld_2021_dual(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     aliasing = 3 / 2
-    e_0 = float(e_0) * np.sqrt(Re_tau)  # TODO check this
+    e_0 = float(e_0)
     start_iteration = int(start_iteration)
     linearise = int(linearise)
     linearise_ = linearise == 1
@@ -2774,7 +2776,7 @@ def run_ld_2021_dual(
 
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float"]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
@@ -2793,14 +2795,10 @@ def run_ld_2021_dual(
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
-        return vel_base, U_y_slice, max
+        return vel_base, U_y_slice, cast(float, max)
 
     vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
     # vel_base_turb = vel_base_turb.normalize_by_max_value()
-    u_max_over_u_tau = max
-    h_over_delta: float = (
-        1.0  # confusingly, LD2021 use channel half-height but call it channel height
-    )
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
@@ -2819,12 +2817,12 @@ def run_ld_2021_dual(
     end_time_ = end_time
 
     v_scale = e_0**0.5 * 1.5
-    dt = Equation.find_suitable_dt(domain, max_cfl, (20, v_scale, v_scale), end_time_)
 
     print_verb("end time in dimensional units:", end_time_)
+    print_verb("max velocity:", max)
 
     if init_file is None:
-        number_of_modes = 120
+        number_of_modes = 10
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2926,6 +2924,7 @@ def run_ld_2021_dual(
         v0_hat = v0.hat()
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
+    dt = Equation.find_suitable_dt(domain, max_cfl, (max, v_scale, v_scale), end_time_)
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
         Re_tau=Re_tau,

@@ -581,6 +581,7 @@ class OptimiserPertAndBase(
         lsc0 = LinearStabilityCalculation(
             Re=1, alpha=0, beta=0, n=domain.number_of_cells(1)
         )
+        lsc0.symm = True
         v0_base_yslice_coeffs = parameters[2]
         v0_base_zeros = jnp.zeros_like(v0_base_yslice_coeffs)
         for _ in range(3):
@@ -588,9 +589,7 @@ class OptimiserPertAndBase(
                 (v0_base_yslice_coeffs, v0_base_zeros)
             )
         v0_base_hat = (
-            (lsc0.velocity_field(domain, v0_base_yslice_coeffs, symm=True))
-            .hat()[0]
-            .get_data()
+            (lsc0.velocity_field(domain, v0_base_yslice_coeffs)).hat()[0].get_data()
         )
 
         # # optimise using parametric profile
