@@ -2376,12 +2376,13 @@ def run_ld_2021_get_mean(
         ]
     )
 
-    lsc = LinearStabilityCalculation(  # TODO
-        Re=Re_tau * 18.5,
+    lsc = LinearStabilityCalculation(
+        # Re=Re_tau * 18.5,
+        Re=Re_tau,
         alpha=2 * jnp.pi / scale_factors[0],
         beta=2 * jnp.pi / scale_factors[2],
         n=n,
-        # U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
+        U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
     )
 
     if init_file is None:
