@@ -2822,7 +2822,7 @@ def run_ld_2021_dual(
     print_verb("max velocity:", max)
 
     if init_file is None:
-        number_of_modes = 10
+        number_of_modes = 60
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
