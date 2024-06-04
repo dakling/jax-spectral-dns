@@ -2750,7 +2750,7 @@ def run_ld_2021_dual(
     Nz = int(Nz)
     number_of_steps = int(number_of_steps)
     aliasing = 3 / 2
-    e_0 = float(e_0)
+    e_0 = float(e_0) * np.sqrt(Re_tau)  # TODO check this
     start_iteration = int(start_iteration)
     linearise = int(linearise)
     linearise_ = linearise == 1
@@ -2797,7 +2797,7 @@ def run_ld_2021_dual(
         return vel_base, U_y_slice, max
 
     vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
-    vel_base_turb = vel_base_turb.normalize_by_max_value()
+    # vel_base_turb = vel_base_turb.normalize_by_max_value()
     u_max_over_u_tau = max
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
@@ -2811,11 +2811,11 @@ def run_ld_2021_dual(
     )
 
     vel_base = (
-        turb * vel_base_turb + (1 - turb) * vel_base_lam
+        turb * vel_base_turb + (1 - turb) * vel_base_lam * max
     )  # continuously blend from turbulent to laminar mean profile
     vel_base.set_name("velocity_base")
 
-    Re = Re_tau * u_max_over_u_tau / h_over_delta
+    # Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
 
     v_scale = e_0**0.5 * 1.5
@@ -2825,7 +2825,7 @@ def run_ld_2021_dual(
         "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
     )
     print_verb("end time in dimensional units:", end_time_)
-    print_verb("Re:", Re)
+    # print_verb("Re:", Re)
 
     if init_file is None:
         number_of_modes = 120
@@ -2837,12 +2837,11 @@ def run_ld_2021_dual(
             aliasing=1,
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base / np.max(U_base)
-        vel_base_y_slice = turb * U_base + (1 - turb) * (
+        vel_base_y_slice = turb * U_base + (1 - turb) * np.max(U_base) * (
             1 - lsc_domain.grid[1] ** 2
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
-            Re=Re,
+            Re=Re_tau,
             alpha=2 * jnp.pi / 1.87,
             beta=2 * jnp.pi / 0.93,
             n=n,
@@ -2926,13 +2925,17 @@ def run_ld_2021_dual(
         v0_hat = vel_hat
     else:
         v0 = VectorField.FromFile(domain, init_file, "velocity")
-        v0.normalize_by_energy()
+        v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0)
         v0_hat: VectorField[FourierField] = v0.hat()
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(
-        v0_hat, Re=Re, dt=dt, end_time=end_time_, velocity_base_hat=vel_base.hat()
+        v0_hat,
+        Re_tau=Re_tau,
+        dt=dt,
+        end_time=end_time_,
+        velocity_base_hat=vel_base.hat(),
     )
     nse.set_linearize(linearise_)
     nse.set_post_process_fn(post_process)
