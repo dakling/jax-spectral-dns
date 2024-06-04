@@ -1361,9 +1361,10 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 self.append_field("velocity_hat", velocity, in_place=False)
-            for i in range(self.get_number_of_fields("velocity_hat")):
-                cfl_s = self.get_cfl(i)
-                print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=2)
+            if Equation.verbosity_level >= 3:
+                for i in range(self.get_number_of_fields("velocity_hat")):
+                    cfl_s = self.get_cfl(i)
+                    print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=3)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             out = jnp.insert(
