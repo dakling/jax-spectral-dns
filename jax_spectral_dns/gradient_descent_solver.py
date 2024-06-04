@@ -143,8 +143,6 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         v0_hat.set_name("velocity_hat")
 
         nse = self.dual_problem.forward_equation
-        # nse.set_linearize(True)
-        nse.set_linearize(False)
         self.dual_problem = (
             NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
         )
@@ -200,7 +198,6 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 end_time=end_time,
                 velocity_base_hat=nse_.get_latest_field("velocity_base_hat"),
             )
-            nse.set_linearize(False)
             self.dual_problem = (
                 NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
                     nse
@@ -260,7 +257,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0_hat.set_name("velocity_hat")
 
         nse = self.dual_problem.forward_equation
-        nse.set_linearize(False)
         self.dual_problem.update_with_nse()
 
         self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()

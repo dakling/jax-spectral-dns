@@ -2738,8 +2738,9 @@ def run_ld_2021_dual(
     Nz: int = 40,
     number_of_steps: int = 10,
     e_0: float = 1e-3,
-    init_file: Optional[str] = None,
+    linearise: int = 0,
     start_iteration: int = 0,
+    init_file: Optional[str] = None,
 ) -> None:
     Re_tau = float(Re_tau)
     turb = float(turb)
@@ -2751,6 +2752,8 @@ def run_ld_2021_dual(
     aliasing = 3 / 2
     e_0 = float(e_0)
     start_iteration = int(start_iteration)
+    linearise = int(linearise)
+    linearise_ = linearise == 1
 
     if start_iteration <= 0:
         Equation.initialize()
@@ -2924,7 +2927,7 @@ def run_ld_2021_dual(
     nse = NavierStokesVelVortPerturbation(
         v0_hat, Re=Re, dt=dt, end_time=end_time_, velocity_base_hat=vel_base.hat()
     )
-    nse.set_linearize(False)
+    nse.set_linearize(linearise_)
     nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
