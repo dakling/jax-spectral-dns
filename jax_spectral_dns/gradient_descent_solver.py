@@ -106,6 +106,7 @@ class GradientDescentSolver(ABC):
         self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat)
         self.dual_problem.forward_equation.write_intermediate_output = True
         self.dual_problem.forward_equation.write_entire_output = False
+        self.dual_problem.forward_equation.end_time = -self.dual_problem.end_time
         self.dual_problem.forward_equation.activate_jit()
         self.dual_problem.forward_equation.set_post_process_fn(self.post_process_fn)
         self.dual_problem.forward_equation.solve()

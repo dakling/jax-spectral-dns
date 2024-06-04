@@ -2348,7 +2348,7 @@ def run_ld_2021_get_mean(
     Ny: int = 129
     Nz: int = 64
     max_cfl = 0.4
-    end_time = 4e2
+    end_time = 2e1
 
     e_0 = 1e-1 * 18.5**2
     scale_factors = (1.87, 1.0, 0.93)
@@ -2816,7 +2816,8 @@ def run_ld_2021_dual(
     vel_base.set_name("velocity_base")
 
     # Re = Re_tau * u_max_over_u_tau / h_over_delta
-    end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
+    # end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
+    end_time_ = end_time
 
     v_scale = e_0**0.5 * 1.5
     dt = Equation.find_suitable_dt(domain, max_cfl, (20, v_scale, v_scale), end_time_)
