@@ -2350,7 +2350,7 @@ def run_ld_2021_get_mean(
     max_cfl = 0.4
     end_time = 2e1
 
-    e_0 = 1e-1 * 18.5**2
+    e_0 = 1e-1
     scale_factors = (1.87, 1.0, 0.93)
     # scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
@@ -2448,8 +2448,7 @@ def run_ld_2021_get_mean(
                     )
                     return vel_base, U_y_slice, max
 
-                vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
-                vel_base_turb = vel_base_turb.normalize_by_max_value()
+                vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
                 avg_vel[0].plot_center(1, vel_base_turb[0])
             except Exception:
                 print_verb("plotting of reference profile failed.")
@@ -2822,11 +2821,7 @@ def run_ld_2021_dual(
     v_scale = e_0**0.5 * 1.5
     dt = Equation.find_suitable_dt(domain, max_cfl, (20, v_scale, v_scale), end_time_)
 
-    print_verb(
-        "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
-    )
     print_verb("end time in dimensional units:", end_time_)
-    # print_verb("Re:", Re)
 
     if init_file is None:
         number_of_modes = 120

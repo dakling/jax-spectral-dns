@@ -58,8 +58,8 @@ class LinearStabilityCalculation:
         self.S: Optional["np_float_array"] = None
         self.coeffs: Optional["np_complex_array"] = None
 
-        self.symm: bool = False
-        # self.symm: bool = True
+        # self.symm: bool = False
+        self.symm: bool = True
 
         self.make_field_file_name_mode: Callable[[PhysicalDomain, str, int], str] = (
             lambda domain_, field_name, mode: field_name
@@ -132,7 +132,7 @@ class LinearStabilityCalculation:
                     mat[jj, kk] = value
 
                 if self.symm:
-                    u = phi_a(k, y)(y)
+                    u = phi_a(k, 0)(y)
                     d2u = phi_a(k, 2)(y)
 
                     v = u
