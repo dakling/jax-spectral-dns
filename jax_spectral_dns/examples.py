@@ -2347,11 +2347,11 @@ def run_ld_2021_get_mean(
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
-    max_cfl = 0.7
-    end_time = 5e2
+    max_cfl = 0.4
+    end_time = 4e2
 
     e_0 = 1e-1
-    # scale_factors=(1.87, 1.0, 0.93),
+    # scale_factors=(1.87, 1.0, 0.93)
     scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
     Equation.initialize()
@@ -2481,7 +2481,6 @@ def run_ld_2021_get_mean(
 
     # nse.deactivate_jit()
     nse.activate_jit()
-    nse.set_linearize(False)
     nse.write_intermediate_output = True
     nse.solve()
 
