@@ -920,7 +920,7 @@ def run_transient_growth_nonpert(
     end_time: Optional[float] = None,
     eps: float = 1e-3,
     Nx: int = 4,
-    Ny: int = 80,
+    Ny: int = 50,
     Nz: int = 4,
     plot: bool = True,
 ) -> Tuple[float, float, List[float], List[float]]:
@@ -2384,8 +2384,8 @@ def run_ld_2021_get_mean(
     lsc = LinearStabilityCalculation(
         # Re=Re_tau * 18.5,
         Re=Re_tau,
-        alpha=2 * jnp.pi / scale_factors[0],
-        beta=2 * jnp.pi / scale_factors[2],
+        alpha=0 * (2 * jnp.pi / scale_factors[0]),
+        beta=2 * (2 * jnp.pi / scale_factors[2]),
         n=n,
         U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
     )
@@ -2826,7 +2826,7 @@ def run_ld_2021_dual(
     print_verb("max velocity:", max)
 
     if init_file is None:
-        number_of_modes = 30
+        number_of_modes = 80
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2841,8 +2841,8 @@ def run_ld_2021_dual(
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re_tau,
-            alpha=2 * jnp.pi / domain.scale_factors[0],
-            beta=2 * jnp.pi / domain.scale_factors[2],
+            alpha=0 * (2 * jnp.pi / domain.scale_factors[0]),
+            beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
             U_base=cast("np_float_array", vel_base_y_slice),
         )
