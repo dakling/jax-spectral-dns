@@ -1067,9 +1067,9 @@ class TestProject(unittest.TestCase):
             end_time = 1.0
             nse = solve_navier_stokes_laminar(
                 Re=Re,
-                Nx=24,
+                Nx=4,
                 Ny=Ny,
-                Nz=16,
+                Nz=4,
                 end_time=end_time,
                 # max_dt=1e-2,
                 dt=2e-2,

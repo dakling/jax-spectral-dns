@@ -2352,11 +2352,11 @@ def run_ld_2021_get_mean(
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
-    max_cfl = 0.4
-    end_time = 1e1
+    max_cfl = 0.2
+    end_time = 2e0
 
     e_0 = 1e0
-    scale_factors = (1.87, 1.0, 0.93)
+    scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
     # scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
     Equation.initialize()
@@ -2425,9 +2425,8 @@ def run_ld_2021_get_mean(
             avg_vel.set_time_step(0)
             avg_vel.set_name("average_velocity")
             avg_vel.save_to_file("avg_vel")
-            avg_vel[0].plot_3d(2)
-            avg_vel[1].plot_3d(2)
-            avg_vel[2].plot_3d(2)
+            avg_vel.plot_3d(0)
+            avg_vel.plot_3d(2)
             try:
                 avg_vel_coeffs = np.loadtxt(
                     "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
@@ -2527,7 +2526,7 @@ def run_ld_2021(
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
+        scale_factors=(337.0 / Re_tau, 1.0, 168.0 / Re_tau),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
@@ -2611,8 +2610,8 @@ def run_ld_2021(
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         lsc = LinearStabilityCalculation(
             Re=Re_tau,
-            alpha=0 * (2 * jnp.pi / 1.87),
-            beta=2 * (2 * jnp.pi / 0.93),
+            alpha=0 * (2 * jnp.pi / domain.scale_factors[0]),
+            beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
             U_base=cast("np_float_array", U_base),
         )
