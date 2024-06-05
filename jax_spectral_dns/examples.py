@@ -2546,7 +2546,7 @@ def run_ld_2021(
 
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float"]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
