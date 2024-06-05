@@ -2355,7 +2355,7 @@ def run_ld_2021_get_mean(
     max_cfl = 0.4
     end_time = 1e1
 
-    e_0 = 1e1
+    e_0 = 1e0
     scale_factors = (1.87, 1.0, 0.93)
     # scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
