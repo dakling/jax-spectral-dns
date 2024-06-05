@@ -2826,7 +2826,7 @@ def run_ld_2021_dual(
     print_verb("max velocity:", max)
 
     if init_file is None:
-        number_of_modes = 100
+        number_of_modes = 30
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2835,13 +2835,14 @@ def run_ld_2021_dual(
             aliasing=1,
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
-        vel_base_y_slice = turb * U_base + (1 - turb) * np.max(U_base) * (
+        max_ = np.max(U_base)
+        vel_base_y_slice = turb * U_base + (1 - turb) * max_ * (
             1 - lsc_domain.grid[1] ** 2
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re_tau,
-            alpha=2 * jnp.pi / 1.87,
-            beta=2 * jnp.pi / 0.93,
+            alpha=2 * jnp.pi / domain.scale_factors[0],
+            beta=2 * jnp.pi / domain.scale_factors[2],
             n=n,
             U_base=cast("np_float_array", vel_base_y_slice),
         )

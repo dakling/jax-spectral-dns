@@ -60,7 +60,7 @@ class LinearStabilityCalculation:
         self.S: Optional["np_float_array"] = None
         self.coeffs: Optional["np_complex_array"] = None
 
-        self.symm: bool = False
+        self.symm: bool = True
 
         self.make_field_file_name_mode: Callable[[PhysicalDomain, str, int], str] = (
             lambda domain_, field_name, mode: field_name
@@ -97,7 +97,10 @@ class LinearStabilityCalculation:
         beta = self.beta
         Re = self.Re
 
-        ys = self.ys
+        if not self.symm:
+            ys = self.ys
+        else:
+            ys = self.ys[: len(self.ys) // 2]
         n = len(ys)
 
         noOfEqs = 4
@@ -274,19 +277,34 @@ class LinearStabilityCalculation:
 
         n = u_vec.shape[0]
         # phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
-        phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
         if not self.symm:
+            phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
             for i in range(N_domain):
                 for k in range(n):
                     phi_mat = phi_mat.at[i, k].set(phi(k, 0)(ys[i]))
+            return self.velocity_field_from_y_slice(
+                domain,
+                (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec),
+                factor=factor,
+            )
         else:
+            phi_s_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
+            phi_a_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
             for i in range(N_domain):
                 for k in range(n):
-                    phi_mat = phi_mat.at[i, k].set(phi_s(k, 0)(ys[i]))
-
-        return self.velocity_field_from_y_slice(
-            domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor
-        )
+                    phi_s_mat = phi_s_mat.at[i, k].set(phi_s(k, 0)(ys[i]))
+                    phi_a_mat = phi_a_mat.at[i, k].set(phi_a(k, 0)(ys[i]))
+            u_ = phi_a_mat @ u_vec
+            v_ = phi_s_mat @ v_vec
+            w_ = phi_a_mat @ w_vec
+            return self.velocity_field_from_y_slice(
+                # domain, (jnp.block([u_, -jnp.flip(u_)]),
+                #          jnp.block([v_, jnp.flip(v_)]),
+                #          jnp.block([w_, -jnp.flip(w_)]),
+                domain,
+                (u_, v_, w_),
+                factor=factor,
+            )
 
     def y_slice_to_3d_field(
         self,
@@ -430,7 +448,10 @@ class LinearStabilityCalculation:
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
 
-        n = self.n
+        if not self.symm:
+            n = self.n
+        else:
+            n = self.n // 2
 
         def get_integral_coefficient(p: int, q: int) -> "jsd_float":
             f = lambda y: phi(p, 0)(y) * phi(q, 0)(y)

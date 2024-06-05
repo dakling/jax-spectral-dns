@@ -146,7 +146,7 @@ class NavierStokesVelVort(Equation):
         calculation_size = self.end_time / self.get_dt()
         for i in self.all_dimensions():
             calculation_size *= self.get_domain().number_of_cells(i)
-        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 5.5e8)
+        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 1e12)
         self.prepare_matrices = params.get(
             "prepare_matrices", calculation_size < prepare_matrices_threshold
         )

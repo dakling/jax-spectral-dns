@@ -219,7 +219,8 @@ class Equation:
                 self.fields[name][-1] = field
             else:
                 self.fields[name].append(field)
-            self.fields[name][-1].name = name + "_" + str(self.time_step)
+            self.fields[name][-1].name = name
+            self.fields[name][-1].set_time_step(len(self.fields[name]) - 1)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 

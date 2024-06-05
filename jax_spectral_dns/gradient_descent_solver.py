@@ -7,7 +7,7 @@ from typing import Any, cast
 import jax
 import jax.numpy as jnp
 from matplotlib.axes import subplot_class_factory
-from jax_spectral_dns.equation import print_verb
+from jax_spectral_dns.equation import Equation, print_verb
 from jax_spectral_dns.field import FourierField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 from jax_spectral_dns.navier_stokes_perturbation_dual import (
@@ -260,7 +260,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         nse = self.dual_problem.forward_equation
         self.dual_problem.update_with_nse()
 
-        self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
+        v0_no_hat = nse.get_initial_field("velocity_hat").no_hat()
+        if Equation.verbosity_level >= 2:
+            v0_no_hat.plot_3d(0)
+            v0_no_hat.plot_3d(2)
+        self.e_0 = v0_no_hat.energy()
 
         if prepare_for_iterations:
             self.value = self.dual_problem.get_gain()
