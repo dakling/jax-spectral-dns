@@ -39,7 +39,7 @@ class GradientDescentSolver(ABC):
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("max_iterations", 20)
         self.relative_gain_increase_threshold = params.get(
-            "relative_gain_increase_threshold", 0.2
+            "relative_gain_increase_threshold", 0.9
         )
         self.max_number_of_sub_iterations = params.get(
             "max_number_of_sub_iterations", 10

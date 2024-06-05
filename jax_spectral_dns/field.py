@@ -182,11 +182,11 @@ class Field(ABC):
     def __getitem__(self, index: Any) -> "jnp_array":
         return self.data[index]
 
-    def max(self) -> "jnp_array":
-        return jnp.max(self.data.flatten())
+    def max(self) -> "float":
+        return cast(float, jnp.max(self.data.flatten()))
 
-    def min(self) -> "jnp_array":
-        return jnp.min(self.data.flatten())
+    def min(self) -> "float":
+        return cast(float, jnp.min(self.data.flatten()))
 
     def absmax(self) -> "jnp_array":
         max = jnp.max(self.data.flatten())
@@ -385,10 +385,10 @@ class VectorField(Generic[T]):
         return VectorField(out)
 
     def max(self) -> float:
-        return max([cast(float, f.max()) for f in self])
+        return max([f.max() for f in self])
 
     def min(self) -> float:
-        return min([cast(float, f.min()) for f in self])
+        return min([f.min() for f in self])
 
     def get_physical_domain(self) -> PhysicalDomain:
         f = self[0]

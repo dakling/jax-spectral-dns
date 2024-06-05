@@ -956,6 +956,11 @@ def run_transient_growth_nonpert(
         aliasing=3 / 2,
         # aliasing=1,
     )
+
+    # set pressure gradient so as to cause a flow rate that matches linear stability calculation
+    nse.dPdx = cast("float", -nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau())
+    nse.update_flow_rate()
+
     # nse.initialize()
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
@@ -2350,7 +2355,7 @@ def run_ld_2021_get_mean(
     max_cfl = 0.4
     end_time = 1e1
 
-    e_0 = 1e-1
+    e_0 = 1e1
     scale_factors = (1.87, 1.0, 0.93)
     # scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
@@ -2817,13 +2822,11 @@ def run_ld_2021_dual(
     # end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
     end_time_ = end_time
 
-    v_scale = e_0**0.5 * 1.5
-
     print_verb("end time in dimensional units:", end_time_)
     print_verb("max velocity:", max)
 
     if init_file is None:
-        number_of_modes = 60
+        number_of_modes = 100
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2925,7 +2928,11 @@ def run_ld_2021_dual(
         v0_hat = v0.hat()
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
-    dt = Equation.find_suitable_dt(domain, max_cfl, (max, v_scale, v_scale), end_time_)
+
+    v_total = v0_hat.no_hat() + vel_base
+    dt = Equation.find_suitable_dt(
+        domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time_
+    )
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
         Re_tau=Re_tau,

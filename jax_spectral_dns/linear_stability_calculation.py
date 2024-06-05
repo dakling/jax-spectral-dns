@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Union, Optional, cast
+from matplotlib import figure
+from matplotlib.axes import Axes
 import numpy as np
 import numpy.typing as npt
 import jax.numpy as jnp
@@ -13,7 +15,7 @@ import timeit
 from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
-from jax_spectral_dns.field import PhysicalField, VectorField
+from jax_spectral_dns.field import Field, PhysicalField, VectorField
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import (
@@ -110,15 +112,11 @@ class LinearStabilityCalculation:
             kk = k + var * n
             return (jj, kk)
 
-        # u_fun: Callable[[float], float] = lambda y: (1 - y**2)
-        # du_fun: Callable[[float], float] = lambda y: -2 * y
         U_base = self.U_base
         dU_base = self.domain.diff_mats[0] @ U_base
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
-            # U = u_fun(y)
-            # dU = du_fun(y)
             U = self.U_base[j]
             dU = dU_base[j]
             for k in range(n):
@@ -133,15 +131,15 @@ class LinearStabilityCalculation:
                     u = phi_a(k, 0)(y)
                     d2u = phi_a(k, 2)(y)
 
-                    v = u
+                    v = phi_s(k, 0)(y)
                     dv = phi_s(k, 1)(y)
-                    d2v = d2u
+                    d2v = phi_s(k, 2)(y)
 
                     w = u
                     d2w = d2u
 
-                    p = cheb(k, 0)(y)
-                    dp = cheb(k, 1)(y)
+                    p = phi_pressure(k, 0)(y)
+                    dp = phi_pressure(k, 1)(y)
                 else:
                     u = phi(k, 0)(y)
                     d2u = phi(k, 2)(y)
@@ -591,6 +589,19 @@ class LinearStabilityCalculation:
                     u[i].save_to_file(self.make_field_file_name(domain, "uvw"[i]))
 
         return u
+
+    def plot_eigenvalues(self) -> None:
+        if type(self.eigenvalues) == NoneType:
+            self.calculate_eigenvalues()
+        assert self.eigenvalues is not None
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) == Axes
+        evs = self.eigenvalues * (0 + 1j)
+        ax.plot(evs.real, evs.imag, ".")
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(-1.0, 0.0)
+        fig.savefig(Field.plotting_dir + "eigenvalues.png")
 
     def print_welcome(self) -> None:
         print_verb("starting linear stability calculation", verbosity_level=2)

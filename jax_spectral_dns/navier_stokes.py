@@ -139,6 +139,9 @@ class NavierStokesVelVort(Equation):
         )
         super().__init__(domain, velocity_field, **params)
 
+        # dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
+        self.dPdx = -1.0
+
         n_rk_steps = 3
         calculation_size = self.end_time / self.get_dt()
         for i in self.all_dimensions():
@@ -462,10 +465,8 @@ class NavierStokesVelVort(Equation):
 
     def update_flow_rate(self) -> None:
         self.flow_rate = self.get_flow_rate()
-        # dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
-        dPdx = -1
         self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
+            self.get_physical_domain(), lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()
         self.dpdz = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
