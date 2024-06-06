@@ -38,6 +38,8 @@ import sys
 from jax_spectral_dns.examples import *
 from jax_spectral_dns.equation import print_verb, Equation
 
+Equation.verbosity_level = verbose
+
 
 def print_welcome() -> None:
     vl = 0

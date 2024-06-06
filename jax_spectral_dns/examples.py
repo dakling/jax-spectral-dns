@@ -2357,7 +2357,6 @@ def run_ld_2021_get_mean(
 
     e_0 = 1e0
     scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
-    # scale_factors = (2 * 1.87, 1.0, 2 * 0.93)
 
     Equation.initialize()
 
@@ -2367,12 +2366,12 @@ def run_ld_2021_get_mean(
         scale_factors=scale_factors,
         aliasing=3 / 2,
     )
-    dt = Equation.find_suitable_dt(domain, max_cfl, (18.5, 1e-5, 1e-5), end_time)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (25.0, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
 
     vel_base_lam = VectorField(
         [
-            PhysicalField.FromFunc(domain, lambda X: 18.5 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 18.1 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
@@ -2403,11 +2402,15 @@ def run_ld_2021_get_mean(
         u_fn = lambda X: 0.1 * np.sin(
             2 * np.pi * X[2] / domain.scale_factors[2] * omega
         )
-        v_fn = lambda X: 0.1 * np.sin(
-            2 * np.pi * X[2] / domain.scale_factors[2] * omega
+        v_fn = (
+            lambda X: 0.1
+            * np.sin(2 * np.pi * X[2] / domain.scale_factors[2] * omega)
+            * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
         )
-        w_fn = lambda X: 0.1 * np.sin(
-            2 * np.pi * X[1] / domain.scale_factors[1] * omega
+        w_fn = (
+            lambda X: 0.1
+            * np.sin(2 * np.pi * X[1] / domain.scale_factors[1] * omega)
+            * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
         )
 
         v0_0 = VectorField(
@@ -2518,12 +2521,14 @@ def run_ld_2021_get_mean(
 
         vel.set_time_step(i)
         vel.set_name("velocity")
-        vel.save_to_file("velocity_" + str(i))
 
-        vel_pert = vel - vel_base_lam
-        vel_pert.set_time_step(i)
-        vel_pert.set_name("velocity_pert")
-        vel_pert.save_to_file("velocity_pert" + str(i))
+        if i == n_steps // 2:  # just save some random snapshot
+            vel.save_to_file("velocity_" + str(i))
+
+            vel_pert = vel - vel_base_lam
+            vel_pert.set_time_step(i)
+            vel_pert.set_name("velocity_pert")
+            vel_pert.save_to_file("velocity_pert" + str(i))
 
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
