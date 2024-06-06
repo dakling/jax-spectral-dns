@@ -2370,9 +2370,6 @@ def run_ld_2021_get_mean(
     dt = Equation.find_suitable_dt(domain, max_cfl, (18.5, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
 
-    number_of_modes = 60
-    n = 64
-
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(domain, lambda X: 18.5 * (1 - X[1] ** 2) + 0 * X[2]),
@@ -2381,25 +2378,45 @@ def run_ld_2021_get_mean(
         ]
     )
 
-    lsc = LinearStabilityCalculation(
-        # Re=Re_tau * 18.5,
-        Re=Re_tau,
-        alpha=0 * (2 * jnp.pi / scale_factors[0]),
-        beta=2 * (2 * jnp.pi / scale_factors[2]),
-        n=n,
-        U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
-    )
+    # number_of_modes = 60
+    # n = 64
+    # lsc = LinearStabilityCalculation(
+    #     # Re=Re_tau * 18.5,
+    #     Re=Re_tau,
+    #     alpha=0 * (2 * jnp.pi / scale_factors[0]),
+    #     beta=2 * (2 * jnp.pi / scale_factors[2]),
+    #     n=n,
+    #     U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
+    # )
 
     if init_file is None:
-        v0_0 = lsc.calculate_transient_growth_initial_condition(
-            domain,
-            1,
-            number_of_modes,
-            recompute_full=True,
-            save_final=False,
+        # v0_0 = lsc.calculate_transient_growth_initial_condition(
+        #     domain,
+        #     1,
+        #     number_of_modes,
+        #     recompute_full=True,
+        #     save_final=False,
+        # )
+        # v0_0.normalize_by_energy()
+        # v0_0 *= e_0
+        omega = 1.00
+        u_fn = lambda X: 0.1 * np.sin(
+            2 * np.pi * X[2] / domain.scale_factors[2] * omega
         )
-        v0_0.normalize_by_energy()
-        v0_0 *= e_0
+        v_fn = lambda X: 0.1 * np.sin(
+            2 * np.pi * X[2] / domain.scale_factors[2] * omega
+        )
+        w_fn = lambda X: 0.1 * np.sin(
+            2 * np.pi * X[1] / domain.scale_factors[1] * omega
+        )
+
+        v0_0 = VectorField(
+            [
+                PhysicalField.FromFunc(domain, u_fn),
+                PhysicalField.FromFunc(domain, v_fn),
+                PhysicalField.FromFunc(domain, w_fn),
+            ]
+        )
         U = vel_base_lam + v0_0
     else:
         U = VectorField.FromFile(domain, init_file, "velocity")
@@ -2410,10 +2427,16 @@ def run_ld_2021_get_mean(
         vel = vel_hat.no_hat()
         avg_vel = VectorField([PhysicalField.Zeros(domain) for _ in range(3)])
         if i == 0:
+            energy_t = []
+            ts = []
             for j in range(n_steps):
+                time = (j / (n_steps - 1)) * end_time
                 vel_hat = nse.get_field("velocity_hat", j)
                 vel = vel_hat.no_hat()
                 avg_vel += vel / n_steps
+                ts.append(time)
+                energy_t.append(vel.energy())
+                print_verb("time:", ts[-1], "energy:", energy_t[-1])
             slice_domain = PhysicalDomain.create(
                 (Ny,),
                 (False,),
@@ -2427,6 +2450,30 @@ def run_ld_2021_get_mean(
             avg_vel.save_to_file("avg_vel")
             avg_vel.plot_3d(0)
             avg_vel.plot_3d(2)
+
+            energy_t_arr = np.array(energy_t)
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
+            print_verb("energy_0:", energy_t_arr[0])
+            ax.plot(ts, energy_t_arr / energy_t_arr[0], "o")
+            ax.set_xlabel("$t$")
+            ax.set_ylabel("$G$")
+            fig.legend()
+            fig.savefig("plots/energy.png")
+            try:
+                dedalus_data = np.genfromtxt(
+                    "./energy.txt",
+                    delimiter=",",
+                ).T
+                ax.plot(
+                    dedalus_data[0],
+                    dedalus_data[1] / dedalus_data[1][0],
+                    label="dedalus",
+                )
+            except FileNotFoundError:
+                print_verb("No dedalus data to compare results with were found.")
+
             try:
                 avg_vel_coeffs = np.loadtxt(
                     "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
@@ -2471,6 +2518,12 @@ def run_ld_2021_get_mean(
 
         vel.set_time_step(i)
         vel.set_name("velocity")
+        vel.save_to_file("velocity_" + str(i))
+
+        vel_pert = vel - vel_base_lam
+        vel_pert.set_time_step(i)
+        vel_pert.set_name("velocity_pert")
+        vel_pert.save_to_file("velocity_pert" + str(i))
 
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
@@ -2481,11 +2534,12 @@ def run_ld_2021_get_mean(
             vel.set_name("velocity")
             vel.save_to_file("vel_latest")
 
-    nse = NavierStokesVelVort.FromVelocityField(U, Re_tau=Re_tau, dt=dt)
+    nse = NavierStokesVelVort.FromVelocityField(
+        U, Re_tau=Re_tau, dt=dt, end_time=end_time
+    )
+    # nse = NavierStokesVelVortPerturbation.FromVelocityField(v0_0, Re_tau=Re_tau, dt=dt, end_time=end_time, velocity_base_hat=vel_base_lam.hat())
     print_verb("Re_tau:", nse.get_Re_tau())
-    nse.end_time = end_time
 
-    # nse.deactivate_jit()
     nse.activate_jit()
     nse.write_intermediate_output = True
     nse.solve()
