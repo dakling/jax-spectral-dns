@@ -2894,7 +2894,7 @@ def run_ld_2021_dual(
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re_tau,
-            alpha=0 * (2 * jnp.pi / domain.scale_factors[0]),
+            alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
             beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
             U_base=cast("np_float_array", vel_base_y_slice),
