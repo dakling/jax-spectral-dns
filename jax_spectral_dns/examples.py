@@ -2459,8 +2459,6 @@ def run_ld_2021_get_mean(
             ax.plot(ts, energy_t_arr / energy_t_arr[0], "o")
             ax.set_xlabel("$t$")
             ax.set_ylabel("$G$")
-            fig.legend()
-            fig.savefig("plots/energy.png")
             try:
                 dedalus_data = np.genfromtxt(
                     "./energy.txt",
@@ -2473,6 +2471,8 @@ def run_ld_2021_get_mean(
                 )
             except FileNotFoundError:
                 print_verb("No dedalus data to compare results with were found.")
+            fig.legend()
+            fig.savefig("plots/energy.png")
 
             try:
                 avg_vel_coeffs = np.loadtxt(
