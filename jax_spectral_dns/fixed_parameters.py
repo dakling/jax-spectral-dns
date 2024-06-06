@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 import numpy as np
 import numpy.typing as npt
 import dataclasses
@@ -20,16 +20,17 @@ class FixedParameters:
 @dataclasses.dataclass(frozen=True)
 class NavierStokesVelVortFixedParameters:
     physical_domain: PhysicalDomain
-    poisson_mat: "np_complex_array"
-    rk_mats_rhs: "np_complex_array"
-    rk_mats_lhs_inv: "np_complex_array"
-    rk_rhs_inhom: "np_complex_array"
-    rk_mats_lhs_inv_inhom: "np_complex_array"
-    rk_mats_rhs_ns: "np_complex_array"
-    rk_mats_lhs_inv_ns: "np_complex_array"
+    poisson_mat: Optional["np_complex_array"]
+    rk_mats_rhs: Optional["np_complex_array"]
+    rk_mats_lhs_inv: Optional["np_complex_array"]
+    rk_rhs_inhom: Optional["np_complex_array"]
+    rk_mats_lhs_inv_inhom: Optional["np_complex_array"]
+    rk_mats_rhs_ns: Optional["np_complex_array"]
+    rk_mats_lhs_inv_ns: Optional["np_complex_array"]
     Re_tau: float
     max_cfl: float = 0.3
     dt_update_frequency: int = (
         10  # update the timestep every time_step_udate_frequency time steps
     )
     u_max_over_u_tau: float = 1e0
+    number_of_rk_steps: int = 3

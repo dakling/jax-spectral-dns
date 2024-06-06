@@ -18,6 +18,7 @@ setup(
         "scikit-image",
         "jaxopt",
         "optax",
+        "humanfriendly",
     ],
     extras_require={
         "notifications": ["PyGObject"],
@@ -26,7 +27,7 @@ setup(
             "pytest",
             "pytest-xdist",
             "black",
-            "pre-commit",  # for automatic formatting
+            "pre-commit",
         ],
     },
     classifiers=[

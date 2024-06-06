@@ -6,6 +6,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    List,
     Optional,
     Sequence,
     TypeVar,
@@ -31,6 +32,11 @@ try:
     Notify.init("jax-spectral-dns")
 except Exception:
     print("gi package not found, notifications will not work.")
+
+try:
+    from humanfriendly import format_timespan  # type: ignore
+except ModuleNotFoundError:
+    print("humanfriendly not found, time durations won't be formatted nicely.")
 
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
@@ -74,6 +80,7 @@ E = TypeVar("E", bound="Equation")
 class Equation:
     name = "equation"
     write_intermediate_output = False
+    write_entire_output = False
 
     # verbosity_level:
     # 0: no output
@@ -110,6 +117,7 @@ class Equation:
         max_cfl: float = 0.7,
         U_max: tuple[float, ...] = (1.0, 1e-10, 1e-10),
         end_time: Optional[float] = None,
+        safety_factor: float = 0.9,
     ) -> float:
         """Returns a suitable time step based on the given CFL number. If
         end_time is provided, it is assumed that a number of time steps allowing
@@ -125,7 +133,7 @@ class Equation:
             / U_max[i]
             for i in domain.all_dimensions()
         ]
-        dt = min(dT)
+        dt = safety_factor * min(dT)
         if end_time is None:
             return dt
 
@@ -198,13 +206,21 @@ class Equation:
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
+    def set_initial_field(self, name: str, field: "AnyField") -> None:
+        self.clear_field("velocity_hat")
+        try:
+            self.append_field(name, field)
+        except KeyError:
+            raise KeyError("Expected field named " + name + " in " + self.name + ".")
+
     def append_field(self, name: str, field: "AnyField", in_place: bool = True) -> None:
         try:
             if in_place and len(self.fields[name]) > 0:
                 self.fields[name][-1] = field
             else:
                 self.fields[name].append(field)
-            self.fields[name][-1].name = name + "_" + str(self.time_step)
+            self.fields[name][-1].name = name
+            self.fields[name][-1].set_time_step(len(self.fields[name]) - 1)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 
@@ -217,6 +233,13 @@ class Equation:
             assert field is not None
             self.fields[name] = [field]
             self.fields[name][0].name = name + "_0"
+
+    def add_field_history(self, name: str, field_history: "AnyFieldList") -> None:
+        assert name not in self.fields, "Field " + name + " already exists!"
+        self.fields[name] = cast(List["AnyField"], field_history)
+
+    def clear_field(self, name: str) -> None:
+        self.fields[name] = []
 
     def activate_jit(self) -> None:
         Field.activate_jit_ = True
@@ -271,7 +294,9 @@ class Equation:
             time_done = self.time >= self.end_time + self.get_dt()
         return iteration_done or time_done
 
-    def perform_time_step(self, _: Optional[Any] = None) -> Any:
+    def perform_time_step(
+        self, _: Optional[Any] = None, time_step: Optional[int] = None
+    ) -> Any:
         raise NotImplementedError()
 
     def set_before_time_step_fn(self: E, fn: Optional[Callable[[E], None]]) -> None:
@@ -324,16 +349,29 @@ class Equation:
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
             _, number_of_time_steps = self.solve_scan()
-            print_verb(
-                "Took "
-                + "{:.2f}".format(time.time() - start_time)
-                + " seconds for "
-                + str(number_of_time_steps)
-                + " time steps ("
-                + "{:.3e}".format((time.time() - start_time) / number_of_time_steps)
-                + " s/TS).",
-                verbosity_level=1,
-            )
+            duration = time.time() - start_time
+            try:
+                print_verb(
+                    "Took "
+                    + format_timespan(duration)
+                    + " for "
+                    + str(number_of_time_steps)
+                    + " time steps ("
+                    + "{:.3e}".format(duration / number_of_time_steps)
+                    + " s/TS).",
+                    verbosity_level=1,
+                )
+            except Exception:
+                print_verb(
+                    "Took "
+                    + "{:.2f}".format(duration)
+                    + " seconds for "
+                    + str(number_of_time_steps)
+                    + " time steps ("
+                    + "{:.3e}".format(duration / number_of_time_steps)
+                    + " s/TS).",
+                    verbosity_level=1,
+                )
             self.deactivate_jit()
 
         else:
@@ -357,7 +395,7 @@ class Equation:
                 )
                 start_time = time.time()
                 self.before_time_step()
-                self.perform_time_step()
+                self.perform_time_step(None, i)
                 self.update_time()
                 self.after_time_step()
                 print_verb("Took " + str(time.time() - start_time) + " seconds")

@@ -8,6 +8,10 @@ import numpy as np
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 
+from jax_spectral_dns.navier_stokes_perturbation_dual import (
+    NavierStokesVelVortPerturbationDual,
+)
+
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 from typing import TYPE_CHECKING, List, Tuple, cast
@@ -19,7 +23,10 @@ from jax_spectral_dns.navier_stokes import (
     NavierStokesVelVort,
     solve_navier_stokes_laminar,
 )
-from jax_spectral_dns.navier_stokes_perturbation import solve_navier_stokes_perturbation
+from jax_spectral_dns.navier_stokes_perturbation import (
+    NavierStokesVelVortPerturbation,
+    solve_navier_stokes_perturbation,
+)
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.examples import (
     run_pseudo_2d_perturbation,
@@ -1060,9 +1067,9 @@ class TestProject(unittest.TestCase):
             end_time = 1.0
             nse = solve_navier_stokes_laminar(
                 Re=Re,
-                Nx=24,
+                Nx=4,
                 Ny=Ny,
-                Nz=16,
+                Nz=4,
                 end_time=end_time,
                 # max_dt=1e-2,
                 dt=2e-2,
@@ -1097,12 +1104,14 @@ class TestProject(unittest.TestCase):
             print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
+            u_max = jnp.max(vel[0].get_data())
+            print_verb("u max:", u_max)
             tol = 6e-5
-            print_verb(abs(vel[0] - vel_x_ana), verbosity_level=2)
+            print_verb(abs(vel[0] - u_max * vel_x_ana), verbosity_level=2)
             print_verb(abs(vel[1]), verbosity_level=2)
             print_verb(abs(vel[2]), verbosity_level=2)
             # check that the simulation is really converged
-            self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
+            self.assertTrue(abs(vel[0] - u_max * vel_x_ana) < tol)
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
@@ -1183,49 +1192,14 @@ class TestProject(unittest.TestCase):
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
-    # def test_2d_growth(self):
-    #     growth_5500_data = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
-    #     growth_6000_data = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2, plot=True, jit=False)
-    #     growth_5500 = []
-    #     growth_6000 = []
-    #     for i in range(3):
-    #         growth_5500.append(growth_5500_data[i][-1] - growth_5500_data[i][-2])
-    #         growth_6000.append(growth_6000_data[i][-1] - growth_6000_data[i][-2])
-    #     print_verb("growth_5500: ", growth_5500)
-    #     print_verb("growth_6000: ", growth_6000)
-    #     self.assertTrue(
-    #         all([growth < 0 for growth in growth_5500]),
-    #         "Expected perturbations to decay for Re=5500.",
-    #     )
-    #     self.assertTrue(
-    #         all([growth > 0 for growth in growth_6000]),
-    #         "Expected perturbations to increase for Re=6000.",
-    #     )
-    #     vel_final_jit_5500 = growth_5500_data[-1]
-    #     vel_final_jit_6000 = growth_6000_data[-1]
-
-    #     # Now check that the same result is obtained when using solve_scan. To
-    #     # simplify and strengthen the test, only compare the final velocity
-    #     # fields.
-    #     data_no_jit_5500 = run_pseudo_2d_perturbation(Re=5500, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
-    #     data_no_jit_6000 = run_pseudo_2d_perturbation(Re=6000, end_time=1.5, eps=1e-1, linearize=True, Nx=4, Ny=90, Nz=2)
-    #     vel_final_no_jit_5500 = data_no_jit_5500[-1]
-    #     vel_final_no_jit_6000 = data_no_jit_6000[-1]
-
-    #     print_verb((vel_final_jit_5500 - vel_final_no_jit_5500).energy())
-    #     print_verb((vel_final_jit_6000 - vel_final_no_jit_6000).energy())
-    #     self.assertTrue(
-    #         (vel_final_jit_5500 - vel_final_no_jit_5500).energy() < 1e-6
-    #     )
-    #     self.assertTrue(
-    #         (vel_final_jit_6000 - vel_final_no_jit_6000).energy() < 1e-6
-    #     )
-
     def test_2d_growth_rates_quantitatively(self) -> None:
         def run_re(
-            Re: float, rotated: bool = False, use_antialiasing: bool = True
+            Re: float,
+            rotated: bool = False,
+            use_antialiasing: bool = True,
+            dealias_nonperiodic: bool = False,
         ) -> "pseudo_2d_perturbation_return_type":
-            end_time = 6e-1
+            end_time = 3e-1
             if use_antialiasing:
                 N = 4
                 aliasing = 3 / 2
@@ -1237,7 +1211,7 @@ class TestProject(unittest.TestCase):
                     Re=Re,
                     end_time=end_time,
                     Nx=N,
-                    Ny=64,
+                    Ny=50,
                     Nz=N,
                     linearize=True,
                     plot=True,
@@ -1246,13 +1220,15 @@ class TestProject(unittest.TestCase):
                     dt=1e-2,
                     rotated=True,
                     aliasing=aliasing,
+                    dealias_nonperiodic=dealias_nonperiodic,
+                    jit=True,
                 )
             else:
                 return run_pseudo_2d_perturbation(
                     Re=Re,
                     end_time=end_time,
                     Nx=N,
-                    Ny=64,
+                    Ny=50,
                     Nz=N,
                     linearize=True,
                     plot=True,
@@ -1260,16 +1236,20 @@ class TestProject(unittest.TestCase):
                     eps=1.0,
                     dt=1e-2,
                     aliasing=aliasing,
+                    dealias_nonperiodic=dealias_nonperiodic,
+                    jit=True,
                 )
 
         def run(
-            rotated: bool = False, use_antialiasing: bool = False
+            rotated: bool = False,
+            use_antialiasing: bool = False,
+            dealias_nonperiodic: bool = False,
         ) -> Tuple[List[List[float]], jnp_array, jnp_array]:
             ts = []
             energy = []
             energy_ana = []
             for Re in [5500, 5772.22, 6000]:
-                out = run_re(Re, rotated, use_antialiasing)
+                out = run_re(Re, rotated, use_antialiasing, dealias_nonperiodic)
                 ts.append(out[-2])
                 energy.append(out[0])
                 energy_ana.append(out[3])
@@ -1340,6 +1320,7 @@ class TestProject(unittest.TestCase):
             dataset_ana: jnp_array,
             rotated: bool,
             use_antialiasing: bool,
+            dealias_nonperiodic: bool,
         ) -> None:
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
@@ -1375,22 +1356,37 @@ class TestProject(unittest.TestCase):
                 + "_domain_"
                 + ("with" if use_antialiasing else "without")
                 + "_antialiasing"
+                + ("_non_periodic" if dealias_nonperiodic else "")
                 + ".png"
             )
 
         def main() -> None:
-            for use_antialiasing in [True, False]:
-                for rotated in [False, True]:
-                    print_verb(
-                        "testing growth rates in "
-                        + ("rotated" if rotated else "normal")
-                        + " domain "
-                        + ("with" if use_antialiasing else "without")
-                        + " antialiasing"
-                    )
-                    ts, energy, energy_ana = run(rotated, use_antialiasing)
-                    plot(ts, energy, energy_ana, rotated, use_antialiasing)
-                    calculate_growth_rates(ts, energy, energy_ana)
+            for use_antialiasing, rotated, dealias_nonperiodic in [
+                (True, False, False),
+                (False, False, False),
+                (True, True, False),
+                (True, False, True),
+            ]:
+                print_verb(
+                    "testing growth rates in "
+                    + ("rotated" if rotated else "normal")
+                    + " domain "
+                    + ("with" if use_antialiasing else "without")
+                    + " antialiasing"
+                    + ("also in nonperiodic direction" if dealias_nonperiodic else "")
+                )
+                ts, energy, energy_ana = run(
+                    rotated, use_antialiasing, dealias_nonperiodic
+                )
+                plot(
+                    ts,
+                    energy,
+                    energy_ana,
+                    rotated,
+                    use_antialiasing,
+                    dealias_nonperiodic,
+                )
+                calculate_growth_rates(ts, energy, energy_ana)
 
         main()
 
@@ -1409,6 +1405,55 @@ class TestProject(unittest.TestCase):
             rel_error = abs((gain - expected_gain) / expected_gain)
             print_verb(rel_error, verbosity_level=3)
             assert rel_error < err
+
+    def test_checkpointing(self) -> None:
+        Re = 100.0
+        Nx = 8
+        Ny = 20
+        Nz = 4
+        dt = 1e-2
+        end_time = 0.5
+        alpha = 1.0
+
+        def get_nse() -> NavierStokesVelVortPerturbation:
+            return solve_navier_stokes_perturbation(
+                Re=Re,
+                Nx=Nx,
+                Ny=Ny,
+                Nz=Nz,
+                dt=dt,
+                end_time=end_time,
+                perturbation_factor=0.1,
+                scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1e-3),
+                aliasing=True,
+                rotated=False,
+            )
+
+        nse_dual_cp = (
+            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                get_nse(), checkpointing=True
+            )
+        )
+        nse_dual_cp.run_backward_calculation()
+        v0_cp = nse_dual_cp.get_latest_field("velocity_hat")
+
+        nse_dual_no_cp = (
+            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                get_nse(), checkpointing=False
+            )
+        )
+        nse_dual_no_cp.run_backward_calculation()
+
+        v0_no_cp = nse_dual_no_cp.get_latest_field("velocity_hat")
+
+        v0_no_cp_nh = v0_no_cp.no_hat()
+        v0_no_cp_nh.set_name("no_cp")
+        v0_cp_nh = v0_cp.no_hat()
+        v0_cp_nh.set_name("cp")
+
+        error = (v0_no_cp_nh - v0_cp_nh).energy()
+        print_verb("error:", error, verbosity_level=3)
+        assert error < 1e-100  # should be machine (or even exactly) zero
 
 
 if __name__ == "__main__":

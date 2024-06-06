@@ -96,9 +96,12 @@ is shown.
 
 ### Gradient-based optimisation
 
+#### Automatic differentiation
+
 While the initial condition in the `test_transient_growth` case is obtained
 through linear stability theory, it is also possible to find it using
-gradient-based optimisation.  This is done in
+gradient-based optimisation, where the necessary gradients are computed using
+`jax`'s automatic differentiation capabilities.  This is done in
 `run_optimisation_transient_growth` and
 `run_optimisation_transient_growth_y_profile` (the latter enforces $\alpha=1$,
 which does not make a big difference in this case).
@@ -122,6 +125,15 @@ also matches up nicely, at least qualitatively.
 |![Simulation using the optimised initial condition]( ./img/Re_3000_transient_growth_optimiser.gif )|
 |:--:| 
 |*Simulation using the final optimised initial condition*|
+
+#### Adjoint-based differentiation
+
+This code also supports calculating gradient using the solution of the adjoint
+Navier-Stokes equations (in perturbation formulation). The drawback compared to
+automatic differentiation is the requirement to write a custom solver for each
+optimisation problem, but once implemented, runtime and memory usage should be
+better than automatic differentiation. The case
+`run_optimisation_transient_growth_dual` shows this feature in use.
 
 ## Contributing 
 

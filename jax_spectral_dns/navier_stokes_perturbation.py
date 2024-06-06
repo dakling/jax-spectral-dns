@@ -44,19 +44,19 @@ def update_nonlinear_terms_high_performance_perturbation(
     vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vel_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vel_hat_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vort_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vort_hat_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
@@ -165,9 +165,13 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
         try:
             velocity_base_hat = params["velocity_base_hat"]
-            print_verb("Using provided velocity base profile")
+            if not params.get("non_verbose", False):
+                print_verb("Using provided velocity base profile", verbosity_level=2)
         except KeyError:
-            print_verb("Using default laminar velocity base profile")
+            if not params.get("non_verbose", False):
+                print_verb(
+                    "Using default laminar velocity base profile", verbosity_level=2
+                )
             velocity_x_base = PhysicalField.FromFunc(
                 self.get_physical_domain(),
                 lambda X: self.get_u_max_over_u_tau() * (1 - X[1] ** 2)
@@ -208,7 +212,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             "velocity_base_hat"
         )
         self.nonlinear_update_fn = (
-            lambda vel: update_nonlinear_terms_high_performance_perturbation(
+            lambda vel, _: update_nonlinear_terms_high_performance_perturbation(
                 self.get_physical_domain(),
                 self.get_domain(),
                 vel,
@@ -255,7 +259,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 def solve_navier_stokes_perturbation(
     Re: float = 1.8e2,
     end_time: float = 1e1,
-    max_iter: int = 10000,
     Nx: int = 8,
     Ny: int = 40,
     Nz: int = 8,
@@ -264,6 +267,7 @@ def solve_navier_stokes_perturbation(
     dt: float = 1e-2,
     u_max_over_u_tau: "jsd_float" = 1.0,
     aliasing: float = 1.0,
+    dealias_nonperiodic: bool = False,
     rotated: bool = False,
 ) -> NavierStokesVelVortPerturbation:
 
@@ -272,7 +276,7 @@ def solve_navier_stokes_perturbation(
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=aliasing,
-        dealias_nonperiodic=False,
+        dealias_nonperiodic=dealias_nonperiodic,
     )
 
     vel_x_fn = lambda X: (
@@ -336,13 +340,18 @@ def solve_navier_stokes_perturbation(
     vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
 
     if not rotated:
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(vel, Re=Re, dt=dt)
+        nse = NavierStokesVelVortPerturbation.FromVelocityField(
+            vel, Re=Re, dt=dt, end_time=end_time, prepare_matrices=False
+        )
     else:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            vel, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
+            vel,
+            Re=Re,
+            dt=dt,
+            velocity_base_hat=velocity_base_hat,
+            end_time=end_time,
+            prepare_matrices=False,
         )
-    nse.end_time = end_time
-    nse.max_iter = max_iter
 
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None

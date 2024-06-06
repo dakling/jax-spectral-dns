@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 NoneType = type(None)
+import os
 from operator import rshift
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union, cast
 from typing_extensions import Self
@@ -48,19 +49,19 @@ def update_nonlinear_terms_high_performance(
     vort_hat_new = fourier_domain.curl(vel_hat_new)
     vel_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vel_hat_new.at[i].get())
-            )
-            # fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            # )
+            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
             for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
     vort_new = jnp.array(
         [
-            fourier_domain.filter_field_nonfourier_only(
-                fourier_domain.field_no_hat(vort_hat_new[i])
-            )
-            # fourier_domain.field_no_hat(vort_hat_new[i])
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vort_hat_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
@@ -131,45 +132,92 @@ class NavierStokesVelVort(Equation):
             except KeyError:
                 raise Exception("Either Re or Re_tau has to be given as a parameter.")
         self.nonlinear_update_fn: Callable[
-            ["jnp_array"], Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]
-        ] = lambda vel: update_nonlinear_terms_high_performance(
+            ["jnp_array", int],
+            Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"],
+        ] = lambda vel, _: update_nonlinear_terms_high_performance(
             self.get_physical_domain(), self.get_domain(), vel
         )
-        super().__init__(domain, velocity_field, dt=dt)
+        super().__init__(domain, velocity_field, **params)
 
-        poisson_mat = domain.assemble_poisson_matrix()
-        (
-            rk_mats_rhs,
-            rk_mats_lhs_inv,
-            rk_rhs_inhom,
-            rk_mats_lhs_inv_inhom,
-            rk_mats_rhs_ns,
-            rk_mats_lhs_inv_ns,
-        ) = self.prepare_assemble_rk_matrices(domain, physical_domain, Re_tau, dt)
+        # dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
+        self.dPdx = -1.0
 
-        poisson_mat.setflags(write=False)
-        rk_mats_rhs.setflags(write=False)
-        rk_mats_lhs_inv.setflags(write=False)
-        rk_rhs_inhom.setflags(write=False)
-        rk_mats_lhs_inv_inhom.setflags(write=False)
-        rk_mats_rhs_ns.setflags(write=False)
-        rk_mats_lhs_inv_ns.setflags(write=False)
+        n_rk_steps = 3
+        calculation_size = self.end_time / self.get_dt()
+        for i in self.all_dimensions():
+            calculation_size *= self.get_domain().number_of_cells(i)
+        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 1e12)
+        self.prepare_matrices = params.get(
+            "prepare_matrices", calculation_size < prepare_matrices_threshold
+        )
+        if self.prepare_matrices:
+            print_verb("preparing differentiation matrices...", verbosity_level=2)
+            poisson_mat = domain.assemble_poisson_matrix()
+            (
+                rk_mats_rhs,
+                rk_mats_lhs_inv,
+                rk_rhs_inhom,
+                rk_mats_lhs_inv_inhom,
+                rk_mats_rhs_ns,
+                rk_mats_lhs_inv_ns,
+            ) = self.prepare_assemble_rk_matrices(
+                domain, physical_domain, Re_tau, dt, n_rk_steps
+            )
+
+            poisson_mat.setflags(write=False)
+            rk_mats_rhs.setflags(write=False)
+            rk_mats_lhs_inv.setflags(write=False)
+            rk_rhs_inhom.setflags(write=False)
+            rk_mats_lhs_inv_inhom.setflags(write=False)
+            rk_mats_rhs_ns.setflags(write=False)
+            rk_mats_lhs_inv_ns.setflags(write=False)
+            print_verb("done preparing differentiation matrices", verbosity_level=2)
+        else:
+            print_verb(
+                "not preparing differentiation matrices - \
+                this may reduce memory usage but can carry \
+                a significant runtime penalty!",
+                verbosity_level=1,
+            )
+            poisson_mat = None
+            (
+                rk_mats_rhs,
+                rk_mats_lhs_inv,
+                rk_rhs_inhom,
+                rk_mats_lhs_inv_inhom,
+                rk_mats_rhs_ns,
+                rk_mats_lhs_inv_ns,
+            ) = (
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
 
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
-            physical_domain,
-            poisson_mat,
-            rk_mats_rhs,
-            rk_mats_lhs_inv,
-            rk_rhs_inhom,
-            rk_mats_lhs_inv_inhom,
-            rk_mats_rhs_ns,
-            rk_mats_lhs_inv_ns,
-            Re_tau,
-            max_cfl,
-            u_max_over_u_tau,
+            physical_domain=physical_domain,
+            poisson_mat=poisson_mat,
+            rk_mats_rhs=rk_mats_rhs,
+            rk_mats_lhs_inv=rk_mats_lhs_inv,
+            rk_rhs_inhom=rk_rhs_inhom,
+            rk_mats_lhs_inv_inhom=rk_mats_lhs_inv_inhom,
+            rk_mats_rhs_ns=rk_mats_rhs_ns,
+            rk_mats_lhs_inv_ns=rk_mats_lhs_inv_ns,
+            Re_tau=Re_tau,
+            max_cfl=max_cfl,
+            u_max_over_u_tau=u_max_over_u_tau,
+            number_of_rk_steps=n_rk_steps,
         )
+        print_verb("using RK" + str(n_rk_steps) + " time stepper", verbosity_level=2)
         self.update_flow_rate()
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
+
+        cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
+        print_verb(
+            "continuity error of initial condition:", cont_error, verbosity_level=2
+        )
 
     @classmethod
     def FromDomain(cls, domain: PhysicalDomain, **params: Any) -> Self:
@@ -219,26 +267,162 @@ class NavierStokesVelVort(Equation):
         out = cast(VectorField[FourierField], super().get_latest_field(name))
         return out
 
+    # @partial(jax.jit, static_argnums=0)
     def get_poisson_mat(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.poisson_mat
+        if self.prepare_matrices:
+            return cast("np_complex_array", self.nse_fixed_parameters.poisson_mat)
+        else:
+            return self.get_domain().assemble_poisson_matrix()
 
-    def get_rk_mats_lhs_inv(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.rk_mats_lhs_inv
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    def get_rk_mats_lhs_inv(self, step: int, kx: int, kz: int) -> "np_jnp_array":
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            domain = self.get_domain()
+            physical_domain = self.get_physical_domain()
+            Re_tau = self.get_Re_tau()
+            _, beta, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rk_mat_lhs = I - beta[step] * dt * L
+            rk_mat_lhs_ = domain.enforce_homogeneous_dirichlet_jnp(rk_mat_lhs)
+            return cast("np_jnp_array", jnp.linalg.inv(rk_mat_lhs_))
 
-    def get_rk_mats_rhs(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.rk_mats_rhs
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    def get_rk_mats_rhs(self, step: int, kx: int, kz: int) -> "np_jnp_array":
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs)[step, kx, kz],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            physical_domain = self.get_physical_domain()
+            Re_tau = self.get_Re_tau()
+            alpha, _, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rk_mat_rhs = I + alpha[step] * dt * L
+            return rk_mat_rhs
 
-    def get_rk_mats_lhs_inv_inhom(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.rk_mats_lhs_inv_inhom
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    def get_rk_mats_lhs_inv_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[
+                    step, kx, kz
+                ],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            physical_domain = self.get_physical_domain()
+            domain = self.get_domain()
+            Re_tau = self.get_Re_tau()
+            _, beta, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rhs_inhom = np.zeros(n)
+            lhs_mat_inhom = I - beta[step] * dt * L
+            (
+                lhs_mat_inhom_,
+                _,
+            ) = domain.enforce_inhomogeneous_dirichlet_jnp(
+                lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+            )
+            lhs_mat_inv_inhom = jnp.linalg.inv(lhs_mat_inhom_)
+            return cast("np_jnp_array", lhs_mat_inv_inhom)
 
-    def get_rk_rhs_inhom(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.rk_rhs_inhom
+    # @partial(jax.jit, static_argnums=(0, 1, 2, 3))
+    def get_rk_rhs_inhom(self, step: int, kx: int, kz: int) -> "np_jnp_array":
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_rhs_inhom)[step, kx, kz],
+            )
+        else:
+            dt = self.get_dt()
+            kx_ = jnp.asarray(self.get_domain().grid[0])[kx]
+            kz_ = jnp.asarray(self.get_domain().grid[2])[kz]
+            physical_domain = self.get_physical_domain()
+            domain = self.get_domain()
+            Re_tau = self.get_Re_tau()
+            _, beta, _, _ = self.get_rk_parameters()
+            D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+            Ly = 1 / Re_tau * D2
+            n = Ly.shape[0]
+            I = np.eye(n)
+            L = Ly + I * (-(kx_**2 + kz_**2)) / Re_tau
+            rhs_inhom = np.zeros(n)
+            lhs_mat_inhom = I - beta[step] * dt * L
+            (
+                _,
+                rhs_inhom_,
+            ) = domain.enforce_inhomogeneous_dirichlet_jnp(
+                lhs_mat_inhom, rhs_inhom, 0.0, 1.0
+            )
+            return rhs_inhom_
 
-    def get_rk_mats_lhs_inv_ns(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.rk_mats_lhs_inv_ns
+    # @partial(jax.jit, static_argnums=(0, 1))
+    def get_rk_mats_lhs_inv_ns(self, step: int) -> "np_jnp_array":
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step],
+            )
+        else:
+            dt = self.get_dt()
+            _, beta, _, _ = self.get_rk_parameters()
+            Re_tau = self.get_Re_tau()
+            D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+            n = D2_hom_diri.shape[0]
+            Z = np.zeros((n, n))
+            L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+            I_ns = np.eye(2 * n)
+            L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
+            lhs_mat_ns = I_ns - beta[step] * dt * L_ns
+            lhs_mat_inv_ns = jnp.linalg.inv(lhs_mat_ns)
+            return cast("np_jnp_array", lhs_mat_inv_ns)
 
-    def get_rk_mats_rhs_ns(self) -> "np_complex_array":
-        return self.nse_fixed_parameters.rk_mats_rhs_ns
+    # @partial(jax.jit, static_argnums=(0, 1))
+    def get_rk_mats_rhs_ns(self, step: int) -> "np_jnp_array":
+        if self.prepare_matrices:
+            return cast(
+                "np_jnp_array",
+                jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs_ns)[step],
+            )
+        else:
+            dt = self.get_dt()
+            alpha, _, _, _ = self.get_rk_parameters()
+            Re_tau = self.get_Re_tau()
+            D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
+            n = D2_hom_diri.shape[0]
+            Z = np.zeros((n, n))
+            L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+            I_ns = np.eye(2 * n)
+            L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
+            rhs_mat_ns = I_ns + alpha[step] * dt * L_ns
+            return rhs_mat_ns
 
     def get_Re_tau(self) -> "jsd_float":
         return self.nse_fixed_parameters.Re_tau
@@ -251,6 +435,9 @@ class NavierStokesVelVort(Equation):
 
     def get_u_max_over_u_tau(self) -> "jsd_float":
         return self.nse_fixed_parameters.u_max_over_u_tau
+
+    def get_number_of_rk_steps(self) -> "int":
+        return self.nse_fixed_parameters.number_of_rk_steps
 
     def init_velocity(self, velocity_hat: VectorField[FourierField]) -> None:
         self.set_field("velocity_hat", 0, velocity_hat)
@@ -265,7 +452,7 @@ class NavierStokesVelVort(Equation):
         for i in jnp.arange(3):
             vort_hat[i].name = "vort_hat_" + str(i)
 
-        hel_hat = velocity_field_hat.cross_product(vort_hat)
+        hel_hat = velocity_field_hat.no_hat().cross_product(vort_hat.no_hat()).hat()
         for i in jnp.arange(3):
             hel_hat[i].name = "hel_hat_" + str(i)
         return (vort_hat, hel_hat)
@@ -278,9 +465,8 @@ class NavierStokesVelVort(Equation):
 
     def update_flow_rate(self) -> None:
         self.flow_rate = self.get_flow_rate()
-        dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
         self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: dPdx + 0.0 * X[0] * X[1] * X[2]
+            self.get_physical_domain(), lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2]
         ).hat()
         self.dpdz = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
@@ -314,13 +500,27 @@ class NavierStokesVelVort(Equation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
-    def get_rk_parameters(self) -> Tuple[List["jsd_float"], ...]:
-        return (
-            [29 / 96, -3 / 40, 1 / 6],
-            [37 / 160, 5 / 24, 1 / 6],
-            [8 / 15, 5 / 12, 3 / 4],
-            [0, -17 / 60, -5 / 12],
-        )
+    def get_rk_parameters(
+        self, n_steps: Optional[int] = None
+    ) -> Tuple[List["jsd_float"], ...]:
+        if n_steps is None:
+            n_steps = self.get_number_of_rk_steps()
+        if n_steps == 1:
+            return (
+                [1.0],
+                [1.0],
+                [1.0],
+                [0.0],
+            )
+        elif n_steps == 3:
+            return (
+                [29 / 96, -3 / 40, 1 / 6],
+                [37 / 160, 5 / 24, 1 / 6],
+                [8 / 15, 5 / 12, 3 / 4],
+                [0, -17 / 60, -5 / 12],
+            )
+        else:
+            raise Exception("number of rk steps not supported")
 
     def prepare_assemble_rk_matrices(
         self,
@@ -328,8 +528,9 @@ class NavierStokesVelVort(Equation):
         physical_domain: PhysicalDomain,
         Re_tau: "jsd_float",
         dt: "jsd_float",
+        number_of_rk_steps: int,
     ) -> Tuple["np_complex_array", ...]:
-        alpha, beta, _, _ = self.get_rk_parameters()
+        alpha, beta, _, _ = self.get_rk_parameters(number_of_rk_steps)
         D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
         Ly = 1 / Re_tau * D2
         n = Ly.shape[0]
@@ -337,25 +538,53 @@ class NavierStokesVelVort(Equation):
         Z = np.zeros((n, n))
         D2_hom_diri = self.get_cheb_mat_2_homogeneous_dirichlet()
         L_NS_y = 1 / Re_tau * np.block([[D2_hom_diri, Z], [Z, D2_hom_diri]])
+
         rk_mats_rhs = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+                n,
+            ),
             dtype=np.complex128,
         )
         rk_mats_lhs_inv = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+                n,
+            ),
             dtype=np.complex128,
         )
         rk_rhs_inhom = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+            ),
             dtype=np.complex128,
         )
         rk_mats_lhs_inv_inhom = np.zeros(
-            (3, domain.number_of_cells(0), domain.number_of_cells(2), n, n),
+            (
+                number_of_rk_steps,
+                domain.number_of_cells(0),
+                domain.number_of_cells(2),
+                n,
+                n,
+            ),
             dtype=np.complex128,
         )
-        rk_mats_rhs_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex128)
-        rk_mats_lhs_inv_ns = np.zeros((3, 2 * n, 2 * n), dtype=np.complex128)
-        for i in range(3):
+        rk_mats_rhs_ns = np.zeros(
+            (number_of_rk_steps, 2 * n, 2 * n), dtype=np.complex128
+        )
+        rk_mats_lhs_inv_ns = np.zeros(
+            (number_of_rk_steps, 2 * n, 2 * n), dtype=np.complex128
+        )
+        for i in range(number_of_rk_steps):
             for xi, kx in enumerate(domain.grid[0]):
                 for zi, kz in enumerate(domain.grid[2]):
                     L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
@@ -424,7 +653,7 @@ class NavierStokesVelVort(Equation):
         def rk_00() -> Tuple["jnp_array", ...]:
             return (
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
-                vel_y[0, :, 0],
+                # vel_y[0, :, 0],
                 (vel_z_00 * (1 + 0j)).astype(jnp.complex128),
             )
 
@@ -437,9 +666,9 @@ class NavierStokesVelVort(Equation):
             j_kz = 1j * kz_
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1, 1)
-            # vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(
-            #     vel_1_y_, 1
-            # )
+            vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(  # TODO
+                vel_1_y_, 1
+            )
             vel_x_ = (-j_kx * vel_1_y_ + j_kz * vort_) / minus_kx_kz_sq
             if two_d:
                 vel_z_ = jnp.zeros_like(vel_x_, dtype=jnp.complex128)
@@ -452,7 +681,7 @@ class NavierStokesVelVort(Equation):
             # )
             return (
                 vel_x_.astype(jnp.complex128),
-                vel_y_.astype(jnp.complex128),
+                # vel_y_.astype(jnp.complex128),
                 vel_z_.astype(jnp.complex128),
             )
 
@@ -497,7 +726,8 @@ class NavierStokesVelVort(Equation):
                     fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
                 state_slice = jnp.concatenate(fields_2d).T
                 kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
-                out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
+                # out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
+                out: "jnp_array" = jax.vmap(inner_map(kx))(kz_state_slice)
                 return out
 
             return fn
@@ -522,11 +752,15 @@ class NavierStokesVelVort(Equation):
             ],
             axis=1,
         )
-        out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
+        # out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
+        out = jax.vmap(outer_map(kz_arr))(kx_state)
         u_w = [jnp.moveaxis(v, 1, 2) for v in out]
-        return jnp.array([u_w[0], u_w[1], u_w[2]])
+        # return jnp.array([u_w[0], u_w[1], u_w[2]])
+        return jnp.array([u_w[0], vel_y, u_w[1]])
 
-    def perform_runge_kutta_step(self, vel_hat_data: "jnp_array") -> "jnp_array":
+    def perform_runge_kutta_step(
+        self, vel_hat_data: "jnp_array", time_step: int
+    ) -> "jnp_array":
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
@@ -542,14 +776,14 @@ class NavierStokesVelVort(Equation):
                 "jnp_array",
                 "jnp_array",
                 "jnp_array",
-                Optional["jnp_array"],
-                Optional["jnp_array"],
                 "jnp_array",
                 "jnp_array",
                 "jnp_array",
                 "jnp_array",
-                Optional["jnp_array"],
-                Optional["jnp_array"],
+                "jnp_array",
+                "jnp_array",
+                "jnp_array",
+                "jnp_array",
             ],
             Tuple["jnp_array", ...],
         ]:
@@ -559,38 +793,47 @@ class NavierStokesVelVort(Equation):
                 vort_1_hat_sw: "jnp_array",
                 h_v_hat_sw: "jnp_array",
                 h_g_hat_sw: "jnp_array",
-                h_v_hat_old_sw: Optional["jnp_array"],
-                h_g_hat_old_sw: Optional["jnp_array"],
+                h_v_hat_old_sw: "jnp_array",
+                h_g_hat_old_sw: "jnp_array",
                 v_0_hat_sw_00: "jnp_array",
                 v_2_hat_sw_00: "jnp_array",
                 conv_ns_hat_sw_0_00: "jnp_array",
                 conv_ns_hat_sw_2_00: "jnp_array",
-                conv_ns_hat_old_sw_0_00: Optional["jnp_array"],
-                conv_ns_hat_old_sw_2_00: Optional["jnp_array"],
+                conv_ns_hat_old_sw_0_00: "jnp_array",
+                conv_ns_hat_old_sw_2_00: "jnp_array",
             ) -> Tuple["jnp_array", ...]:
                 domain = self.get_domain()
                 kx = K[0]
                 kz = K[1]
-                # kx_ = domain.grid[0][kx]
-                # kz_ = domain.grid[2][kz]
 
                 # wall-normal velocity
                 # p-part
-                # L_p_y = 1 / Re * D2
-                # lhs_mat_p_, rhs_mat_p_ = self.assemble_rk_matrices(L_p_y, kx_, kz_, step)
-                # lhs_mat_p_ = domain.enforce_homogeneous_dirichlet(lhs_mat_p_)
-                lhs_mat_p_inv = jnp.asarray(self.get_rk_mats_lhs_inv())[step, kx, kz]
-                rhs_mat_p = jnp.asarray(self.get_rk_mats_rhs())[step, kx, kz]
-                # jax.debug.print("{x}", x = np.linalg.norm(rhs_mat_p - rhs_mat_p_))
-                # jax.debug.print("{x}", x = np.linalg.norm(lhs_mat_p_inv - np.linalg.inv(lhs_mat_p_)))
+                lhs_mat_p_inv = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
+                rhs_mat_p = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
+
+                TEST_MATRICES = "JAX_SPECTRAL_DNS_TEST_DIFF_MATS" in os.environ
+                if TEST_MATRICES:
+                    print_verb(
+                        "WARNING: testing matrix assembly. Should only be done for testing purposes."
+                    )
+                    assert (
+                        self.prepare_matrices == True
+                    ), "this test only makes sense with prepare_matrices set to True"
+                    self.prepare_matrices = False
+                    lhs_mat_p_inv_ = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
+                    rhs_mat_p_ = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
+                    jax.debug.print(
+                        "lhs: {x}", x=jnp.linalg.norm(lhs_mat_p_inv - lhs_mat_p_inv_)
+                    )
+                    jax.debug.print(
+                        "rhs: {x}", x=jnp.linalg.norm(rhs_mat_p - rhs_mat_p_)
+                    )
+                    self.prepare_matrices = True
 
                 phi_hat_lap = v_1_lap_hat_sw
 
                 N_p_new = h_v_hat_sw
-                if type(h_v_hat_old_sw) == NoneType:
-                    N_p_old: "jnp_array" = N_p_new
-                else:
-                    N_p_old = h_v_hat_old_sw  # type: ignore[assignment]
+                N_p_old = h_v_hat_old_sw
 
                 rhs_p = (
                     rhs_mat_p @ phi_hat_lap
@@ -618,10 +861,39 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # a-part - numerical solution
-                lhs_mat_a_inv = jnp.asarray(self.get_rk_mats_lhs_inv_inhom())[
-                    step, kx, kz
-                ]
-                rhs_a = jnp.asarray(self.get_rk_rhs_inhom())[step, kx, kz]
+                lhs_mat_a_inv = jnp.asarray(
+                    self.get_rk_mats_lhs_inv_inhom(step, kx, kz)
+                )
+                rhs_a = jnp.asarray(self.get_rk_rhs_inhom(step, kx, kz))
+
+                if TEST_MATRICES:
+                    assert (
+                        self.prepare_matrices == True
+                    ), "this test only makes sense with prepare_matrices set to True"
+                    self.prepare_matrices = False
+                    lhs_mat_a_inv_ = jnp.asarray(
+                        self.get_rk_mats_lhs_inv_inhom(step, kx, kz)
+                    )
+                    rhs_a_ = jnp.asarray(self.get_rk_rhs_inhom(step, kx, kz))
+                    jax.debug.print(
+                        "inhom lhs: {x}",
+                        x=jnp.linalg.norm(lhs_mat_a_inv - lhs_mat_a_inv_),
+                    )
+                    jax.debug.print("inhom rhs: {x}", x=jnp.linalg.norm(rhs_a - rhs_a_))
+                    self.prepare_matrices = True
+
+                if TEST_MATRICES:
+                    assert (
+                        self.prepare_matrices == True
+                    ), "this test only makes sense with prepare_matrices set to True"
+                    poisson_mat = jnp.asarray(self.get_poisson_mat())
+                    self.prepare_matrices = False
+                    poisson_mat_ = jnp.asarray(self.get_poisson_mat())
+                    jax.debug.print(
+                        "poisson: {x}", x=jnp.linalg.norm(poisson_mat - poisson_mat_)
+                    )
+                    self.prepare_matrices = True
+
                 phi_a_hat_new = lhs_mat_a_inv @ rhs_a
                 v_1_lap_hat_new_a = phi_a_hat_new
 
@@ -659,16 +931,13 @@ class NavierStokesVelVort(Equation):
                 )
 
                 # vorticity
-                lhs_mat_vort_inv = jnp.asarray(self.get_rk_mats_lhs_inv())[step, kx, kz]
-                rhs_mat_vort = jnp.asarray(self.get_rk_mats_rhs())[step, kx, kz]
+                lhs_mat_vort_inv = jnp.asarray(self.get_rk_mats_lhs_inv(step, kx, kz))
+                rhs_mat_vort = jnp.asarray(self.get_rk_mats_rhs(step, kx, kz))
 
                 phi_vort_hat = vort_1_hat_sw
 
                 N_vort_new = h_g_hat_sw
-                if type(h_g_hat_old_sw == NoneType):
-                    N_vort_old = N_vort_new
-                else:
-                    N_vort_old = h_g_hat_old_sw  # type: ignore[assignment]
+                N_vort_old = h_g_hat_old_sw
 
                 rhs_vort = (
                     rhs_mat_vort @ phi_vort_hat
@@ -680,7 +949,7 @@ class NavierStokesVelVort(Equation):
                     rhs_vort, 1
                 )
 
-                phi_hat_vort_new = lhs_mat_vort_inv @ (rhs_vort)
+                phi_hat_vort_new = lhs_mat_vort_inv @ rhs_vort
 
                 vort_1_hat_new = domain.update_boundary_conditions_fourier_field_slice(
                     phi_hat_vort_new, 1
@@ -690,8 +959,24 @@ class NavierStokesVelVort(Equation):
                 def rk_00() -> Tuple["jnp_array", "jnp_array"]:
                     kx__ = 0
                     kz__ = 0
-                    lhs_mat_inv_00 = jnp.asarray(self.get_rk_mats_lhs_inv_ns())[step]
-                    rhs_mat_00 = jnp.asarray(self.get_rk_mats_rhs_ns())[step]
+                    lhs_mat_inv_00 = jnp.asarray(self.get_rk_mats_lhs_inv_ns(step))
+                    rhs_mat_00 = jnp.asarray(self.get_rk_mats_rhs_ns(step))
+
+                    if TEST_MATRICES:
+                        assert (
+                            self.prepare_matrices == True
+                        ), "this test only makes sense with prepare_matrices set to True"
+                        self.prepare_matrices = False
+                        lhs_mat_inv_00_ = jnp.asarray(self.get_rk_mats_lhs_inv_ns(step))
+                        rhs_mat_00_ = jnp.asarray(self.get_rk_mats_rhs_ns(step))
+                        jax.debug.print(
+                            "ns lhs: {x}",
+                            x=jnp.linalg.norm(lhs_mat_inv_00 - lhs_mat_inv_00_),
+                        )
+                        jax.debug.print(
+                            "ns rhs: {x}", x=jnp.linalg.norm(rhs_mat_00 - rhs_mat_00_)
+                        )
+                        self.prepare_matrices = True
 
                     v_hat = jnp.block(
                         [
@@ -711,23 +996,17 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    if type(conv_ns_hat_old == NoneType):
-                        N_00_old = N_00_new
-                    else:
-                        assert conv_ns_hat_old_sw_0_00 is not None
-                        assert conv_ns_hat_old_sw_2_00 is not None
-                        N_00_old = jnp.block(
-                            [
-                                -conv_ns_hat_old_sw_0_00,
-                                -conv_ns_hat_old_sw_2_00,
-                            ]
-                        ) + jnp.block(
-                            [
-                                -self.dpdx[kx__, :, kz__],
-                                -self.dpdz[kx__, :, kz__],
-                            ]
-                        )
-                    assert N_00_old is not None
+                    N_00_old = jnp.block(
+                        [
+                            -conv_ns_hat_old_sw_0_00,
+                            -conv_ns_hat_old_sw_2_00,
+                        ]
+                    ) + jnp.block(
+                        [
+                            -self.dpdx[kx__, :, kz__],
+                            -self.dpdz[kx__, :, kz__],
+                        ]
+                    )
                     v_hat_new = lhs_mat_inv_00 @ (
                         rhs_mat_00 @ v_hat
                         + (self.get_dt() * gamma[step]) * N_00_new
@@ -742,19 +1021,19 @@ class NavierStokesVelVort(Equation):
                     j_kz = 1j * kz_
                     minus_kx_kz_sq = -(kx_**2 + kz_**2)
                     v_1_new_y = domain.diff_fourier_field_slice(v_1_hat_new, 1, 1)
-                    v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
-                        v_1_new_y, 1
-                    )
-                    vort_1_hat_new_: "jnp_array" = (
-                        domain.update_boundary_conditions_fourier_field_slice(
-                            vort_1_hat_new, 1
-                        )
-                    )
+                    # v_1_new_y = domain.update_boundary_conditions_fourier_field_slice(
+                    #     v_1_new_y, 1
+                    # )
+                    # vort_1_hat_new_: "jnp_array" = (
+                    #     domain.update_boundary_conditions_fourier_field_slice(
+                    #         vort_1_hat_new, 1
+                    #     )
+                    # )
                     v_0_new = (
-                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new_
+                        -j_kx * v_1_new_y + j_kz * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     v_2_new = (
-                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new_
+                        -j_kz * v_1_new_y - j_kx * vort_1_hat_new
                     ) / minus_kx_kz_sq
                     return (v_0_new, v_2_new)
 
@@ -779,34 +1058,136 @@ class NavierStokesVelVort(Equation):
 
             return fn
 
-        number_of_rk_steps = 3
+        number_of_rk_steps = self.get_number_of_rk_steps()
 
         h_v_hat_old, h_g_hat_old, conv_ns_hat_old = (None, None, None)
 
+        Nx = self.get_domain().number_of_cells(0)
+        Ny = self.get_domain().number_of_cells(1)
+        Nz = self.get_domain().number_of_cells(2)
+
+        @partial(jax.jit, static_argnums=(0,))
+        def get_new_vel_field_map(
+            step: int,
+            v_1_lap_hat: "jnp_array",
+            vort_hat_1: "jnp_array",
+            conv_ns_hat_0: "jnp_array",
+            conv_ns_hat_2: "jnp_array",
+            conv_ns_hat_old_0: "jnp_array",
+            conv_ns_hat_old_2: "jnp_array",
+            h_v_hat: "jnp_array",
+            h_g_hat: "jnp_array",
+            h_v_hat_old: "jnp_array",
+            h_g_hat_old: "jnp_array",
+        ) -> "jnp_array":
+            number_of_input_arguments = 6
+
+            conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
+            conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
+            conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
+            conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
+            v_0_hat_00 = vel_hat_data[0][0, :, 0]
+            v_2_hat_00 = vel_hat_data[2][0, :, 0]
+
+            def outer_map(
+                kzs_: "np_jnp_array",
+            ) -> Callable[["np_jnp_array"], "jnp_array"]:
+                def fn(kx_state: "np_jnp_array") -> "jnp_array":
+                    kx = kx_state[0]
+                    fields_2d = jnp.split(
+                        kx_state[1:], number_of_input_arguments, axis=0
+                    )
+                    for i in range(len(fields_2d)):
+                        fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
+                    state_slice = jnp.concatenate(fields_2d).T
+                    kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
+                    # out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
+                    out = jax.vmap(inner_map(kx))(kz_state_slice)
+                    return out
+
+                return fn
+
+            def inner_map(
+                kx: "np_jnp_array",
+            ) -> Callable[["np_jnp_array"], "jnp_array"]:
+                def fn(kz_one_pt_state: "np_jnp_array") -> "jnp_array":
+                    kz = kz_one_pt_state[0]
+                    fields_1d = jnp.split(
+                        kz_one_pt_state[1:],
+                        number_of_input_arguments,
+                        axis=0,
+                    )
+                    kx_int: int = kx.real.astype(int)  # type: ignore[assignment]
+                    kz_int: int = kz.real.astype(int)  # type: ignore[assignment]
+                    (
+                        v_0_new_field,
+                        v_1_hat_new,
+                        v_2_new_field,
+                        _,
+                    ) = perform_single_rk_step_for_single_wavenumber(step)(
+                        (kx_int, kz_int),
+                        *fields_1d,
+                        v_0_hat_00,
+                        v_2_hat_00,
+                        conv_ns_hat_0_00,
+                        conv_ns_hat_2_00,
+                        conv_ns_hat_0_00_old,
+                        conv_ns_hat_2_00_old,
+                    )  # type: ignore[call-arg]
+                    return jnp.array([v_0_new_field, v_1_hat_new, v_2_new_field])
+
+                return fn
+
+            kx_arr = np.atleast_2d(np.arange(Nx))
+            kz_arr = np.atleast_2d(np.arange(Nz))
+            state = jnp.concatenate(
+                [
+                    jnp.moveaxis(v_1_lap_hat, 1, 2),
+                    jnp.moveaxis(vort_hat_1, 1, 2),
+                    jnp.moveaxis(h_v_hat, 1, 2),
+                    jnp.moveaxis(h_g_hat, 1, 2),
+                    jnp.moveaxis(h_v_hat_old, 1, 2),
+                    jnp.moveaxis(h_g_hat_old, 1, 2),
+                ],
+                axis=1,
+            )
+            # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
+            kx_state = jnp.concatenate(
+                [
+                    kx_arr.T,
+                    jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
+                ],
+                axis=1,
+            )
+
+            # out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
+            out = jax.vmap(outer_map(kz_arr))(kx_state)
+            # return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
+            out_ = jnp.moveaxis(out, 2, 0)
+            return jnp.moveaxis(out_, 2, 3)
+
         for step in range(number_of_rk_steps):
 
-            # filter out high wavenumbers to dealias
-            vel_hat_data = jnp.array(
-                [
-                    self.get_domain().filter_field_fourier_only(vel_hat_data[i])
-                    # self.get_domain().filter_field(vel_hat_data[i])
-                    for i in self.all_dimensions()
-                ]
-            )
+            # filter out highest wavenumbers
+            # vel_hat_data = jnp.array(
+            #     [
+            #         self.get_domain().filter_field_fourier_only(vel_hat_data[i])
+            #         # self.get_domain().filter_field(vel_hat_data[i])
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
             # update nonlinear terms
             (
                 h_v_hat,
                 h_g_hat,
                 vort_hat,
                 conv_ns_hat,
-            ) = self.nonlinear_update_fn(vel_hat_data)
+            ) = self.nonlinear_update_fn(vel_hat_data, time_step)
 
-            if type(h_v_hat_old) == NoneType:
-                h_v_hat_old = h_v_hat
-            if type(h_g_hat_old) == NoneType:
-                h_g_hat_old = h_g_hat
-            if type(conv_ns_hat_old) == NoneType:
-                conv_ns_hat_old = conv_ns_hat
+            if step == 0:
+                h_v_hat_old = jnp.zeros_like(h_v_hat)
+                h_g_hat_old = jnp.zeros_like(h_g_hat)
+                conv_ns_hat_old = jnp.zeros_like(conv_ns_hat)
 
             assert h_v_hat_old is not None
             assert h_g_hat_old is not None
@@ -824,111 +1205,8 @@ class NavierStokesVelVort(Equation):
                 axis=0,
             )
 
-            def get_new_vel_field_map(
-                Nx: int,
-                Ny: int,
-                Nz: int,
-                v_1_lap_hat: "jnp_array",
-                vort_hat_1: "jnp_array",
-                conv_ns_hat_0: "jnp_array",
-                conv_ns_hat_2: "jnp_array",
-                conv_ns_hat_old_0: "jnp_array",
-                conv_ns_hat_old_2: "jnp_array",
-                h_v_hat: "jnp_array",
-                h_g_hat: "jnp_array",
-                h_v_hat_old: "jnp_array",
-                h_g_hat_old: "jnp_array",
-            ) -> "jnp_array":
-                number_of_input_arguments = 6
-
-                conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
-                conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
-                conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
-                conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
-                v_0_hat_00 = vel_hat_data[0][0, :, 0]
-                v_2_hat_00 = vel_hat_data[2][0, :, 0]
-
-                def outer_map(
-                    kzs_: "np_jnp_array",
-                ) -> Callable[["np_jnp_array"], "jnp_array"]:
-                    def fn(kx_state: "np_jnp_array") -> "jnp_array":
-                        kx = kx_state[0]
-                        fields_2d = jnp.split(
-                            kx_state[1:], number_of_input_arguments, axis=0
-                        )
-                        for i in range(len(fields_2d)):
-                            fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
-                        state_slice = jnp.concatenate(fields_2d).T
-                        kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
-                        out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
-                        return out
-
-                    return fn
-
-                def inner_map(
-                    kx: "np_jnp_array",
-                ) -> Callable[["np_jnp_array"], List["jnp_array"]]:
-                    def fn(kz_one_pt_state: "np_jnp_array") -> List["jnp_array"]:
-                        kz = kz_one_pt_state[0]
-                        fields_1d = jnp.split(
-                            kz_one_pt_state[1:],
-                            number_of_input_arguments,
-                            axis=0,
-                        )
-                        kx_int: int = kx.real.astype(int)  # type: ignore[assignment]
-                        kz_int: int = kz.real.astype(int)  # type: ignore[assignment]
-                        (
-                            v_0_new_field,
-                            v_1_hat_new,
-                            v_2_new_field,
-                            _,
-                        ) = perform_single_rk_step_for_single_wavenumber(step)(
-                            (kx_int, kz_int),
-                            *fields_1d,
-                            v_0_hat_00,
-                            v_2_hat_00,
-                            conv_ns_hat_0_00,
-                            conv_ns_hat_2_00,
-                            conv_ns_hat_0_00_old,
-                            conv_ns_hat_2_00_old,
-                        )  # type: ignore[call-arg]
-                        return [v_0_new_field, v_1_hat_new, v_2_new_field]
-
-                    return fn
-
-                kx_arr = np.atleast_2d(np.arange(Nx))
-                kz_arr = np.atleast_2d(np.arange(Nz))
-                state = jnp.concatenate(
-                    [
-                        jnp.moveaxis(v_1_lap_hat, 1, 2),
-                        jnp.moveaxis(vort_hat_1, 1, 2),
-                        jnp.moveaxis(h_v_hat, 1, 2),
-                        jnp.moveaxis(h_g_hat, 1, 2),
-                        jnp.moveaxis(h_v_hat_old, 1, 2),
-                        jnp.moveaxis(h_g_hat_old, 1, 2),
-                    ],
-                    axis=1,
-                )
-                # state_ = jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz)))
-                kx_state = jnp.concatenate(
-                    [
-                        kx_arr.T,
-                        jnp.reshape(state, (Nx, (number_of_input_arguments * Ny * Nz))),
-                    ],
-                    axis=1,
-                )
-
-                out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
-                return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
-
-            Nx = self.get_domain().number_of_cells(0)
-            Ny = self.get_domain().number_of_cells(1)
-            Nz = self.get_domain().number_of_cells(2)
-
             vel_new_hat_field = get_new_vel_field_map(
-                Nx,
-                Ny,
-                Nz,
+                step,
                 v_1_lap_hat,
                 vort_hat[1],
                 conv_ns_hat[0],
@@ -970,18 +1248,21 @@ class NavierStokesVelVort(Equation):
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
-        # return vel_new_hat.get_data()
-        return vel_new_hat_field
+        return cast("jnp_array", vel_new_hat_field)
 
+    # @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
-        self, vel_hat_data: Optional["jnp_array"] = None
+        self,
+        vel_hat_data: Optional["jnp_array"] = None,
+        time_step: Optional[int] = None,
     ) -> "jnp_array":
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
         else:
             assert vel_hat_data is not None
             vel_hat_data_ = vel_hat_data
-        vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_)
+        assert time_step is not None
+        vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_, time_step)
         if type(vel_hat_data) == NoneType:
             vel_hat_new = VectorField(
                 [
@@ -996,15 +1277,20 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_
 
-    def solve_scan(self) -> Tuple[VectorField[FourierField], int]:
+    def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
         cfl_initial = self.get_cfl()
-        print_verb("initial cfl:", cfl_initial, debug=True)
+        print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
-        def inner_step_fn(u0: "jnp_array", _: Any) -> Tuple["jnp_array", None]:
-            out = self.perform_time_step(u0)
-            return (out, None)
+        def inner_step_fn(
+            u0: Tuple["jnp_array", int], _: Any
+        ) -> Tuple[Tuple["jnp_array", int], None]:
+            u0_, time_step = u0
+            out = self.perform_time_step(u0_, time_step)
+            return ((out, time_step + 1), None)
 
-        def step_fn(u0: "jnp_array", _: Any) -> Tuple["jnp_array", "jnp_array"]:
+        def step_fn(
+            u0: Tuple["jnp_array", int], _: Any
+        ) -> Tuple[Tuple["jnp_array", int], Tuple["jnp_array", int]]:
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
@@ -1024,22 +1310,18 @@ class NavierStokesVelVort(Equation):
             number_of_factors = len(factors)  # should always be divisible by 2
             return factors[number_of_factors // 2]
 
-        from jax.sharding import Mesh
-        from jax.sharding import PartitionSpec
-        from jax.sharding import NamedSharding
-        from jax.experimental import mesh_utils
-
-        P = jax.sharding.PartitionSpec
-        n = jax.local_device_count()
-        devices = mesh_utils.create_device_mesh((n,))
-        mesh = jax.sharding.Mesh(devices, ("x",))
-        sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
-        u0 = jax.device_put(self.get_latest_field("velocity_hat").get_data(), sharding)
+        u0 = self.get_initial_field("velocity_hat").get_data()
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
-        number_of_inner_steps = median_factor(number_of_time_steps)
-        number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+        if not self.write_entire_output:
+            number_of_inner_steps = median_factor(number_of_time_steps)
+            number_of_outer_steps = number_of_time_steps // number_of_inner_steps
+            # number_of_outer_steps = median_factor(number_of_time_steps)
+            # number_of_inner_steps = number_of_time_steps // number_of_outer_steps
+        else:
+            number_of_outer_steps = number_of_time_steps
+            number_of_inner_steps = 1
 
         vb = 2
         if (
@@ -1050,6 +1332,9 @@ class NavierStokesVelVort(Equation):
                 "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
             )
             vb = 1
+        self.number_of_time_steps = number_of_time_steps
+        self.number_of_outer_steps = number_of_outer_steps
+        self.number_of_inner_steps = number_of_inner_steps
 
         print_verb(
             "Dividing "
@@ -1061,14 +1346,12 @@ class NavierStokesVelVort(Equation):
             + " outer steps.",
             verbosity_level=vb,
         )
-        assert (
-            number_of_inner_steps >= number_of_outer_steps
-        ), "Something went wrong with inner/outer step division."
-        if self.write_intermediate_output:
+
+        if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
-                step_fn, u0, xs=None, length=number_of_outer_steps
+                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
             )
-            for u in trajectory:
+            for u in trajectory[0]:
                 velocity = VectorField(
                     [
                         FourierField(
@@ -1080,19 +1363,28 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 self.append_field("velocity_hat", velocity, in_place=False)
-            for i in range(self.get_number_of_fields("velocity_hat")):
-                cfl_s = self.get_cfl(i)
-                print_verb("i: ", i, "cfl:", cfl_s)
-            return (velocity, len(ts))
-        else:
-            u_final, _ = jax.lax.scan(
-                step_fn, u0, xs=None, length=number_of_outer_steps
+            if Equation.verbosity_level >= 3:
+                for i in range(self.get_number_of_fields("velocity_hat")):
+                    cfl_s = self.get_cfl(i)
+                    print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=3)
+            cfl_final = self.get_cfl()
+            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
+            out = jnp.insert(
+                trajectory[0],
+                0,
+                self.get_initial_field("velocity_hat").get_data(),
+                axis=0,
+            )
+            return (out, len(ts))
+        elif self.write_entire_output:
+            u_final, trajectory = jax.lax.scan(
+                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
             )
             velocity_final = VectorField(
                 [
                     FourierField(
                         self.get_physical_domain(),
-                        u_final[i],
+                        trajectory[0][-1][i],
                         name="velocity_hat_" + "xyz"[i],
                     )
                     for i in self.all_dimensions()
@@ -1100,7 +1392,31 @@ class NavierStokesVelVort(Equation):
             )
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True)
+            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
+            out = jnp.insert(
+                trajectory[0],
+                0,
+                self.get_initial_field("velocity_hat").get_data(),
+                axis=0,
+            )
+            return (out, len(ts))
+        else:
+            u_final, _ = jax.lax.scan(
+                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+            )
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.get_physical_domain(),
+                        u_final[0][i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            self.append_field("velocity_hat", velocity_final, in_place=False)
+            cfl_final = self.get_cfl()
+            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             return (velocity_final, len(ts))
 
     def post_process(self: E) -> None:
@@ -1113,7 +1429,6 @@ class NavierStokesVelVort(Equation):
 def solve_navier_stokes_laminar(
     Re: float = 1.8e2,
     end_time: float = 1e1,
-    max_iter: int = 10000,
     Nx: int = 8,
     Ny: int = 40,
     Nz: int = 8,
@@ -1171,7 +1486,6 @@ def solve_navier_stokes_laminar(
 
     nse = NavierStokesVelVort.FromVelocityField(vel, Re=Re, **params)
     nse.end_time = end_time
-    nse.max_iter = max_iter
 
     nse.before_time_step_fn = None
     nse.after_time_step_fn = None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+import math
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
@@ -125,18 +126,26 @@ class Domain(ABC):
             scale_factors_ = list(scale_factors)
         shape = tuple(
             (
-                int(
+                int(shape[i])
+                if not periodic_directions[i] or int(shape[i]) % 2 != 0
+                else int(shape[i]) + 1
+            )
+            for i in range(len(shape))
+        )
+        physical_shape = tuple(
+            (
+                math.ceil(
                     shape[i]
                     * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
                 )
                 if not periodic_directions[i]
-                or int(
+                or math.ceil(
                     shape[i]
                     * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
                 )
                 % 2
                 != 0
-                else int(
+                else math.ceil(
                     shape[i]
                     * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
                 )
@@ -150,9 +159,9 @@ class Domain(ABC):
             if periodic_directions[dim]:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(2.0 * np.pi)
-                grid.append(get_fourier_grid(shape[dim], scale_factors_[dim]))
+                grid.append(get_fourier_grid(physical_shape[dim], scale_factors_[dim]))
                 diff_mats.append(
-                    assemble_fourier_diff_mat(N=shape[dim], order=1)
+                    assemble_fourier_diff_mat(N=physical_shape[dim], order=1)
                     * (2 * np.pi)
                     / scale_factors_[dim]
                 )
@@ -254,6 +263,32 @@ class Domain(ABC):
 
         return set_last_mat_row_and_col_to_unit(set_first_mat_row_and_col_to_unit(mat))
 
+    def enforce_homogeneous_dirichlet_jnp(self, mat: "np_jnp_array") -> "jnp_array":
+        """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
+        homogeneous dirichlet boundary conditions at both ends by setting the
+        off-diagonal elements of its first and last rows and columns to zero and
+        the diagonal elements to unity."""
+
+        def set_first_mat_row_and_col_to_unit(
+            matr: "jnp_array",
+        ) -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block(
+                [[1, jnp.zeros((1, N - 1))], [jnp.zeros((N - 1, 1)), matr[1:, 1:]]]  # type: ignore[arg-type]
+            )
+
+        def set_last_mat_row_and_col_to_unit(
+            matr: "jnp_array",
+        ) -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block(
+                [[matr[:-1, :-1], jnp.zeros((N - 1, 1))], [jnp.zeros((1, N - 1)), 1]]  # type: ignore[arg-type]
+            )
+
+        return set_last_mat_row_and_col_to_unit(
+            set_first_mat_row_and_col_to_unit(jnp.asarray(mat))
+        )
+
     def enforce_inhomogeneous_dirichlet(
         self,
         mat: "np_float_array",
@@ -276,6 +311,31 @@ class Domain(ABC):
 
         out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(mat))
         out_rhs = np.block([bc_right, rhs[1:-1], bc_left])
+
+        return (out_mat, out_rhs)
+
+    def enforce_inhomogeneous_dirichlet_jnp(
+        self,
+        mat: "np_jnp_array",
+        rhs: "np_jnp_array",
+        bc_left: "jsd_float",
+        bc_right: "jsd_float",
+    ) -> tuple["jnp_array", "jnp_array"]:
+        # """Modify a (Chebyshev) differentiation matrix mat in order to fulfill
+        # inhomogeneous dirichlet boundary conditions at both ends by setting the
+        # off-diagonal elements of its first and last rows to zero and
+        # the diagonal elements to unity, and the first and last element of the
+        # rhs to the desired values bc_left and bc_right."""
+        def set_first_mat_row_to_unit(matr: "jnp_array") -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block([[1, jnp.zeros((1, N - 1))], [matr[1:, :]]])  # type: ignore[arg-type]
+
+        def set_last_mat_row_to_unit(matr: "jnp_array") -> "jnp_array":
+            N = matr.shape[0]
+            return jnp.block([[matr[:-1, :]], [jnp.zeros((1, N - 1)), 1]])  # type: ignore[arg-type]
+
+        out_mat = set_last_mat_row_to_unit(set_first_mat_row_to_unit(jnp.asarray(mat)))
+        out_rhs = jnp.block([bc_right, rhs[1:-1], bc_left])
 
         return (out_mat, out_rhs)
 
@@ -477,6 +537,14 @@ class Domain(ABC):
         out_2 = field_1[0, ...] * field_2[1, ...] - field_1[1, ...] * field_2[0, ...]
         return jnp.array([out_0, out_1, out_2])
 
+    def laplacian(self, field: "jnp_array") -> "jnp_array":
+        # TODO generalize dimensions
+        return self.diff(field, 0, 2) + self.diff(field, 1, 2) + self.diff(field, 2, 2)
+
+    def divergence(self, field: "jnp_array") -> "jnp_array":
+        # TODO generalize dimensions
+        return self.diff(field[0], 0) + self.diff(field[1], 1) + self.diff(field[2], 2)
+
 
 # @dataclasses.dataclass(frozen=True, kw_only=True)
 @dataclasses.dataclass(frozen=True)
@@ -525,7 +593,11 @@ class PhysicalDomain(Domain):
         )
 
         Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
-        ks = [int(self.shape[i]) // 2 for i in self.all_dimensions()]
+        ks = [
+            int((Ns[i] - Ns[i] * (1 - 1 / self.aliasing)) / 2)
+            for i in self.all_dimensions()
+        ]
+
         for i in self.all_periodic_dimensions():
             out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
             out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
@@ -781,7 +853,8 @@ class FourierDomain(Domain):
         N_coarse = tuple(
             self.shape[i]
             - (
-                int(self.shape[i] * (1 - 1 / self.aliasing))
+                # int(self.shape[i] * (1 - 1 / self.aliasing))
+                3
                 if self.is_periodic(i)
                 else 0
             )
@@ -879,13 +952,18 @@ class FourierDomain(Domain):
         Ns = [int(self.number_of_cells(i)) for i in self.all_dimensions()]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
         for i in self.all_periodic_dimensions():
-            field_1 = field.take(indices=jnp.arange(0, ks[i]), axis=i)
+            field_1 = field.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
             field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             zeros_shape = [
-                # field_1.shape[dim] if dim != i else int(Ns[i] * (self.aliasing - 1))
-                field_1.shape[dim] if dim != i else int(Ns[i] * 0)
+                (
+                    field_1.shape[dim]
+                    if dim != i
+                    else math.ceil(Ns[i] * (self.aliasing - 1))
+                )
                 for dim in self.all_dimensions()
             ]
+            if zeros_shape[i] == 0:
+                field_2 = field_2.take(indices=jnp.arange(1, field_2.shape[i]), axis=i)
             extra_zeros = jnp.zeros(zeros_shape)
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
 

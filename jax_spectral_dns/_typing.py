@@ -43,6 +43,12 @@ if TYPE_CHECKING:
         List[VectorField[PhysicalField]],
         List[VectorField[FourierField]],
     ]
+    AnyFieldSequence = Union[
+        Sequence[PhysicalField],
+        Sequence[FourierField],
+        Sequence[VectorField[PhysicalField]],
+        Sequence[VectorField[FourierField]],
+    ]
     pseudo_2d_perturbation_return_type = Tuple[
         List[float],
         List[float],

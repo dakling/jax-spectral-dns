@@ -72,7 +72,9 @@ class Heat_Eq(Equation):
         self.fields["u"][-1] = new_u
         out = self.fields["u"]
 
-    def perform_time_step(self, _: Optional[Any] = None) -> None:
+    def perform_time_step(
+        self, _: Optional[Any] = None, time_step: Optional[int] = None
+    ) -> None:
         self.perform_explicit_euler_step()
         self.i += 1
         # return self.perform_implicit_euler_step(dt, i)
@@ -114,8 +116,6 @@ def solve_heat_eq_1D() -> None:
     heat_eq.plot()
     v_final = heat_eq.get_latest_field("u")
     e0 = u.energy()
-    print(e0)
-    print(v_final.energy())
 
 
 def optimize_heat_eq_1D() -> None:

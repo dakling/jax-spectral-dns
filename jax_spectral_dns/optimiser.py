@@ -24,19 +24,19 @@ from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorFie
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
-from jax.sharding import Mesh
-from jax.sharding import PartitionSpec
-from jax.sharding import NamedSharding
-from jax.experimental import mesh_utils
+# from jax.sharding import Mesh
+# from jax.sharding import PartitionSpec
+# from jax.sharding import NamedSharding
+# from jax.experimental import mesh_utils
 
-P = jax.sharding.PartitionSpec
-n = jax.local_device_count()
-devices = mesh_utils.create_device_mesh((n,))
-mesh = jax.sharding.Mesh(devices, ("x",))
-sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
+# P = jax.sharding.PartitionSpec
+# n = jax.local_device_count()
+# devices = mesh_utils.create_device_mesh((n,))
+# mesh = jax.sharding.Mesh(devices, ("x",))
+# sharding = jax.sharding.NamedSharding(mesh, P("x"))  # type: ignore[no-untyped-call]
 
 if TYPE_CHECKING:
-    from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array
+    from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array, jsd_array
 
 try:
     import optax  # type: ignore
@@ -46,6 +46,10 @@ try:
     import jaxopt  # type: ignore
 except ModuleNotFoundError:
     print("jaxopt not found")
+try:
+    from humanfriendly import format_timespan  # type: ignore
+except ModuleNotFoundError:
+    pass
 
 I = TypeVar("I")  # the type of the input to the run-function
 
@@ -56,8 +60,12 @@ class Optimiser(ABC, Generic[I]):
         self,
         calculation_domain: PhysicalDomain,
         optimisation_domain: PhysicalDomain,
-        run_fn: Callable[[I, bool], "jsd_float"],
+        run_fn: Union[
+            Callable[[I, bool], "jsd_float"],
+            Callable[[I, bool], Tuple["jsd_float", "jsd_array"]],
+        ],
         run_input_initial: Union[I, str],
+        value_and_grad: bool = False,
         minimise: bool = False,
         force_2d: bool = False,
         max_iter: int = 20,
@@ -103,9 +111,31 @@ class Optimiser(ABC, Generic[I]):
             self.inv_fn: Callable[["jsd_float"], "jsd_float"] = lambda x: x
         else:
             self.inv_fn = lambda x: -x
-        self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
-            run_fn(self.parameters_to_run_input_(v), out)
-        )
+
+        if not value_and_grad:
+            run_fn_ = cast(Callable[[I, bool], "jsd_float"], run_fn)
+            self.run_fn: Callable[["parameter_type", bool], "jsd_float"] = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
+                run_fn_(self.parameters_to_run_input_(v), out)
+            )
+            self.value_and_grad_fn = jax.value_and_grad(self.run_fn)
+        else:
+            run_fn__ = cast(
+                Callable[[I, bool], Tuple["jsd_float", "jnp_array"]], run_fn
+            )
+            self.run_fn = lambda v, out=False: self.inv_fn(  # type: ignore[misc]
+                run_fn__(self.parameters_to_run_input_(v), out)[0]
+            )
+
+            def vg_fn(
+                v: "parameter_type", out: bool = False
+            ) -> Tuple["jsd_float", "jnp_array"]:
+                run_fn_ = cast(
+                    Callable[[I, bool], Tuple["jsd_float", "jnp_array"]], run_fn
+                )
+                obj, grad = run_fn_(self.parameters_to_run_input_(v), out)
+                return self.inv_fn(obj), grad
+
+            self.value_and_grad_fn = vg_fn
         self.objective_fn_name = params.get("objective_fn_name", "objective function")
         if max_iter > 0:
             if use_optax:
@@ -115,9 +145,9 @@ class Optimiser(ABC, Generic[I]):
                 self.solver_switched = False
                 print_verb("Using Optax solver")
             else:
-                assert (
-                    jax.local_device_count() == 1
-                ), "jaxopt does not support multiple devices - set device_count to 1 or use optax solver."
+                # assert (
+                #     jax.local_device_count() == 1
+                # ), "jaxopt does not support multiple devices - set device_count to 1 or use optax solver."
                 self.solver = self.get_jaxopt_solver()
                 self.solver_switched = True
                 print_verb("Using jaxopt solver")
@@ -186,20 +216,19 @@ class Optimiser(ABC, Generic[I]):
         )
         opt = optax.adam(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
-            opt=opt, fun=jax.value_and_grad(self.run_fn), value_and_grad=True, jit=True
+            opt=opt, fun=self.value_and_grad_fn, value_and_grad=True, jit=True
         )
         return solver
 
     def get_jaxopt_solver(self) -> jaxopt.LBFGS:
         solver = jaxopt.LBFGS(
-            jax.value_and_grad(self.run_fn),
+            self.value_and_grad_fn,
             value_and_grad=True,
             implicit_diff=True,
             jit=True,
-            stepsize=1e-5,  # TODO
-            # linesearch="zoom",
-            # linesearch_init="current",
-            # maxls=15,
+            linesearch="zoom",
+            linesearch_init="current",
+            maxls=15,
         )
         return solver
 
@@ -243,7 +272,11 @@ class Optimiser(ABC, Generic[I]):
             )
             self.switch_solver_maybe()
         print_verb()
-        print_verb("iteration took", time.time() - start_time, "seconds")
+        iteration_duration = time.time() - start_time
+        try:
+            print_verb("iteration took", format_timespan(iteration_duration))
+        except Exception:
+            print_verb("iteration took", iteration_duration, "seconds")
         print_verb("\n")
         jax.clear_caches()  # type: ignore[no-untyped-call]
 
@@ -272,7 +305,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         self, input: VectorField[FourierField], noise_amplitude: float = 1e-6
     ) -> VectorField[FourierField]:
         print_verb("adding noise")
-        input = input.project_onto_domain(self.optimisation_domain)
+        # input = input.project_onto_domain(self.optimisation_domain)
 
         def get_white_noise_field(field: FourierField) -> FourierField:
             return FourierField.FromWhiteNoise(
@@ -300,11 +333,11 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
         )
 
-        U_hat_data = jax.device_put(U_hat_data, sharding)
+        # U_hat_data = jax.device_put(U_hat_data, sharding)
 
         input: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
-        ).project_onto_domain(self.calculation_domain)
+        )  # .project_onto_domain(self.calculation_domain)
 
         return input
 
@@ -312,7 +345,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         self, input: VectorField[FourierField]
     ) -> "parameter_type":
 
-        input = input.project_onto_domain(self.optimisation_domain)
+        input = input  # .project_onto_domain(self.optimisation_domain)
         if self.force_2d:
             v0_1 = input[1].data * (1 + 0j)
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
@@ -323,7 +356,6 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
             v2_0_00_hat = input[2].data[0, :, 0] * (1 + 0j)
             self.parameters = (vort_hat, v0_1, v0_0_00_hat, v2_0_00_hat)
-        # print(self.parameters)
         return self.parameters
 
     def post_process_iteration(self) -> None:
@@ -393,11 +425,10 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
                 domain, vort_hat, v1_hat, v0_00_hat, v2_00_hat, two_d=self.force_2d
             )
 
-            U_hat_data = jax.device_put(U_hat_data, sharding)
+            # U_hat_data = jax.device_put(U_hat_data, sharding)
             input = (
-                VectorField.FromData(FourierField, domain, U_hat_data)
-                .project_onto_domain(self.calculation_domain)
-                .no_hat()
+                VectorField.FromData(FourierField, domain, U_hat_data).no_hat()
+                # .project_onto_domain(self.calculation_domain)
             )
         else:
             assert self.parameters_to_run_input_fn is not None
@@ -550,6 +581,7 @@ class OptimiserPertAndBase(
         lsc0 = LinearStabilityCalculation(
             Re=1, alpha=0, beta=0, n=domain.number_of_cells(1)
         )
+        lsc0.symm = True
         v0_base_yslice_coeffs = parameters[2]
         v0_base_zeros = jnp.zeros_like(v0_base_yslice_coeffs)
         for _ in range(3):
@@ -557,9 +589,7 @@ class OptimiserPertAndBase(
                 (v0_base_yslice_coeffs, v0_base_zeros)
             )
         v0_base_hat = (
-            (lsc0.velocity_field(domain, v0_base_yslice_coeffs, symm=True))
-            .hat()[0]
-            .get_data()
+            (lsc0.velocity_field(domain, v0_base_yslice_coeffs)).hat()[0].get_data()
         )
 
         # # optimise using parametric profile
@@ -574,7 +604,7 @@ class OptimiserPertAndBase(
 
         U_hat: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
-        ).project_onto_domain(self.calculation_domain)
+        )  # .project_onto_domain(self.calculation_domain)
         U_base: VectorField[FourierField] = VectorField.FromData(
             FourierField,
             domain,
@@ -585,5 +615,5 @@ class OptimiserPertAndBase(
                     jnp.zeros_like(v0_base_hat),
                 ]
             ),
-        ).project_onto_domain(self.calculation_domain)
+        )  # .project_onto_domain(self.calculation_domain)
         return (U_hat, U_base)

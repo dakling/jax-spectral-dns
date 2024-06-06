@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Callable, Union, Optional, cast
+from matplotlib import figure
+from matplotlib.axes import Axes
 import numpy as np
 import numpy.typing as npt
 import jax.numpy as jnp
@@ -13,7 +15,7 @@ import timeit
 from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
-from jax_spectral_dns.field import PhysicalField, VectorField
+from jax_spectral_dns.field import Field, PhysicalField, VectorField
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import (
@@ -58,8 +60,7 @@ class LinearStabilityCalculation:
         self.S: Optional["np_float_array"] = None
         self.coeffs: Optional["np_complex_array"] = None
 
-        self.symm: bool = False
-        # self.symm: bool = True
+        self.symm: bool = True
 
         self.make_field_file_name_mode: Callable[[PhysicalDomain, str, int], str] = (
             lambda domain_, field_name, mode: field_name
@@ -90,14 +91,16 @@ class LinearStabilityCalculation:
             self.U_base = U_base
         else:
             self.U_base = np.array([1 - self.ys[i] ** 2 for i in range(self.n)])
-        # Equation.initialize()
 
     def assemble_matrix_fast(self) -> tuple["np_complex_array", "np_complex_array"]:
         alpha = self.alpha
         beta = self.beta
         Re = self.Re
 
-        ys = self.ys
+        if not self.symm:
+            ys = self.ys
+        else:
+            ys = self.ys[: len(self.ys) // 2]
         n = len(ys)
 
         noOfEqs = 4
@@ -112,15 +115,11 @@ class LinearStabilityCalculation:
             kk = k + var * n
             return (jj, kk)
 
-        # u_fun: Callable[[float], float] = lambda y: (1 - y**2)
-        # du_fun: Callable[[float], float] = lambda y: -2 * y
         U_base = self.U_base
         dU_base = self.domain.diff_mats[0] @ U_base
         kSq = alpha**2 + beta**2
         for j in range(n):
             y = ys[j]
-            # U = u_fun(y)
-            # dU = du_fun(y)
             U = self.U_base[j]
             dU = dU_base[j]
             for k in range(n):
@@ -132,12 +131,12 @@ class LinearStabilityCalculation:
                     mat[jj, kk] = value
 
                 if self.symm:
-                    u = phi_a(k, y)(y)
+                    u = phi_a(k, 0)(y)
                     d2u = phi_a(k, 2)(y)
 
-                    v = u
+                    v = phi_s(k, 0)(y)
                     dv = phi_s(k, 1)(y)
-                    d2v = d2u
+                    d2v = phi_s(k, 2)(y)
 
                     w = u
                     d2w = d2u
@@ -268,7 +267,6 @@ class LinearStabilityCalculation:
         domain: PhysicalDomain,
         evec: "np_jnp_array",
         factor: float = 1.0,
-        symm: bool = False,
     ) -> VectorField[PhysicalField]:
         assert domain.number_of_dimensions == 3, "This only makes sense in 3D."
 
@@ -279,19 +277,34 @@ class LinearStabilityCalculation:
 
         n = u_vec.shape[0]
         # phi_mat = jnp.zeros((N_domain, self.n), dtype=jnp.float64)
-        phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
-        if not symm:
+        if not self.symm:
+            phi_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
             for i in range(N_domain):
                 for k in range(n):
                     phi_mat = phi_mat.at[i, k].set(phi(k, 0)(ys[i]))
+            return self.velocity_field_from_y_slice(
+                domain,
+                (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec),
+                factor=factor,
+            )
         else:
+            phi_s_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
+            phi_a_mat = jnp.zeros((N_domain, n), dtype=jnp.float64)
             for i in range(N_domain):
                 for k in range(n):
-                    phi_mat = phi_mat.at[i, k].set(phi_s(k, 0)(ys[i]))
-
-        return self.velocity_field_from_y_slice(
-            domain, (phi_mat @ u_vec, phi_mat @ v_vec, phi_mat @ w_vec), factor=factor
-        )
+                    phi_s_mat = phi_s_mat.at[i, k].set(phi_s(k, 0)(ys[i]))
+                    phi_a_mat = phi_a_mat.at[i, k].set(phi_a(k, 0)(ys[i]))
+            u_ = phi_a_mat @ u_vec
+            v_ = phi_s_mat @ v_vec
+            w_ = phi_a_mat @ w_vec
+            return self.velocity_field_from_y_slice(
+                # domain, (jnp.block([u_, -jnp.flip(u_)]),
+                #          jnp.block([v_, jnp.flip(v_)]),
+                #          jnp.block([w_, -jnp.flip(w_)]),
+                domain,
+                (u_, v_, w_),
+                factor=factor,
+            )
 
     def y_slice_to_3d_field(
         self,
@@ -431,10 +444,14 @@ class LinearStabilityCalculation:
         assert self.eigenvalues is not None
         assert self.eigenvectors is not None
 
+        number_of_modes = min(number_of_modes, len(self.eigenvectors))
         evs = self.eigenvalues[:number_of_modes]
         evecs = self.eigenvectors[:number_of_modes]
 
-        n = self.n
+        if not self.symm:
+            n = self.n
+        else:
+            n = self.n // 2
 
         def get_integral_coefficient(p: int, q: int) -> "jsd_float":
             f = lambda y: phi(p, 0)(y) * phi(q, 0)(y)
@@ -446,9 +463,9 @@ class LinearStabilityCalculation:
         ) -> tuple["jsd_float", "jsd_float"]:
             f_s = lambda y: phi_s(p, 0)(y) * phi_s(q, 0)(y)
             f_a = lambda y: phi_a(p, 0)(y) * phi_a(q, 0)(y)
-            out_s, _ = quad(f_s, -1, 1, limit=100)
-            out_a, _ = quad(f_a, -1, 1, limit=100)
-            return (out_s, out_a)
+            out_s, _ = quad(f_s, 0, 1, limit=100)
+            out_a, _ = quad(f_a, 0, 1, limit=100)
+            return (2 * out_s, 2 * out_a)
 
         integ = np.zeros([n, n])
         integ_s = np.zeros([n, n])
@@ -505,6 +522,12 @@ class LinearStabilityCalculation:
             self.S, _ = self.calculate_transient_growth_svd(
                 T, number_of_modes, save=False
             )
+        else:
+            assert self.S is not None
+            if self.S.shape[0] != number_of_modes:
+                self.S, _ = self.calculate_transient_growth_svd(
+                    T, number_of_modes, save=False
+                )
         assert self.S is not None
         return cast(float, self.S[0] ** 2)
 
@@ -570,6 +593,12 @@ class LinearStabilityCalculation:
                 self.S, factors = self.calculate_transient_growth_svd(
                     T, number_of_modes, save=False, recompute=recompute_full
                 )
+            else:
+                assert self.coeffs is not None
+                if self.coeffs.shape[0] != number_of_modes:
+                    self.S, factors = self.calculate_transient_growth_svd(
+                        T, number_of_modes, save=False, recompute=recompute_full
+                    )
 
             u = self.calculate_transient_growth_initial_condition_from_coefficients(
                 domain, factors, recompute_full
@@ -581,6 +610,19 @@ class LinearStabilityCalculation:
                     u[i].save_to_file(self.make_field_file_name(domain, "uvw"[i]))
 
         return u
+
+    def plot_eigenvalues(self) -> None:
+        if type(self.eigenvalues) == NoneType:
+            self.calculate_eigenvalues()
+        assert self.eigenvalues is not None
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) == Axes
+        evs = self.eigenvalues * (0 + 1j)
+        ax.plot(evs.real, evs.imag, ".")
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(-1.0, 0.0)
+        fig.savefig(Field.plotting_dir + "eigenvalues.png")
 
     def print_welcome(self) -> None:
         print_verb("starting linear stability calculation", verbosity_level=2)
