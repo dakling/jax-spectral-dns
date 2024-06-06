@@ -2459,7 +2459,7 @@ def run_ld_2021_get_mean(
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
             print_verb("energy_0:", energy_t_arr[0])
-            ax.plot(ts, energy_t_arr / energy_t_arr[0], "o")
+            ax.plot(ts, energy_t_arr / energy_t_arr[0], "o", label="jax-spectral-dns")
             ax.set_xlabel("$t$")
             ax.set_ylabel("$G$")
             try:
@@ -2470,6 +2470,7 @@ def run_ld_2021_get_mean(
                 ax.plot(
                     dedalus_data[0],
                     dedalus_data[1] / dedalus_data[1][0],
+                    "--",
                     label="dedalus",
                 )
             except FileNotFoundError:
