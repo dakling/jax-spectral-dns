@@ -589,6 +589,7 @@ class NavierStokesVelVort(Equation):
                 for zi, kz in enumerate(domain.grid[2]):
                     L = Ly + I * (-(kx**2 + kz**2)) / Re_tau
                     rhs_mat = I + alpha[i] * dt * L
+                    rhs_mat = domain.enforce_homogeneous_dirichlet(rhs_mat)
                     lhs_mat = I - beta[i] * dt * L
                     lhs_mat = domain.enforce_homogeneous_dirichlet(lhs_mat)
                     lhs_mat_inv = np.linalg.inv(lhs_mat)
@@ -611,7 +612,9 @@ class NavierStokesVelVort(Equation):
             I_ns = np.eye(2 * n)
             L_ns = L_NS_y + I_ns * (-(0**2 + 0**2)) / Re_tau
             rhs_mat_ns = I_ns + alpha[i] * dt * L_ns
+            rhs_mat_ns = domain.enforce_homogeneous_dirichlet(rhs_mat_ns)
             lhs_mat_ns = I_ns - beta[i] * dt * L_ns
+            lhs_mat_ns = domain.enforce_homogeneous_dirichlet(lhs_mat_ns)
             lhs_mat_inv_ns = np.linalg.inv(lhs_mat_ns)
             rk_mats_rhs_ns[i] = rhs_mat_ns
             rk_mats_lhs_inv_ns[i] = lhs_mat_inv_ns

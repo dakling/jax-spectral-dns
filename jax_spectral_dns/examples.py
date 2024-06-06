@@ -2352,8 +2352,8 @@ def run_ld_2021_get_mean(
     Nx: int = 64
     Ny: int = 129
     Nz: int = 64
-    max_cfl = 0.2
-    end_time = 2e0
+    max_cfl = 0.7
+    end_time = 1e0
 
     e_0 = 1e0
     scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
