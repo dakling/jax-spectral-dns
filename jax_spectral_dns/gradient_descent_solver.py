@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from abc import ABC, abstractmethod
-import os
+import os, glob
 import time
 import math
 from typing import Any, cast
@@ -99,9 +99,8 @@ class GradientDescentSolver(ABC):
             os.stat(Field.field_dir + "/velocity_latest").st_blocks > 1
         ):  # only back up velocity if it contains data
             try:
-                os.remove(
-                    Field.field_dir + "/velocity_latest_bak_*",
-                )
+                for f in glob.glob(Field.field_dir + "/velocity_latest_bak_*"):
+                    os.remove(f)
             except FileNotFoundError:
                 pass
         os.rename(
