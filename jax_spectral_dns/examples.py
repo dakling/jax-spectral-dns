@@ -2987,18 +2987,12 @@ def run_ld_2021_dual(
         v0 = VectorField.FromFile(domain, init_file, "velocity")
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0)
-        print_verb("hello from examples, energy_0:", v0.energy(), verbosity_level=2)
         v0_hat = v0.hat()
     v0_hat.set_name("velocity_hat")
 
     v_total = v0_hat.no_hat() + vel_base
     dt = Equation.find_suitable_dt(
         domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time_
-    )
-    print_verb(
-        "hello again from examples, energy_0:",
-        v0_hat.no_hat().energy(),
-        verbosity_level=2,
     )
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
