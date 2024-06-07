@@ -562,7 +562,6 @@ class VectorField(Generic[T]):
                 f.plot_3d(direction)
         except Exception as e:
             print("VectorField.plot_3d failed with the following exception:")
-            raise e
             print(e)
             print("ignoring this and carrying on.")
 
@@ -2240,7 +2239,6 @@ class FourierField(Field):
                         Field.initialize(False)
                         save()
         except Exception as e:
-            raise e
             print("FourierField.plot_3d failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
@@ -2255,8 +2253,7 @@ class FourierField(Field):
                 ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 ims = []
-                # N_c = (self.get_domain().get_shape()[dim] - 1) // 2
-                N_c = 3
+                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
                 other_dim = [i for i in self.all_dimensions() if i != dim]
                 ims.append(
                     ax.imshow(
@@ -2307,7 +2304,6 @@ class FourierField(Field):
                     Field.initialize(False)
                     save()
         except Exception as e:
-            raise e
             print("FourierField.plot_3d_single failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
