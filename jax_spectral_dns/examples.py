@@ -2596,14 +2596,12 @@ def run_ld_2021(
         dealias_nonperiodic=False,
     )
 
-    # coarse_domain = PhysicalDomain.create(
-    #     (Nx, Ny - Ny // 3, Nz),
-    #     # (Nx, Ny, Nz),
-    #     (True, False, True),
-    #     scale_factors=(1.87, 1.0, 0.93),
-    #     aliasing=1,
-    # )
-    coarse_domain = domain
+    coarse_domain = PhysicalDomain.create(
+        (Nx - 5, Ny, Nz - 5),
+        (True, False, True),
+        scale_factors=(1.87, 1.0, 0.93),
+        aliasing=1,
+    )
     avg_vel_coeffs = np.loadtxt(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
