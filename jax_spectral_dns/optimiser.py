@@ -370,19 +370,11 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         _, grad_params = self.value_and_grad_fn(self.parameters)
 
         vel_y = grad_params[1]
-        vel_y_field: VectorField[FourierField] = VectorField.FromData(
-            FourierField,
+        vel_y_field: FourierField = FourierField.FromData(
             self.optimisation_domain,
             vel_y,
             name="grad_y_hat",
         )
-        print(vel_y.shape)
-        dim = 1
-        N_c = 129 // 2
-        print(abs(vel_y.take(indices=N_c, axis=dim).T).shape)
-        import numpy as np
-
-        print(np.fft.fftshift(abs(vel_y.take(indices=N_c, axis=dim).T)).shape)
         vel_y_field.plot_3d(1)
 
         grad_hat = self.parameters_to_run_input_(grad_params)
