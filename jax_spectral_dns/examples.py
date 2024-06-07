@@ -2989,7 +2989,6 @@ def run_ld_2021_dual(
         v0 *= jnp.sqrt(e_0)
         print_verb("hello from examples, energy_0:", v0.energy(), verbosity_level=2)
         v0_hat = v0.hat()
-        v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
 
     v_total = v0_hat.no_hat() + vel_base
