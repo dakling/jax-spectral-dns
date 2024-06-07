@@ -372,7 +372,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         vel_y = grad_params[1]
         vel_y_field: VectorField[FourierField] = VectorField.FromData(
             FourierField,
-            self.optimisation_domain.physical_domain,
+            self.optimisation_domain,
             vel_y,
             name="grad_y_hat",
         )
