@@ -296,6 +296,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.old_grad = self.grad
             self.old_nse_dual = self.dual_problem
             self.dual_problem.forward_equation.update_dt(dt)
+            self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
             print_verb("")
             print_verb("gain:", self.value)
             print_verb("")
@@ -399,6 +400,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
 
             self.dual_problem.forward_equation.update_dt(dt)
+            self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
             j += 1
             if j > self.max_number_of_sub_iterations:
                 iteration_successful = True
