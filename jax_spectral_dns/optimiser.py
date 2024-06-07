@@ -329,6 +329,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             v0_00 = parameters[2]
             v2_00 = parameters[3]
         domain = self.optimisation_domain
+
         U_hat_data = NavierStokesVelVortPerturbation.vort_yvel_to_vel(
             domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
         )
@@ -367,6 +368,16 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
         # TODO
         _, grad_params = self.value_and_grad_fn(self.parameters)
+
+        vel_y = grad_params[1]
+        vel_y_field: VectorField[FourierField] = VectorField.FromData(
+            FourierField,
+            self.optimisation_domain.physical_domain,
+            vel_y,
+            name="grad_y_hat",
+        )
+        vel_y_field.plot_3d(1)
+
         grad_hat = self.parameters_to_run_input_(grad_params)
         grad = grad_hat.no_hat()
         print_verb("grad div:", grad.div().energy() / grad.energy())
