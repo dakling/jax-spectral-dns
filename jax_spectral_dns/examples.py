@@ -2928,9 +2928,6 @@ def run_ld_2021_dual(
         vel_hat: VectorField[FourierField] = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
-    run_input_initial = init_file or vel_hat
-    assert run_input_initial is not None
-
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         # time = (i / (n_steps - 1)) * end_time
@@ -2990,6 +2987,7 @@ def run_ld_2021_dual(
         v0 = VectorField.FromFile(domain, init_file, "velocity")
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0)
+        print_verb("energy_0:", v0.energy(), verbosity_level=2)
         v0_hat = v0.hat()
         v0_hat = VectorField.FromFile(domain, init_file, "velocity").hat()
     v0_hat.set_name("velocity_hat")
