@@ -247,6 +247,9 @@ class Field(ABC):
         out.time_step = self.time_step
         return out
 
+    def plot_3d(self, _: Optional[int] = None) -> None:
+        raise NotImplementedError()
+
 
 class VectorField(Generic[T]):
     def __init__(self, elements: Sequence[T], name: Optional[str] = None):

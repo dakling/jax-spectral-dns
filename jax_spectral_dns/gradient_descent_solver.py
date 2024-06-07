@@ -28,7 +28,10 @@ class GradientDescentSolver(ABC):
     ):
         # initialisation
         self.dual_problem = dual_problem
-        self.e_0 = 0.0
+        v0_no_hat = self.dual_problem.forward_equation.get_initial_field(
+            "velocity_hat"
+        ).no_hat()
+        self._e_0 = v0_no_hat.energy()
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
         self.value = -1.0
@@ -51,6 +54,10 @@ class GradientDescentSolver(ABC):
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
         )
+
+    @property
+    def e_0(self) -> float:
+        return self._e_0
 
     def increase_step_size(self) -> None:
         self.step_size = min(self.max_step_size, self.step_size * 1.5)
@@ -159,8 +166,6 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(nse)
         )
 
-        self.e_0 = nse.get_initial_field("velocity_hat").no_hat().energy()
-
         if prepare_for_iterations:
             self.value = self.dual_problem.get_gain()
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
@@ -268,14 +273,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0_hat = self.current_guess
         v0_hat.set_name("velocity_hat")
 
-        nse = self.dual_problem.forward_equation
         self.dual_problem.update_with_nse()
-
-        v0_no_hat = nse.get_initial_field("velocity_hat").no_hat()
-        if Equation.verbosity_level >= 2:
-            v0_no_hat.plot_3d(0)
-            v0_no_hat.plot_3d(2)
-        self.e_0 = v0_no_hat.energy()
 
         if prepare_for_iterations:
             self.value = self.dual_problem.get_gain()
