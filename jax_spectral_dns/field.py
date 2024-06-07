@@ -556,9 +556,6 @@ class VectorField(Generic[T]):
     def plot_3d(self, direction: Optional[int] = None) -> None:
         try:
             for f in self:
-                assert (
-                    type(f) is PhysicalField
-                ), "plot_3d only implemented for PhysicalField."
                 f.plot_3d(direction)
         except Exception as e:
             print(
