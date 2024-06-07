@@ -98,9 +98,12 @@ class GradientDescentSolver(ABC):
         if (
             os.stat(Field.field_dir + "/velocity_latest").st_blocks > 1
         ):  # only back up velocity if it contains data
-            os.remove(
-                Field.field_dir + "/velocity_latest_bak_*",
-            )
+            try:
+                os.remove(
+                    Field.field_dir + "/velocity_latest_bak_*",
+                )
+            except FileNotFoundError:
+                pass
         os.rename(
             Field.field_dir + "/velocity_latest",
             Field.field_dir + "/velocity_latest_bak_" + str(self.i),
