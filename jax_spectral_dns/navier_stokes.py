@@ -40,7 +40,147 @@ if TYPE_CHECKING:
     )
 
 
-def update_nonlinear_terms_high_performance(
+def update_nonlinear_terms_high_performance_convection(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    vel_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+
+    vel_new_nabla_vel_new = []
+    for i in physical_domain.all_dimensions():
+        for j in physical_domain.all_dimensions():
+            # the nonlinear term
+            vel_new_nabla_vel_new_i = jnp.zeros_like(vel_new[0])
+            vel_u_hat_i_diff_j = fourier_domain.diff(vel_hat_new[i], j)
+            vel_new_nabla_vel_new_i += vel_new[j] * fourier_domain.field_no_hat(
+                vel_u_hat_i_diff_j
+            )
+        vel_new_nabla_vel_new.append(vel_new_nabla_vel_new_i)
+    vel_new_nabla_vel_new_ = jnp.array(vel_new_nabla_vel_new)
+    hel_new = vel_new_nabla_vel_new_
+
+    hel_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(hel_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    h_v_hat_new = (
+        -fourier_domain.diff(
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
+            1,
+        )
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
+    )
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
+
+    conv_ns_hat_new = -hel_new_hat
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
+
+    return (
+        h_v_hat_new,
+        h_g_hat_new,
+        jnp.array(vort_hat_new),
+        jnp.array(conv_ns_hat_new),
+    )
+
+
+def update_nonlinear_terms_high_performance_diffusion(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    vel_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+
+    nabla_vel_new_vel_new = []
+    for i in physical_domain.all_dimensions():
+        for j in physical_domain.all_dimensions():
+            # the nonlinear term
+            nabla_vel_new_vel_new_i = jnp.zeros_like(vel_hat_new[0])
+            vel_u_i_u_j = vel_new[i] * vel_new[j]
+            vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
+            nabla_vel_new_vel_new_i += fourier_domain.diff(vel_u_i_u_j_hat, j)
+        nabla_vel_new_vel_new.append(nabla_vel_new_vel_new_i)
+    nabla_vel_new_vel_new_ = jnp.array(nabla_vel_new_vel_new)
+    hel_new = nabla_vel_new_vel_new_
+
+    hel_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(hel_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    h_v_hat_new = (
+        -fourier_domain.diff(
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
+            1,
+        )
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
+    )
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
+
+    conv_ns_hat_new = -hel_new_hat
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
+
+    return (
+        h_v_hat_new,
+        h_g_hat_new,
+        jnp.array(vort_hat_new),
+        jnp.array(conv_ns_hat_new),
+    )
+
+
+def update_nonlinear_terms_high_performance_skew_symmetric(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    return tuple(
+        [
+            0.5
+            * (
+                update_nonlinear_terms_high_performance_convection(
+                    physical_domain,
+                    fourier_domain,
+                    vel_hat_new,
+                )[i]
+                + update_nonlinear_terms_high_performance_diffusion(
+                    physical_domain,
+                    fourier_domain,
+                    vel_hat_new,
+                )[i]
+            )
+            for i in range(4)
+        ]
+    )
+
+
+def update_nonlinear_terms_high_performance_rotational(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
@@ -134,7 +274,8 @@ class NavierStokesVelVort(Equation):
         self.nonlinear_update_fn: Callable[
             ["jnp_array", int],
             Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"],
-        ] = lambda vel, _: update_nonlinear_terms_high_performance(
+            # ] = lambda vel, _: update_nonlinear_terms_high_performance_rotational(
+        ] = lambda vel, _: update_nonlinear_terms_high_skew_symmetric(
             self.get_physical_domain(), self.get_domain(), vel
         )
         super().__init__(domain, velocity_field, **params)
