@@ -426,8 +426,8 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
 
             input = (
                 VectorField.FromData(FourierField, domain, U_hat_data)
-                .no_hat()
                 .project_onto_domain(self.calculation_domain)
+                .no_hat()
             )
         else:
             assert self.parameters_to_run_input_fn is not None

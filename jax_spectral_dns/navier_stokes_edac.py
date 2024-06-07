@@ -139,7 +139,7 @@ class NavierStokesEDAC(Equation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
-    def get_dt(self) -> "jsd_float":
+    def get_dt(self) -> "float":
         return self.fixed_parameters.dt
 
     def get_Re_tau(self) -> "jsd_float":

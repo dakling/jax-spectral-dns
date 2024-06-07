@@ -90,7 +90,7 @@ class Equation:
     verbosity_level: int = 1
 
     def __init__(self: E, domain: Domain, *fields: "AnyField", **params: Any):
-        dt: "jsd_float" = params.get("dt", 1e-2)
+        dt: "float" = params.get("dt", 1e-2)
         self.fixed_parameters = FixedParameters(domain, dt)
         self.fields = {}
         self.time_step: int = 0
@@ -166,7 +166,7 @@ class Equation:
         dt = end_time / number_of_time_steps
         return dt
 
-    def get_dt(self) -> "jsd_float":
+    def get_dt(self) -> "float":
         return self.fixed_parameters.dt
 
     def get_domain(self) -> Domain:

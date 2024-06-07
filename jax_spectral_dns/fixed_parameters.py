@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 @dataclasses.dataclass(frozen=True)
 class FixedParameters:
     domain: Domain
-    dt: "jsd_float"
+    dt: "float"
 
 
 @dataclasses.dataclass(frozen=True)
