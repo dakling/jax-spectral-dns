@@ -32,8 +32,193 @@ if TYPE_CHECKING:
     )
 
 
+def update_nonlinear_terms_high_performance_perturbation_convection(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
+    linearize: bool = False,
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    vel_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    vel_base = jnp.array(
+        [
+            fourier_domain.field_no_hat(vel_base_hat.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
+        ]
+    )
+
+    vel_new_nabla_vel_new = jnp.zeros_like(vel_new)
+    vel_base_nabla_vel_new = jnp.zeros_like(vel_new)
+    vel_new_nabla_vel_base = jnp.zeros_like(vel_new)
+    for i in physical_domain.all_dimensions():
+        for j in physical_domain.all_dimensions():
+            # the nonlinear term
+            vel_u_hat_i_diff_j = fourier_domain.diff(vel_hat_new[i], j)
+            vel_new_nabla_vel_new[i] += vel_new[j] * fourier_domain.field_no_hat(
+                vel_u_hat_i_diff_j
+            )
+            # the a part
+            vel_u_base_hat_i_diff_j = fourier_domain.diff(vel_base_hat[i], j)
+            vel_new_nabla_vel_base[i] += vel_new[j] * fourier_domain.field_no_hat(
+                vel_u_base_hat_i_diff_j
+            )
+            # the b part
+            vel_base_nabla_vel_new[i] += vel_base[j] * fourier_domain.field_no_hat(
+                vel_u_hat_i_diff_j
+            )
+    hel_new = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_new_nabla_vel_new
+        + vel_base_nabla_vel_new
+        + vel_new_nabla_vel_base
+    )
+
+    hel_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(hel_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    h_v_hat_new = (
+        -fourier_domain.diff(
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
+            1,
+        )
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
+    )
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
+
+    conv_ns_hat_new = -hel_new_hat
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
+
+    return (
+        h_v_hat_new,
+        h_g_hat_new,
+        jnp.array(vort_hat_new),
+        jnp.array(conv_ns_hat_new),
+    )
+
+
+def update_nonlinear_terms_high_performance_perturbation_diffusion(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
+    linearize: bool = False,
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    vel_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    vel_base = jnp.array(
+        [
+            fourier_domain.field_no_hat(vel_base_hat.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
+        ]
+    )
+
+    nabla_vel_new_vel_new = jnp.zeros_like(vel_new)
+    nabla_vel_base_vel_new = jnp.zeros_like(vel_new)
+    nabla_vel_new_vel_base = jnp.zeros_like(vel_new)
+    for i in physical_domain.all_dimensions():
+        for j in physical_domain.all_dimensions():
+            # the nonlinear term
+            vel_u_i_u_j = vel_new[i] * vel_new[j]
+            vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
+            nabla_vel_new_vel_new[i] += fourier_domain.diff(vel_u_i_u_j_hat, j)
+            # the a part
+            vel_u_i_u_base_j = vel_new[i] * vel_base[j]
+            vel_u_i_u_base_j_hat = physical_domain.field_hat(vel_u_i_u_base_j)
+            nabla_vel_base_vel_new[i] += fourier_domain.diff(vel_u_i_u_base_j_hat, j)
+            # the b part
+            vel_u_base_i_u_j = vel_base[i] * vel_new[j]
+            vel_u_base_i_u_j_hat = physical_domain.field_hat(vel_u_base_i_u_j)
+            nabla_vel_new_vel_base[i] += fourier_domain.diff(vel_u_base_i_u_j_hat, j)
+    hel_new = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * nabla_vel_new_vel_new
+        + nabla_vel_base_vel_new
+        + nabla_vel_new_vel_base
+    )
+
+    hel_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(hel_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    h_v_hat_new = (
+        -fourier_domain.diff(
+            fourier_domain.diff(hel_new_hat[0], 0)
+            + fourier_domain.diff(hel_new_hat[2], 2),
+            1,
+        )
+        + fourier_domain.diff(hel_new_hat[1], 0, 2)
+        + fourier_domain.diff(hel_new_hat[1], 2, 2)
+    )
+    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
+        hel_new_hat[2], 0
+    )
+
+    conv_ns_hat_new = -hel_new_hat
+    vort_hat_new = fourier_domain.curl(vel_hat_new)
+
+    return (
+        h_v_hat_new,
+        h_g_hat_new,
+        jnp.array(vort_hat_new),
+        jnp.array(conv_ns_hat_new),
+    )
+
+
+def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
+    linearize: bool = False,
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    return tuple(
+        [
+            0.5
+            * (
+                update_nonlinear_terms_high_performance_perturbation_convection(
+                    physical_domain,
+                    fourier_domain,
+                    vel_hat_new,
+                    vel_base_hat,
+                    linearize,
+                )[i]
+                + update_nonlinear_terms_high_performance_perturbation_diffusion(
+                    physical_domain,
+                    fourier_domain,
+                    vel_hat_new,
+                    vel_base_hat,
+                    linearize,
+                )[i]
+            )
+            for i in range(4)
+        ]
+    )
+
+
 # @partial(jax.jit, static_argnums=(0, 1))
-def update_nonlinear_terms_high_performance_perturbation(
+def update_nonlinear_terms_high_performance_perturbation_rotational(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
@@ -211,20 +396,19 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        self.nonlinear_update_fn = (
-            lambda vel, _: update_nonlinear_terms_high_performance_perturbation(
-                self.get_physical_domain(),
-                self.get_domain(),
-                vel,
-                jnp.array(
-                    [
-                        velocity_base_hat[0].data,
-                        velocity_base_hat[1].data,
-                        velocity_base_hat[2].data,
-                    ]
-                ),
-                linearize=self.linearize,
-            )
+        # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
+        self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
+            self.get_physical_domain(),
+            self.get_domain(),
+            vel,
+            jnp.array(
+                [
+                    velocity_base_hat[0].data,
+                    velocity_base_hat[1].data,
+                    velocity_base_hat[2].data,
+                ]
+            ),
+            linearize=self.linearize,
         )
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
