@@ -2238,6 +2238,7 @@ class FourierField(Field):
                         Field.initialize(False)
                         save()
         except Exception as e:
+            raise e
             print("FourierField.plot_3d failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
