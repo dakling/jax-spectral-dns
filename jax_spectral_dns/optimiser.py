@@ -305,7 +305,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         self, input: VectorField[FourierField], noise_amplitude: float = 1e-6
     ) -> VectorField[FourierField]:
         print_verb("adding noise")
-        # input = input.project_onto_domain(self.optimisation_domain)
+        input = input.project_onto_domain(self.optimisation_domain)
 
         def get_white_noise_field(field: FourierField) -> FourierField:
             return FourierField.FromWhiteNoise(
@@ -336,7 +336,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
         input: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
-        )  # .project_onto_domain(self.calculation_domain)
+        ).project_onto_domain(self.calculation_domain)
 
         return input
 
@@ -344,7 +344,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         self, input: VectorField[FourierField]
     ) -> "parameter_type":
 
-        # input = input.project_onto_domain(self.optimisation_domain)
+        input = input.project_onto_domain(self.optimisation_domain)
         if self.force_2d:
             v0_1 = input[1].data * (1 + 0j)
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
@@ -450,10 +450,10 @@ class OptimiserNonFourier(Optimiser[VectorField[PhysicalField]]):
                 domain, vort_hat, v1_hat, v0_00_hat, v2_00_hat, two_d=self.force_2d
             )
 
-            # U_hat_data = jax.device_put(U_hat_data, sharding)
             input = (
-                VectorField.FromData(FourierField, domain, U_hat_data).no_hat()
-                # .project_onto_domain(self.calculation_domain)
+                VectorField.FromData(FourierField, domain, U_hat_data)
+                .no_hat()
+                .project_onto_domain(self.calculation_domain)
             )
         else:
             assert self.parameters_to_run_input_fn is not None
@@ -629,7 +629,7 @@ class OptimiserPertAndBase(
 
         U_hat: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
-        )  # .project_onto_domain(self.calculation_domain)
+        ).project_onto_domain(self.calculation_domain)
         U_base: VectorField[FourierField] = VectorField.FromData(
             FourierField,
             domain,
@@ -640,5 +640,5 @@ class OptimiserPertAndBase(
                     jnp.zeros_like(v0_base_hat),
                 ]
             ),
-        )  # .project_onto_domain(self.calculation_domain)
+        ).project_onto_domain(self.calculation_domain)
         return (U_hat, U_base)
