@@ -95,10 +95,13 @@ class GradientDescentSolver(ABC):
         v0.plot_3d(0)
         v0.plot_3d(2)
         v0[1].plot_isosurfaces(0.4)
-        os.rename(
-            Field.field_dir + "/velocity_latest",
-            Field.field_dir + "/velocity_latest_bak",
-        )
+        if (
+            os.stat(Field.field_dir + "/velocity_latest").st_blocks > 1
+        ):  # only back up velocity if it contains data
+            os.rename(
+                Field.field_dir + "/velocity_latest",
+                Field.field_dir + "/velocity_latest_bak_" + str(self.i),
+            )
         v0.save_to_file("velocity_latest")
 
     def perform_final_run(self) -> None:
