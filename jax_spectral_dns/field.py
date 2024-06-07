@@ -558,9 +558,8 @@ class VectorField(Generic[T]):
             for f in self:
                 f.plot_3d(direction)
         except Exception as e:
-            print(
-                "VectorField[PhysicalField].plot_3d failed with the following exception:"
-            )
+            print("VectorField.plot_3d failed with the following exception:")
+            raise e
             print(e)
             print("ignoring this and carrying on.")
 
