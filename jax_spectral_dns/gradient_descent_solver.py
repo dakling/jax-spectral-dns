@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from abc import ABC, abstractmethod
+import os
 import time
 import math
 from typing import Any, cast
@@ -8,7 +9,7 @@ import jax
 import jax.numpy as jnp
 from matplotlib.axes import subplot_class_factory
 from jax_spectral_dns.equation import Equation, print_verb
-from jax_spectral_dns.field import FourierField, VectorField
+from jax_spectral_dns.field import Field, FourierField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 from jax_spectral_dns.navier_stokes_perturbation_dual import (
     NavierStokesVelVortPerturbationDual,
@@ -94,6 +95,10 @@ class GradientDescentSolver(ABC):
         v0.plot_3d(0)
         v0.plot_3d(2)
         v0[1].plot_isosurfaces(0.4)
+        os.rename(
+            Field.field_dir + "/velocity_latest",
+            Field.field_dir + "/velocity_latest_bak",
+        )
         v0.save_to_file("velocity_latest")
 
     def perform_final_run(self) -> None:
