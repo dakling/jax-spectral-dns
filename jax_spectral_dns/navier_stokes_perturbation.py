@@ -148,17 +148,17 @@ def update_nonlinear_terms_high_performance_perturbation_diffusion(
     for i in physical_domain.all_dimensions():
         for j in physical_domain.all_dimensions():
             # the nonlinear term
-            nabla_vel_new_vel_new_i = jnp.zeros_like(vel_new[0])
+            nabla_vel_new_vel_new_i = jnp.zeros_like(vel_hat_new[0])
             vel_u_i_u_j = vel_new[i] * vel_new[j]
             vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
             nabla_vel_new_vel_new_i += fourier_domain.diff(vel_u_i_u_j_hat, j)
             # the a part
-            nabla_vel_base_vel_new_i = jnp.zeros_like(vel_new[0])
+            nabla_vel_base_vel_new_i = jnp.zeros_like(vel_hat_new[0])
             vel_u_i_u_base_j = vel_new[i] * vel_base[j]
             vel_u_i_u_base_j_hat = physical_domain.field_hat(vel_u_i_u_base_j)
             nabla_vel_base_vel_new_i += fourier_domain.diff(vel_u_i_u_base_j_hat, j)
             # the b part
-            nabla_vel_new_vel_base_i = jnp.zeros_like(vel_new[0])
+            nabla_vel_new_vel_base_i = jnp.zeros_like(vel_hat_new[0])
             vel_u_base_i_u_j = vel_base[i] * vel_new[j]
             vel_u_base_i_u_j_hat = physical_domain.field_hat(vel_u_base_i_u_j)
             nabla_vel_new_vel_base_i += fourier_domain.diff(vel_u_base_i_u_j_hat, j)
