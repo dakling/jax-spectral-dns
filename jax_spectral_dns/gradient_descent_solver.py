@@ -318,8 +318,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("gain change:", gain_change)
             print_verb("")
 
-            gain_change_ok: bool = (gain_change > 0.0) and (
-                gain_change / self.old_value < self.relative_gain_increase_threshold
+            gain_change_ok: bool = (
+                math.isfinite(gain)
+                and (gain_change > 0.0)
+                and (
+                    gain_change / self.old_value < self.relative_gain_increase_threshold
+                )
             )
             if gain_change_ok:
                 iteration_successful = True
