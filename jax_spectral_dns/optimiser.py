@@ -333,8 +333,6 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             domain, vort_hat, v1_hat, v0_00, v2_00, two_d=self.force_2d
         )
 
-        # U_hat_data = jax.device_put(U_hat_data, sharding)
-
         input: VectorField[FourierField] = VectorField.FromData(
             FourierField, domain, U_hat_data
         )  # .project_onto_domain(self.calculation_domain)
@@ -345,7 +343,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         self, input: VectorField[FourierField]
     ) -> "parameter_type":
 
-        input = input  # .project_onto_domain(self.optimisation_domain)
+        # input = input.project_onto_domain(self.optimisation_domain)
         if self.force_2d:
             v0_1 = input[1].data * (1 + 0j)
             v0_0_00_hat = input[0].data[0, :, 0] * (1 + 0j)
@@ -366,6 +364,18 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
+
+        # TODO
+        _, grad_params = self.value_and_grad_fn(self.parameters)
+        grad_hat = self.parameters_to_run_input_(grad_params)
+        grad = grad_hat.no_hat()
+        print_verb("grad div:", grad.div().energy() / grad.energy())
+        grad.set_name("grad")
+        grad.set_time_step(i + 1)
+        grad.plot_3d(0)
+        grad.plot_3d(2)
+        grad[0].plot_center(1)
+        grad[1].plot_center(1)
 
         v0_div = v0_new.div()
         cont_error = v0_div.energy() / v0_new.energy()
