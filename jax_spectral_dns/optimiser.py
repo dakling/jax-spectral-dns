@@ -366,32 +366,6 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         U.update_boundary_conditions()
         v0_new = U.normalize_by_energy()
 
-        # TODO
-        _, grad_params = self.value_and_grad_fn(self.parameters)
-
-        vel_y = grad_params[1]
-        vel_y_field: FourierField = FourierField(
-            self.optimisation_domain,
-            vel_y,
-            name="grad_y_hat",
-        )
-        vel_y_field.plot_3d(1)
-        vel_y_field_nh = vel_y_field.no_hat()
-        vel_y_field_nh.set_name("grad_y_no_hat")
-        vel_y_field.plot_3d(0)
-        vel_y_field.plot_3d(1)
-        vel_y_field.plot_3d(2)
-
-        grad_hat = self.parameters_to_run_input_(grad_params)
-        grad = grad_hat.no_hat()
-        print_verb("grad div:", grad.div().energy() / grad.energy())
-        grad.set_name("grad")
-        grad.set_time_step(i + 1)
-        grad.plot_3d(0)
-        grad.plot_3d(2)
-        grad[0].plot_center(1)
-        grad[1].plot_center(1)
-
         v0_div = v0_new.div()
         cont_error = v0_div.energy() / v0_new.energy()
         print_verb("cont_error", cont_error)
