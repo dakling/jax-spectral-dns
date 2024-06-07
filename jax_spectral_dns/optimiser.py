@@ -376,6 +376,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
             vel_y,
             name="grad_y_hat",
         )
+        print(vel_y.shape)
         vel_y_field.plot_3d(1)
 
         grad_hat = self.parameters_to_run_input_(grad_params)

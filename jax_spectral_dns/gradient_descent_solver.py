@@ -276,6 +276,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             v0_no_hat.plot_3d(0)
             v0_no_hat.plot_3d(2)
         self.e_0 = v0_no_hat.energy()
+        print_verb("hello from initialise, energy 0:", self.e_0)
 
         if prepare_for_iterations:
             self.value = self.dual_problem.get_gain()

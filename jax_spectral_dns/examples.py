@@ -2349,11 +2349,11 @@ def run_ld_2021_get_mean(
     init_file: Optional[str] = None,
 ) -> None:
     Re_tau = 180
-    Nx: int = 64
+    Nx: int = 40
     Ny: int = 129
-    Nz: int = 64
-    max_cfl = 0.65
-    end_time = 1e1
+    Nz: int = 40
+    max_cfl = 0.35
+    end_time = 5e1
 
     e_0 = 1e0
     scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
