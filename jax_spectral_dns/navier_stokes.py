@@ -1317,6 +1317,7 @@ class NavierStokesVelVort(Equation):
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
+        vb = 1
         if not self.write_entire_output:
             number_of_inner_steps = median_factor(number_of_time_steps)
             number_of_outer_steps = number_of_time_steps // number_of_inner_steps
