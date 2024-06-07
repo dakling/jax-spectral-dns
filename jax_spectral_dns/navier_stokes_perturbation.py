@@ -162,9 +162,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     def __init__(self, velocity_field: VectorField[FourierField], **params: Any):
 
         super().__init__(velocity_field, **params)
-        print_verb(
-            "hello from nse constructor, energy0:", velocity_field.no_hat().energy()
-        )
 
         try:
             velocity_base_hat = params["velocity_base_hat"]
