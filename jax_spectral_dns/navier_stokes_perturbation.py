@@ -55,29 +55,38 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
         ]
     )
 
-    vel_new_nabla_vel_new = jnp.zeros_like(vel_new)
-    vel_base_nabla_vel_new = jnp.zeros_like(vel_new)
-    vel_new_nabla_vel_base = jnp.zeros_like(vel_new)
+    vel_new_nabla_vel_new = []
+    vel_new_nabla_vel_base = []
+    vel_base_nabla_vel_new = []
     for i in physical_domain.all_dimensions():
         for j in physical_domain.all_dimensions():
             # the nonlinear term
+            vel_new_nabla_vel_new_i = jnp.zeros_like(vel_new[0])
             vel_u_hat_i_diff_j = fourier_domain.diff(vel_hat_new[i], j)
-            vel_new_nabla_vel_new[i] += vel_new[j] * fourier_domain.field_no_hat(
+            vel_new_nabla_vel_new_i += vel_new[j] * fourier_domain.field_no_hat(
                 vel_u_hat_i_diff_j
             )
             # the a part
+            vel_new_nabla_vel_base_i = jnp.zeros_like(vel_new[0])
             vel_u_base_hat_i_diff_j = fourier_domain.diff(vel_base_hat[i], j)
-            vel_new_nabla_vel_base[i] += vel_new[j] * fourier_domain.field_no_hat(
+            vel_new_nabla_vel_base_i += vel_new[j] * fourier_domain.field_no_hat(
                 vel_u_base_hat_i_diff_j
             )
             # the b part
-            vel_base_nabla_vel_new[i] += vel_base[j] * fourier_domain.field_no_hat(
+            vel_base_nabla_vel_new_i = jnp.zeros_like(vel_new[0])
+            vel_base_nabla_vel_new_i += vel_base[j] * fourier_domain.field_no_hat(
                 vel_u_hat_i_diff_j
             )
+        vel_new_nabla_vel_new.append(vel_new_nabla_vel_new_i)
+        vel_new_nabla_vel_base.append(vel_new_nabla_vel_base_i)
+        vel_base_nabla_vel_new.append(vel_base_nabla_vel_new_i)
+    vel_new_nabla_vel_new_ = jnp.array(vel_new_nabla_vel_new)
+    vel_new_nabla_vel_base_ = jnp.array(vel_new_nabla_vel_base)
+    vel_base_nabla_vel_new_ = jnp.array(vel_base_nabla_vel_new)
     hel_new = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_new_nabla_vel_new
-        + vel_base_nabla_vel_new
-        + vel_new_nabla_vel_base
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_new_nabla_vel_new_
+        + vel_base_nabla_vel_new_
+        + vel_new_nabla_vel_base_
     )
 
     hel_new_hat = jnp.array(
@@ -133,27 +142,36 @@ def update_nonlinear_terms_high_performance_perturbation_diffusion(
         ]
     )
 
-    nabla_vel_new_vel_new = jnp.zeros_like(vel_new)
-    nabla_vel_base_vel_new = jnp.zeros_like(vel_new)
-    nabla_vel_new_vel_base = jnp.zeros_like(vel_new)
+    nabla_vel_new_vel_new = []
+    nabla_vel_base_vel_new = []
+    nabla_vel_new_vel_base = []
     for i in physical_domain.all_dimensions():
         for j in physical_domain.all_dimensions():
             # the nonlinear term
+            nabla_vel_new_vel_new_i = jnp.zeros_like(vel_new[0])
             vel_u_i_u_j = vel_new[i] * vel_new[j]
             vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
-            nabla_vel_new_vel_new[i] += fourier_domain.diff(vel_u_i_u_j_hat, j)
+            nabla_vel_new_vel_new_i += fourier_domain.diff(vel_u_i_u_j_hat, j)
             # the a part
+            nabla_vel_base_vel_new_i = jnp.zeros_like(vel_new[0])
             vel_u_i_u_base_j = vel_new[i] * vel_base[j]
             vel_u_i_u_base_j_hat = physical_domain.field_hat(vel_u_i_u_base_j)
-            nabla_vel_base_vel_new[i] += fourier_domain.diff(vel_u_i_u_base_j_hat, j)
+            nabla_vel_base_vel_new_i += fourier_domain.diff(vel_u_i_u_base_j_hat, j)
             # the b part
+            nabla_vel_new_vel_base_i = jnp.zeros_like(vel_new[0])
             vel_u_base_i_u_j = vel_base[i] * vel_new[j]
             vel_u_base_i_u_j_hat = physical_domain.field_hat(vel_u_base_i_u_j)
-            nabla_vel_new_vel_base[i] += fourier_domain.diff(vel_u_base_i_u_j_hat, j)
+            nabla_vel_new_vel_base_i += fourier_domain.diff(vel_u_base_i_u_j_hat, j)
+        nabla_vel_new_vel_new.append(nabla_vel_new_vel_new_i)
+        nabla_vel_base_vel_new.append(nabla_vel_base_vel_new_i)
+        nabla_vel_new_vel_base.append(nabla_vel_new_vel_base_i)
+    nabla_vel_new_vel_new_ = jnp.array(nabla_vel_new_vel_new)
+    nabla_vel_base_vel_new_ = jnp.array(nabla_vel_base_vel_new)
+    nabla_vel_new_vel_base_ = jnp.array(nabla_vel_new_vel_base)
     hel_new = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * nabla_vel_new_vel_new
-        + nabla_vel_base_vel_new
-        + nabla_vel_new_vel_base
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * nabla_vel_new_vel_new_
+        + nabla_vel_base_vel_new_
+        + nabla_vel_new_vel_base_
     )
 
     hel_new_hat = jnp.array(
