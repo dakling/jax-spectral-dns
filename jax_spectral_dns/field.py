@@ -2252,7 +2252,8 @@ class FourierField(Field):
                 ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 ims = []
-                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                # N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                N_c = 3
                 other_dim = [i for i in self.all_dimensions() if i != dim]
                 ims.append(
                     ax.imshow(

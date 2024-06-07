@@ -1322,19 +1322,19 @@ class NavierStokesVelVort(Equation):
             number_of_outer_steps = number_of_time_steps // number_of_inner_steps
             # number_of_outer_steps = median_factor(number_of_time_steps)
             # number_of_inner_steps = number_of_time_steps // number_of_outer_steps
+            vb = 2
+            if (
+                abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
+                > number_of_outer_steps
+            ):
+                print_verb(
+                    "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
+                )
+                vb = 1
         else:
             number_of_outer_steps = number_of_time_steps
             number_of_inner_steps = 1
 
-        vb = 2
-        if (
-            abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
-            > number_of_outer_steps
-        ):
-            print_verb(
-                "WARNING: bad division into inner/outer steps detected. Consider adjusting your time step size and/or your final time to allow for a number of time steps with more divisors."
-            )
-            vb = 1
         self.number_of_time_steps = number_of_time_steps
         self.number_of_outer_steps = number_of_outer_steps
         self.number_of_inner_steps = number_of_inner_steps
