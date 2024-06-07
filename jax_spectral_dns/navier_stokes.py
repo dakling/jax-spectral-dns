@@ -275,7 +275,7 @@ class NavierStokesVelVort(Equation):
             ["jnp_array", int],
             Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"],
             # ] = lambda vel, _: update_nonlinear_terms_high_performance_rotational(
-        ] = lambda vel, _: update_nonlinear_terms_high_skew_symmetric(
+        ] = lambda vel, _: update_nonlinear_terms_high_performance_skew_symmetric(
             self.get_physical_domain(), self.get_domain(), vel
         )
         super().__init__(domain, velocity_field, **params)
