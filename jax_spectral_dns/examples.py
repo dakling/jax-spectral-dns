@@ -2348,11 +2348,11 @@ def run_optimisation_transient_growth_mean_y_profile(
 def run_ld_2021_get_mean(
     init_file: Optional[str] = None,
 ) -> None:
-    Re_tau = 180
-    Nx: int = 40
+    Re_tau = 720
+    Nx: int = 64
     Ny: int = 129
-    Nz: int = 40
-    max_cfl = 0.35
+    Nz: int = 64
+    max_cfl = 0.7
     end_time = 5e1
 
     e_0 = 1e0
@@ -2399,19 +2399,38 @@ def run_ld_2021_get_mean(
         # v0_0.normalize_by_energy()
         # v0_0 *= e_0
         omega = 1.00
-        u_fn = lambda X: 0.1 * np.sin(
-            2 * np.pi * X[2] / domain.scale_factors[2] * omega
+        Lx, Ly, Lz = domain.scale_factors
+
+        # Vilda
+        u_fn = lambda X: Re_tau / 2 * (1 - X[1] ** 2) - omega * np.pi * (
+            np.sin(2 * np.pi * X[1]) * np.sin(2 * np.pi / Lx * X[0])
         )
-        v_fn = (
-            lambda X: 0.1
-            * np.sin(2 * np.pi * X[2] / domain.scale_factors[2] * omega)
-            * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
+        v_fn = lambda X: omega * 2 * np.pi / Lx * np.sin(np.pi * X[1]) * np.sin(
+            np.pi * X[1]
+        ) * np.cos(2 * np.pi / Lx * X[0]) + omega * np.sin(2 * np.pi * X[1]) * np.sin(
+            2 * np.pi * X[2] / Lz
         )
         w_fn = (
-            lambda X: 0.1
-            * np.sin(2 * np.pi * X[1] / domain.scale_factors[1] * omega)
-            * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
+            lambda X: Lz
+            * omega
+            * np.cos(2 * np.pi * X[1])
+            * np.cos(2 * np.pi * X[2] / Lz)
         )
+
+        # my attempt
+        # u_fn = lambda X: 0.1 * np.sin(
+        #     2 * np.pi * X[2] / domain.scale_factors[2] * omega
+        # )
+        # v_fn = (
+        #     lambda X: 0.1
+        #     * np.sin(2 * np.pi * X[2] / domain.scale_factors[2] * omega)
+        #     * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
+        # )
+        # w_fn = (
+        #     lambda X: 0.1
+        #     * np.sin(2 * np.pi * X[1] / domain.scale_factors[1] * omega)
+        #     * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
+        # )
 
         v0_0 = VectorField(
             [
