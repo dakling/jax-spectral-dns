@@ -277,26 +277,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         if prepare_for_iterations:
             self.value = self.dual_problem.get_gain()
-            v_T = self.dual_problem.forward_equation.get_latest_field(
-                "velocity_hat"
-            ).no_hat()
-            v_base = self.dual_problem.forward_equation.get_initial_field(
-                "velocity_base_hat"
-            ).no_hat()
-            V_T = v_T + v_base
-
-            dt = Equation.find_suitable_dt(
-                self.dual_problem.forward_equation.get_physical_domain(),
-                self.dual_problem.forward_equation.max_cfl,
-                tuple([V_T[i].max() for i in range(3)]),
-                self.dual_problem.forward_equation.end_time,
-            )
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
             self.old_value = self.value
             self.old_grad = self.grad
             self.old_nse_dual = self.dual_problem
-            self.dual_problem.forward_equation.update_dt(dt)
-            self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
             print_verb("")
             print_verb("gain:", self.value)
             print_verb("")
@@ -336,21 +320,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("gain:", gain)
             print_verb("gain change:", gain_change)
             print_verb("")
-
-            v_T = self.dual_problem.forward_equation.get_latest_field(
-                "velocity_hat"
-            ).no_hat()
-            v_base = self.dual_problem.forward_equation.get_initial_field(
-                "velocity_base_hat"
-            ).no_hat()
-            V_T = v_T + v_base
-
-            dt = Equation.find_suitable_dt(
-                domain,
-                self.dual_problem.forward_equation.max_cfl,
-                tuple([V_T[i].max() for i in range(3)]),
-                self.dual_problem.forward_equation.end_time,
-            )
 
             gain_change_ok: bool = (
                 math.isfinite(gain)
@@ -399,8 +368,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     self.beta = 0.0
                 self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
 
-            self.dual_problem.forward_equation.update_dt(dt)
-            self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
             j += 1
             if j > self.max_number_of_sub_iterations:
                 iteration_successful = True
