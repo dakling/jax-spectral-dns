@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import partial
 import math
 import jax
 import jax.numpy as jnp
@@ -679,7 +680,8 @@ class FourierDomain(Domain):
         return self.shape
 
     def get_shape_aliasing(self) -> tuple[int, ...]:
-        raise NotImplementedError()
+        assert self.physical_domain is not None
+        return tuple(map(lambda x: len(x), self.physical_domain.grid))
 
     def assemble_poisson_matrix(self) -> "np_complex_array":
         assert len(self.all_dimensions()) == 3, "Only 3d implemented currently."

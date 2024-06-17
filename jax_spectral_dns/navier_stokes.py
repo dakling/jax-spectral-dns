@@ -84,18 +84,24 @@ def update_nonlinear_terms_high_performance_convection(
         ]
     )
 
-    vel_new_nabla_vel_new = []
-    for i in physical_domain.all_dimensions():
-        vel_new_nabla_vel_new_i = jnp.zeros_like(vel_new[0])
-        for j in physical_domain.all_dimensions():
-            # the nonlinear term
-            vel_u_hat_i_diff_j = fourier_domain.diff(vel_hat_new[i], j)
-            vel_new_nabla_vel_new_i += vel_new[j] * fourier_domain.field_no_hat(
-                vel_u_hat_i_diff_j
-            )
-        vel_new_nabla_vel_new.append(vel_new_nabla_vel_new_i)
-    vel_new_nabla_vel_new_ = jnp.array(vel_new_nabla_vel_new)
-    hel_new = -vel_new_nabla_vel_new_
+    n = fourier_domain.number_of_dimensions
+    # TODO can I make this more efficient?
+    dvel_hat_i_dx_j = jnp.array(
+        [[fourier_domain.diff(vel_hat_new[i], j) for j in range(n)] for i in range(n)]
+    )
+    vel_new_nabla_vel_new = jnp.sum(
+        jnp.array(
+            [
+                [
+                    vel_new[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
+                    for j in range(n)
+                ]
+                for i in range(n)
+            ]
+        ),
+        axis=1,
+    )
+    hel_new = -vel_new_nabla_vel_new
 
     hel_new_hat = jnp.array(
         [
@@ -103,23 +109,6 @@ def update_nonlinear_terms_high_performance_convection(
             for i in physical_domain.all_dimensions()
         ]
     )
-    # print(jnp.linalg.norm(fourier_domain.diff(vel_hat_new[0], 0) + fourier_domain.diff(vel_hat_new[1], 1) + fourier_domain.diff(vel_hat_new[2], 2)), "vel div")
-    # print(jnp.linalg.norm(vel_hat_new[0]), "conv vel 0")
-    # print(jnp.linalg.norm(vel_hat_new[1]), "conv vel 1")
-    # print(jnp.linalg.norm(vel_hat_new[2]), "conv vel 2")
-    # print(jnp.linalg.norm(hel_new_hat[0]), "conv hel 0")
-    # print(jnp.linalg.norm(hel_new_hat[1]), "conv hel 1")
-    # print(jnp.linalg.norm(hel_new_hat[2]), "conv hel 2")
-    # hv_, hg_, vort_, conv_ns_ = update_nonlinear_terms_high_performance_rotational(physical_domain, fourier_domain, vel_hat_new)
-    # hv, hg, vort, conv_ns = helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
-    # print(jnp.linalg.norm(hv_ - hv), "hv conv")
-    # print(jnp.linalg.norm(hg_ - hg), "hg conv")
-    # print(jnp.linalg.norm(vort_ - vort), "vort conv")
-    # print(jnp.linalg.norm(conv_ns_ - conv_ns), "conv_ns conv")
-    # assert jnp.linalg.norm(hv_ - hv) < 1e-10, "hv conv"
-    # assert jnp.linalg.norm(hg_ - hg) < 1e-10, "hg conv"
-    # assert jnp.linalg.norm(vort_ - vort) < 1e-10, "vort conv"
-    # assert jnp.linalg.norm(conv_ns_ - conv_ns) < 1e-10, "conv_ns conv"
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
@@ -138,35 +127,33 @@ def update_nonlinear_terms_high_performance_diffusion(
         ]
     )
 
-    nabla_vel_new_vel_new_hat = []
-    for i in physical_domain.all_dimensions():
-        nabla_vel_new_vel_new_i_hat = jnp.zeros_like(vel_hat_new[0])
-        for j in physical_domain.all_dimensions():
-            # the nonlinear term
-            vel_u_i_u_j = vel_new[i] * vel_new[j]
-            vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
-            nabla_vel_new_vel_new_i_hat += fourier_domain.diff(vel_u_i_u_j_hat, j)
-        nabla_vel_new_vel_new_hat.append(nabla_vel_new_vel_new_i_hat)
-    nabla_vel_new_vel_new_hat_ = jnp.array(nabla_vel_new_vel_new_hat)
-    hel_new_hat = -nabla_vel_new_vel_new_hat_
-
-    # hv_, hg_, vort_, conv_ns_ = update_nonlinear_terms_high_performance_rotational(physical_domain, fourier_domain, vel_hat_new)
-    # hv, hg, vort, conv_ns = helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
-    # print(jnp.linalg.norm(fourier_domain.diff(vel_hat_new[0], 0) + fourier_domain.diff(vel_hat_new[1], 1) + fourier_domain.diff(vel_hat_new[2], 2)), "vel div")
-    # print(jnp.linalg.norm(vel_hat_new[0]), "diff vel 0")
-    # print(jnp.linalg.norm(vel_hat_new[1]), "diff vel 1")
-    # print(jnp.linalg.norm(vel_hat_new[2]), "diff vel 2")
-    # print(jnp.linalg.norm(hel_new_hat[0]), "diff hel 0")
-    # print(jnp.linalg.norm(hel_new_hat[1]), "diff hel 1")
-    # print(jnp.linalg.norm(hel_new_hat[2]), "diff hel 2")
-    # print(jnp.linalg.norm(hv_ - hv), "hv diff")
-    # print(jnp.linalg.norm(hg_ - hg), "hg diff")
-    # print(jnp.linalg.norm(vort_ - vort), "vort diff")
-    # print(jnp.linalg.norm(conv_ns_ - conv_ns), "conv_ns diff")
-    # assert jnp.linalg.norm(hv_ - hv) < 1e-10, "hv diff"
-    # assert jnp.linalg.norm(hg_ - hg) < 1e-10, "hg diff"
-    # assert jnp.linalg.norm(vort_ - vort) < 1e-10, "vort diff"
-    # assert jnp.linalg.norm(conv_ns_ - conv_ns) < 1e-10, "conv_ns diff"
+    n = fourier_domain.number_of_dimensions
+    # TODO can I make this more efficient?
+    nabla_vel_new_vel_new_hat = jnp.sum(
+        jnp.array(
+            [
+                [
+                    fourier_domain.diff(
+                        physical_domain.field_hat(vel_new[i] * vel_new[j]), j
+                    )
+                    for j in range(n)
+                ]
+                for i in range(n)
+            ]
+        ),
+        axis=1,
+    )
+    # nabla_vel_new_vel_new_hat = []
+    # for i in physical_domain.all_dimensions():
+    #     nabla_vel_new_vel_new_i_hat = jnp.zeros_like(vel_hat_new[0])
+    #     for j in physical_domain.all_dimensions():
+    #         # the nonlinear term
+    #         vel_u_i_u_j = vel_new[i] * vel_new[j]
+    #         vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
+    #         nabla_vel_new_vel_new_i_hat += fourier_domain.diff(vel_u_i_u_j_hat, j)
+    #     nabla_vel_new_vel_new_hat.append(nabla_vel_new_vel_new_i_hat)
+    # nabla_vel_new_vel_new_hat_ = jnp.array(nabla_vel_new_vel_new_hat)
+    hel_new_hat = -nabla_vel_new_vel_new_hat
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
@@ -193,12 +180,6 @@ def update_nonlinear_terms_high_performance_skew_symmetric(
             for i in range(4)
         ]
     )
-    # hv_, hg_, vort_, conv_ns_ = update_nonlinear_terms_high_performance_rotational(physical_domain, fourier_domain, vel_hat_new)
-    # hv, hg, vort, conv_ns = out
-    # assert jnp.linalg.norm(hv_ - hv) < 1e-10, "hv skew"
-    # assert jnp.linalg.norm(hg_ - hg) < 1e-10, "hg skew"
-    # assert jnp.linalg.norm(vort_ - vort) < 1e-10, "vort skew"
-    # assert jnp.linalg.norm(conv_ns_ - conv_ns) < 1e-10, "conv_ns skew"
     return cast(Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"], out)
 
 
@@ -228,13 +209,19 @@ def update_nonlinear_terms_high_performance_rotational(
         ]
     )
 
-    vel_new_sq = jnp.zeros_like(vel_new[0])
-    for j in physical_domain.all_dimensions():
-        vel_new_sq += vel_new[j] * vel_new[j]
-    vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
-    vel_new_sq_hat_nabla = []
-    for i in physical_domain.all_dimensions():
-        vel_new_sq_hat_nabla.append(fourier_domain.diff(vel_new_sq_hat, i))
+    n = fourier_domain.number_of_dimensions
+    vel_new_sq_hat_nabla = jnp.sum(
+        jnp.fromfunction(
+            jnp.vectorize(
+                lambda i, j: fourier_domain.diff(
+                    physical_domain.field_hat(vel_new[i] * vel_new[j]), j
+                )
+            ),
+            shape=(n, n),
+            dtype=int,
+        ),
+        axis=1,
+    )
 
     vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
     vel_vort_new_hat = jnp.array(
@@ -244,14 +231,7 @@ def update_nonlinear_terms_high_performance_rotational(
         ]
     )
 
-    hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
-
-    # print(jnp.linalg.norm(vel_hat_new[0]), "rot vel 0")
-    # print(jnp.linalg.norm(vel_hat_new[1]), "rot vel 1")
-    # print(jnp.linalg.norm(vel_hat_new[2]), "rot vel 2")
-    # print(jnp.linalg.norm(hel_new_hat[0]), "rot hel 0")
-    # print(jnp.linalg.norm(hel_new_hat[1]), "rot hel 1")
-    # print(jnp.linalg.norm(hel_new_hat[2]), "rot hel 2")
+    hel_new_hat = vel_vort_new_hat - 1 / 2 * vel_new_sq_hat_nabla
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
