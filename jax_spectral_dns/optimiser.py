@@ -214,7 +214,9 @@ class Optimiser(ABC, Generic[I]):
             if scale_by_norm
             else learning_rate
         )
-        opt = optax.adam(learning_rate=learning_rate_)  # minimizer
+        # opt = optax.adam(learning_rate=learning_rate_)  # minimizer
+        # opt = optax.adagrad(learning_rate=learning_rate_)  # minimizer
+        opt = optax.lbfgs(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
             opt=opt, fun=self.value_and_grad_fn, value_and_grad=True, jit=True
         )
