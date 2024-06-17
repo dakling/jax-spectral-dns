@@ -2353,7 +2353,7 @@ def run_ld_2021_get_mean(
     Ny: int = 129
     Nz: int = 64
     max_cfl = 0.7
-    end_time = 5e1
+    end_time = 1e0
 
     e_0 = 1e0
     scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
@@ -2366,12 +2366,14 @@ def run_ld_2021_get_mean(
         scale_factors=scale_factors,
         aliasing=3 / 2,
     )
-    dt = Equation.find_suitable_dt(domain, max_cfl, (40.0, 1e-5, 1e-5), end_time)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (Re_tau / 2, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
 
     vel_base_lam = VectorField(
         [
-            PhysicalField.FromFunc(domain, lambda X: 40.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(
+                domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
+            ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
@@ -2402,8 +2404,10 @@ def run_ld_2021_get_mean(
         Lx, Ly, Lz = domain.scale_factors
 
         # Vilda
-        u_fn = lambda X: Re_tau / 2 * (1 - X[1] ** 2) - omega * np.pi * (
-            np.sin(2 * np.pi * X[1]) * np.sin(2 * np.pi / Lx * X[0])
+        u_fn = (
+            lambda X: -omega
+            * np.pi
+            * (np.sin(2 * np.pi * X[1]) * np.sin(2 * np.pi / Lx * X[0]))
         )
         v_fn = lambda X: omega * 2 * np.pi / Lx * np.sin(np.pi * X[1]) * np.sin(
             np.pi * X[1]
