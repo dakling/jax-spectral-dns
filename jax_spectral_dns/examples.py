@@ -2366,12 +2366,12 @@ def run_ld_2021_get_mean(
         scale_factors=scale_factors,
         aliasing=3 / 2,
     )
-    dt = Equation.find_suitable_dt(domain, max_cfl, (25.0, 1e-5, 1e-5), end_time)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (40.0, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
 
     vel_base_lam = VectorField(
         [
-            PhysicalField.FromFunc(domain, lambda X: 18.1 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 40.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
