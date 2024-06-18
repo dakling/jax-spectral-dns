@@ -151,7 +151,7 @@ class Optimiser(ABC, Generic[I]):
                 self.solver = self.get_jaxopt_solver()
                 self.solver_switched = True
                 print_verb("Using jaxopt solver")
-            self.state = self.solver.init_state(self.parameters)
+            self.state = self.solver.init(self.parameters)
             self.value = self.inv_fn(self.state.value)
             print_verb(self.objective_fn_name + ":", self.value)
 
@@ -263,9 +263,9 @@ class Optimiser(ABC, Generic[I]):
         self.post_process_iteration()
 
         value, grad = self.value_and_grad(self.parameters, state=self.state)
-        self.parameters, self.state = solver.update(
-            self.parameters, self.state, value=value, grad=grad
-        )
+        # self.parameters, self.state = solver.update(
+        #     self.parameters, self.state, value=value, grad=grad
+        # )
         updates, self.state = solver.update(
             grad,
             self.state,
