@@ -249,19 +249,13 @@ def update_nonlinear_terms_high_performance_rotational(
         ]
     )
 
-    n = fourier_domain.number_of_dimensions
-    vel_new_sq_hat_nabla = jnp.sum(
-        jnp.fromfunction(
-            jnp.vectorize(
-                lambda i, j: fourier_domain.diff(
-                    physical_domain.field_hat(vel_new[i] * vel_new[j]), j
-                )
-            ),
-            shape=(n, n),
-            dtype=int,
-        ),
-        axis=1,
-    )
+    vel_new_sq = jnp.zeros_like(vel_new[0])
+    for j in physical_domain.all_dimensions():
+        vel_new_sq += vel_new[j] * vel_new[j]
+    vel_new_sq_hat = physical_domain.field_hat(vel_new_sq)
+    vel_new_sq_hat_nabla = []
+    for i in physical_domain.all_dimensions():
+        vel_new_sq_hat_nabla.append(fourier_domain.diff(vel_new_sq_hat, i))
 
     vel_vort_new = physical_domain.cross_product(vel_new, vort_new)
     vel_vort_new_hat = jnp.array(
@@ -271,7 +265,7 @@ def update_nonlinear_terms_high_performance_rotational(
         ]
     )
 
-    hel_new_hat = vel_vort_new_hat - 1 / 2 * vel_new_sq_hat_nabla
+    hel_new_hat = vel_vort_new_hat - 1 / 2 * jnp.array(vel_new_sq_hat_nabla)
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
