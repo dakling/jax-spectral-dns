@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from jax_spectral_dns.navier_stokes import helicity_to_nonlinear_terms
+
 NoneType = type(None)
 import jax
 import jax.numpy as jnp
@@ -41,7 +43,7 @@ if TYPE_CHECKING:
     )
 
 
-def update_nonlinear_terms_high_performance_perturbation_dual(
+def update_nonlinear_terms_high_performance_perturbation_dual_rotational(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_v_hat_new: "jnp_array",  # v
@@ -116,27 +118,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual(
         vel_u_vort_v_new_hat - jnp.array(vel_uv_sq_nabla_hat) + jnp.array(v_nabla_u_hat)
     )
 
-    conv_ns_hat_new = -hel_new_hat
-
-    h_v_hat_new = (
-        -fourier_domain.diff(
-            fourier_domain.diff(hel_new_hat[0], 0)
-            + fourier_domain.diff(hel_new_hat[2], 2),
-            1,
-        )
-        + fourier_domain.diff(hel_new_hat[1], 0, 2)
-        + fourier_domain.diff(hel_new_hat[1], 2, 2)
-    )
-    h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
-        hel_new_hat[2], 0
-    )
-
-    return (
-        h_v_hat_new,
-        h_g_hat_new,
-        jnp.array(vort_v_hat_new),
-        jnp.array(conv_ns_hat_new),
-    )
+    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
 
 
 class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
@@ -180,15 +162,13 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        self.nonlinear_update_fn = (
-            lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual(
-                self.get_physical_domain(),
-                self.get_domain(),
-                vel,
-                velocity_base_hat.get_data(),
-                self.get_velocity_u_hat(t),
-                linearize=self.linearize,
-            )
+        self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual_rotational(
+            self.get_physical_domain(),
+            self.get_domain(),
+            vel,
+            velocity_base_hat.get_data(),
+            self.get_velocity_u_hat(t),
+            linearize=self.linearize,
         )
 
     @classmethod
