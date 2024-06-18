@@ -74,6 +74,7 @@ def update_nonlinear_terms_high_performance_convection(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+
     vel_new = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
