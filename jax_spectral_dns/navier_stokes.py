@@ -69,6 +69,23 @@ def helicity_to_nonlinear_terms(
     )
 
 
+def get_vel_1_nabla_vel_2(
+    fourier_domain: FourierDomain,
+    vel_1: "jnp_array",
+    vel_2_hat: "jnp_array",
+) -> "jnp_array":
+    vel_1_nabla_vel_2 = jnp.zeros_like(vel_1)
+    for i in fourier_domain.all_dimensions():
+        for j in fourier_domain.all_dimensions():
+            nabla_vel_2_hat = fourier_domain.diff(vel_2_hat[i], j)
+            nabla_vel_2 = fourier_domain.field_no_hat(nabla_vel_2_hat)
+            vel_u_i_nabla_u_j = vel_1[j] * nabla_vel_2
+            vel_1_nabla_vel_2 = vel_1_nabla_vel_2.at[i].set(
+                vel_1_nabla_vel_2.at[i].get() + vel_u_i_nabla_u_j
+            )
+    return vel_1_nabla_vel_2
+
+
 def update_nonlinear_terms_high_performance_convection(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
@@ -85,23 +102,24 @@ def update_nonlinear_terms_high_performance_convection(
         ]
     )
 
-    n = fourier_domain.number_of_dimensions
-    # TODO can I make this more efficient?
-    dvel_hat_i_dx_j = jnp.array(
-        [[fourier_domain.diff(vel_hat_new[i], j) for j in range(n)] for i in range(n)]
-    )
-    vel_new_nabla_vel_new = jnp.sum(
-        jnp.array(
-            [
-                [
-                    vel_new[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
-    )
+    vel_new_nabla_vel_new = get_vel_1_nabla_vel_2(fourier_domain, vel_new, vel_hat_new)
+    # n = fourier_domain.number_of_dimensions
+    # # TODO can I make this more efficient?
+    # dvel_hat_i_dx_j = jnp.array(
+    #     [[fourier_domain.diff(vel_hat_new[i], j) for j in range(n)] for i in range(n)]
+    # )
+    # vel_new_nabla_vel_new = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 vel_new[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
     hel_new = -vel_new_nabla_vel_new
 
     hel_new_hat = jnp.array(
@@ -111,6 +129,25 @@ def update_nonlinear_terms_high_performance_convection(
         ]
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+
+
+def get_nabla_vel_1_vel_2(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_1: "jnp_array",
+    vel_2: "jnp_array",
+    vel_1_hat: "jnp_array",
+) -> "jnp_array":
+    nabla_vel_1_vel_2_hat = jnp.zeros_like(vel_1_hat)
+    for i in physical_domain.all_dimensions():
+        for j in physical_domain.all_dimensions():
+            vel_u_i_u_j = vel_1[i] * vel_2[j]
+            vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
+            nabla_vel_1_vel_2_hat = nabla_vel_1_vel_2_hat.at[i].set(
+                nabla_vel_1_vel_2_hat.at[i].get()
+                + fourier_domain.diff(vel_u_i_u_j_hat, j)
+            )
+    return nabla_vel_1_vel_2_hat
 
 
 def update_nonlinear_terms_high_performance_diffusion(
@@ -128,22 +165,24 @@ def update_nonlinear_terms_high_performance_diffusion(
         ]
     )
 
-    n = fourier_domain.number_of_dimensions
-    # TODO can I make this more efficient?
-    nabla_vel_new_vel_new_hat = jnp.sum(
-        jnp.array(
-            [
-                [
-                    fourier_domain.diff(
-                        physical_domain.field_hat(vel_new[i] * vel_new[j]), j
-                    )
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
+    nabla_vel_new_vel_new_hat = get_nabla_vel_1_vel_2(
+        physical_domain, fourier_domain, vel_new, vel_new, vel_hat_new
     )
+    # n = fourier_domain.number_of_dimensions
+    # nabla_vel_new_vel_new_hat = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 fourier_domain.diff(
+    #                     physical_domain.field_hat(vel_new[i] * vel_new[j]), j
+    #                 )
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
     # nabla_vel_new_vel_new_hat = []
     # for i in physical_domain.all_dimensions():
     #     nabla_vel_new_vel_new_i_hat = jnp.zeros_like(vel_hat_new[0])

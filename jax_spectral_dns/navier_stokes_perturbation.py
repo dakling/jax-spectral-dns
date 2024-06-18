@@ -15,6 +15,8 @@ import sys
 
 from jax_spectral_dns.navier_stokes import (
     NavierStokesVelVort,
+    get_nabla_vel_1_vel_2,
+    get_vel_1_nabla_vel_2,
     helicity_to_nonlinear_terms,
 )
 from jax_spectral_dns.domain import PhysicalDomain, FourierDomain
@@ -58,51 +60,58 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
         ]
     )
 
-    n = fourier_domain.number_of_dimensions
-    # TODO can I make this more efficient?
-    dvel_hat_i_dx_j = jnp.array(
-        [[fourier_domain.diff(vel_hat_new[i], j) for j in range(n)] for i in range(n)]
+    vel_new_nabla_vel_new = get_vel_1_nabla_vel_2(fourier_domain, vel_new, vel_hat_new)
+    vel_new_nabla_vel_base = get_vel_1_nabla_vel_2(
+        fourier_domain, vel_new, vel_base_hat
     )
-    dvel_base_i_dx_j = jnp.array(
-        [[fourier_domain.diff(vel_base_hat[i], j) for j in range(n)] for i in range(n)]
+    vel_base_nabla_vel_new = get_vel_1_nabla_vel_2(
+        fourier_domain, vel_base, vel_hat_new
     )
+    # n = fourier_domain.number_of_dimensions
+    # # TODO can I make this more efficient?
+    # dvel_hat_i_dx_j = jnp.array(
+    #     [[fourier_domain.diff(vel_hat_new[i], j) for j in range(n)] for i in range(n)]
+    # )
+    # dvel_base_i_dx_j = jnp.array(
+    #     [[fourier_domain.diff(vel_base_hat[i], j) for j in range(n)] for i in range(n)]
+    # )
 
-    vel_new_nabla_vel_new = jnp.sum(
-        jnp.array(
-            [
-                [
-                    vel_new[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
-    )
-    vel_new_nabla_vel_base = jnp.sum(
-        jnp.array(
-            [
-                [
-                    vel_new[j] * fourier_domain.field_no_hat(dvel_base_i_dx_j[i, j])
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
-    )
-    vel_base_nabla_vel_new = jnp.sum(
-        jnp.array(
-            [
-                [
-                    vel_base[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
-    )
+    # vel_new_nabla_vel_new = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 vel_new[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
+    # vel_new_nabla_vel_base = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 vel_new[j] * fourier_domain.field_no_hat(dvel_base_i_dx_j[i, j])
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
+    # vel_base_nabla_vel_new = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 vel_base[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
 
     # vel_new_nabla_vel_new = []
     # vel_new_nabla_vel_base = []
@@ -170,50 +179,60 @@ def update_nonlinear_terms_high_performance_perturbation_diffusion(
         ]
     )
 
-    n = fourier_domain.number_of_dimensions
-    # TODO can I make this more efficient?
-    nabla_vel_new_vel_new = jnp.sum(
-        jnp.array(
-            [
-                [
-                    fourier_domain.diff(
-                        physical_domain.field_hat(vel_new[i] * vel_new[j]), j
-                    )
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
+    nabla_vel_new_vel_new = get_nabla_vel_1_vel_2(
+        physical_domain, fourier_domain, vel_new, vel_new, vel_hat_new
     )
-    nabla_vel_base_vel_new = jnp.sum(
-        jnp.array(
-            [
-                [
-                    fourier_domain.diff(
-                        physical_domain.field_hat(vel_base[i] * vel_new[j]), j
-                    )
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
+    nabla_vel_base_vel_new = get_nabla_vel_1_vel_2(
+        physical_domain, fourier_domain, vel_base, vel_new, vel_base_hat
     )
-    nabla_vel_new_vel_base = jnp.sum(
-        jnp.array(
-            [
-                [
-                    fourier_domain.diff(
-                        physical_domain.field_hat(vel_new[i] * vel_base[j]), j
-                    )
-                    for j in range(n)
-                ]
-                for i in range(n)
-            ]
-        ),
-        axis=1,
+    nabla_vel_new_vel_base = get_nabla_vel_1_vel_2(
+        physical_domain, fourier_domain, vel_new, vel_base, vel_hat_new
     )
+
+    # n = fourier_domain.number_of_dimensions
+    # # TODO can I make this more efficient?
+    # nabla_vel_new_vel_new = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 fourier_domain.diff(
+    #                     physical_domain.field_hat(vel_new[i] * vel_new[j]), j
+    #                 )
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
+    # nabla_vel_base_vel_new = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 fourier_domain.diff(
+    #                     physical_domain.field_hat(vel_base[i] * vel_new[j]), j
+    #                 )
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
+    # nabla_vel_new_vel_base = jnp.sum(
+    #     jnp.array(
+    #         [
+    #             [
+    #                 fourier_domain.diff(
+    #                     physical_domain.field_hat(vel_new[i] * vel_base[j]), j
+    #                 )
+    #                 for j in range(n)
+    #             ]
+    #             for i in range(n)
+    #         ]
+    #     ),
+    #     axis=1,
+    # )
 
     # nabla_vel_new_vel_new = []
     # nabla_vel_base_vel_new = []

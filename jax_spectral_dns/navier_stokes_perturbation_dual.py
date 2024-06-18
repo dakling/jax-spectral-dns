@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from jax_spectral_dns.navier_stokes import helicity_to_nonlinear_terms
+from jax_spectral_dns.navier_stokes import (
+    get_vel_1_nabla_vel_2,
+    helicity_to_nonlinear_terms,
+)
 
 NoneType = type(None)
 import jax
@@ -41,6 +44,102 @@ if TYPE_CHECKING:
         Vel_fn_type,
         np_complex_array,
     )
+
+# def update_nonlinear_terms_high_performance_perturbation_dual_convection(
+#     physical_domain: PhysicalDomain,
+#     fourier_domain: FourierDomain,
+#     vel_v_hat_new: "jnp_array",  # v
+#     vel_u_base_hat: "jnp_array",  # U
+#     vel_small_u_hat: "jnp_array",  # u
+#     linearize: bool = False,
+# ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+
+#     vel_u_hat = (
+#         jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+#         + vel_u_base_hat
+#     )
+#     vel_v_new = jnp.array(
+#         [
+#             # fourier_domain.filter_field_nonfourier_only(
+#             #     fourier_domain.field_no_hat(vel_hat_new[i])
+#             # )
+#             fourier_domain.field_no_hat(vel_v_hat_new[i])
+#             for i in physical_domain.all_dimensions()
+#         ]
+#     )
+#     vel_u = jnp.array(
+#         [
+#             # fourier_domain.filter_field_nonfourier_only(
+#             #     fourier_domain.field_no_hat(vort_u_hat[i])
+#             # )
+#             fourier_domain.field_no_hat(vel_u_hat[i])
+#             for i in physical_domain.all_dimensions()
+#         ]
+#     )
+
+#     vort_v_hat_new = fourier_domain.curl(vel_v_hat_new)
+#     vort_v_new = jnp.array(
+#         [
+#             # fourier_domain.filter_field_nonfourier_only(
+#             #     fourier_domain.field_no_hat(vel_hat_new[i])
+#             # )
+#             fourier_domain.field_no_hat(vort_v_hat_new[i])
+#             for i in physical_domain.all_dimensions()
+#         ]
+#     )
+
+#     # the first term: - (U + u) \dot nabla v)
+#     vel_u_base_nabla_v = get_vel_1_nabla_vel_2(fourier_domain, vel_u, vel_v_hat_new)
+
+#     # the second term: v \dot (\nabla (U + u))^T
+#     v_nabla_u_hat = []
+#     for i in physical_domain.all_dimensions():
+#         acc = jnp.zeros_like(vel_v_new[0])
+#         for j in physical_domain.all_dimensions():
+#             vel_u_hat_j_diff_i = fourier_domain.diff(vel_u_hat[j], i)
+#             acc += vel_v_new[j] * fourier_domain.field_no_hat(vel_u_hat_j_diff_i)
+#         acc_hat = jnp.array(physical_domain.field_hat(acc))
+#         v_nabla_u_hat.append(acc_hat)
+
+#     hel_new_hat = (
+#         -vel_u_base_nabla_v_hat - jnp.array(vel_uv_sq_nabla_hat) + jnp.array(v_nabla_u_hat)
+#     )
+
+#     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
+
+# def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
+#     physical_domain: PhysicalDomain,
+#     fourier_domain: FourierDomain,
+#     vel_v_hat_new: "jnp_array",  # v
+#     vel_u_base_hat: "jnp_array",  # U
+#     vel_small_u_hat: "jnp_array",  # u
+#     linearize: bool = False,
+# ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+#     out = tuple(
+#         [
+#             0.5
+#             * (
+#                 update_nonlinear_terms_high_performance_perturbation_dual_convection(
+#                     physical_domain,
+#                     fourier_domain,
+#                     vel_v_hat_new,
+#                     vel_u_base_hat,
+#                     vel_small_u_hat,
+#                     linearize
+#                 )[i]
+#                 + update_nonlinear_terms_high_performance_perturbation_dual_diffusion(
+#                     physical_domain,
+#                     fourier_domain,
+#                     vel_v_hat_new,
+#                     vel_u_base_hat,
+#                     vel_small_u_hat,
+#                     linearize
+#                 )[i]
+#             )
+#             for i in range(4)
+#         ]
+#     )
+#     return cast(Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"], out)
 
 
 def update_nonlinear_terms_high_performance_perturbation_dual_rotational(

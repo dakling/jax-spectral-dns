@@ -151,7 +151,7 @@ class Optimiser(ABC, Generic[I]):
                 self.solver = self.get_jaxopt_solver()
                 self.solver_switched = True
                 print_verb("Using jaxopt solver")
-            self.state = self.solver.init(self.parameters)
+            self.state = self.solver.init_state(self.parameters)
             self.value = self.inv_fn(self.state.value)
             print_verb(self.objective_fn_name + ":", self.value)
 
@@ -215,12 +215,10 @@ class Optimiser(ABC, Generic[I]):
             else learning_rate
         )
         # opt = optax.adam(learning_rate=learning_rate_)  # minimizer
-        # opt = optax.adagrad(learning_rate=learning_rate_)  # minimizer
-        opt = optax.lbfgs(learning_rate=learning_rate_)  # minimizer
+        opt = optax.adagrad(learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
             opt=opt, fun=self.value_and_grad_fn, value_and_grad=True, jit=True
         )
-        self.value_and_grad = optax.value_and_grad_from_state(self.run_fn)
         return solver
 
     def get_jaxopt_solver(self) -> jaxopt.LBFGS:
@@ -262,19 +260,7 @@ class Optimiser(ABC, Generic[I]):
 
         self.post_process_iteration()
 
-        value, grad = self.value_and_grad(self.parameters, state=self.state)
-        # self.parameters, self.state = solver.update(
-        #     self.parameters, self.state, value=value, grad=grad
-        # )
-        updates, self.state = solver.update(
-            grad,
-            self.state,
-            self.parameters,
-            value=value,
-            grad=grad,
-            value_fn=self.run_fn,
-        )
-        self.parameters = optax.apply_updates(self.parameters, updates)
+        self.parameters, self.state = solver.update(self.parameters, self.state)
         inverse_value = self.state.value
         new_value = self.inv_fn(inverse_value)
         self.old_value = self.value

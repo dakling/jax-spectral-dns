@@ -2350,8 +2350,8 @@ def run_ld_2021_get_mean(
     Nx: int = 64,
     Ny: int = 129,
     Nz: int = 64,
-    max_cfl=0.7,
-    end_time=1e0,
+    max_cfl: float = 0.7,
+    end_time: float = 1e0,
     init_file: Optional[str] = None,
 ) -> None:
     Re_tau = float(Re_tau)
