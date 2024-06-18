@@ -220,6 +220,7 @@ class Optimiser(ABC, Generic[I]):
         solver = jaxopt.OptaxSolver(
             opt=opt, fun=self.value_and_grad_fn, value_and_grad=True, jit=True
         )
+        self.value_and_grad = optax.value_and_grad_from_state(self.run_fn)
         return solver
 
     def get_jaxopt_solver(self) -> jaxopt.LBFGS:
@@ -261,7 +262,19 @@ class Optimiser(ABC, Generic[I]):
 
         self.post_process_iteration()
 
-        self.parameters, self.state = solver.update(self.parameters, self.state)
+        value, grad = self.value_and_grad(self.parameters, state=self.state)
+        self.parameters, self.state = solver.update(
+            self.parameters, self.state, value=value, grad=grad
+        )
+        updates, self.state = solver.update(
+            grad,
+            self.state,
+            self.parameters,
+            value=value,
+            grad=grad,
+            value_fn=self.run_fn,
+        )
+        self.parameters = optax.apply_updates(self.parameters, updates)
         inverse_value = self.state.value
         new_value = self.inv_fn(inverse_value)
         self.old_value = self.value
