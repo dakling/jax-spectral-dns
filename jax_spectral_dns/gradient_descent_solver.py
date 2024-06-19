@@ -115,10 +115,13 @@ class GradientDescentSolver(ABC):
                     os.remove(f)
             except FileNotFoundError:
                 pass
-        os.rename(
-            fname,
-            fname + "_bak_" + str(self.i),
-        )
+        try:
+            os.rename(
+                fname,
+                fname + "_bak_" + str(self.i),
+            )
+        except FileNotFoundError:
+            pass
         v0.save_to_file("velocity_latest")
 
     def perform_final_run(self) -> None:
