@@ -2839,6 +2839,7 @@ def run_ld_2021_dual(
     number_of_steps: int = 10,
     e_0: float = 1e-3,
     xz_scale: float = 1.0,
+    max_cfl: float = 0.7,
     linearise: int = 0,
     start_iteration: int = 0,
     init_file: Optional[str] = None,
@@ -2853,6 +2854,7 @@ def run_ld_2021_dual(
     aliasing = 3 / 2
     e_0 = float(e_0)
     xz_scale = float(xz_scale)
+    max_cfl = float(max_cfl)
     start_iteration = int(start_iteration)
     linearise = int(linearise)
     linearise_ = linearise == 1
@@ -2860,7 +2862,6 @@ def run_ld_2021_dual(
     if start_iteration <= 0:
         Equation.initialize()
 
-    max_cfl = 0.7
     end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
