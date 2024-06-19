@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import os, glob
 import time
 import math
-from typing import Any, cast
+from typing import Any, Tuple, cast, TYPE_CHECKING
 import jax
 import jax.numpy as jnp
 from matplotlib.axes import subplot_class_factory
@@ -14,11 +14,15 @@ from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPertu
 from jax_spectral_dns.navier_stokes_perturbation_dual import (
     NavierStokesVelVortPerturbationDual,
 )
+from jax_spectral_dns.optimiser import OptimiserFourier
 
 try:
     from humanfriendly import format_timespan  # type: ignore
 except ModuleNotFoundError:
     pass
+
+if TYPE_CHECKING:
+    from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array, jsd_array
 
 
 class GradientDescentSolver(ABC):
@@ -410,3 +414,73 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.beta = 0.0
         else:
             self.beta = 0.0
+
+
+class OptimiserWrapper(GradientDescentSolver):
+
+    def initialise(self, prepare_for_iterations: bool = True) -> None:
+        print_verb("using optimiser from external library")
+
+        def run_input_to_parameters(x: VectorField[FourierField]) -> "parameter_type":
+            return (x.get_data(),)
+
+        def parameters_to_run_input(x: "parameter_type") -> VectorField[FourierField]:
+            vel_0_hat: VectorField[FourierField] = VectorField.FromData(
+                FourierField,
+                self.dual_problem.get_physical_domain(),
+                x[0],
+                "velocity_hat",
+            )
+            vel_0_hat.set_name("velocity_hat")
+            return vel_0_hat
+
+        def run_adjoint(
+            v0_hat: VectorField[FourierField], out: bool = False
+        ) -> Tuple[float, Tuple["jnp_array"]]:
+            v0 = v0_hat.no_hat()
+            v0 = v0.normalize_by_energy()
+            v0 *= self.e_0
+            v0_hat_ = v0.hat()
+            v0_hat_.set_name("velocity_hat")
+            Re_tau = self.dual_problem.forward_equation.get_Re_tau()
+            dt = self.dual_problem.forward_equation.get_dt()
+            end_time = self.dual_problem.forward_equation.end_time
+            nse = NavierStokesVelVortPerturbation(
+                v0_hat_, Re_tau=Re_tau, dt=dt, end_time=end_time
+            )
+            nse.set_linearize(False)
+            nse_dual = (
+                NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+                    nse
+                )
+            )
+            if out:
+                return (nse_dual.get_gain(), (jnp.array([0.0]),))
+            else:
+                return (nse_dual.get_gain(), (-1 * nse_dual.get_grad()[0],))
+
+        run_input_initial = self.dual_problem.forward_equation.get_initial_field(
+            "velocity_hat"
+        )
+
+        self.optimiser_ = OptimiserFourier(
+            self.dual_problem.get_physical_domain(),
+            self.dual_problem.get_physical_domain(),
+            run_adjoint,
+            run_input_initial,
+            value_and_grad=True,
+            minimise=False,
+            force_2d=False,
+            max_iter=self.number_of_steps,
+            use_optax=True,
+            min_optax_iter=self.number_of_steps,
+            learning_rate=1e-2 / jnp.sqrt(self.e_0),
+            scale_by_norm=False,
+            objective_fn_name="gain",
+            add_noise=False,
+            parameters_to_run_input_fn=parameters_to_run_input,
+            run_input_to_parameters_fn=run_input_to_parameters,
+        )
+
+    def update(self) -> None:
+        self.optimiser_.perform_iteration()

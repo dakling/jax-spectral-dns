@@ -86,12 +86,11 @@ def get_vel_1_nabla_vel_2(
     return vel_1_nabla_vel_2
 
 
-def update_nonlinear_terms_high_performance_convection(
+def get_helicity_convection(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
-) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
-
+) -> "jnp_array":
     vel_new = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
@@ -128,33 +127,14 @@ def update_nonlinear_terms_high_performance_convection(
             for i in physical_domain.all_dimensions()
         ]
     )
-    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+    return hel_new_hat
 
 
-def get_nabla_vel_1_vel_2(
-    physical_domain: PhysicalDomain,
-    fourier_domain: FourierDomain,
-    vel_1: "jnp_array",
-    vel_2: "jnp_array",
-    vel_1_hat: "jnp_array",
-) -> "jnp_array":
-    nabla_vel_1_vel_2_hat = jnp.zeros_like(vel_1_hat)
-    for i in physical_domain.all_dimensions():
-        for j in physical_domain.all_dimensions():
-            vel_u_i_u_j = vel_1[i] * vel_2[j]
-            vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
-            nabla_vel_1_vel_2_hat = nabla_vel_1_vel_2_hat.at[i].set(
-                nabla_vel_1_vel_2_hat.at[i].get()
-                + fourier_domain.diff(vel_u_i_u_j_hat, j)
-            )
-    return nabla_vel_1_vel_2_hat
-
-
-def update_nonlinear_terms_high_performance_diffusion(
+def get_helicity_diffusion(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
-) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+) -> "jnp_array":
     vel_new = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
@@ -194,6 +174,44 @@ def update_nonlinear_terms_high_performance_diffusion(
     #     nabla_vel_new_vel_new_hat.append(nabla_vel_new_vel_new_i_hat)
     # nabla_vel_new_vel_new_hat_ = jnp.array(nabla_vel_new_vel_new_hat)
     hel_new_hat = -nabla_vel_new_vel_new_hat
+    return hel_new_hat
+
+
+def update_nonlinear_terms_high_performance_convection(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+
+    hel_new_hat = get_helicity_convection(physical_domain, fourier_domain, vel_hat_new)
+    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+
+
+def get_nabla_vel_1_vel_2(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_1: "jnp_array",
+    vel_2: "jnp_array",
+    vel_1_hat: "jnp_array",
+) -> "jnp_array":
+    nabla_vel_1_vel_2_hat = jnp.zeros_like(vel_1_hat)
+    for i in physical_domain.all_dimensions():
+        for j in physical_domain.all_dimensions():
+            vel_u_i_u_j = vel_1[i] * vel_2[j]
+            vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
+            nabla_vel_1_vel_2_hat = nabla_vel_1_vel_2_hat.at[i].set(
+                nabla_vel_1_vel_2_hat.at[i].get()
+                + fourier_domain.diff(vel_u_i_u_j_hat, j)
+            )
+    return nabla_vel_1_vel_2_hat
+
+
+def update_nonlinear_terms_high_performance_diffusion(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    hel_new_hat = get_helicity_convection(physical_domain, fourier_domain, vel_hat_new)
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
@@ -202,25 +220,11 @@ def update_nonlinear_terms_high_performance_skew_symmetric(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
-    out = tuple(
-        [
-            0.5
-            * (
-                update_nonlinear_terms_high_performance_convection(
-                    physical_domain,
-                    fourier_domain,
-                    vel_hat_new,
-                )[i]
-                + update_nonlinear_terms_high_performance_diffusion(
-                    physical_domain,
-                    fourier_domain,
-                    vel_hat_new,
-                )[i]
-            )
-            for i in range(4)
-        ]
+    hel_new_hat = 0.5 * (
+        get_helicity_convection(physical_domain, fourier_domain, vel_hat_new)
+        + get_helicity_diffusion(physical_domain, fourier_domain, vel_hat_new)
     )
-    return cast(Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"], out)
+    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
 def update_nonlinear_terms_high_performance_rotational(
@@ -296,8 +300,8 @@ class NavierStokesVelVort(Equation):
         self.nonlinear_update_fn: Callable[
             ["jnp_array", int],
             Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"],
-        ] = lambda vel, _: update_nonlinear_terms_high_performance_rotational(
-            # ] = lambda vel, _: update_nonlinear_terms_high_performance_skew_symmetric(
+            # ] = lambda vel, _: update_nonlinear_terms_high_performance_rotational(
+        ] = lambda vel, _: update_nonlinear_terms_high_performance_skew_symmetric(
             self.get_physical_domain(),
             self.get_domain(),
             vel,

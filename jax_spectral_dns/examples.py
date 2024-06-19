@@ -5,7 +5,9 @@ import sys
 
 from jax_spectral_dns.gradient_descent_solver import (
     ConjugateGradientDescentSolver,
+    GradientDescentSolver,
     SteepestAdaptiveDescentSolver,
+    OptimiserWrapper,
 )
 
 try:
@@ -2898,14 +2900,19 @@ def run_ld_2021_dual(
     # vel_base_turb = vel_base_turb.normalize_by_max_value()
     vel_base_lam = VectorField(
         [
-            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            # PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(
+                domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
+            ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
 
     vel_base = (
-        turb * vel_base_turb + (1 - turb) * vel_base_lam * max
+        # turb * vel_base_turb + (1 - turb) * vel_base_lam * max
+        turb * vel_base_turb
+        + (1 - turb) * vel_base_lam
     )  # continuously blend from turbulent to laminar mean profile
     vel_base.set_name("velocity_base")
 
@@ -3024,6 +3031,180 @@ def run_ld_2021_dual(
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
         Re_tau=Re_tau,
+        dt=dt,
+        end_time=end_time_,
+        velocity_base_hat=vel_base.hat(),
+    )
+    nse.set_linearize(linearise_)
+    nse.set_post_process_fn(post_process)
+    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+        nse
+    )
+    optimiser = ConjugateGradientDescentSolver(
+        nse_dual,
+        max_iterations=number_of_steps,
+        step_size=1e-2,
+        max_step_size=0.1,
+        post_process_function=post_process,
+        start_iteration=start_iteration,
+    )
+    optimiser.optimise()
+
+
+def run_optimisation_farano_2015(
+    Re: float = 2000,
+    Nx: int = 300,
+    Ny: int = 100,
+    Nz: int = 120,
+    number_of_steps: int = 10,
+    e_0: float = 1.1e-5,
+    linearise: int = 0,
+    start_iteration: int = 0,
+    init_file: Optional[str] = None,
+) -> None:
+    Re = float(Re)
+    Nx = int(Nx)
+    Ny = int(Ny)
+    Nz = int(Nz)
+    number_of_steps = int(number_of_steps)
+    aliasing = 3 / 2
+    e_0 = float(e_0)
+    start_iteration = int(start_iteration)
+    linearise = int(linearise)
+    linearise_ = linearise == 1
+
+    if start_iteration <= 0:
+        Equation.initialize()
+
+    max_cfl = 0.7
+    end_time = 10.0
+
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(2.0 * np.pi, 1.0, np.pi),
+        aliasing=aliasing,
+        dealias_nonperiodic=False,
+    )
+
+    vel_base = VectorField(
+        [
+            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            # PhysicalField.FromFunc(domain, lambda X: Re / 2 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
+    )
+
+    vel_base.set_name("velocity_base")
+
+    end_time_ = end_time
+
+    if init_file is None:
+        number_of_modes = 60
+        n = 64
+        lsc_domain = PhysicalDomain.create(
+            (2, n, 2),
+            (True, False, True),
+            scale_factors=domain.scale_factors,
+            aliasing=1,
+        )
+        vel_base_y_slice = 1.0 * (1 - lsc_domain.grid[1] ** 2)
+        # vel_base_y_slice =  Re / 2 * (1 - lsc_domain.grid[1] ** 2)
+        lsc_xz = LinearStabilityCalculation(
+            Re=Re,
+            alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
+            beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
+            n=n,
+            U_base=cast("np_float_array", vel_base_y_slice),
+        )
+
+        v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
+            # coarse_domain,
+            domain,
+            end_time_,
+            number_of_modes,
+            recompute_full=True,
+            save_final=False,
+        )
+        print_verb(
+            "expected gain:",
+            lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+        )
+        v0_0.normalize_by_energy()
+        v0_0 *= jnp.sqrt(e_0)
+        vel_hat: VectorField[FourierField] = v0_0.hat()
+        vel_hat.set_name("velocity_hat")
+
+    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
+        n_steps = nse.get_number_of_fields("velocity_hat")
+        # time = (i / (n_steps - 1)) * end_time
+        vel_hat = nse.get_field("velocity_hat", i)
+        vel = vel_hat.no_hat()
+
+        vel_base_hat = nse.get_initial_field("velocity_base_hat")
+        vel_base = vel_base_hat.no_hat()
+
+        vort = vel.curl()
+        vel.set_time_step(i)
+        vel.set_name("velocity")
+        vort.set_time_step(i)
+        vort.set_name("vorticity")
+
+        vel[0].plot_3d(2)
+        vel[1].plot_3d(2)
+        vel[2].plot_3d(2)
+        vel[0].plot_3d(0)
+        vel[1].plot_3d(0)
+        vel[2].plot_3d(0)
+        vel.plot_streamlines(2)
+        vel[1].plot_isolines(2)
+        vel[1].plot_isosurfaces(0.4)
+
+        vel_total = vel + vel_base
+        vel_total.set_name("velocity_total")
+        vel_total[0].plot_3d(0)
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ts = []
+        energy_t = []
+        for j in range(n_steps):
+            time_ = (j / (n_steps - 1)) * end_time_
+            vel_hat_ = nse.get_field("velocity_hat", j)
+            vel_ = vel_hat_.no_hat()
+            vel_energy_ = vel_.energy()
+            ts.append(time_)
+            energy_t.append(vel_energy_)
+
+        energy_t_arr = np.array(energy_t)
+        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
+        ax.plot(
+            ts[: i + 1],
+            energy_t_arr[: i + 1] / energy_t_arr[0],
+            "bo",
+            label="energy gain",
+        )
+        fig.legend()
+        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+
+    if init_file is None:
+        v0_hat = vel_hat
+    else:
+        v0 = VectorField.FromFile(domain, init_file, "velocity")
+        v0 = v0.normalize_by_energy()
+        v0 *= jnp.sqrt(e_0)
+        v0_hat = v0.hat()
+    v0_hat.set_name("velocity_hat")
+
+    v_total = v0_hat.no_hat() + vel_base
+    dt = Equation.find_suitable_dt(
+        domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time_
+    )
+    nse = NavierStokesVelVortPerturbation(
+        v0_hat,
+        Re_tau=Re,
         dt=dt,
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
@@ -3229,8 +3410,8 @@ def run_optimisation_transient_growth_dual(
     Ny: int = 64,
     Nz: int = 4,
     number_of_steps: int = 20,
-    vel_0_path: Optional[str] = None,
     use_custom_optimiser: bool = True,
+    vel_0_path: Optional[str] = None,
 ) -> None:
     Re = float(Re)
     T = float(T)
@@ -3353,23 +3534,21 @@ def run_optimisation_transient_growth_dual(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
+    if vel_0_path is None:
+        v0_hat = v0_0_hat
+    else:
+        v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
+    v0_hat.set_name("velocity_hat")
+    nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
+    # nse.set_linearize(True)
+    nse.set_linearize(False)
+    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+        nse, checkpointing=True
+    )
     if use_custom_optimiser:
         print_verb("using custom optimiser")
-        if vel_0_path is None:
-            v0_hat = v0_0_hat
-        else:
-            v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
-        v0_hat.set_name("velocity_hat")
-        nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
-        # nse.set_linearize(True)
-        nse.set_linearize(False)
-        nse_dual = (
-            NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-                nse, checkpointing=True
-            )
-        )
         # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
-        optimiser = ConjugateGradientDescentSolver(
+        optimiser: "GradientDescentSolver" = ConjugateGradientDescentSolver(
             nse_dual,
             max_iterations=number_of_steps,
             step_size=eps,
@@ -3377,66 +3556,18 @@ def run_optimisation_transient_growth_dual(
             post_process_function=post_process,
             relative_gain_increase_threshold=0.3,
         )
-        optimiser.optimise()
 
     else:
-
         print_verb("using optimiser from external library")
-
-        def run_input_to_parameters(x: VectorField[FourierField]) -> parameter_type:
-            return (x.get_data(),)
-
-        def parameters_to_run_input(x: parameter_type) -> VectorField[FourierField]:
-            vel_0_hat: VectorField[FourierField] = VectorField.FromData(
-                FourierField, domain, x[0], "velocity_hat"
-            )
-            vel_0_hat.set_name("velocity_hat")
-            return vel_0_hat
-
-        def run_adjoint(
-            v0_hat: VectorField[FourierField], out: bool = False
-        ) -> Tuple[float, Tuple["jnp_array"]]:
-            v0 = v0_hat.no_hat()
-            v0 = v0.normalize_by_energy()
-            v0 *= e_0
-            v0_hat_ = v0.hat()
-            v0_hat_.set_name("velocity_hat")
-            nse = NavierStokesVelVortPerturbation(
-                v0_hat_, Re=Re, dt=dt, end_time=end_time
-            )
-            # nse.set_linearize(True)
-            nse.set_linearize(False)
-            nse_dual = (
-                NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-                    nse
-                )
-            )
-            if out:
-                return (nse_dual.get_gain(), (jnp.array([0.0]),))
-            else:
-                return (nse_dual.get_gain(), (-1 * nse_dual.get_grad()[0],))
-
-        run_input_initial = v0_0_hat
-
-        optimiser_ = OptimiserFourier(
-            domain,
-            domain,
-            run_adjoint,
-            run_input_initial,
-            value_and_grad=True,
-            minimise=False,
-            force_2d=False,
-            max_iter=number_of_steps,
-            use_optax=True,
-            min_optax_iter=number_of_steps,
-            learning_rate=1e-2 / jnp.sqrt(e_0),
-            scale_by_norm=False,
-            objective_fn_name="gain",
-            add_noise=False,
-            parameters_to_run_input_fn=parameters_to_run_input,
-            run_input_to_parameters_fn=run_input_to_parameters,
+        optimiser = OptimiserWrapper(
+            nse_dual,
+            max_iterations=number_of_steps,
+            step_size=eps,
+            max_step_size=0.1,
+            post_process_function=post_process,
+            relative_gain_increase_threshold=0.3,
         )
-        optimiser_.optimise()
+    optimiser.optimise()
 
 
 def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:

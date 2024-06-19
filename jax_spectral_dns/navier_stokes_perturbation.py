@@ -37,20 +37,18 @@ if TYPE_CHECKING:
     )
 
 
-def update_nonlinear_terms_high_performance_perturbation_convection(
+# TODO avoid repeated computation of nabla u
+def get_helicity_perturbation_convection(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
     linearize: bool = False,
-) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+) -> "jnp_array":
     vel_new = jnp.array(
         [
-            # fourier_domain.filter_field_nonfourier_only(
-            #     fourier_domain.field_no_hat(vel_hat_new[i])
-            # )
-            fourier_domain.field_no_hat(vel_hat_new[i])
-            for i in physical_domain.all_dimensions()
+            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
         ]
     )
     vel_base = jnp.array(
@@ -153,16 +151,16 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
             for i in physical_domain.all_dimensions()
         ]
     )
-    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+    return hel_new_hat
 
 
-def update_nonlinear_terms_high_performance_perturbation_diffusion(
+def get_helicity_perturbation_diffusion(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
     linearize: bool = False,
-) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+) -> "jnp_array":
     vel_new = jnp.array(
         [
             # fourier_domain.filter_field_nonfourier_only(
@@ -265,6 +263,32 @@ def update_nonlinear_terms_high_performance_perturbation_diffusion(
         + nabla_vel_base_vel_new
         + nabla_vel_new_vel_base
     )
+    return cast("jnp_array", hel_new_hat)
+
+
+def update_nonlinear_terms_high_performance_perturbation_convection(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
+    linearize: bool = False,
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    hel_new_hat = get_helicity_perturbation_convection(
+        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
+    )
+    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+
+
+def update_nonlinear_terms_high_performance_perturbation_diffusion(
+    physical_domain: PhysicalDomain,
+    fourier_domain: FourierDomain,
+    vel_hat_new: "jnp_array",
+    vel_base_hat: "jnp_array",
+    linearize: bool = False,
+) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    hel_new_hat = get_helicity_perturbation_diffusion(
+        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
+    )
 
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
@@ -276,29 +300,15 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     vel_base_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
-    out = tuple(
-        [
-            0.5
-            * (
-                update_nonlinear_terms_high_performance_perturbation_convection(
-                    physical_domain,
-                    fourier_domain,
-                    vel_hat_new,
-                    vel_base_hat,
-                    linearize,
-                )[i]
-                + update_nonlinear_terms_high_performance_perturbation_diffusion(
-                    physical_domain,
-                    fourier_domain,
-                    vel_hat_new,
-                    vel_base_hat,
-                    linearize,
-                )[i]
-            )
-            for i in range(4)
-        ]
+    hel_new_hat = 0.5 * (
+        get_helicity_perturbation_convection(
+            physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
+        )
+        + get_helicity_perturbation_diffusion(
+            physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
+        )
     )
-    return cast(Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"], out)
+    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
 # @partial(jax.jit, static_argnums=(0, 1))
@@ -458,8 +468,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
-            # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
+        # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
+        self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             self.get_physical_domain(),
             self.get_domain(),
             vel,
