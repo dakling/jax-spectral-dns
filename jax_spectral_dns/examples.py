@@ -2838,6 +2838,7 @@ def run_ld_2021_dual(
     Nz: int = 40,
     number_of_steps: int = 10,
     e_0: float = 1e-3,
+    xz_scale: float = 1.0,
     linearise: int = 0,
     start_iteration: int = 0,
     init_file: Optional[str] = None,
@@ -2864,7 +2865,7 @@ def run_ld_2021_dual(
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
+        scale_factors=(1.87 * xz_scale, 1.0, 0.93 * xz_scale),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
@@ -3058,6 +3059,7 @@ def run_optimisation_farano_2015(
     Nz: int = 120,
     number_of_steps: int = 10,
     e_0: float = 1.1e-5,
+    end_time: float = 10.0,
     linearise: int = 0,
     start_iteration: int = 0,
     init_file: Optional[str] = None,
@@ -3072,12 +3074,12 @@ def run_optimisation_farano_2015(
     start_iteration = int(start_iteration)
     linearise = int(linearise)
     linearise_ = linearise == 1
+    end_time = float(end_time)
 
     if start_iteration <= 0:
         Equation.initialize()
 
     max_cfl = 0.7
-    end_time = 10.0
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),

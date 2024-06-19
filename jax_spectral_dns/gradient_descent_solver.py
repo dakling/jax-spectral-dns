@@ -106,17 +106,18 @@ class GradientDescentSolver(ABC):
         v0.plot_3d(0)
         v0.plot_3d(2)
         v0[1].plot_isosurfaces(0.4)
+        fname = Field.field_dir + "/velocity_latest"
         if (
-            os.stat(Field.field_dir + "/velocity_latest").st_blocks > 1
+            os.path.isfile(fname) and os.stat(fname).st_blocks > 1
         ):  # only back up velocity if it contains data
             try:
-                for f in glob.glob(Field.field_dir + "/velocity_latest_bak_*"):
+                for f in glob.glob(fname + "_bak_*"):
                     os.remove(f)
             except FileNotFoundError:
                 pass
         os.rename(
-            Field.field_dir + "/velocity_latest",
-            Field.field_dir + "/velocity_latest_bak_" + str(self.i),
+            fname,
+            fname + "_bak_" + str(self.i),
         )
         v0.save_to_file("velocity_latest")
 
@@ -463,7 +464,7 @@ class OptimiserWrapper(GradientDescentSolver):
             "velocity_hat"
         )
 
-        self.optimiser_ = OptimiserFourier(
+        self.optimiser = OptimiserFourier(
             self.dual_problem.get_physical_domain(),
             self.dual_problem.get_physical_domain(),
             run_adjoint,
@@ -483,4 +484,9 @@ class OptimiserWrapper(GradientDescentSolver):
         )
 
     def update(self) -> None:
-        self.optimiser_.perform_iteration()
+        self.optimiser.current_iteration = self.i
+        self.optimiser.perform_iteration()
+        self.current_guess = self.optimiser.parameters_to_run_input_(
+            self.optimiser.parameters
+        )
+        self.value = cast("float", self.optimiser.value)
