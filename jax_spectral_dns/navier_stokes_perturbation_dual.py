@@ -158,7 +158,7 @@ def get_helicity_perturbation_dual_diffusion(
 
     # the first term: - nabla ((U + u) v)
     nabla_vel_new_vel_new_hat = get_nabla_vel_1_vel_2(
-        physical_domain, fourier_domain, vel_u, vel_v_new, vel_v_hat_new
+        physical_domain, fourier_domain, vel_v_new, vel_u, vel_v_hat_new
     )
 
     # the second term: v \dot (\nabla (U + u))^T
