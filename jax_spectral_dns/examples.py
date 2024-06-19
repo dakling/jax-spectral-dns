@@ -2852,6 +2852,7 @@ def run_ld_2021_dual(
     number_of_steps = int(number_of_steps)
     aliasing = 3 / 2
     e_0 = float(e_0)
+    xz_scale = float(xz_scale)
     start_iteration = int(start_iteration)
     linearise = int(linearise)
     linearise_ = linearise == 1
@@ -2865,7 +2866,7 @@ def run_ld_2021_dual(
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=((1.87 * xz_scale), 1.0, (0.93 * xz_scale)),
+        scale_factors=(1.87 * xz_scale, 1.0, 0.93 * xz_scale),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
