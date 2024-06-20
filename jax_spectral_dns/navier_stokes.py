@@ -214,8 +214,10 @@ def get_div_vel_1_vel_2(
     vel_1_hat: "jnp_array",
     vel_2: "jnp_array",
 ) -> "jnp_array":
-    div_vel_1 = fourier_domain.divergence(vel_1_hat)
-    return div_vel_1 * vel_2
+    div_vel_1_hat = fourier_domain.divergence(vel_1_hat)
+    div_vel_1 = fourier_domain.field_no_hat(div_vel_1_hat)
+    out = jnp.array([div_vel_1 * vel_2[i] for i in fourier_domain.all_dimensions()])
+    return out
 
 
 def update_nonlinear_terms_high_performance_diffusion(
