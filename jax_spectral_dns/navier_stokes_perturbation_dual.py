@@ -396,6 +396,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self.forward_equation.write_entire_output = True
         self.forward_equation.write_intermediate_output = False
         self.clear_field("velocity_hat")
+        self.velocity_field_u_history = None
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
