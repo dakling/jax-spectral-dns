@@ -2852,7 +2852,6 @@ def run_ld_2021_dual(
     number_of_steps = int(number_of_steps)
     aliasing = 3 / 2
     e_0 = float(e_0)
-    xz_scale = float(xz_scale)
     max_cfl = float(max_cfl)
     start_iteration = int(start_iteration)
     linearise = int(linearise)
