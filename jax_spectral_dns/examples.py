@@ -2622,7 +2622,7 @@ def run_ld_2021(
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(337.0 / Re_tau, 1.0, 168.0 / Re_tau),
+        scale_factors=(2.0 * np.pi, 1.0, 1.0 * np.pi),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
@@ -2630,7 +2630,7 @@ def run_ld_2021(
     coarse_domain = PhysicalDomain.create(
         (Nx - 5, Ny, Nz - 5),
         (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
+        scale_factors=(2.0 * np.pi, 1.0, 1.0 * np.pi),
         aliasing=1,
     )
     avg_vel_coeffs = np.loadtxt(
