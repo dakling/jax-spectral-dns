@@ -15,6 +15,7 @@ import sys
 
 from jax_spectral_dns.navier_stokes import (
     NavierStokesVelVort,
+    get_div_vel_1_vel_2,
     get_nabla_vel_1_vel_2,
     get_vel_1_nabla_vel_2,
     helicity_to_nonlinear_terms,
@@ -43,21 +44,10 @@ def get_helicity_perturbation_convection(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
+    vel_new: "jnp_array",
+    vel_base: "jnp_array",
     linearize: bool = False,
 ) -> "jnp_array":
-    vel_new = jnp.array(
-        [
-            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
-            for i in jnp.arange(physical_domain.number_of_dimensions)
-        ]
-    )
-    vel_base = jnp.array(
-        [
-            fourier_domain.field_no_hat(vel_base_hat.at[i].get())
-            for i in jnp.arange(physical_domain.number_of_dimensions)
-        ]
-    )
-
     vel_new_nabla_vel_new = get_vel_1_nabla_vel_2(fourier_domain, vel_new, vel_hat_new)
     vel_new_nabla_vel_base = get_vel_1_nabla_vel_2(
         fourier_domain, vel_new, vel_base_hat
@@ -65,80 +55,6 @@ def get_helicity_perturbation_convection(
     vel_base_nabla_vel_new = get_vel_1_nabla_vel_2(
         fourier_domain, vel_base, vel_hat_new
     )
-    # n = fourier_domain.number_of_dimensions
-    # # TODO can I make this more efficient?
-    # dvel_hat_i_dx_j = jnp.array(
-    #     [[fourier_domain.diff(vel_hat_new[i], j) for j in range(n)] for i in range(n)]
-    # )
-    # dvel_base_i_dx_j = jnp.array(
-    #     [[fourier_domain.diff(vel_base_hat[i], j) for j in range(n)] for i in range(n)]
-    # )
-
-    # vel_new_nabla_vel_new = jnp.sum(
-    #     jnp.array(
-    #         [
-    #             [
-    #                 vel_new[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
-    #                 for j in range(n)
-    #             ]
-    #             for i in range(n)
-    #         ]
-    #     ),
-    #     axis=1,
-    # )
-    # vel_new_nabla_vel_base = jnp.sum(
-    #     jnp.array(
-    #         [
-    #             [
-    #                 vel_new[j] * fourier_domain.field_no_hat(dvel_base_i_dx_j[i, j])
-    #                 for j in range(n)
-    #             ]
-    #             for i in range(n)
-    #         ]
-    #     ),
-    #     axis=1,
-    # )
-    # vel_base_nabla_vel_new = jnp.sum(
-    #     jnp.array(
-    #         [
-    #             [
-    #                 vel_base[j] * fourier_domain.field_no_hat(dvel_hat_i_dx_j[i, j])
-    #                 for j in range(n)
-    #             ]
-    #             for i in range(n)
-    #         ]
-    #     ),
-    #     axis=1,
-    # )
-
-    # vel_new_nabla_vel_new = []
-    # vel_new_nabla_vel_base = []
-    # vel_base_nabla_vel_new = []
-    # for i in physical_domain.all_dimensions():
-    #     vel_new_nabla_vel_new_i = jnp.zeros_like(vel_new[0])
-    #     vel_new_nabla_vel_base_i = jnp.zeros_like(vel_new[0])
-    #     vel_base_nabla_vel_new_i = jnp.zeros_like(vel_new[0])
-    #     for j in physical_domain.all_dimensions():
-    #         # the nonlinear term
-    #         vel_u_hat_i_diff_j = fourier_domain.diff(vel_hat_new[i], j)
-    #         vel_new_nabla_vel_new_i += vel_new[j] * fourier_domain.field_no_hat(
-    #             vel_u_hat_i_diff_j
-    #         )
-    #         # the a part
-    #         vel_u_base_hat_i_diff_j = fourier_domain.diff(vel_base_hat[i], j)
-    #         vel_new_nabla_vel_base_i += vel_new[j] * fourier_domain.field_no_hat(
-    #             vel_u_base_hat_i_diff_j
-    #         )
-    #         # the b part
-    #         vel_base_nabla_vel_new_i += vel_base[j] * fourier_domain.field_no_hat(
-    #             vel_u_hat_i_diff_j
-    #         )
-    #     vel_new_nabla_vel_new.append(vel_new_nabla_vel_new_i)
-    #     vel_new_nabla_vel_base.append(vel_new_nabla_vel_base_i)
-    #     vel_base_nabla_vel_new.append(vel_base_nabla_vel_new_i)
-    # vel_new_nabla_vel_new_ = jnp.array(vel_new_nabla_vel_new)
-    # vel_new_nabla_vel_base_ = jnp.array(vel_new_nabla_vel_base)
-    # vel_base_nabla_vel_new_ = jnp.array(vel_base_nabla_vel_new)
     hel_new = -(
         jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_new_nabla_vel_new
         + vel_base_nabla_vel_new
@@ -186,78 +102,6 @@ def get_helicity_perturbation_diffusion(
     nabla_vel_new_vel_base = get_nabla_vel_1_vel_2(
         physical_domain, fourier_domain, vel_new, vel_base, vel_hat_new
     )
-
-    # n = fourier_domain.number_of_dimensions
-    # # TODO can I make this more efficient?
-    # nabla_vel_new_vel_new = jnp.sum(
-    #     jnp.array(
-    #         [
-    #             [
-    #                 fourier_domain.diff(
-    #                     physical_domain.field_hat(vel_new[i] * vel_new[j]), j
-    #                 )
-    #                 for j in range(n)
-    #             ]
-    #             for i in range(n)
-    #         ]
-    #     ),
-    #     axis=1,
-    # )
-    # nabla_vel_base_vel_new = jnp.sum(
-    #     jnp.array(
-    #         [
-    #             [
-    #                 fourier_domain.diff(
-    #                     physical_domain.field_hat(vel_base[i] * vel_new[j]), j
-    #                 )
-    #                 for j in range(n)
-    #             ]
-    #             for i in range(n)
-    #         ]
-    #     ),
-    #     axis=1,
-    # )
-    # nabla_vel_new_vel_base = jnp.sum(
-    #     jnp.array(
-    #         [
-    #             [
-    #                 fourier_domain.diff(
-    #                     physical_domain.field_hat(vel_new[i] * vel_base[j]), j
-    #                 )
-    #                 for j in range(n)
-    #             ]
-    #             for i in range(n)
-    #         ]
-    #     ),
-    #     axis=1,
-    # )
-
-    # nabla_vel_new_vel_new = []
-    # nabla_vel_base_vel_new = []
-    # nabla_vel_new_vel_base = []
-    # for i in physical_domain.all_dimensions():
-    #     nabla_vel_new_vel_new_i = jnp.zeros_like(vel_hat_new[0])
-    #     nabla_vel_base_vel_new_i = jnp.zeros_like(vel_hat_new[0])
-    #     nabla_vel_new_vel_base_i = jnp.zeros_like(vel_hat_new[0])
-    #     for j in physical_domain.all_dimensions():
-    #         # the nonlinear term
-    #         vel_u_i_u_j = vel_new[i] * vel_new[j]
-    #         vel_u_i_u_j_hat = physical_domain.field_hat(vel_u_i_u_j)
-    #         nabla_vel_new_vel_new_i += fourier_domain.diff(vel_u_i_u_j_hat, j)
-    #         # the a part
-    #         vel_u_i_u_base_j = vel_new[i] * vel_base[j]
-    #         vel_u_i_u_base_j_hat = physical_domain.field_hat(vel_u_i_u_base_j)
-    #         nabla_vel_base_vel_new_i += fourier_domain.diff(vel_u_i_u_base_j_hat, j)
-    #         # the b part
-    #         vel_u_base_i_u_j = vel_base[i] * vel_new[j]
-    #         vel_u_base_i_u_j_hat = physical_domain.field_hat(vel_u_base_i_u_j)
-    #         nabla_vel_new_vel_base_i += fourier_domain.diff(vel_u_base_i_u_j_hat, j)
-    #     nabla_vel_new_vel_new.append(nabla_vel_new_vel_new_i)
-    #     nabla_vel_base_vel_new.append(nabla_vel_base_vel_new_i)
-    #     nabla_vel_new_vel_base.append(nabla_vel_new_vel_base_i)
-    # nabla_vel_new_vel_new_ = jnp.array(nabla_vel_new_vel_new)
-    # nabla_vel_base_vel_new_ = jnp.array(nabla_vel_base_vel_new)
-    # nabla_vel_new_vel_base_ = jnp.array(nabla_vel_new_vel_base)
     hel_new_hat = -(
         jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * nabla_vel_new_vel_new
         + nabla_vel_base_vel_new
@@ -273,8 +117,27 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
     vel_base_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    vel_new = jnp.array(
+        [
+            fourier_domain.field_no_hat(vel_hat_new.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
+        ]
+    )
+    vel_base = jnp.array(
+        [
+            fourier_domain.field_no_hat(vel_base_hat.at[i].get())
+            for i in jnp.arange(physical_domain.number_of_dimensions)
+        ]
+    )
+
     hel_new_hat = get_helicity_perturbation_convection(
-        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
+        physical_domain,
+        fourier_domain,
+        vel_hat_new,
+        vel_base_hat,
+        vel_new,
+        vel_base,
+        linearize,
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
@@ -300,14 +163,53 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     vel_base_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
-    hel_new_hat = 0.5 * (
-        get_helicity_perturbation_convection(
-            physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
-        )
-        + get_helicity_perturbation_diffusion(
-            physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
-        )
+
+    vel_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
     )
+    vel_base = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_base_hat[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    div_vel_new_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_new)
+    div_vel_base_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_base_hat, vel_new)
+    div_vel_new_vel_base = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_base)
+    div_vel_new_vel_base = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_base)
+    div_vel_vel = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * div_vel_new_vel_new
+        + div_vel_base_vel_new
+        + div_vel_new_vel_base
+    )
+    div_vel_new_vel_new_hat = jnp.array(
+        [
+            physical_domain.field_hat(div_vel_vel[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    hel_new_hat = (
+        get_helicity_perturbation_convection(
+            physical_domain,
+            fourier_domain,
+            vel_hat_new,
+            vel_base_hat,
+            vel_new,
+            vel_base,
+            linearize,
+        )
+        + 0.5 * div_vel_new_vel_new_hat
+    )
+
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 

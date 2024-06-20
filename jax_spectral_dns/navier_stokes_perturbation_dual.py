@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from jax_spectral_dns.navier_stokes import (
+    get_div_vel_1_vel_2,
     get_vel_1_nabla_vel_2,
     helicity_to_nonlinear_terms,
 )
@@ -55,32 +56,10 @@ def get_helicity_perturbation_dual_convection(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
     vel_v_hat_new: "jnp_array",  # v
-    vel_u_base_hat: "jnp_array",  # U
-    vel_small_u_hat: "jnp_array",  # u
-    linearize: bool = False,
+    vel_u_hat: "jnp_array",  # U
+    vel_v_new: "jnp_array",  # v
+    vel_u: "jnp_array",  # U
 ) -> "jnp_array":
-    vel_u_hat = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
-        + vel_u_base_hat
-    )
-    vel_v_new = jnp.array(
-        [
-            # fourier_domain.filter_field_nonfourier_only(
-            #     fourier_domain.field_no_hat(vel_hat_new[i])
-            # )
-            fourier_domain.field_no_hat(vel_v_hat_new[i])
-            for i in physical_domain.all_dimensions()
-        ]
-    )
-    vel_u = jnp.array(
-        [
-            # fourier_domain.filter_field_nonfourier_only(
-            #     fourier_domain.field_no_hat(vort_u_hat[i])
-            # )
-            fourier_domain.field_no_hat(vel_u_hat[i])
-            for i in physical_domain.all_dimensions()
-        ]
-    )
 
     # the first term: - (U + u) \dot nabla v)
     vel_u_base_nabla_v = get_vel_1_nabla_vel_2(fourier_domain, vel_u, vel_v_hat_new)
@@ -114,13 +93,35 @@ def update_nonlinear_terms_high_performance_perturbation_dual_convection(
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
+    vel_u_hat = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        + vel_u_base_hat
+    )
+    vel_v_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_v_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    vel_u = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_u_hat[i])
+            # )
+            fourier_domain.field_no_hat(vel_u_hat[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
     hel_new_hat = get_helicity_perturbation_dual_convection(
         physical_domain,
         fourier_domain,
         vel_v_hat_new,  # v
-        vel_u_base_hat,  # U
-        vel_small_u_hat,  # u
-        linearize,
+        vel_u_hat,  # U
+        vel_v_new,  # v
+        vel_u,  # U
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
 
@@ -204,24 +205,45 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
     vel_small_u_hat: "jnp_array",  # u
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
+    vel_v_new = jnp.array(
+        [
+            fourier_domain.field_no_hat(vel_v_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    vel_u_hat = (
+        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        + vel_u_base_hat
+    )
+    vel_u = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vort_u_hat[i])
+            # )
+            fourier_domain.field_no_hat(vel_u_hat[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
+    div_vel_u_vel_v = get_div_vel_1_vel_2(fourier_domain, vel_u_hat, vel_v_new)
+    div_vel_v_vel_u = get_div_vel_1_vel_2(fourier_domain, vel_v_hat_new, vel_u)
+    div_vel_vel = 0.5 * (div_vel_u_vel_v + div_vel_v_vel_u)
+    div_vel_vel_hat = jnp.array(
+        [
+            physical_domain.field_hat(div_vel_vel[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
 
-    hel_new_hat = 0.5 * (
+    hel_new_hat = (
         get_helicity_perturbation_dual_convection(
             physical_domain,
             fourier_domain,
             vel_v_hat_new,
-            vel_u_base_hat,
-            vel_small_u_hat,
-            linearize,
+            vel_u_hat,
+            vel_v_new,
+            vel_u,
         )
-        + get_helicity_perturbation_dual_diffusion(
-            physical_domain,
-            fourier_domain,
-            vel_v_hat_new,
-            vel_u_base_hat,
-            vel_small_u_hat,
-            linearize,
-        )
+        + 0.5 * div_vel_vel_hat
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
 

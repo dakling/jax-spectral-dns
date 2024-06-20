@@ -89,8 +89,8 @@ def get_vel_1_nabla_vel_2(
 def get_helicity_convection(
     physical_domain: PhysicalDomain,
     fourier_domain: FourierDomain,
-    vel_new: "jnp_array",
     vel_hat_new: "jnp_array",
+    vel_new: "jnp_array",
 ) -> "jnp_array":
 
     vel_new_nabla_vel_new = get_vel_1_nabla_vel_2(fourier_domain, vel_new, vel_hat_new)
@@ -175,8 +175,17 @@ def update_nonlinear_terms_high_performance_convection(
     vel_hat_new: "jnp_array",
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
+    vel_new = jnp.array(
+        [
+            # fourier_domain.filter_field_nonfourier_only(
+            #     fourier_domain.field_no_hat(vel_hat_new[i])
+            # )
+            fourier_domain.field_no_hat(vel_hat_new[i])
+            for i in physical_domain.all_dimensions()
+        ]
+    )
     hel_new_hat = get_helicity_convection(
-        physical_domain, fourier_domain, vel_new, vel_hat_new
+        physical_domain, fourier_domain, vel_hat_new, vel_new
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
@@ -202,10 +211,10 @@ def get_nabla_vel_1_vel_2(
 
 def get_div_vel_1_vel_2(
     fourier_domain: FourierDomain,
-    vel_1: "jnp_array",
+    vel_1_hat: "jnp_array",
     vel_2: "jnp_array",
 ) -> "jnp_array":
-    div_vel_1 = fourier_domain.divergence(vel_1)
+    div_vel_1 = fourier_domain.divergence(vel_1_hat)
     return div_vel_1 * vel_2
 
 
@@ -214,9 +223,7 @@ def update_nonlinear_terms_high_performance_diffusion(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
-    hel_new_hat = get_helicity_convection(
-        physical_domain, fourier_domain, vel_new, vel_hat_new
-    )
+    hel_new_hat = get_helicity_diffusion(physical_domain, fourier_domain, vel_hat_new)
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
@@ -234,16 +241,17 @@ def update_nonlinear_terms_high_performance_skew_symmetric(
             for i in physical_domain.all_dimensions()
         ]
     )
-    div_vel_new_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_new, vel_new)
+    div_vel_new_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_new)
     div_vel_new_vel_new_hat = jnp.array(
         [
             physical_domain.field_hat(div_vel_new_vel_new[i])
             for i in physical_domain.all_dimensions()
         ]
     )
-    hel_new_hat = get_helicity_convection(
-        physical_domain, fourier_domain, vel_new, vel_hat_new
-    ) + 0.5 * (div_vel_new_vel_new_hat)
+    hel_new_hat = (
+        get_helicity_convection(physical_domain, fourier_domain, vel_hat_new, vel_new)
+        + 0.5 * div_vel_new_vel_new_hat
+    )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
 
