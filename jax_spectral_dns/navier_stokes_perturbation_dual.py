@@ -618,14 +618,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         gain = self.get_gain()
         e_0 = u_hat_0.no_hat().energy()
 
-        grad_field = VectorField.FromData(
-            FourierField,
-            self.forward_equation.get_physical_domain(),
-            (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0,
-        ).no_hat()
-        grad_field.set_name("grad")
-        grad_field.plot_3d(2)
-
         return (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0
 
     def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:

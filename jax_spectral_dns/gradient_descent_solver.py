@@ -390,7 +390,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
-        print_verb("v0 energy:", v0.energy(), verbosity_level=2)
+        print_verb("v0 energy:", v0.energy(), verbosity_level=1)
         self.old_nse_dual = self.dual_problem
         self.value = gain
 
