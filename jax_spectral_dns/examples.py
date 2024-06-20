@@ -2833,12 +2833,11 @@ def run_ld_2021(
 def run_ld_2021_dual(
     turb: float = 1.0,
     Re_tau: float = 180,
-    Nx: int = 40,
+    Nx: int = 64,
     Ny: int = 129,
-    Nz: int = 40,
+    Nz: int = 32,
     number_of_steps: int = 10,
     e_0: float = 1e-3,
-    xz_scale: float = 1.0,
     max_cfl: float = 0.7,
     linearise: int = 0,
     start_iteration: int = 0,
@@ -2867,7 +2866,7 @@ def run_ld_2021_dual(
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(1.87 * xz_scale, 1.0, 0.93 * xz_scale),
+        scale_factors=(2.0 * np.pi, 1.0, 1.0 * np.pi),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
