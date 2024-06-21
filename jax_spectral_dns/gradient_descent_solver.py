@@ -43,8 +43,8 @@ class GradientDescentSolver(ABC):
 
         # set various solver options
         self.i = params.get("start_iteration", 0)
-        self.max_step_size = params.get("max_step_size", 0.999)
-        self.min_step_size = params.get("min_step_size", 1e-4)
+        self.max_step_size = params.get("max_step_size", 1e-1)
+        self.min_step_size = params.get("min_step_size", 1e-3)
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("max_iterations", 20)
         self.relative_gain_increase_threshold = params.get(
@@ -347,6 +347,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
             v0_hat_new = self.normalize_field(v0_hat_new)
 
+            v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
+            u_0_hat_old = v0_hat
+
             v0_hat_new.set_name("velocity_hat")
             self.dual_problem.forward_equation.set_initial_field(
                 "velocity_hat", v0_hat_new
@@ -397,15 +400,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         "high gain increase detected, repeating iteration with smaller step size."
                     )
                 self.decrease_step_size()
-                assert self.old_nse_dual is not None
                 if gain_change <= 0.0:
                     self.beta = 0.0
-                self.grad, _ = self.old_nse_dual.get_projected_grad(
-                    self.step_size
-                )  # TODO this probably does not work anymore now that self.dual_problem is overwritten
+                self.grad, _ = self.dual_problem.get_projected_grad_from_u_and_v(
+                    self.step_size,
+                    u_0_hat_old,
+                    v_0_hat_old,
+                )
                 diff = jnp.linalg.norm(
-                    self.old_nse_dual.get_projected_grad(self.step_size)[0]
-                    - self.dual_problem.get_projected_grad(self.step_size)[0]
+                    self.grad - self.dual_problem.get_projected_grad(self.step_size)[0]
                 )
                 print_verb("difference between old and new gradient:", diff)
 
@@ -425,7 +428,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0 = self.current_guess.no_hat()
         print_verb("v0 energy:", v0.energy())
         print_verb("\n")
-        self.old_nse_dual = self.dual_problem
         self.value = gain
 
         if (

@@ -642,10 +642,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         return (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0
 
-    def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
-        self.run_backward_calculation()
-        u_hat_0 = self.velocity_u_hat_0
-        v_hat_0 = self.get_latest_field("velocity_hat")
+    def get_projected_grad_from_u_and_v(
+        self,
+        step_size: float,
+        u_hat_0: VectorField["FourierField"],
+        v_hat_0: VectorField["FourierField"],
+    ) -> Tuple["jnp_array", bool]:
         e_0 = u_hat_0.no_hat().energy()
         lam = 0.0
 
@@ -669,6 +671,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
         return (lam * u_hat_0.get_data() - v_hat_0.get_data(), i < 100)
+
+    def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
+        self.run_backward_calculation()
+        u_hat_0 = self.velocity_u_hat_0
+        v_hat_0 = self.get_latest_field("velocity_hat")
+        return self.get_projected_grad_from_u_and_v(step_size, u_hat_0, v_hat_0)
 
     def get_projected_cg_grad(
         self, step_size: float, beta: float, old_grad: "jnp_array"
