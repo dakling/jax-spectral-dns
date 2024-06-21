@@ -305,7 +305,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("iteration", self.i + 1, "of", self.number_of_steps)
             if j + 1 > 1:
                 print_verb("sub-iteration", j + 1)
-            print_verb("step size:", self.step_size, "beta:", self.beta)
+            print_verb("step size:", self.step_size, "; beta:", self.beta)
 
             v0_hat_new: VectorField[FourierField] = VectorField.FromData(
                 FourierField,

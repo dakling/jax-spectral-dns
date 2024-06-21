@@ -2638,7 +2638,7 @@ def run_ld_2021(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
 
-    def get_flow_rate(data: "np_complex_array") -> float:
+    def get_flow_rate(domain: "PhysicalDomain", data: "np_complex_array") -> float:
         def set_first_mat_row_and_col_to_unit(
             matr: "np_float_array",
         ) -> "np_float_array":
@@ -2685,7 +2685,7 @@ def run_ld_2021(
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
-        flow_rate = get_flow_rate(U_y_slice)
+        flow_rate = get_flow_rate(domain, U_y_slice)
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2695,9 +2695,9 @@ def run_ld_2021(
         )
         return vel_base, U_y_slice, max, flow_rate
 
-    vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb, _, max, flow_rate = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
-    u_max_over_u_tau = max / vel_base_turb[0].max()
+    u_max_over_u_tau = flow_rate
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
@@ -2738,13 +2738,20 @@ def run_ld_2021(
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+        _, U_base, _, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / flow_rate
+        # vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
+        #     1 - lsc_domain.grid[1] ** 2
+        # )  # continuously blend from turbulent to laminar mean profile
+        vel_base_y_slice = turb * U_base + (1 - turb) * 3.0 / 4.0 * (
+            1 - lsc_domain.grid[1] ** 2
+        )  # continuously blend from turbulent to laminar mean profile
         lsc = LinearStabilityCalculation(
             Re=Re,
             alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
             beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
-            U_base=cast("np_float_array", U_base),
+            U_base=cast("np_float_array", vel_base_y_slice),
         )
 
         v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -2911,7 +2918,7 @@ def run_ld_2021_dual(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
 
-    def get_flow_rate(data: "np_complex_array") -> float:
+    def get_flow_rate(domain: "PhysicalDomain", data: "np_complex_array") -> float:
         def set_first_mat_row_and_col_to_unit(
             matr: "np_float_array",
         ) -> "np_float_array":
@@ -2958,7 +2965,7 @@ def run_ld_2021_dual(
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
-        flow_rate = get_flow_rate(U_y_slice)
+        flow_rate = get_flow_rate(domain, U_y_slice)
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
