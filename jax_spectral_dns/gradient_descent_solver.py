@@ -44,6 +44,7 @@ class GradientDescentSolver(ABC):
         # set various solver options
         self.i = params.get("start_iteration", 0)
         self.max_step_size = params.get("max_step_size", 0.999)
+        self.min_step_size = params.get("min_step_size", 1e-4)
         self.step_size = params.get("step_size", 1e-2)
         self.number_of_steps = params.get("max_iterations", 20)
         self.relative_gain_increase_threshold = params.get(
@@ -388,8 +389,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 grad_nh.set_name("grad")
                 grad_nh.plot_3d(2)
                 grad_nh[0].plot_center(1)
-                if gain_change <= 1e-4:
-                    self.beta = 0.0
+                # if gain_change <= 1e-4:
+                #     self.beta = 0.0
             else:
                 if gain_change <= 0.0:
                     print_verb(
@@ -438,7 +439,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_grad = self.grad
 
     def decrease_step_size(self) -> None:
-        self.step_size /= 2.0
+        self.step_size = max(self.step_size / 2.0, self.min_step_size)
 
     def update_beta(self, last_iteration_successful: bool) -> None:
         if last_iteration_successful:
@@ -455,7 +456,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
 class OptimiserWrapper(GradientDescentSolver):
 
-    def initialise(self, prepare_for_iterations: bool = True) -> None:
+    def initialise(self, _: bool = True) -> None:
         print_verb("using optimiser from external library")
 
         def run_input_to_parameters(x: VectorField[FourierField]) -> "parameter_type":
@@ -524,6 +525,6 @@ class OptimiserWrapper(GradientDescentSolver):
         self.optimiser.perform_iteration()
         self.current_guess = self.optimiser.parameters_to_run_input_(
             self.optimiser.parameters
-        )
+        ).no_hat()
         self.value = cast("float", self.optimiser.value)
         self.normalize_current_guess()

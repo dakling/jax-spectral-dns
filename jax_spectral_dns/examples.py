@@ -3126,7 +3126,8 @@ def run_ld_2021_dual(
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    optimiser = ConjugateGradientDescentSolver(
+    # optimiser = ConjugateGradientDescentSolver(
+    optimiser = OptimiserWrapper(
         nse_dual,
         max_iterations=number_of_steps,
         step_size=1e-2,
