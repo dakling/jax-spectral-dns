@@ -62,6 +62,7 @@ if TYPE_CHECKING:
         jsd_float,
         jnp_array,
         np_float_array,
+        np_complex_array,
         Vel_fn_type,
         np_jnp_array,
         parameter_type,
@@ -2637,9 +2638,42 @@ def run_ld_2021(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
 
+    def get_flow_rate(data: "np_complex_array") -> float:
+        def set_first_mat_row_and_col_to_unit(
+            matr: "np_float_array",
+        ) -> "np_float_array":
+            N = matr.shape[0]
+            out = np.block(
+                [
+                    ([np.ones((1)), np.zeros((1, N - 1))]),
+                    ([np.zeros((N - 1, 1)), matr[1:, 1:]]),
+                ]
+            )
+            return out
+
+        def set_first_of_field(
+            field: "np_complex_array", new_first: float
+        ) -> "np_complex_array":
+            N = field.shape[0]
+            inds = np.arange(1, N)
+            inner = field.take(indices=inds, axis=0)
+            out = np.pad(
+                inner,
+                (1, 0),
+                mode="constant",
+                constant_values=new_first,
+            )
+            return out
+
+        mat = domain.diff_mats[1]
+        mat = set_first_mat_row_and_col_to_unit(mat)
+        data = set_first_of_field(data, 0.0)
+        inv_mat = jnp.linalg.inv(mat)
+        return cast(float, -(inv_mat @ data)[-1])
+
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float"]:
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
@@ -2651,6 +2685,7 @@ def run_ld_2021(
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
+        flow_rate = get_flow_rate(U_y_slice)
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2658,7 +2693,7 @@ def run_ld_2021(
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
-        return vel_base, U_y_slice, max
+        return vel_base, U_y_slice, max, flow_rate
 
     vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
@@ -2876,9 +2911,42 @@ def run_ld_2021_dual(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
 
+    def get_flow_rate(data: "np_complex_array") -> float:
+        def set_first_mat_row_and_col_to_unit(
+            matr: "np_float_array",
+        ) -> "np_float_array":
+            N = matr.shape[0]
+            out = np.block(
+                [
+                    ([np.ones((1)), np.zeros((1, N - 1))]),
+                    ([np.zeros((N - 1, 1)), matr[1:, 1:]]),
+                ]
+            )
+            return out
+
+        def set_first_of_field(
+            field: "np_complex_array", new_first: float
+        ) -> "np_complex_array":
+            N = field.shape[0]
+            inds = np.arange(1, N)
+            inner = field.take(indices=inds, axis=0)
+            out = np.pad(
+                inner,
+                (1, 0),
+                mode="constant",
+                constant_values=new_first,
+            )
+            return out
+
+        mat = domain.diff_mats[1]
+        mat = set_first_mat_row_and_col_to_unit(mat)
+        data = set_first_of_field(data, 0.0)
+        inv_mat = jnp.linalg.inv(mat)
+        return cast(float, -(inv_mat @ data)[-1])
+
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float"]:
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
@@ -2890,6 +2958,7 @@ def run_ld_2021_dual(
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
+        flow_rate = get_flow_rate(U_y_slice)
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2897,9 +2966,9 @@ def run_ld_2021_dual(
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
-        return vel_base, U_y_slice, cast(float, max)
+        return vel_base, U_y_slice, cast(float, max), flow_rate
 
-    vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb, _, _, flow_rate = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
     vel_base_lam = VectorField(
         [
@@ -2923,7 +2992,7 @@ def run_ld_2021_dual(
 
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = max / vel_base_turb[0].max()
+    u_max_over_u_tau = flow_rate
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
@@ -2942,8 +3011,8 @@ def run_ld_2021_dual(
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base / np.max(U_base) * vel_base_turb[0].max()
+        _, U_base, _, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / flow_rate
         # vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
         #     1 - lsc_domain.grid[1] ** 2
         # )  # continuously blend from turbulent to laminar mean profile
