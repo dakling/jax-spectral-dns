@@ -682,7 +682,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         def get_new_energy_0(l: float) -> float:
             return (
                 (
-                    (1 - step_size * l) * u_hat_0
+                    (1 + step_size * l) * u_hat_0
                     + step_size * (-1 * v_hat_0 + beta * old_grad)
                 )
                 .no_hat()
