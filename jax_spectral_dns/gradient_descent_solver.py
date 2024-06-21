@@ -408,10 +408,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     u_0_hat_old,
                     v_0_hat_old,
                 )
-                diff = jnp.linalg.norm(
-                    self.grad - self.dual_problem.get_projected_grad(self.step_size)[0]
-                )
-                print_verb("difference between old and new gradient:", diff)
 
             j += 1
             if j > self.max_number_of_sub_iterations:

@@ -3007,6 +3007,7 @@ def run_ld_2021_dual(
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
 
+    print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
 
     if init_file is None:
