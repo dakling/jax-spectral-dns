@@ -252,21 +252,6 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             print_verb("gain change:", gain_change)
             print_verb("")
 
-            v_T = self.dual_problem.forward_equation.get_latest_field(
-                "velocity_hat"
-            ).no_hat()
-            v_base = self.dual_problem.forward_equation.get_initial_field(
-                "velocity_base_hat"
-            ).no_hat()
-            V_T = v_T + v_base
-
-            dt = Equation.find_suitable_dt(
-                domain,
-                self.dual_problem.forward_equation.max_cfl,
-                tuple([V_T[i].max() for i in range(3)]),
-                self.dual_problem.forward_equation.end_time,
-            )
-
             if gain_change > 0.0:
                 iteration_successful = True
                 self.increase_step_size()
@@ -285,8 +270,6 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 print_verb(
                     "gain decrease/stagnation detected, repeating iteration with smaller step size."
                 )
-            self.dual_problem.forward_equation.update_dt(dt)
-            self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
             j += 1
             if j > self.max_number_of_sub_iterations:
                 iteration_successful = True
@@ -297,6 +280,22 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
 
+        u_T = self.dual_problem.forward_equation.get_latest_field(
+            "velocity_hat"
+        ).no_hat()
+        u_base = self.dual_problem.forward_equation.get_initial_field(
+            "velocity_base_hat"
+        ).no_hat()
+        u_T = u_T + u_base
+
+        dt = Equation.find_suitable_dt(
+            domain,
+            self.dual_problem.forward_equation.max_cfl,
+            tuple([u_T[i].max() for i in range(3)]),
+            self.dual_problem.forward_equation.end_time,
+        )
+        self.dual_problem.forward_equation.update_dt(dt)
+        self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
