@@ -388,6 +388,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 grad_nh.set_name("grad")
                 grad_nh.plot_3d(2)
                 grad_nh[0].plot_center(1)
+                if gain_change <= 1e-4:
+                    self.beta = 0.0
             else:
                 if gain_change <= 0.0:
                     print_verb(
@@ -524,3 +526,4 @@ class OptimiserWrapper(GradientDescentSolver):
             self.optimiser.parameters
         )
         self.value = cast("float", self.optimiser.value)
+        self.normalize_current_guess()
