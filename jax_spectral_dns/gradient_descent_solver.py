@@ -316,6 +316,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.dual_problem.update_with_nse()
 
         if prepare_for_iterations:
+            self.almost_done = False
             self.value = self.dual_problem.get_gain()
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
             self.old_value = self.value
@@ -436,6 +437,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             < self.value_change_threshold
         ):
             self.done = True
+
+        # make sure we stop at some point
+        if (
+            abs(self.step_size - self.min_step_size) <= 1e-50
+            and abs(self.beta) <= 1e-50
+        ):
+            if self.almost_done:
+                self.done = True
+            self.almost_done = True
 
         self.old_value = self.value
         self.old_grad = self.grad
