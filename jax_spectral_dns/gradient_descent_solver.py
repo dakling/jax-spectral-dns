@@ -389,7 +389,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.current_guess = v0_hat_new
         self.normalize_current_guess()
         v0 = self.current_guess.no_hat()
-        print_verb("v0 energy:", v0.energy(), verbosity_level=1)
+        print_verb("v0 energy:", v0.energy())
+        print_verb("\n")
         self.old_nse_dual = self.dual_problem
         self.value = gain
 
@@ -460,7 +461,7 @@ class OptimiserWrapper(GradientDescentSolver):
             if out:
                 return (nse_dual.get_gain(), (jnp.array([0.0]),))
             else:
-                return (nse_dual.get_gain(), (-1 * nse_dual.get_grad()[0],))
+                return (nse_dual.get_gain(), (-1 * nse_dual.get_grad(),))
 
         run_input_initial = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
