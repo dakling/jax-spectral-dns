@@ -322,6 +322,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.old_value = self.value
             self.old_grad = self.grad
             self.old_nse_dual = self.dual_problem
+            self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
+            self.u_0_hat_old = self.dual_problem.forward_equation.get_initial_field(
+                "velocity_hat"
+            )
             print_verb("")
             print_verb("gain:", self.value)
             print_verb("")
@@ -347,9 +351,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 name="velocity_hat",
             )
             v0_hat_new = self.normalize_field(v0_hat_new)
-
-            v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
-            u_0_hat_old = v0_hat
 
             v0_hat_new.set_name("velocity_hat")
             self.dual_problem.forward_equation.set_initial_field(
@@ -405,8 +406,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     self.beta = 0.0
                 self.grad, _ = self.dual_problem.get_projected_grad_from_u_and_v(
                     self.step_size,
-                    u_0_hat_old,
-                    v_0_hat_old,
+                    self.u_0_hat_old,
+                    self.v_0_hat_old,
                 )
 
             j += 1
@@ -445,6 +446,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.old_value = self.value
         self.old_grad = self.grad
+        self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
+        self.u_0_hat_old = self.dual_problem.forward_equation.get_initial_field(
+            "velocity_hat"
+        )
 
     def decrease_step_size(self) -> None:
         self.step_size = max(self.step_size / 2.0, self.min_step_size)
