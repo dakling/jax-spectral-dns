@@ -382,13 +382,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     self.grad, success = self.dual_problem.get_projected_cg_grad(
                         self.step_size, self.beta, self.old_grad
                     )
-                grad_field: VectorField[FourierField] = VectorField.FromData(
-                    FourierField, domain, self.grad, name="grad_hat"
-                )
-                grad_nh = grad_field.no_hat()
-                grad_nh.set_name("grad")
-                grad_nh.plot_3d(2)
-                grad_nh[0].plot_center(1)
                 # if gain_change <= 1e-4:
                 #     self.beta = 0.0
             else:
@@ -407,7 +400,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 assert self.old_nse_dual is not None
                 if gain_change <= 0.0:
                     self.beta = 0.0
-                self.grad, _ = self.old_nse_dual.get_projected_grad(self.step_size)
+                self.grad, _ = self.old_nse_dual.get_projected_grad(
+                    self.step_size
+                )  # TODO this probably does not work anymore now that self.dual_problem is overwritten
+                diff = jnp.linalg.norm(
+                    self.old_nse_dual.get_projected_grad(self.step_size)[0]
+                    - self.dual_problem.get_projected_grad(self.step_size)[0]
+                )
+                print_verb("difference between old and new gradient:", diff)
 
             j += 1
             if j > self.max_number_of_sub_iterations:
