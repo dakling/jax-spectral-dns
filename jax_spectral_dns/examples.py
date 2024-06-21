@@ -2948,7 +2948,7 @@ def run_ld_2021_dual(
         mat = domain.diff_mats[1]
         mat = set_first_mat_row_and_col_to_unit(mat)
         data = set_first_of_field(data, 0.0)
-        inv_mat = jnp.linalg.inv(mat)
+        inv_mat = np.linalg.inv(mat)
         return cast(float, -(inv_mat @ data)[-1])
 
     def get_vel_field(
