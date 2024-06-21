@@ -305,8 +305,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("iteration", self.i + 1, "of", self.number_of_steps)
             if j + 1 > 1:
                 print_verb("sub-iteration", j + 1)
-            print_verb("step size:", self.step_size)
-            print_verb("beta:", self.beta, verbosity_level=2)
+            print_verb("step size:", self.step_size, "beta:", self.beta)
 
             v0_hat_new: VectorField[FourierField] = VectorField.FromData(
                 FourierField,
@@ -478,8 +477,8 @@ class OptimiserWrapper(GradientDescentSolver):
             max_iter=self.number_of_steps,
             use_optax=True,
             min_optax_iter=self.number_of_steps,
-            learning_rate=1e-2 / jnp.sqrt(self.e_0),
-            scale_by_norm=False,
+            learning_rate=1e-2,
+            scale_by_norm=True,
             objective_fn_name="gain",
             add_noise=False,
             parameters_to_run_input_fn=parameters_to_run_input,

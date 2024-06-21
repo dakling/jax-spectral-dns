@@ -454,6 +454,16 @@ class VectorField(Generic[T]):
             f = f.normalize_by_max_value()
         return self
 
+    def normalize_by_flow_rate(
+        self: VectorField[PhysicalField], flow_direction: int, direction: int
+    ) -> VectorField[PhysicalField]:
+        flow_rate = self[flow_direction].get_flow_rate(direction)
+        for f in self:
+            f.data = jax.lax.cond(
+                flow_rate > 1e-20, lambda: f.data / flow_rate, lambda: f.data
+            )
+        return self
+
     def energy_norm(self: VectorField[PhysicalField], k: float) -> float:
         energy = k**2 * self[1] * self[1]
         energy += self[1].diff(1) * self[1].diff(1)
@@ -1088,6 +1098,18 @@ class PhysicalField(Field):
         en = self.energy_p(p)
         self.data = jax.lax.cond(en > 1e-20, lambda: self.data / en, lambda: self.data)
         return self
+
+    def normalize_by_flow_rate(self, direction: int) -> Self:
+        flow_rate = self.get_flow_rate(direction)
+        self.data = jax.lax.cond(
+            flow_rate > 1e-20, lambda: self.data / flow_rate, lambda: self.data
+        )
+        return self
+
+    def get_flow_rate(self, direction: int) -> "jsd_float":
+        # TODO this assumes a 3D field that is constant in z
+        int: PhysicalField = self.definite_integral(direction)  # type: ignore[assignment]
+        return cast("jsd_float", int[0, 0])
 
     def update_boundary_conditions(self) -> None:
         """This assumes homogeneous dirichlet conditions in all non-periodic directions"""

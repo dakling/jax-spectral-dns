@@ -2661,36 +2661,38 @@ def run_ld_2021(
         return vel_base, U_y_slice, max
 
     vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
-    # vel_base_turb = vel_base_turb.normalize_by_max_value()
-    # u_max_over_u_tau = max
+    vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
+    u_max_over_u_tau = max / vel_base_turb[0].max()
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
     vel_base_lam = VectorField(
         [
-            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(
+                domain, lambda X: 3.0 / 4.0 * (1 - X[1] ** 2) + 0 * X[2]
+            ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
 
     vel_base = (
-        turb * vel_base_turb + (1 - turb) * max * vel_base_lam
+        turb * vel_base_turb + (1 - turb) * vel_base_lam
     )  # continuously blend from turbulent to laminar mean profile
     vel_base.set_name("velocity_base")
 
-    # Re = Re_tau * u_max_over_u_tau / h_over_delta
+    Re = Re_tau * u_max_over_u_tau / h_over_delta
     # end_time_ = round(end_time * h_over_delta * u_max_over_u_tau)
-    # end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
-    end_time_ = end_time
+    end_time_ = end_time * h_over_delta * u_max_over_u_tau
+    # end_time_ = end_time
 
-    dt = Equation.find_suitable_dt(domain, max_cfl, (max, 1e-5, 1e-5), end_time_)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time_)
 
-    # print_verb(
-    #     "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
-    # )
+    print_verb(
+        "end time in LD2021 units:", end_time_ / (h_over_delta * u_max_over_u_tau)
+    )
     print_verb("end time in dimensional units:", end_time_)
-    # print_verb("Re:", Re)
+    print_verb("Re:", Re)
 
     if init_file is None:
         number_of_modes = 60
@@ -2703,8 +2705,8 @@ def run_ld_2021(
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         lsc = LinearStabilityCalculation(
-            Re=Re_tau,
-            alpha=0 * (2 * jnp.pi / domain.scale_factors[0]),
+            Re=Re,
+            alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
             beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
             U_base=cast("np_float_array", U_base),
@@ -2796,7 +2798,7 @@ def run_ld_2021(
         # U_norm.set_name("vel_norm")
         # U_norm.plot_3d(2)
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            U_norm, Re_tau=Re_tau, dt=dt, velocity_base_hat=vel_base.hat()
+            U_norm, Re=Re, dt=dt, velocity_base_hat=vel_base.hat()
         )
         energy_0_ = U_norm.energy()
         nse.activate_jit()
@@ -2898,31 +2900,38 @@ def run_ld_2021_dual(
         return vel_base, U_y_slice, cast(float, max)
 
     vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
-    # vel_base_turb = vel_base_turb.normalize_by_max_value()
+    vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
     vel_base_lam = VectorField(
         [
-            # PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(
-                domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
+                # domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
+                domain,
+                lambda X: 3.0 / 4.0 * (1 - X[1] ** 2) + 0 * X[2],
             ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
-
+    # vel_base = (
+    #     # turb * vel_base_turb + (1 - turb) * vel_base_lam * max
+    #     turb * vel_base_turb
+    #     + (1 - turb) * vel_base_lam
+    # )  # continuously blend from turbulent to laminar mean profile
     vel_base = (
-        # turb * vel_base_turb + (1 - turb) * vel_base_lam * max
-        turb * vel_base_turb
-        + (1 - turb) * vel_base_lam
+        turb * vel_base_turb + (1 - turb) * vel_base_lam
     )  # continuously blend from turbulent to laminar mean profile
+
     vel_base.set_name("velocity_base")
 
-    # Re = Re_tau * u_max_over_u_tau / h_over_delta
-    # end_time_ = cast(float, end_time * h_over_delta * u_max_over_u_tau)
-    end_time_ = end_time
+    u_max_over_u_tau = max / vel_base_turb[0].max()
+    h_over_delta: float = (
+        1.0  # confusingly, LD2021 use channel half-height but call it channel height
+    )
+
+    Re = Re_tau * u_max_over_u_tau / h_over_delta
+    end_time_ = end_time * h_over_delta * u_max_over_u_tau
 
     print_verb("end time in dimensional units:", end_time_)
-    print_verb("max velocity:", max)
 
     if init_file is None:
         number_of_modes = 60
@@ -2934,12 +2943,15 @@ def run_ld_2021_dual(
             aliasing=1,
         )
         _, U_base, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
-        # max_ = np.max(U_base)
-        vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
+        U_base = U_base / np.max(U_base) * vel_base_turb[0].max()
+        # vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
+        #     1 - lsc_domain.grid[1] ** 2
+        # )  # continuously blend from turbulent to laminar mean profile
+        vel_base_y_slice = turb * U_base + (1 - turb) * 3.0 / 4.0 * (
             1 - lsc_domain.grid[1] ** 2
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
-            Re=Re_tau,
+            Re=Re,
             alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
             beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
@@ -3031,7 +3043,7 @@ def run_ld_2021_dual(
     )
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
-        Re_tau=Re_tau,
+        Re=Re,
         dt=dt,
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
