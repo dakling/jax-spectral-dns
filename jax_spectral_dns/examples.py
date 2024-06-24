@@ -71,10 +71,13 @@ if TYPE_CHECKING:
 NoneType = type(None)
 
 
-def run_navier_stokes_turbulent_pseudo_2d() -> None:
-    Re = 5000
+def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
+    Re = params.get("Re", 5000.0)
 
-    end_time = 5
+    end_time = params.get("end_time", 5.0)
+    Nx = params.get("Nx", 128)
+    Ny = params.get("Nx", 128)
+    dt = params.get("dt", 5e-3)
 
     use_antialias = False
     # use_antialias = True # also works fine
@@ -86,10 +89,10 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
         Nz = 2
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Nx=128,
-        Ny=128,
+        Nx=Nx,
+        Ny=Ny,
         Nz=Nz,
-        dt=5e-3,
+        dt=dt,
         end_time=end_time,
         scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
         aliasing=aliasing,
@@ -226,14 +229,14 @@ def run_navier_stokes_turbulent_pseudo_2d() -> None:
     fig.savefig("plots/energy.png")
 
 
-def run_navier_stokes_turbulent() -> None:
-    Re = 3000
+def run_navier_stokes_turbulent(**params: Any) -> None:
+    Re = params.get("Re", 3000.0)
 
-    end_time = 10
-    max_cfl = 0.7
-    Nx = 32
-    Ny = 129
-    Nz = 32
+    end_time = params.get("end_time", 10.0)
+    max_cfl = params.get("max_cfl", 0.7)
+    Nx = params.get("Nx", 32)
+    Ny = params.get("Ny", 129)
+    Nz = params.get("Nz", 32)
     # scale_factors = (1.87, 1.0, 0.93)
     scale_factors = (2 * np.pi, 1.0, 2 * np.pi)
     aliasing = 3 / 2
@@ -394,20 +397,17 @@ def run_navier_stokes_turbulent() -> None:
     fig.savefig("plots/energy.png")
 
 
-def run_pseudo_2d() -> None:
-    Ny = 64
-    # Ny = 24
-    # Re = 5772.22
-    # Re = 6000
-    Re = 5500
-    alpha = 1.02056
-    # alpha = 1.0
+def run_pseudo_2d(**params: Any) -> None:
+    Ny = params.get("Ny", 64)
+    Re = params.get("Re", 5500.0)
+    alpha = params.get("alpha", 1.02056)
 
-    Nx = 496
-    Nz = 4
+    Nx = params.get("Nx", 496)
+    Nz = params.get("Nz", 4)
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
 
-    end_time = 100
+    end_time = params.get("end_time", 100.0)
+
     nse = solve_navier_stokes_laminar(
         Re=Re,
         Nx=Nx,
@@ -421,7 +421,7 @@ def run_pseudo_2d() -> None:
     u = lsc.velocity_field_single_mode(nse.get_physical_domain())
     vel_x_hat: VectorField[FourierField] = nse.get_initial_field("velocity_hat")
 
-    eps = 5e-3
+    eps = params.get("eps", 5e-3)
     nse.init_velocity(vel_x_hat + (u * eps).hat())
 
     energy_over_time_fn_raw, ev = lsc.energy_over_time(nse.get_physical_domain())
@@ -479,7 +479,6 @@ def run_pseudo_2d() -> None:
             # )
             vel_pert_energy: "jsd_float" = 0.0
             v_1_lap_p = nse.get_latest_field("v_1_lap_hat_p").no_hat()
-            v_1_lap_p_0 = nse.get_initial_field("v_1_lap_hat_p").no_hat()
             v_1_lap_p.time_step = i
             v_1_lap_p.plot_3d(2)
             for j in range(2):
@@ -567,22 +566,17 @@ def run_pseudo_2d() -> None:
     nse.solve()
 
 
-def run_dummy_velocity_field() -> None:
-    Re = 1e5
+def run_dummy_velocity_field(**params: Any) -> None:
+    Re = params.get("Re", 1.0e5)
 
-    end_time = 50
+    end_time = params.get("end_time", 50.0)
+    Nx = params.get("Nx", 64)
+    Ny = params.get("Ny", 96)
 
     nse = solve_navier_stokes_laminar(
-        # Re=Re,
-        # Ny=90,
-        # Nx=64,
-        # end_time=end_time,
-        # perturbation_factor=0.1
-        # Re=Re, Ny=12, Nx=4, end_time=end_time, perturbation_factor=1
-        # Re=Re, Ny=60, Nx=32, end_time=end_time, perturbation_factor=1
         Re=Re,
-        Ny=96,
-        Nx=64,
+        Nx=Nx,
+        Ny=Ny,
         end_time=end_time,
         perturbation_factor=0,
     )
@@ -650,34 +644,23 @@ def run_dummy_velocity_field() -> None:
     nse.solve()
 
 
-def run_pseudo_2d_perturbation(
-    Re: float = 3000.0,
-    alpha: float = 1.02056,
-    end_time: float = 1.0,
-    dt: float = 1e-2,
-    Nx: int = 4,
-    Ny: int = 96,
-    Nz: int = 2,
-    eps: float = 1e-0,
-    linearize: bool = True,
-    plot: bool = True,
-    save: bool = True,
-    v0: Optional["jnp_array"] = None,
-    aliasing: float = 1.0,
-    dealias_nonperiodic: bool = False,
-    rotated: bool = False,
-    jit: bool = True,
-) -> "pseudo_2d_perturbation_return_type":
-    Re = float(Re)
-    alpha = float(alpha)
-    end_time = float(end_time)
-    dt = float(dt)
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    # Nx = float(Nx)
-    # Ny = float(Ny)
-    # Nz = float(Nz)
+def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_type":
+    Re = params.get("Re", 3000.0)
+    alpha = params.get("alpha", 1.02056)
+    end_time = params.get("end_time", 1.0)
+    dt = params.get("dt", 1e-2)
+    Nx = params.get("Nx", 4)
+    Ny = params.get("Ny", 96)
+    Nz = params.get("Nz", 2)
+    eps = params.get("eps", 1e-0)
+    linearize = params.get("linearize", True)
+    plot = params.get("plot", True)
+    save = params.get("save", True)
+    v0: Optional["jnp_array"] = params.get("v0", None)
+    aliasing = params.get("aliasing", 1.0)
+    dealias_nonperiodic = params.get("dealias_nonperiodic", False)
+    rotated = params.get("rotated", False)
+    jit = params.get("jit", True)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
 
@@ -825,15 +808,15 @@ def run_pseudo_2d_perturbation(
     )
 
 
-def run_jimenez_1990(start_time: int = 0) -> None:
-    start_time = int(start_time)
-    Re = 5000
-    alpha = 1
+def run_jimenez_1990(**params: Any) -> None:
+    start_time = params.get("start_time", 0.0)
+    Re = params.get("Re", 5000)
+    alpha = params.get("alpha", 1)
 
-    Nx = 100
-    Ny = 140
-    Nz = 2
-    end_time = 1000
+    Nx = params.get("Nx", 100)
+    Ny = params.get("Ny", 140)
+    Nz = params.get("Nz", 2)
+    end_time = params.get("end_time", 1000)
 
     nse = solve_navier_stokes_perturbation(
         Re=Re,
@@ -916,36 +899,26 @@ def run_jimenez_1990(start_time: int = 0) -> None:
 
 
 def run_transient_growth_nonpert(
-    Re: float = 3000.0,
-    T: float = 15.0,
-    alpha: float = 1.0,
-    beta: float = 0.0,
-    end_time: Optional[float] = None,
-    eps: float = 1e-3,
-    Nx: int = 4,
-    Ny: int = 50,
-    Nz: int = 4,
-    plot: bool = True,
+    **params: Any,
 ) -> Tuple[float, float, List[float], List[float]]:
 
-    # ensure that these variables are not strings as they might be passed as command line arguments
-    Re = float(Re)
-    T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
-
-    eps = float(eps)
-
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
+    Re: float = params.get("Re:", 3000.0)
+    T: float = params.get("T:", 15.0)
+    alpha: float = params.get("alpha:", 1.0)
+    beta: float = params.get("beta:", 0.0)
+    end_time: Optional[float] = params.get("end_time:", None)
+    eps: float = params.get("eps:", 1e-3)
+    Nx: int = params.get("Nx:", 4)
+    Ny: int = params.get("Ny:", 50)
+    Nz: int = params.get("Nz:", 4)
+    plot: bool = params.get("plot:", True)
+    number_of_modes = params.get("number_of_modes", 60)
 
     if end_time is None:
         end_time = T
     else:
         assert end_time is not None
         end_time = float(end_time)
-    number_of_modes = 60
 
     nse = solve_navier_stokes_laminar(
         Re=Re,
@@ -1071,21 +1044,6 @@ def run_transient_growth_nonpert(
     nse.deactivate_jit()
     nse.post_process()
 
-    # energy_t = np.array(energy_t)
-    # if plot:
-    #     fig = figure.Figure()
-    #     ax = fig.subplots(1, 1)
-    #     ax.plot(ts, energy_t / energy_t[0], ".", label="growth (DNS)")
-    #     if abs(Re - 3000) < 1e-3:
-    #         ax.plot(
-    #             rh_93_data[0],
-    #             rh_93_data[1],
-    #             "--",
-    #             label="growth (Reddy/Henningson 1993)",
-    #         )
-    #     fig.legend()
-    #     fig.savefig("plots/energy_t.png")
-
     gain = energy_t[-1] / energy_t[0]
     print_verb("final energy gain:", gain)
     print_verb("expected final energy gain:", e_max)
@@ -1094,29 +1052,20 @@ def run_transient_growth_nonpert(
 
 
 def run_transient_growth(
-    Re: float = 3000.0,
-    T: float = 15.0,
-    alpha: float = 1.0,
-    beta: float = 0.0,
-    end_time: Optional[float] = None,
-    eps: float = 1e-5,
-    Nx: int = 4,
-    Ny: int = 50,
-    Nz: int = 4,
-    linearize: Union[bool, str] = True,
-    plot: bool = True,
+    **params: Any,
 ) -> Tuple[float, float, List[float], List[float]]:
-
-    # ensure that these variables are not strings as they might be passed as command line arguments
-    Re = float(Re)
-    T = float(T)
-    alpha = float(alpha)
-    beta = float(beta)
-    if type(linearize) == str:
-        linearize_ = linearize == "True"
-    else:
-        assert type(linearize) is bool
-        linearize_ = linearize
+    Re: float = params.get("Re:", 3000.0)
+    T: float = params.get("T:", 15.0)
+    alpha: float = params.get("alpha:", 1.0)
+    beta: float = params.get("beta:", 0.0)
+    end_time: Optional[float] = params.get("end_time:", None)
+    eps: float = params.get("eps:", 1e-5)
+    Nx: int = params.get("Nx:", 4)
+    Ny: int = params.get("Ny:", 50)
+    Nz: int = params.get("Nz:", 4)
+    linearize: bool = params.get("linearize:", True)
+    plot: bool = params.get("plot:", True)
+    number_of_modes = params.get("number_of_modes", 60)
 
     eps = float(eps)
 
@@ -1129,7 +1078,6 @@ def run_transient_growth(
     else:
         assert end_time is not None
         end_time = float(end_time)
-    number_of_modes = 60
 
     nse = solve_navier_stokes_perturbation(
         Re=Re,
@@ -1145,7 +1093,7 @@ def run_transient_growth(
     )
     # nse.initialize()
 
-    nse.set_linearize(linearize_)
+    nse.set_linearize(linearize)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
 
@@ -1254,8 +1202,8 @@ def run_transient_growth(
 
 def run_transient_growth_time_study(
     transient_growth_fn_: Union[
-        str, Callable[[float], Tuple[float, float, List[float], List[float]]]
-    ] = run_transient_growth
+        str, Callable[[Any], Tuple[float, float, List[float], List[float]]]
+    ] = run_transient_growth  # type: ignore[assignment]
 ) -> None:
 
     if type(transient_growth_fn_) is str:
@@ -1288,7 +1236,7 @@ def run_transient_growth_time_study(
             + str(T)
             + " time units"
         )
-        _, _, ts, energy_t = transient_growth_fn(Re, T, 1, 0)
+        _, _, ts, energy_t = transient_growth_fn(Re=Re, T=T, alpha=1, beta=0)
 
         ts_list.append(ts)
         energy_t_list.append(energy_t)
@@ -1333,19 +1281,17 @@ def run_transient_growth_time_study(
     fig_final.savefig("plots/energy_t_final.png")
 
 
-def run_optimisation_transient_growth(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 8,
-    Ny: int = 90,
-    Nz: int = 8,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    beta = 0.0
+def run_optimisation_transient_growth(**params: Any) -> None:
+    Re: float = params.get("Re:", 3000.0)
+    T: float = params.get("T:", 15)
+    Nx: int = params.get("Nx:", 8)
+    Ny: int = params.get("Ny:", 90)
+    Nz: int = params.get("Nz:", 8)
+    number_of_steps: int = params.get("number_of_steps:", 20)
+    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps:", -1)
+
+    alpha = params.get("alpha", 1.0)
+    beta = params.get("beta", 0.0)
 
     Equation.initialize()
     Nx = int(Nx)
@@ -1470,159 +1416,18 @@ def run_optimisation_transient_growth(
     optimiser.optimise()
 
 
-def run_optimisation_transient_growth_nonfourier(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 8,
-    Ny: int = 90,
-    Nz: int = 8,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    beta = 0.0
+def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
+    Re: float = params.get("Re:", 3000.0)
+    T: float = params.get("T:", 15.0)
+    Nx: int = params.get("Nx:", 8)
+    Ny: int = params.get("Ny:", 90)
+    Nz: int = params.get("Nz:", 8)
+    number_of_steps: int = params.get("number_of_steps:", 20)
+    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps:", 4)
 
-    Equation.initialize()
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
-    dt = 1e-2
-    end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
-    # number_of_modes = 60
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    aliasing = 3 / 2
-
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-    domain: PhysicalDomain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=scale_factors,
-        aliasing=aliasing,
-    )
-
-    v0_0 = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
-
-    e_0 = 1e-6
-    v0_0_norm = v0_0.normalize_by_energy()
-    v0_0_norm *= e_0
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vort[2].plot_3d(2)
-        vel.plot_streamlines(2)
-        vel[0].plot_isolines(2)
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-        energy_t_arr = np.array(energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-        fig.savefig("plots/plot_energy_t_final.png")
-
-    def run_case(U: VectorField[PhysicalField], out: bool = False) -> "jsd_float":
-
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
-        U_norm *= e_0
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
-        nse.end_time = end_time
-
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        if out:
-            nse.write_intermediate_output = True
-            nse.set_post_process_fn(post_process)
-        else:
-            nse.write_intermediate_output = False
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.set_before_time_step_fn(None)
-        nse.set_after_time_step_fn(None)
-        if out:
-            nse.post_process()
-
-        gain = vel.energy() / vel_0.energy()
-        return gain
-
-    optimiser = OptimiserNonFourier(
-        domain,
-        domain,
-        run_case,
-        v0_0_norm,
-        minimise=False,
-        force_2d=True,
-        max_iter=number_of_steps,
-        use_optax=min_number_of_optax_steps >= 0,
-        min_optax_iter=min_number_of_optax_steps,
-        objective_fn_name="gain",
-        add_noise=False,
-    )
-    optimiser.optimise()
-
-
-def run_optimisation_transient_growth_y_profile(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 8,
-    Ny: int = 90,
-    Nz: int = 8,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = 4,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    beta = 0.0
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
-    dt = 1e-2
+    alpha = params.get("alpha", 1.0)
+    beta = params.get("beta", 0.0)
+    dt = params.get("dt", 1e-2)
 
     Equation.initialize()
     end_time = T
@@ -1760,35 +1565,35 @@ def run_optimisation_transient_growth_y_profile(
     optimiser.optimise()
 
 
-def run_optimisation_transient_growth_nonlinear(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 48,
-    Ny: int = 64,
-    Nz: int = 8,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
-    e_0: float = 1e-3,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    beta = 0.0
+def run_optimisation_transient_growth_dual(**params: Any) -> None:
+    Re: float = params.get("Re:", 3000.0)
+    T: float = params.get("T:", 15)
+    Nx: int = params.get("Nx:", 4)
+    Ny: int = params.get("Ny:", 64)
+    Nz: int = params.get("Nz:", 4)
+    number_of_steps: int = params.get("number_of_steps:", 20)
+    use_custom_optimiser: bool = params.get("use_custom_optimiser:", True)
+    vel_0_path: Optional[str] = params.get("vel_0_path:", None)
+    alpha = params.get("alpha", 1.0)
+    beta = params.get("beta", 0.0)
+
+    if type(use_custom_optimiser) is str:  # type: ignore
+        use_custom_optimiser = use_custom_optimiser == "True"  # type: ignore
 
     Equation.initialize()
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
-    e_0 = float(e_0)
-    dt = 1e-2
+    dt = params.get("dt", 1e-3)
+    # end_time = dt * 1
+    number_of_modes = params.get(
+        "number_of_modes", 15
+    )  # deliberately low value so that there is room for improvement)
     end_time = T
-    number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3 / 2
 
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
+    if vel_0_path is not None and vel_0_path == "None":
+        vel_0_path = None
+
+    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=min(Ny, 64))
     domain: PhysicalDomain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
@@ -1796,147 +1601,12 @@ def run_optimisation_transient_growth_nonlinear(
         aliasing=aliasing,
     )
 
-    v0_0 = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
+    e_0 = 1e-10
+    eps = 1e-2  # step size
 
-    v0_0_norm = v0_0.normalize_by_energy()
-    v0_0_norm *= e_0
-    v0_0_hat = v0_0_norm.hat()
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vort[2].plot_3d(2)
-        vel.plot_streamlines(2)
-        vel[0].plot_isolines(2)
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-        energy_t_arr = np.array(energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-        fig.savefig("plots/plot_energy_t_final.png")
-
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
-
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
-        U_norm *= e_0
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
-        nse.end_time = end_time
-
-        nse.set_linearize(False)
-        # nse.set_linearize(True)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        if out:
-            nse.write_intermediate_output = True
-            nse.set_post_process_fn(post_process)
-        else:
-            nse.write_intermediate_output = False
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.set_before_time_step_fn(None)
-        nse.set_after_time_step_fn(None)
-        if out:
-            nse.post_process()
-
-        gain = vel.energy() / vel_0.energy()
-        return gain
-
-    optimiser = OptimiserFourier(
-        domain,
-        domain,
-        run_case,
-        v0_0_hat,
-        minimise=False,
-        force_2d=True,
-        max_iter=number_of_steps,
-        use_optax=min_number_of_optax_steps >= 0,
-        min_optax_iter=min_number_of_optax_steps,
-        objective_fn_name="gain",
-    )
-    optimiser.optimise()
-
-
-def run_optimisation_transient_growth_nonlinear_3d(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 48,
-    Ny: int = 64,
-    Nz: int = 48,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
-    e_0: float = 1e-3,
-    init_file: Optional[str] = None,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    # alpha=2*jnp.pi/1.87
-    beta = 0.0
-
-    Equation.initialize()
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
-    e_0 = float(e_0)
-    dt = 2e-2
-    end_time = T
-    number_of_modes = 60
-    # scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 1.0)
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 0.93)
-    # scale_factors = (1.87, 1.0, 0.93)
-    aliasing = 3 / 2
-
-    domain: PhysicalDomain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=scale_factors,
-        aliasing=aliasing,
-    )
-
-    if init_file is None:
-        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-
+    skip_preparation = True
+    # skip_preparation = False
+    if (not skip_preparation) or vel_0_path is None:
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             domain,
             T,
@@ -1944,158 +1614,30 @@ def run_optimisation_transient_growth_nonlinear_3d(
             recompute_full=True,
             save_final=False,
         )
+        if vel_0_path is None:
+            v0_0.set_name("vel_initial")
+            v0_0.plot_3d(2)
+        print_verb(
+            "expected energy gain:",
+            lsc.calculate_transient_growth_max_energy(T, number_of_modes),
+        )
         v0_0_norm = v0_0.normalize_by_energy()
-        v0_0_norm *= e_0
+        v0_0_norm *= e_0 ** (1 / 2)
         v0_0_hat = v0_0_norm.hat()
-    else:
-        v0_0_hat = None
-
-    run_input_initial = init_file or v0_0_hat
-    assert run_input_initial is not None
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vort[2].plot_3d(2)
-        vel.plot_streamlines(2)
-        vel[0].plot_isolines(2)
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-        energy_t_arr = np.array(energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-        fig.savefig("plots/plot_energy_t_final.png")
-
-    def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
-
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
-        U_norm *= e_0
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
-        nse.end_time = end_time
-
-        nse.set_linearize(False)
-        # nse.set_linearize(True)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        if out:
-            nse.write_intermediate_output = True
-            nse.set_post_process_fn(post_process)
-        else:
-            nse.write_intermediate_output = False
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.set_before_time_step_fn(None)
-        nse.set_after_time_step_fn(None)
-        if out:
-            nse.post_process()
-
-        gain = vel.energy() / vel_0.energy()
-        return gain
-
-    optimiser = OptimiserFourier(
-        domain,
-        domain,
-        run_case,
-        run_input_initial,
-        minimise=False,
-        force_2d=False,
-        max_iter=number_of_steps,
-        use_optax=min_number_of_optax_steps >= 0,
-        min_optax_iter=min_number_of_optax_steps,
-        objective_fn_name="gain",
-        add_noise=False,
-        # add_noise=True,
-        noise_amplitude=1e-3,
-    )
-    optimiser.optimise()
-
-
-def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 48,
-    Ny: int = 64,
-    Nz: int = 48,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
-    e_0: float = 1e-3,
-    init_file: Optional[str] = None,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    # alpha=1.0
-    alpha = 2 * jnp.pi / 1.87
-    beta = 0.0
-
-    Equation.initialize()
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
-    e_0 = float(e_0)
-    dt = 1e-2
-    end_time = T
-    number_of_modes = 60
-    # scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 1.0)
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 0.93)
-    # scale_factors = (1.87, 1.0, 0.93)
-    aliasing = 3 / 2
-
-    domain: PhysicalDomain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=scale_factors,
-        aliasing=aliasing,
-    )
-
-    if init_file is None:
-        lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-
-        v0_0 = lsc.calculate_transient_growth_initial_condition(
+    if not skip_preparation:
+        v0_0_linear = lsc.calculate_transient_growth_initial_condition(
             domain,
             T,
-            number_of_modes,
+            60,
             recompute_full=True,
             save_final=False,
         )
-        v0_0_norm = v0_0.normalize_by_energy()
-        v0_0_norm *= e_0
-    else:
-        v0_0_norm = None
+        print_verb(
+            "expected final energy gain:",
+            lsc.calculate_transient_growth_max_energy(T, 60),
+        )
+        v0_0_linear.set_name("vel_lin_opt")
+        v0_0_linear.plot_3d(2)
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -2112,6 +1654,7 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         vort[2].plot_3d(2)
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
+        vel[0].plot_center(1, nse.get_initial_field("velocity_hat").no_hat()[0])
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
@@ -2138,217 +1681,43 @@ def run_optimisation_transient_growth_nonlinear_3d_nonfourier(
         fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
         fig.savefig("plots/plot_energy_t_final.png")
 
-    def run_case(U: VectorField[PhysicalField], out: bool = False) -> "jsd_float":
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
-        U_norm *= e_0
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
-        nse.end_time = end_time
-
-        nse.set_linearize(False)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        if out:
-            nse.write_intermediate_output = True
-            nse.set_post_process_fn(post_process)
-        else:
-            nse.write_intermediate_output = False
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.set_before_time_step_fn(None)
-        nse.set_after_time_step_fn(None)
-        if out:
-            nse.post_process()
-
-        gain = vel.energy() / vel_0.energy()
-        return gain
-
-    optimiser = OptimiserNonFourier(
-        domain,
-        domain,
-        run_case,
-        init_file or v0_0_norm,
-        minimise=False,
-        force_2d=False,
-        max_iter=number_of_steps,
-        use_optax=min_number_of_optax_steps >= 0,
-        min_optax_iter=min_number_of_optax_steps,
-        objective_fn_name="gain",
+    if vel_0_path is None:
+        v0_hat = v0_0_hat
+    else:
+        v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
+    v0_hat.set_name("velocity_hat")
+    nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
+    # nse.set_linearize(True)
+    nse.set_linearize(False)
+    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
+        nse, checkpointing=True
     )
+    if use_custom_optimiser:
+        print_verb("using custom optimiser")
+        # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
+        optimiser: "GradientDescentSolver" = ConjugateGradientDescentSolver(
+            nse_dual,
+            max_iterations=number_of_steps,
+            step_size=eps,
+            max_step_size=0.1,
+            post_process_function=post_process,
+            relative_gain_increase_threshold=0.3,
+        )
+
+    else:
+        print_verb("using optimiser from external library")
+        optimiser = OptimiserWrapper(
+            nse_dual,
+            max_iterations=number_of_steps,
+            step_size=eps,
+            max_step_size=0.1,
+            post_process_function=post_process,
+            relative_gain_increase_threshold=0.3,
+        )
     optimiser.optimise()
 
 
-def run_optimisation_transient_growth_mean_y_profile(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 8,
-    Ny: int = 90,
-    Nz: int = 8,
-    number_of_steps: int = 20,
-    min_number_of_optax_steps: int = -1,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    beta = 0.0
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
-    dt = 1e-2
-
-    Equation.initialize()
-    end_time = T
-    number_of_modes = 20  # deliberately low value so that there is room for improvement
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
-    aliasing = 3 / 2
-
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
-    domain: PhysicalDomain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=scale_factors,
-        aliasing=aliasing,
-    )
-
-    v0_0 = lsc.calculate_transient_growth_initial_condition(
-        domain,
-        T,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
-
-    e_0 = 1e-3
-    v0_0_norm = v0_0.normalize_by_energy()
-    v0_0_norm *= e_0
-    v0_0_hat = v0_0_norm.hat()
-
-    u_max_over_u_tau = 1.0
-
-    velocity_x_base = PhysicalField.FromFunc(
-        domain,
-        lambda X: u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
-        name="velocity_x_base",
-    )
-    velocity_y_base = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * X[0] * X[1] * X[2],
-        name="velocity_y_base",
-    )
-    velocity_z_base = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * X[0] * X[1] * X[2],
-        name="velocity_z_base",
-    )
-    velocity_base = VectorField([velocity_x_base, velocity_y_base, velocity_z_base])
-    velocity_base_hat = velocity_base.hat()
-    velocity_base_hat.set_name("velocity_base_hat")
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        if i == 0:
-            vel_base = nse.get_initial_field("velocity_base_hat").no_hat()
-            vel_base.plot_3d(2)
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vel[0].plot_center(1)
-        vel[1].plot_center(1)
-        vort[2].plot_3d(2)
-        vel.plot_streamlines(2)
-        vel[0].plot_isolines(2)
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-        energy_t_arr = np.array(energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-
-    def run_case(
-        inp: tuple[VectorField[FourierField], VectorField[FourierField]],
-        out: bool = False,
-    ) -> "jsd_float":
-        U_hat, U_base_hat = inp
-        U_base = U_base_hat.no_hat()
-        U_base.normalize_by_max_value()
-        U_base_hat = U_base.hat()
-        U = U_hat.no_hat()
-        U.update_boundary_conditions()
-        U_norm = U.normalize_by_energy()
-        U_norm *= e_0
-
-        nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            U_norm, dt=dt, Re=Re, velocity_base_hat=U_base_hat
-        )
-        nse.end_time = end_time
-
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
-
-        vel_0 = nse.get_initial_field("velocity_hat").no_hat()
-        nse.activate_jit()
-        if out:
-            nse.write_intermediate_output = True
-            nse.set_post_process_fn(post_process)
-        else:
-            nse.write_intermediate_output = False
-        nse.solve()
-        vel = nse.get_latest_field("velocity_hat").no_hat()
-
-        nse.set_before_time_step_fn(None)
-        nse.set_after_time_step_fn(None)
-        if out:
-            nse.post_process()
-
-        gain = vel.energy() / vel_0.energy()
-        return gain
-
-    optimiser = OptimiserPertAndBase(
-        domain,
-        domain,
-        run_case,
-        (v0_0_hat, velocity_base_hat),
-        minimise=False,
-        force_2d=True,
-        max_iter=number_of_steps,
-        use_optax=min_number_of_optax_steps >= 0,
-        min_optax_iter=min_number_of_optax_steps,
-        objective_fn_name="gain",
-    )
-    optimiser.optimise()
-
-
-def run_ld_2021_get_mean(**params) -> None:
+def run_ld_2021_get_mean(**params: Any) -> None:
     Re_tau = params.get("Re_tau", 180.0)
     Nx = params.get("Nx", 1)
     Ny = params.get("Ny", 1)
@@ -2583,34 +1952,24 @@ def run_ld_2021_get_mean(**params) -> None:
     nse.post_process()
 
 
-def run_ld_2021(
-    turb: float = 1.0,
-    Re_tau: float = 180,
-    Nx: int = 28,
-    Ny: int = 129,
-    Nz: int = 24,
-    number_of_steps: int = 10,
-    min_number_of_optax_steps: int = -1,
-    e_0: float = 1e-3,
-    init_file: Optional[str] = None,
-) -> None:
-    Re_tau = float(Re_tau)
-    turb = float(turb)
+def run_ld_2021(**params: Any) -> None:
+    turb: float = params.get("turb:", 1.0)
+    Re_tau: float = params.get("Re_tau:", 180.0)
+    Nx: int = params.get("Nx:", 28)
+    Ny: int = params.get("Ny:", 129)
+    Nz: int = params.get("Nz:", 24)
+    number_of_steps: int = params.get("number_of_steps:", 10)
+    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps:", -1)
+    e_0: float = params.get("e_0:", 1e-3)
+    init_file: Optional[str] = params.get("init_file:", None)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    min_number_of_optax_steps = int(min_number_of_optax_steps)
     aliasing = 3 / 2
-    # aliasing = 2
-    # aliasing = 1
-    e_0 = float(e_0)
+    e_0 = params.get("e_0", 1.0e0)
 
     Equation.initialize()
 
-    max_cfl = 0.7
-    end_time = 0.35  # the target time (in ld2021 units)
+    max_cfl = params.get("max_cfl", 0.7)
+    end_time = params.get("end_time", 0.35)  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -3117,34 +2476,23 @@ def run_ld_2021_dual(**params: Any) -> None:
     optimiser.optimise()
 
 
-def run_optimisation_farano_2015(
-    Re: float = 2000,
-    Nx: int = 300,
-    Ny: int = 100,
-    Nz: int = 120,
-    number_of_steps: int = 10,
-    e_0: float = 1.1e-5,
-    end_time: float = 10.0,
-    linearise: int = 0,
-    start_iteration: int = 0,
-    init_file: Optional[str] = None,
-) -> None:
-    Re = float(Re)
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    aliasing = 3 / 2
-    e_0 = float(e_0)
-    start_iteration = int(start_iteration)
-    linearise = int(linearise)
-    linearise_ = linearise == 1
-    end_time = float(end_time)
+def run_optimisation_farano_2015(**params: Any) -> None:
+    Re: float = params.get("Re:", 2000)
+    Nx: int = params.get("Nx:", 300)
+    Ny: int = params.get("Ny:", 100)
+    Nz: int = params.get("Nz:", 120)
+    number_of_steps: int = params.get("number_of_steps:", 10)
+    e_0: float = params.get("e_0:", 1.1e-5)
+    end_time: float = params.get("end_time:", 10.0)
+    linearise: bool = params.get("linearise:", False)
+    start_iteration: int = params.get("start_iteration:", 0)
+    init_file: Optional[str] = params.get("init_file:", None)
+    aliasing = params.get("aliasing", 3 / 2)
 
     if start_iteration <= 0:
         Equation.initialize()
 
-    max_cfl = 0.7
+    max_cfl = params.get("max_cfl", 0.7)
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -3168,7 +2516,7 @@ def run_optimisation_farano_2015(
     end_time_ = end_time
 
     if init_file is None:
-        number_of_modes = 60
+        number_of_modes = params.get("number_of_modes", 60)
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -3276,7 +2624,7 @@ def run_optimisation_farano_2015(
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
     )
-    nse.set_linearize(linearise_)
+    nse.set_linearize(linearise)
     nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
@@ -3290,438 +2638,3 @@ def run_optimisation_farano_2015(
         start_iteration=start_iteration,
     )
     optimiser.optimise()
-
-
-def run_white_noise() -> None:
-
-    Equation.initialize()
-    Re = 3000
-    e_0 = 1e-4
-    Nx, Ny, Nz = 44, 129, 36
-    max_cfl = 0.7
-    end_time = 5e-1
-
-    domain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
-        aliasing=3 / 2,
-        # aliasing=1,
-    )
-    coarse_domain = PhysicalDomain.create(
-        (28, Ny - 20, 24),
-        # (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=(1.87, 1.0, 0.93),
-        aliasing=1,
-    )
-    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time)
-
-    velocity_x_base = PhysicalField.FromFunc(
-        domain,
-        lambda X: 1.0 * (1 - X[1] ** 2) + 0.0 * X[0] * X[2],
-        name="velocity_x_base",
-    )
-    velocity_y_base = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * X[0] * X[1] * X[2],
-        name="velocity_y_base",
-    )
-    velocity_z_base = PhysicalField.FromFunc(
-        domain,
-        lambda X: 0.0 * X[0] * X[1] * X[2],
-        name="velocity_z_base",
-    )
-    velocity_base_hat = VectorField(
-        [velocity_x_base.hat(), velocity_y_base.hat(), velocity_z_base.hat()]
-    )
-    velocity_base_hat.set_name("velocity_base_hat")
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vel[2].plot_3d(2)
-        vel[0].plot_3d(0)
-        vel[1].plot_3d(0)
-        vel[2].plot_3d(0)
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-
-        fig_ = figure.Figure()
-        ax_ = fig_.subplots(1, 2)
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-            assert type(ax_) is np.ndarray
-            ax_[0].plot(jnp.abs(vel_hat_[2].data[:, Ny // 2, -1]), "o")
-            ax_[1].plot(jnp.abs(vel_hat_[2].data[-1, Ny // 2, :]), "o")
-            fig_.savefig("plots/spectrum_t" + ".png")
-
-        energy_t_arr = np.array(energy_t)
-        print_verb("energy_t", energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-
-        fig_ = figure.Figure()
-        ax_ = fig_.subplots(1, 2)
-        # assert type(ax) is Axes
-        assert type(ax_) is np.ndarray
-        ax_[0].plot(jnp.abs(vel_hat[2].data[:, Ny // 2, -1]))
-        ax_[1].plot(jnp.abs(vel_hat[2].data[-1, Ny // 2, :]))
-        print_verb(
-            "conti_error (iteration",
-            i,
-            ")",
-            vel_hat.div().no_hat().energy() / vel.energy(),
-        )
-        fig_.savefig("plots/spectrum_t_" + "{:06}".format(i) + ".png")
-
-    vel_hat: VectorField[FourierField] = VectorField(
-        [
-            FourierField.FromWhiteNoise(coarse_domain, energy_norm=e_0)
-            for _ in coarse_domain.all_dimensions()
-        ],
-        name="velocity_hat",
-    )
-
-    optimiser = OptimiserFourier(
-        domain,
-        # domain,
-        coarse_domain,
-        # coarse_domain,
-        lambda vel_hat_, t: 1.0,
-        vel_hat,
-        minimise=False,
-        force_2d=False,
-        objective_fn_name="gain",
-        add_noise=False,
-        noise_amplitude=1e-3,
-    )
-    fig = figure.Figure()
-    ax = fig.subplots(1, 2)
-    # assert type(ax) is Axes
-    assert type(ax) is np.ndarray
-    # ax[0].plot(jnp.abs(vel_hat[0].data[:, Ny // 2, 0]), "o")
-    # ax[1].plot(jnp.abs(vel_hat[0].data[0, Ny // 2, :]), "o")
-    vel_hat.no_hat().plot_3d(2)
-    print_verb(
-        "conti_error (before)",
-        vel_hat.div().no_hat().energy() / vel_hat.no_hat().energy(),
-    )
-    vel_hat = optimiser.parameters_to_run_input(
-        optimiser.run_input_to_parameters(vel_hat)
-    )  # should lower conti error
-    vel_hat.set_name("velocity_hat")
-    print_verb(
-        "conti_error (after)",
-        vel_hat.div().no_hat().energy() / vel_hat.no_hat().energy(),
-    )
-    vel_hat.div().no_hat().plot_3d(2)
-    vel_hat.div().no_hat().plot_3d(1)
-    vel_hat.div().no_hat().plot_3d(0)
-    vel_hat[0].diff(0).no_hat().plot_3d(0)
-    vel_hat[1].diff(1).no_hat().plot_3d(0)
-    vel_hat[2].diff(2).no_hat().plot_3d(0)
-    (vel_hat[0].diff(0) + vel_hat[2].diff(2)).no_hat().plot_3d(0)
-    U = vel_hat.project_onto_domain(domain).no_hat()
-    U.update_boundary_conditions()
-    U_norm = U.normalize_by_energy()
-    U_norm *= e_0
-    nse = NavierStokesVelVortPerturbation.FromVelocityField(
-        U_norm, Re=Re, dt=dt, velocity_base_hat=velocity_base_hat
-    )
-    nse.set_linearize(False)
-    nse.activate_jit()
-    nse.end_time = end_time
-    vel_hat = nse.get_latest_field("velocity_hat")
-    nse.write_intermediate_output = True
-    nse.set_post_process_fn(post_process)
-    nse.solve()
-    nse.post_process()
-    vel_final = nse.get_latest_field("velocity_hat").no_hat()
-    # gain = vel_final.energy() / energy_0
-    gain = vel_final.energy()
-    print_verb("gain:", gain)
-
-
-def run_optimisation_transient_growth_dual(
-    Re: float = 3000.0,
-    T: float = 15,
-    Nx: int = 4,
-    Ny: int = 64,
-    Nz: int = 4,
-    number_of_steps: int = 20,
-    use_custom_optimiser: bool = True,
-    vel_0_path: Optional[str] = None,
-) -> None:
-    Re = float(Re)
-    T = float(T)
-    alpha = 1.0
-    beta = 0.0
-
-    if type(use_custom_optimiser) is str:  # type: ignore
-        use_custom_optimiser = use_custom_optimiser == "True"  # type: ignore
-
-    Equation.initialize()
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
-    dt = 1e-3
-    # end_time = dt * 1
-    end_time = T
-    if Re < 1000:
-        number_of_modes = (
-            15  # deliberately low value so that there is room for improvement
-        )
-    else:
-        number_of_modes = (
-            25  # deliberately low value so that there is room for improvement
-        )
-    # number_of_modes = 60
-    scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
-    aliasing = 3 / 2
-    # aliasing = 1
-
-    if vel_0_path is not None and vel_0_path == "None":
-        vel_0_path = None
-
-    lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=min(Ny, 64))
-    domain: PhysicalDomain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=scale_factors,
-        aliasing=aliasing,
-    )
-
-    e_0 = 1e-10
-    # e_0 = 1.0
-    eps = 1e-2  # step size
-
-    skip_preparation = True
-    # skip_preparation = False
-    if (not skip_preparation) or vel_0_path is None:
-        v0_0 = lsc.calculate_transient_growth_initial_condition(
-            domain,
-            T,
-            number_of_modes,
-            recompute_full=True,
-            save_final=False,
-        )
-        if vel_0_path is None:
-            v0_0.set_name("vel_initial")
-            v0_0.plot_3d(2)
-        print_verb(
-            "expected energy gain:",
-            lsc.calculate_transient_growth_max_energy(T, number_of_modes),
-        )
-        v0_0_norm = v0_0.normalize_by_energy()
-        v0_0_norm *= e_0 ** (1 / 2)
-        v0_0_hat = v0_0_norm.hat()
-    if not skip_preparation:
-        v0_0_linear = lsc.calculate_transient_growth_initial_condition(
-            domain,
-            T,
-            60,
-            recompute_full=True,
-            save_final=False,
-        )
-        print_verb(
-            "expected final energy gain:",
-            lsc.calculate_transient_growth_max_energy(T, 60),
-        )
-        v0_0_linear.set_name("vel_lin_opt")
-        v0_0_linear.plot_3d(2)
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vort[2].plot_3d(2)
-        vel.plot_streamlines(2)
-        vel[0].plot_isolines(2)
-        vel[0].plot_center(1, nse.get_initial_field("velocity_hat").no_hat()[0])
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-        energy_t_arr = np.array(energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-        fig.savefig("plots/plot_energy_t_final.png")
-
-    if vel_0_path is None:
-        v0_hat = v0_0_hat
-    else:
-        v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
-    v0_hat.set_name("velocity_hat")
-    nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
-    # nse.set_linearize(True)
-    nse.set_linearize(False)
-    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse, checkpointing=True
-    )
-    if use_custom_optimiser:
-        print_verb("using custom optimiser")
-        # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
-        optimiser: "GradientDescentSolver" = ConjugateGradientDescentSolver(
-            nse_dual,
-            max_iterations=number_of_steps,
-            step_size=eps,
-            max_step_size=0.1,
-            post_process_function=post_process,
-            relative_gain_increase_threshold=0.3,
-        )
-
-    else:
-        print_verb("using optimiser from external library")
-        optimiser = OptimiserWrapper(
-            nse_dual,
-            max_iterations=number_of_steps,
-            step_size=eps,
-            max_step_size=0.1,
-            post_process_function=post_process,
-            relative_gain_increase_threshold=0.3,
-        )
-    optimiser.optimise()
-
-
-def run_laminar_edac(Ny: int = 48, perturbation_factor: float = 0.1) -> None:
-    Equation.initialize()
-    Re = 3e3
-
-    dt = 4e-5
-    end_time = 1
-    domain = PhysicalDomain.create(
-        (16, Ny, 16), (True, False, True), scale_factors=(1.87, 1, 0.93), aliasing=1
-    )
-
-    u_max_over_u_tau = 1.0
-
-    vel_x_fn_ana: "Vel_fn_type" = (
-        lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-    )
-
-    vel_x_fn: "Vel_fn_type" = lambda X: jnp.pi / 3 * u_max_over_u_tau * (
-        perturbation_factor
-        * jnp.cos(X[1] * jnp.pi / 2)
-        * (jnp.cos(3 * X[0]) ** 2 * jnp.cos(4 * X[2]) ** 2)
-    ) + (1 - perturbation_factor) * vel_x_fn_ana(X)
-
-    # add small perturbation in y and z to see if it decays
-    vel_y_fn: "Vel_fn_type" = (
-        lambda X: 0.1
-        * perturbation_factor
-        * u_max_over_u_tau
-        * (
-            jnp.pi
-            / 3
-            # * jnp.cos(X[1] * jnp.pi / 2)
-            * (1 - X[1] ** 2) ** 2
-            * jnp.cos(3 * X[0])
-            * jnp.cos(4 * X[2])
-        )
-    )
-    vel_z_fn: "Vel_fn_type" = (
-        lambda X: 0.1
-        * jnp.pi
-        / 3
-        * perturbation_factor
-        * u_max_over_u_tau
-        * (jnp.cos(X[1] * jnp.pi / 2) * jnp.cos(5 * X[0]) * jnp.cos(3 * X[2]))
-    )
-    vel_x_ana = PhysicalField.FromFunc(domain, vel_x_fn_ana, name="velocity_x_ana")
-    vel_x = PhysicalField.FromFunc(domain, vel_x_fn, name="velocity_x")
-    vel_y = PhysicalField.FromFunc(domain, vel_y_fn, name="velocity_y")
-    vel_z = PhysicalField.FromFunc(domain, vel_z_fn, name="velocity_z")
-    vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
-
-    def post_process(nse: NavierStokesEDAC, i: int) -> None:
-        vel = nse.get_field("velocity", i)
-        vel.set_time_step(i)
-        vel.plot_3d(2)
-        vel[0].plot_center(1, vel_x_ana)
-        p = nse.get_field("pressure", i)
-        p.set_time_step(i)
-        p.plot_3d(2)
-
-    def run_case(vel_: "jnp_array", out: bool = False) -> jsd_float:
-        vel__: VectorField[PhysicalField] = VectorField.FromData(
-            PhysicalField, domain, vel_, name="velocity"
-        )
-        nse = NavierStokesEDAC(vel__, dt=dt, end_time=end_time, Re=Re)
-        nse.end_time = end_time
-        nse.activate_jit()
-        nse.before_time_step_fn = None
-
-        nse.write_intermediate_output = out
-        nse.solve()
-
-        if out:
-            nse.set_post_process_fn(post_process)
-            nse.post_process()
-
-        gain = nse.get_latest_field("velocity").energy() / vel__.energy()
-        return gain
-
-    # gain, corr = jax.value_and_grad(run_case)(vel.get_data())
-    # print_verb(gain)
-    gain = run_case(vel.get_data(), True)
-
-    # vel_final = nse.get_latest_field("velocity")
-
-    # tol = 5e-7
-    # print_verb(abs(vel_final[0] - vel_x_ana))
-    # print_verb(abs(vel_final[1]))
-    # print_verb(abs(vel_final[2]))
