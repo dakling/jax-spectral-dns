@@ -82,6 +82,12 @@ def get_args_from_yaml_file() -> Any:
     return args
 
 
+def get_args_from_yaml_string(string: str) -> Any:
+    string_ = string.replace(" ", "\n").replace("=", ": ")
+    args = yaml.safe_load(string_)
+    return args
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         raise Exception(
@@ -94,13 +100,28 @@ if __name__ == "__main__":
             func_name = sys.argv[1]
             try:
                 args = get_args_from_yaml_file()
-                globals()[func_name](**args)
+                print_verb("reading simulation_settings.yml")
             except FileNotFoundError:
                 print_verb(
-                    "WARNING: file simulation_settings.yml not found. Reading arguments from command line, which is discouraged and might not work."
+                    "WARNING: file simulation_settings.yml not found. Reading arguments from command line, which is discouraged."
                 )
-                args = sys.argv[2:]  # TODO
-                globals()[func_name](*args)
+                try:
+                    args = get_args_from_yaml_string(" ".join(sys.argv[2:]))
+                    with open("simulation_settings_.yaml", "w") as file:
+                        yaml.dump(args, file)
+                        print_verb(
+                            "writing out arguments to file simulation_settings_.yml. Rename this file to simulation_settings.yml to make sure it is read."
+                        )
+                except yaml.YAMLError as e:
+                    print_verb("could not parse command line arguments.")
+                    print_verb(
+                        "usage:   python main.py <function name> option1=value1 option2=value2 ..."
+                    )
+                    print_verb(
+                        "example: python main.py run_ld_2021_dual end_time=1.0 max_cfl=0.7 ..."
+                    )
+                    raise e
+            globals()[func_name](**args)
         except Exception as e:
             print(e)
             print_failure()
