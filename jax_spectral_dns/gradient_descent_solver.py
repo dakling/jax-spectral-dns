@@ -333,9 +333,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0_hat = self.current_guess
         domain = v0_hat.get_physical_domain()
         iteration_successful = False
+        break_iteration = False
         j = 0
         success = False
-        while not iteration_successful:
+        while (not iteration_successful) and (not break_iteration):
             start_time = time.time()
             print_verb("iteration", self.i + 1, "of", self.number_of_steps)
             if j + 1 > 1:
@@ -408,9 +409,18 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     self.v_0_hat_old,
                 )
 
+            # make sure we stop at some point
+            if (
+                abs(self.step_size - self.min_step_size) <= 1e-50
+                and abs(self.beta) <= 1e-50
+            ):
+                if self.almost_done:
+                    self.done = True
+                self.almost_done = True
+
             j += 1
-            if j > self.max_number_of_sub_iterations:
-                iteration_successful = True
+            if j > self.max_number_of_sub_iterations or self.done:
+                break_iteration = True
             iteration_duration = time.time() - start_time
             try:
                 print_verb("sub-iteration took", format_timespan(iteration_duration))
@@ -418,34 +428,19 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("sub-iteration took", iteration_duration, "seconds")
             print_verb("\n")
 
-        self.update_beta(True)
-        self.current_guess = v0_hat_new
-        self.normalize_current_guess()
-        v0 = self.current_guess.no_hat()
-        print_verb("v0 energy:", v0.energy())
-        print_verb("\n")
-        self.value = gain
+        if iteration_successful:
+            self.update_beta(True)
+            self.current_guess = v0_hat_new
+            self.normalize_current_guess()
+            v0 = self.current_guess.no_hat()
+            print_verb("v0 energy:", v0.energy())
+            print_verb("\n")
+            self.value = gain
 
-        if (
-            self.value_change_threshold > 0.0
-            and abs(self.value - self.old_value) / self.value
-            < self.value_change_threshold
-        ):
-            self.done = True
-
-        # make sure we stop at some point
-        if (
-            abs(self.step_size - self.min_step_size) <= 1e-50
-            and abs(self.beta) <= 1e-50
-        ):
-            if self.almost_done:
-                self.done = True
-            self.almost_done = True
-
-        self.old_value = self.value
-        self.old_grad = self.grad
-        self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
-        self.u_0_hat_old = v0_hat_new
+            self.old_value = self.value
+            self.old_grad = self.grad
+            self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
+            self.u_0_hat_old = v0_hat_new
 
     def decrease_step_size(self) -> None:
         self.step_size = max(self.step_size / 2.0, self.min_step_size)
