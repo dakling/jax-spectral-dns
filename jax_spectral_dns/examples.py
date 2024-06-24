@@ -2878,7 +2878,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     Re_tau = params.get("Re_tau", 180.0)
     turb = params.get("turbulent_base", 1.0)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
-    Nx, Ny, Nz = params.get("N_s", (1, 1, 1))
+    Nx = params.get("Nx", 1)
+    Ny = params.get("Ny", 1)
+    Nz = params.get("Nz", 1)
     number_of_steps = params.get("number_of_steps", -1)
     aliasing = 3 / 2
     e_0 = params.get("e_0", 1.0)
