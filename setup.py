@@ -19,6 +19,7 @@ setup(
         "jaxopt",
         "optax",
         "humanfriendly",
+        "yaml",
     ],
     extras_require={
         "notifications": ["PyGObject"],
