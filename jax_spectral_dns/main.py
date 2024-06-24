@@ -111,7 +111,7 @@ if __name__ == "__main__":
                 )
                 try:
                     args = get_args_from_yaml_string(" ".join(sys.argv[2:]))
-                    with open("simulation_settings_.yaml", "w") as file:
+                    with open("simulation_settings_.yml", "w") as file:
                         yaml.dump(args, file)
                         print_verb(
                             "writing out arguments to file simulation_settings_.yml. Rename this file to simulation_settings.yml to make sure it is read."
@@ -125,7 +125,10 @@ if __name__ == "__main__":
                         "example: python main.py run_ld_2021_dual end_time=1.0 max_cfl=0.7 ..."
                     )
                     raise e
-            globals()[func_name](**args)
+            if type(args) is not NoneType:
+                globals()[func_name](**args)
+            else:
+                globals()[func_name]()
         except Exception as e:
             print(e)
             print_failure()

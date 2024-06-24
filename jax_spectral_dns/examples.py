@@ -2313,14 +2313,14 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         return vel_base, U_y_slice, cast(float, max), flow_rate
 
-    vel_base_turb, _, _, flow_rate = get_vel_field(domain, avg_vel_coeffs)
-    vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
+    vel_base_turb, _, max, flow_rate = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb = vel_base_turb.normalize_by_max_value()
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
                 # domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
                 domain,
-                lambda X: 3.0 / 4.0 * (1 - X[1] ** 2) + 0 * X[2],
+                lambda X: (3.0 / 4.0) / (max / flow_rate) * (1 - X[1] ** 2) + 0 * X[2],
             ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
@@ -2337,7 +2337,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = flow_rate
+    u_max_over_u_tau = max
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
@@ -2347,6 +2347,13 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
+
+    # print_verb("flow rate turbulent:", vel_base_turb[0].get_flow_rate(1))
+    # print_verb("max value turbulent:", vel_base_turb[0].max())
+    # print_verb("flow rate laminar:", vel_base_lam[0].get_flow_rate(1))
+    # print_verb("max value laminar:", vel_base_lam[0].max())
+    # print_verb("flow rate:", vel_base[0].get_flow_rate(1))
+    # print_verb("max value:", vel_base[0].max())
 
     if init_file is None:
         number_of_modes = 60
