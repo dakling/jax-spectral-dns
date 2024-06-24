@@ -101,6 +101,10 @@ if __name__ == "__main__":
             try:
                 args = get_args_from_yaml_file()
                 print_verb("reading simulation_settings.yml")
+                if len(sys.argv) > 2:
+                    print_verb(
+                        "WARNING: command line arguments are ignored in favor of simulation_settings.yml"
+                    )
             except FileNotFoundError:
                 print_verb(
                     "WARNING: file simulation_settings.yml not found. Reading arguments from command line, which is discouraged."

@@ -48,12 +48,24 @@ quantitative tests.
 
 The simplest way to run a case from `examples.py` is through the `main.py` file, using 
 ```
-python jax_spectral_dns/main.py <function_name> <function_args>
+python jax_spectral_dns/main.py <function_name> <function_option_1>=<value_1> <function_option_2>=<value_2> ...
 ```
 so for example
 ```
-python jax_spectral_dns/main.py run_transient_growth 3000 15
+python jax_spectral_dns/main.py run_transient_growth Re=3000.0 T=15.0
 ```
+However, the preferred method is creating a yaml-file named `simulation_parameters.yml` 
+in the directory from which the code is run. If such a file does not exist and `jax-spectral-dns` 
+is invoked with the above command, it will create a template file called `simulation_parameters_.yml` 
+(note the extra "_"), which, when renamed to `simulation_parameters.yml`, takes precedence over any passed 
+command line arguments. For the above command, the created file would read
+
+``` yaml
+Re: 3000.0
+T: 15.0
+```
+The parameters accepted by each function are best found by looking at the source code.
+Each parameters has a default value and is thus optional. Superfluous parameters are ignored.
 
 ## Example outputs
 
