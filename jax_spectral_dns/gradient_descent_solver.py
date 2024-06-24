@@ -323,9 +323,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.old_grad = self.grad
             self.old_nse_dual = self.dual_problem
             self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
-            self.u_0_hat_old = self.dual_problem.forward_equation.get_initial_field(
-                "velocity_hat"
-            )
+            self.u_0_hat_old = v0_hat
             print_verb("")
             print_verb("gain:", self.value)
             print_verb("")
