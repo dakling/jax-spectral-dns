@@ -2348,23 +2348,15 @@ def run_optimisation_transient_growth_mean_y_profile(
     optimiser.optimise()
 
 
-def run_ld_2021_get_mean(
-    Re_tau: float = 720.0,
-    Nx: int = 64,
-    Ny: int = 129,
-    Nz: int = 64,
-    max_cfl: float = 0.7,
-    end_time: float = 1e0,
-    init_file: Optional[str] = None,
-) -> None:
-    Re_tau = float(Re_tau)
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    max_cfl = float(max_cfl)
-    end_time = float(end_time)
+def run_ld_2021_get_mean(**params) -> None:
+    Re_tau = params.get("Re_tau", 180.0)
+    Nx = params.get("Nx", 1)
+    Ny = params.get("Ny", 1)
+    Nz = params.get("Nz", 1)
+    max_cfl = params.get("max_cfl", 0.7)
+    end_time = params.get("end_time", 1.0e-1)
+    init_file = params.get("init_file")
 
-    e_0 = 1e0
     scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
 
     Equation.initialize()
