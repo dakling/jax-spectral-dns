@@ -7,10 +7,10 @@ jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 # import warnings
 # warnings.filterwarnings('error')
 import logging
-import argparse
 
 import os
-import os
+import yaml
+from typing import Any
 
 os.environ["XLA_FLAGS"] = (
     "--xla_gpu_enable_triton_softmax_fusion=true " "--xla_gpu_triton_gemm_any=True "
@@ -76,6 +76,12 @@ def print_failure() -> None:
     print("")
 
 
+def get_args_from_yaml_file() -> Any:
+    with open("simulation_settings.yml", "r") as file:
+        args = yaml.safe_load(file)
+    return args
+
+
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         raise Exception(
@@ -85,8 +91,15 @@ if __name__ == "__main__":
         print_welcome()
         Equation.verbosity_level = verbose
         try:
-            args = sys.argv[2:]
-            globals()[sys.argv[1]](*args)
+            func_name = sys.argv[1]
+            try:
+                args = get_args_from_yaml_file()
+            except FileNotFoundError:
+                print_verb(
+                    "WARNING: file simulation_settings.yml not found. Reading arguments from command line, which is discouraged and might not work."
+                )
+                args = sys.argv[2:]
+            globals()[func_name[0][1]](*args)
         except Exception as e:
             print(e)
             print_failure()

@@ -538,6 +538,6 @@ class OptimiserWrapper(GradientDescentSolver):
         self.optimiser.perform_iteration()
         self.current_guess = self.optimiser.parameters_to_run_input_(
             self.optimiser.parameters
-        ).no_hat()
+        )
         self.value = cast("float", self.optimiser.value)
         self.normalize_current_guess()

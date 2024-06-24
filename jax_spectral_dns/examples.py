@@ -2874,37 +2874,22 @@ def run_ld_2021(
     optimiser.optimise()
 
 
-def run_ld_2021_dual(
-    turb: float = 1.0,
-    Re_tau: float = 180,
-    Nx: int = 64,
-    Ny: int = 129,
-    Nz: int = 32,
-    number_of_steps: int = 10,
-    e_0: float = 1e-3,
-    max_cfl: float = 0.7,
-    linearise: int = 0,
-    start_iteration: int = 0,
-    init_file: Optional[str] = None,
-) -> None:
-    Re_tau = float(Re_tau)
-    turb = float(turb)
+def run_ld_2021_dual(**params: Any) -> None:
+    Re_tau = params.get("Re_tau", 180.0)
+    turb = params.get("turbulent_base", 1.0)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
-    Nx = int(Nx)
-    Ny = int(Ny)
-    Nz = int(Nz)
-    number_of_steps = int(number_of_steps)
+    Nx, Ny, Nz = params.get("N_s", (1, 1, 1))
+    number_of_steps = params.get("number_of_steps", -1)
     aliasing = 3 / 2
-    e_0 = float(e_0)
-    max_cfl = float(max_cfl)
-    start_iteration = int(start_iteration)
-    linearise = int(linearise)
-    linearise_ = linearise == 1
+    e_0 = params.get("e_0", 1.0)
+    max_cfl = params.get("max_cfl", 0.7)
+    end_time = params.get("end_time", 0.35)
+    start_iteration = params.get("start_iteration", 0)
+    linearise = params.get("linearise", False)
+    init_file = params.get("init_file")
 
     if start_iteration <= 0:
         Equation.initialize()
-
-    end_time = 0.35  # the target time (in ld2021 units)
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -3122,7 +3107,7 @@ def run_ld_2021_dual(
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
     )
-    nse.set_linearize(linearise_)
+    nse.set_linearize(linearise)
     nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
