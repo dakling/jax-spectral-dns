@@ -94,12 +94,13 @@ if __name__ == "__main__":
             func_name = sys.argv[1]
             try:
                 args = get_args_from_yaml_file()
+                globals()[func_name](args)
             except FileNotFoundError:
                 print_verb(
                     "WARNING: file simulation_settings.yml not found. Reading arguments from command line, which is discouraged and might not work."
                 )
                 args = sys.argv[2:]
-            globals()[func_name](*args)
+                globals()[func_name](*args)
         except Exception as e:
             print(e)
             print_failure()
