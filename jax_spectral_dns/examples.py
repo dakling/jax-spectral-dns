@@ -2356,7 +2356,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     # print_verb("max value:", vel_base[0].max())
 
     if init_file is None:
-        number_of_modes = 60
+        number_of_modes = params.get("number_of_modes", 60)
         n = 64
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
@@ -2364,12 +2364,14 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, _, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base / flow_rate
+        _, U_base, max, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / max
         # vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
         #     1 - lsc_domain.grid[1] ** 2
         # )  # continuously blend from turbulent to laminar mean profile
-        vel_base_y_slice = turb * U_base + (1 - turb) * 3.0 / 4.0 * (
+        vel_base_y_slice = turb * U_base + (1 - turb) * (3.0 / 4.0) / (
+            max / flow_rate
+        ) * (
             1 - lsc_domain.grid[1] ** 2
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
