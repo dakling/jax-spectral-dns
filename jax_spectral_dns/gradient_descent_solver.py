@@ -445,9 +445,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value = self.value
         self.old_grad = self.grad
         self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
-        self.u_0_hat_old = self.dual_problem.forward_equation.get_initial_field(
-            "velocity_hat"
-        )
+        self.u_0_hat_old = v0_hat_new
 
     def decrease_step_size(self) -> None:
         self.step_size = max(self.step_size / 2.0, self.min_step_size)
