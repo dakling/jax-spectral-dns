@@ -372,8 +372,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     gain_change / self.old_value < self.relative_gain_increase_threshold
                 )
             )
+            gain_change_ok = True  # TODO: is it reasonable to always accept new guess?
             if gain_change_ok:
                 iteration_successful = True
+                self.almost_done = False
                 self.increase_step_size()
 
                 self.grad, success = self.dual_problem.get_projected_cg_grad(
