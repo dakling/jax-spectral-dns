@@ -2468,7 +2468,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         v0_hat = v0.hat()
     v0_hat.set_name("velocity_hat")
 
-    dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-3, 1e-3), end_time_)
+    dt = Equation.find_suitable_dt(domain, max_cfl, (1.3, 1e-3, 1e-3), end_time_)
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
         Re=Re,
