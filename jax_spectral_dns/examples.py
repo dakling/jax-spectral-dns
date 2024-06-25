@@ -1770,7 +1770,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         # )
         # v0_0.normalize_by_energy()
         # v0_0 *= e_0
-        omega = 1.00
+        omega = params.get("omega", 1.00)
         Lx, Ly, Lz = domain.scale_factors
 
         # Vilda
@@ -2241,6 +2241,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     linearise = params.get("linearise", False)
     init_file = params.get("init_file")
 
+    alpha = params.get("max_cfl", 1.0)
+    beta = params.get("max_cfl", 2.0)
+
     if start_iteration <= 0:
         Equation.initialize()
 
@@ -2376,8 +2379,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re,
-            alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
-            beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
+            alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
+            beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
             U_base=cast("np_float_array", vel_base_y_slice),
         )
