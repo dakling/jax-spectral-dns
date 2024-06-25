@@ -2244,6 +2244,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 2.0)
 
+    initial_step_size = params.get("initial_step_size", 1.0e-3)
     min_step_size = params.get("min_step_size", 1.0e-4)
     max_step_size = params.get("max_step_size", 1.0e-1)
 
@@ -2483,7 +2484,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,
         max_iterations=number_of_steps,
-        step_size=1e-2,
+        step_size=initial_step_size,
         max_step_size=max_step_size,
         min_step_size=min_step_size,
         post_process_function=post_process,
@@ -2502,8 +2503,12 @@ def run_optimisation_farano_2015(**params: Any) -> None:
     end_time: float = params.get("end_time:", 10.0)
     linearise: bool = params.get("linearise:", False)
     start_iteration: int = params.get("start_iteration:", 0)
-    init_file: Optional[str] = params.get("init_file:", None)
+    init_file: Optional[str] = params.get("init_file:")
     aliasing = params.get("aliasing", 3 / 2)
+
+    initial_step_size = params.get("initial_step_size", 1.0e-3)
+    min_step_size = params.get("min_step_size", 1.0e-4)
+    max_step_size = params.get("max_step_size", 1.0e-1)
 
     if start_iteration <= 0:
         Equation.initialize()
@@ -2648,8 +2653,9 @@ def run_optimisation_farano_2015(**params: Any) -> None:
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,
         max_iterations=number_of_steps,
-        step_size=1e-2,
-        max_step_size=0.1,
+        step_size=initial_step_size,
+        max_step_size=max_step_size,
+        min_step_size=min_step_size,
         post_process_function=post_process,
         start_iteration=start_iteration,
     )
