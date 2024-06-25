@@ -356,7 +356,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             grad_field: VectorField[FourierField] = VectorField.FromData(
                 FourierField, domain, self.grad, name="grad_hat"
             )
-            print_verb("grad energy:", grad_field.no_hat().energy())
+            print_verb(
+                "grad energy times step size:",
+                self.step_size * grad_field.no_hat().energy(),
+            )
 
             v0_hat_new.set_name("velocity_hat")
             self.dual_problem.forward_equation.set_initial_field(

@@ -631,7 +631,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self.run_forward_calculation()
         u_0 = self.forward_equation.get_initial_field("velocity_hat").no_hat()
         u_T = self.forward_equation.get_latest_field("velocity_hat").no_hat()
-        return u_T.energy() / u_0.energy()
+        self.gain = u_T.energy() / u_0.energy()
+        return self.gain
 
     def get_grad(self) -> "jnp_array":
         self.run_backward_calculation()
@@ -653,7 +654,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         def get_new_energy_0(l: float) -> float:
             return (
-                ((1 + step_size * l) * u_hat_0 - step_size * v_hat_0).no_hat().energy()
+                (
+                    (1 + step_size * l / self.gain) * u_hat_0
+                    - step_size / self.gain * v_hat_0
+                )
+                .no_hat()
+                .energy()
             )
 
         print_verb("optimising lambda...", verbosity_level=2)
@@ -670,7 +676,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         )
         print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
-        return (lam * u_hat_0.get_data() - v_hat_0.get_data(), i < 100)
+        return ((lam * u_hat_0.get_data() - v_hat_0.get_data()) / self.gain, i < 100)
 
     def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
@@ -690,8 +696,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         def get_new_energy_0(l: float) -> float:
             return (
                 (
-                    (1 + step_size * l) * u_hat_0
-                    + step_size * (-1 * v_hat_0 + beta * old_grad)
+                    (1 + step_size * l / self.gain) * u_hat_0
+                    + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
                 )
                 .no_hat()
                 .energy()
@@ -708,7 +714,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("energy:", get_new_energy_0(lam))
 
         return (
-            lam * u_hat_0.get_data() - v_hat_0.get_data() + beta * old_grad,
+            (lam * u_hat_0.get_data() - v_hat_0.get_data() + beta * old_grad)
+            / self.gain,
             i < max_iter,
         )
 
