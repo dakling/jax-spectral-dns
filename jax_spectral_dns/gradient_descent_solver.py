@@ -357,6 +357,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 FourierField, domain, self.grad, name="grad_hat"
             )
             print_verb(
+                "grad energy:",
+                grad_field.no_hat().energy(),
+            )
+            print_verb(
                 "grad energy times step size:",
                 self.step_size * grad_field.no_hat().energy(),
             )
@@ -449,7 +453,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         if iteration_successful:
             self.update_beta(True)
             self.current_guess = v0_hat_new
-            self.normalize_current_guess()
+            # self.normalize_current_guess()
             self.value = gain
 
             self.old_value = self.value
