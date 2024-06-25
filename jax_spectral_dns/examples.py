@@ -2241,8 +2241,8 @@ def run_ld_2021_dual(**params: Any) -> None:
     linearise = params.get("linearise", False)
     init_file = params.get("init_file")
 
-    alpha = params.get("max_cfl", 1.0)
-    beta = params.get("max_cfl", 2.0)
+    alpha = params.get("alpha", 1.0)
+    beta = params.get("beta", 2.0)
 
     if start_iteration <= 0:
         Equation.initialize()
