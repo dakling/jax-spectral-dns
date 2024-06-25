@@ -2244,6 +2244,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 2.0)
 
+    min_step_size = params.get("min_step_size", 1.0e-4)
+    max_step_size = params.get("max_step_size", 1.0e-1)
+
     if start_iteration <= 0:
         Equation.initialize()
 
@@ -2481,7 +2484,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         nse_dual,
         max_iterations=number_of_steps,
         step_size=1e-2,
-        max_step_size=0.1,
+        max_step_size=max_step_size,
+        min_step_size=min_step_size,
         post_process_function=post_process,
         start_iteration=start_iteration,
     )
