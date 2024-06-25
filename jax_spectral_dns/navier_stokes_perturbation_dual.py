@@ -703,7 +703,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("optimising lambda...")
         i = 0
         max_iter = 100
-        tol = 1e-6  # can be fairly high as we rescale anyway
+        tol = 1e-6  # can be fairly high as we normalize the result anyway
         while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
             lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
             i += 1

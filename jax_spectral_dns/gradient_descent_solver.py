@@ -362,7 +362,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
             print_verb(
                 "grad energy times step size:",
-                self.step_size * grad_field.no_hat().energy(),
+                (self.step_size * grad_field).no_hat().energy(),
             )
 
             v0_hat_new.set_name("velocity_hat")
