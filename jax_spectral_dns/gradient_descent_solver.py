@@ -106,6 +106,7 @@ class GradientDescentSolver(ABC):
         v0.set_time_step(self.i)
         v0.plot_3d(0)
         v0.plot_3d(2)
+        v0[1].set_time_step(self.i)  # TODO this should not be needed
         v0[1].plot_isosurfaces(0.4)
         fname = Field.field_dir + "/velocity_latest"
         if (
@@ -385,6 +386,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     gain_change / self.old_value < self.relative_gain_increase_threshold
                 )
             )
+            self.reset_beta = False
             if gain_change_ok:
                 iteration_successful = True
                 self.almost_done = False
@@ -393,7 +395,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.grad, success = self.dual_problem.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
                 )
-                self.reset_beta = False
                 if not success and abs(self.beta) > 1e2:
                     print_verb(
                         "problems with finding lambda due to high beta detected, repeating gradient calculation with beta=0."
@@ -454,6 +455,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("\n")
 
         if iteration_successful:
+            print_verb("reset_beta:", self.reset_beta)  # TODO remove later
             self.update_beta(not self.reset_beta)
             self.current_guess = v0_hat_new
             # self.normalize_current_guess()

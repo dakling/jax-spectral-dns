@@ -503,7 +503,7 @@ class VectorField(Generic[T]):
     def set_time_step(self, time_step: int) -> None:
         self.time_step = time_step
         for j in range(len(self)):
-            self[j].time_step = time_step
+            self[j].set_time_step(time_step)
 
     def get_name(self) -> str:
         if self.name is not None:
