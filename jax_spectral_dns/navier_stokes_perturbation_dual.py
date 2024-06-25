@@ -650,7 +650,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         v_hat_0: VectorField["FourierField"],
     ) -> Tuple["jnp_array", bool]:
         e_0 = u_hat_0.no_hat().energy()
-        lam = 0.0
+        lam = -1.0
 
         def get_new_energy_0(l: float) -> float:
             return (
