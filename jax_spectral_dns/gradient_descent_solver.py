@@ -393,10 +393,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.grad, success = self.dual_problem.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
                 )
+                self.reset_beta = False
                 if not success and abs(self.beta) > 1e2:
                     print_verb(
                         "problems with finding lambda due to high beta detected, repeating gradient calculation with beta=0."
                     )
+                    self.reset_beta = True
                     self.beta = 0.0
                     self.grad, success = self.dual_problem.get_projected_cg_grad(
                         self.step_size, self.beta, self.old_grad
@@ -421,6 +423,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
                 self.decrease_step_size()
                 if gain_change <= 0.0:
+                    self.reset_beta = True
                     self.beta = 0.0
                 self.grad, success = self.dual_problem.get_projected_cg_grad(
                     self.step_size, self.beta, self.old_grad
@@ -451,7 +454,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("\n")
 
         if iteration_successful:
-            self.update_beta(True)
+            self.update_beta(not self.reset_beta)
             self.current_guess = v0_hat_new
             # self.normalize_current_guess()
             self.value = gain
