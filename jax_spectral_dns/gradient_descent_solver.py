@@ -372,7 +372,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     gain_change / self.old_value < self.relative_gain_increase_threshold
                 )
             )
-            gain_change_ok = True  # TODO: is it reasonable to always accept new guess?
             if gain_change_ok:
                 iteration_successful = True
                 self.almost_done = False
@@ -392,17 +391,21 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 # if gain_change <= 1e-4:
                 #     self.beta = 0.0
             else:
-                if gain_change <= 0.0:
-                    print_verb(
-                        "gain decrease/stagnation detected, repeating iteration with smaller step size."
-                    )
-                if (
-                    gain_change / self.old_value
-                    >= self.relative_gain_increase_threshold
-                ):
-                    print_verb(
-                        "high gain increase detected, repeating iteration with smaller step size."
-                    )
+                # if gain_change <= 0.0:
+                #     print_verb(
+                #         "gain decrease/stagnation detected, repeating iteration with smaller step size."
+                #     )
+                # if (
+                #     gain_change / self.old_value
+                #     >= self.relative_gain_increase_threshold
+                # ):
+                #     print_verb(
+                #         "high gain increase detected, repeating iteration with smaller step size."
+                #     )
+                # TODO is always accepting new guess a good idea?
+                iteration_successful = True
+                self.almost_done = False
+
                 self.decrease_step_size()
                 if gain_change <= 0.0:
                     self.beta = 0.0
