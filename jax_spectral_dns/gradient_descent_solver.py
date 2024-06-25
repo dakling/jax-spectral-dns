@@ -106,7 +106,6 @@ class GradientDescentSolver(ABC):
         v0.set_time_step(self.i)
         v0.plot_3d(0)
         v0.plot_3d(2)
-        v0[1].set_time_step(self.i)  # TODO this should not be needed
         v0[1].plot_isosurfaces(0.4)
         fname = Field.field_dir + "/velocity_latest"
         if (
@@ -455,7 +454,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("\n")
 
         if iteration_successful:
-            print_verb("reset_beta:", self.reset_beta)  # TODO remove later
             self.update_beta(not self.reset_beta)
             self.current_guess = v0_hat_new
             # self.normalize_current_guess()
