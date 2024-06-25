@@ -409,11 +409,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.decrease_step_size()
                 if gain_change <= 0.0:
                     self.beta = 0.0
-                self.grad, _ = self.dual_problem.get_projected_grad_from_u_and_v(
-                    self.step_size,
-                    self.u_0_hat_old,
-                    self.v_0_hat_old,
+                self.grad, success = self.dual_problem.get_projected_cg_grad(
+                    self.step_size, self.beta, self.old_grad
                 )
+                # self.grad, _ = self.dual_problem.get_projected_grad_from_u_and_v(
+                #     self.step_size,
+                #     self.u_0_hat_old,
+                #     self.v_0_hat_old,
+                # )
 
             # make sure we stop at some point
             if (
