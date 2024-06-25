@@ -154,6 +154,7 @@ class GradientDescentSolver(ABC):
         v0 = v0_hat.no_hat()
         v0_norm = v0.normalize_by_energy()
         v0_norm *= self.e_0 ** (1 / 2)
+        print_verb("energy after normalisation:", v0_norm.energy())
         v0_norm_hat = v0_norm.hat()
         v0_norm_hat.set_name("velocity_hat")
         return v0_norm_hat
@@ -432,9 +433,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.update_beta(True)
             self.current_guess = v0_hat_new
             self.normalize_current_guess()
-            v0 = self.current_guess.no_hat()
-            print_verb("v0 energy:", v0.energy())
-            print_verb("\n")
             self.value = gain
 
             self.old_value = self.value
