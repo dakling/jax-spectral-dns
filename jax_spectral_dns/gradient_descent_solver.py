@@ -53,7 +53,7 @@ class GradientDescentSolver(ABC):
         self.max_number_of_sub_iterations = params.get(
             "max_number_of_sub_iterations", 10
         )
-        self.value_change_threshold = params.get("value_change_threshold", 1e-6)
+        self.value_change_threshold = params.get("value_change_threshold", 1e-8)
         self.step_size_threshold = params.get("step_size_threshold", 1e-5)
 
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
