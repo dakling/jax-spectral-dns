@@ -131,6 +131,7 @@ class GradientDescentSolver(ABC):
                 + str(e_x_2d_over_3d)
                 + ", "
                 + str(e_z_2d_over_3d)
+                + "\n"
             )
 
         # plot current state
