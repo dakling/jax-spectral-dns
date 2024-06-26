@@ -138,10 +138,12 @@ class GradientDescentSolver(ABC):
         v0.plot_3d(2)
         v0[1].plot_isosurfaces(0.4)
 
-        phase_space_data = np.genfromtxt(
-            phase_space_data_name,
-            delimiter=",",
-        ).T
+        phase_space_data = np.atleast_2d(
+            np.genfromtxt(
+                phase_space_data_name,
+                delimiter=",",
+            ).T
+        )
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
