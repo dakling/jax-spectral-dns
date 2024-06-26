@@ -322,16 +322,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
-        self.reset_beta = False
-
-        # if prepare_for_iterations:
-        #     self.value = self.dual_problem.get_gain()
-        #     self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
-        #     self.old_value = self.value
-        #     self.old_grad = self.grad
-        #     print_verb("")
-        #     print_verb("gain:", self.value)
-        #     print_verb("")
 
     def update(self) -> None:
 
@@ -356,6 +346,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.grad, _ = self.dual_problem.get_projected_cg_grad(
                 self.step_size, self.beta, self.old_grad
             )
+            # TODO remove this at some point
+            if abs(self.beta) <= 1e-50:
+                gr = self.dual_problem.get_projected_grad(self.step_size)
+                print_verb("grad diff:", jnp.linalg.norm(gr - self.grad))
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
@@ -390,8 +384,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             else:
                 self.decrease_step_size()
                 self.reset_beta = True
-
-        self.update_beta(not self.reset_beta)
+            self.update_beta(not self.reset_beta)
         self.current_guess = v0_hat_new
         self.value = gain
         self.old_value = self.value

@@ -688,7 +688,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_hat_0 = self.velocity_u_hat_0
         v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
-        lam = 0.0
+        lam = -1.0
 
         def get_new_energy_0(l: float) -> float:
             return (
@@ -713,7 +713,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         return (
             (
                 lam * u_hat_0.get_data()
-                - (v_hat_0.get_data() + beta * old_grad) / self.gain
+                + (-1 * v_hat_0.get_data() + beta * old_grad) / self.gain
             ),
             i < max_iter,
         )
