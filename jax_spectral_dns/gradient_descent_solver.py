@@ -363,15 +363,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        v0_hat_new: VectorField[FourierField] = VectorField.FromData(
-            FourierField,
-            domain,
-            v0_hat.get_data() + self.step_size * self.grad,
-            name="velocity_hat",
-        )
-        v0_hat_new = self.normalize_field(v0_hat_new)
-        v0_hat_new.set_name("velocity_hat")
-        self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat_new)
+        # v0_hat_new: VectorField[FourierField] = VectorField.FromData(
+        #     FourierField,
+        #     domain,
+        #     v0_hat.get_data() + self.step_size * self.grad,
+        #     name="velocity_hat",
+        # )
+        v0_hat = v0_hat + self.grad
+        v0_hat = self.normalize_field(v0_hat)
+        self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat)
         self.dual_problem.update_with_nse()
 
         if Equation.verbosity_level >= 3:
@@ -393,7 +393,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.decrease_step_size()
                 self.reset_beta = True
             self.update_beta(not self.reset_beta)
-        self.current_guess = v0_hat_new
+        self.current_guess = v0_hat
         self.old_grad = self.grad
         self.old_value = self.value
         self.value = gain
