@@ -96,12 +96,16 @@ class GradientDescentSolver(ABC):
 
     def optimise(self) -> None:
         self.initialise(self.number_of_steps >= 0)
+        print_verb("hello1", self.done)
         self.update_done(self.i)
+        print_verb("hello2", self.done)
         while not self.done:
             self.update()
             self.post_process_iteration()
             self.i += 1
+            print_verb("hello3", self.done)
             self.update_done(self.i)
+            print_verb("hello4", self.done)
             assert self.value is not None
             assert math.isfinite(self.value), "calculation failure detected."
         self.perform_final_run()
