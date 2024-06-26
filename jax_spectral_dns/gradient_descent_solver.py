@@ -53,7 +53,7 @@ class GradientDescentSolver(ABC):
         self.max_number_of_sub_iterations = params.get(
             "max_number_of_sub_iterations", 10
         )
-        self.value_change_threshold = params.get("value_change_threshold", 1e-7)
+        self.value_change_threshold = params.get("value_change_threshold", 1e-6)
         self.step_size_threshold = params.get("step_size_threshold", 1e-5)
 
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
@@ -77,8 +77,16 @@ class GradientDescentSolver(ABC):
     def update(self) -> None: ...
 
     def is_done(self, i: int) -> bool:
-        done: bool = (i >= self.number_of_steps) or (
-            self.step_size < self.step_size_threshold
+        done: bool = (
+            (i >= self.number_of_steps)
+            or (self.step_size < self.step_size_threshold)
+            or (
+                (self.old_value is not None)
+                and (
+                    abs((self.value - self.old_value) / self.value)
+                    < self.value_change_threshold
+                )
+            )
         )
         return done
 
@@ -124,6 +132,12 @@ class GradientDescentSolver(ABC):
         except FileNotFoundError:
             pass
         v0.save_to_file("velocity_latest")
+        # document the path to the optimal
+        # i = self.i
+        # gain = self.value
+        # # TODO
+        # mass_flux = ...
+        # e_2d_over_3d = ...
 
     def perform_final_run(self) -> None:
         print_verb("performing final run with optimised initial condition")
@@ -346,10 +360,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.grad, _ = self.dual_problem.get_projected_cg_grad(
                 self.step_size, self.beta, self.old_grad
             )
-            # TODO remove this at some point
-            if abs(self.beta) <= 1e-50:
-                gr, _ = self.dual_problem.get_projected_grad(self.step_size)
-                print_verb("grad diff:", jnp.linalg.norm(gr - self.grad))
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
@@ -364,18 +374,16 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat_new)
         self.dual_problem.update_with_nse()
 
-        # TODO remove this eventually
-        grad_field: VectorField[FourierField] = VectorField.FromData(
-            FourierField, domain, self.grad, name="grad_hat"
-        )
-        print_verb(
-            "grad energy:",
-            grad_field.no_hat().energy(),
-        )
-        print_verb(
-            "grad energy times step size:",
-            (self.step_size * grad_field).no_hat().energy(),
-        )
+        if Equation.verbosity_level >= 3:
+            grad_field: VectorField[FourierField] = VectorField.FromData(
+                FourierField, domain, self.grad, name="grad_hat"
+            )
+            print_verb("grad energy:", grad_field.no_hat().energy(), verbosity_level=3)
+            print_verb(
+                "grad energy times step size:",
+                (self.step_size * grad_field).no_hat().energy(),
+                verbosity_level=3,
+            )
 
         if gain_change is not None:
             if gain_change > 0.0:

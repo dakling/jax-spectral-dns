@@ -661,8 +661,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         print_verb("optimising lambda...", verbosity_level=2)
         i = 0
+        max_iter = 100
         tol = 1e-15  # can be fairly high as we normalize the result anyway
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < 100:
+        while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
             lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
             i += 1
         print_verb(
@@ -674,7 +675,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         )
         print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
-        return ((lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain), i < 100)
+        return (
+            (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
+            i < max_iter,
+        )
 
     def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
@@ -708,8 +712,14 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
             lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
             i += 1
-        print_verb("optimising lambda done in", i, "iterations, lambda:", lam)
-        print_verb("energy:", get_new_energy_0(lam))
+        print_verb(
+            "optimising lambda done in",
+            i,
+            "iterations, lambda:",
+            lam,
+            verbosity_level=2,
+        )
+        print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
         return (
             (
