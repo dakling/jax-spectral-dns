@@ -322,6 +322,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
+        self.reset_beta = False
 
         # if prepare_for_iterations:
         #     self.value = self.dual_problem.get_gain()
@@ -389,8 +390,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             else:
                 self.decrease_step_size()
                 self.reset_beta = True
-        else:
-            self.reset_beta = False
 
         self.update_beta(not self.reset_beta)
         self.current_guess = v0_hat_new
