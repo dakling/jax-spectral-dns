@@ -96,6 +96,9 @@ class GradientDescentSolver(ABC):
 
     def optimise(self) -> None:
         self.initialise(self.number_of_steps >= 0)
+        print_verb("hello1", self.value)
+        print_verb("hello2", self.old_value)
+        self.update_done(self.i)
         while not self.done:
             self.update()
             self.post_process_iteration()
