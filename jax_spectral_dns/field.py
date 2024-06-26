@@ -122,7 +122,7 @@ class Field(ABC):
                 os.makedirs(newpath)
         if cleanup:
             # clean plotting dir
-            for file_ending in ["*.pdf", "*.png", "*.mp4"]:
+            for file_ending in ["*.pdf", "*.png", "*.mp4", "*.txt"]:
                 for f in Path(Field.plotting_dir).glob(file_ending):
                     if f.is_file():
                         f.unlink()
