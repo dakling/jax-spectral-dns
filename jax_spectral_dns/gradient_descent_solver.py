@@ -121,7 +121,7 @@ class GradientDescentSolver(ABC):
         energy = v0.energy()
         e_x_2d_over_3d = v0_hat.energy_2d(0) / energy
         e_z_2d_over_3d = v0_hat.energy_2d(2) / energy
-        phase_space_data_name = Field.plotting_dir + "data.txt"
+        phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
         with open(phase_space_data_name, "a") as file:
             file.write(
                 str(i)
@@ -142,8 +142,8 @@ class GradientDescentSolver(ABC):
             np.genfromtxt(
                 phase_space_data_name,
                 delimiter=",",
-            ).T
-        )
+            )
+        ).T
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
