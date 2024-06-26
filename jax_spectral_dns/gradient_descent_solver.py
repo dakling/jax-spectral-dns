@@ -340,7 +340,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
     def update(self) -> None:
 
         start_time = time.time()
-        self.old_value = self.value
         v0_hat = self.current_guess
         domain = v0_hat.get_physical_domain()
         print_verb("iteration", self.i + 1, "of", self.number_of_steps)
@@ -395,8 +394,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.reset_beta = True
             self.update_beta(not self.reset_beta)
         self.current_guess = v0_hat_new
-        self.value = gain
         self.old_grad = self.grad
+        self.old_value = self.value
+        self.value = gain
 
         iteration_duration = time.time() - start_time
         try:
