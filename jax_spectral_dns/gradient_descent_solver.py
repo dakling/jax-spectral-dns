@@ -38,7 +38,7 @@ class GradientDescentSolver(ABC):
         self._e_0 = v0_no_hat.energy()
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
-        self.value: Optional[float] = -1.0
+        self.value: Optional[float] = None
         self.old_value: Optional[float] = self.value
 
         # set various solver options
