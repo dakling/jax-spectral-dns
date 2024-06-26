@@ -155,7 +155,7 @@ class GradientDescentSolver(ABC):
         ax.set_xlabel("$E_2d_x / E_3d$")
         ax.set_ylabel("$E_2d_z / E_3d$")
         ax.set_xlim((-0.1, 1.1))
-        ax.set_ylim((1e-5, 1.1))
+        ax.set_ylim((1e-10, 1.1))
         ax.set_yscale("log")
         fig.legend()
         fig.savefig(Field.plotting_dir + "/phase_space.png")
