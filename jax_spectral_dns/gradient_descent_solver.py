@@ -147,18 +147,31 @@ class GradientDescentSolver(ABC):
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
-        ax.plot(phase_space_data[2][0], phase_space_data[3][0], "b+")
+        ax.plot(phase_space_data[2][0], phase_space_data[3][0], "k+")
         ax.plot(phase_space_data[2], phase_space_data[3], "g--")
         ax.set_xlabel("$E_2d_x / E_3d$")
         ax.set_ylabel("$E_2d_z / E_3d$")
+        ax.set_xlim((-0.1, 1.1))
+        ax.set_yscale("log")
         fig.savefig(Field.plotting_dir + "/phase_space.png")
+        ax.plot(phase_space_data[2][-1], phase_space_data[3][-1], "bo")
+        fig.savefig(
+            Field.plotting_dir + "/phase_space_" + "{:06}".format(self.i) + ".png"
+        )
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
         ax.plot(phase_space_data[0], phase_space_data[1], "o")
         ax.set_xlabel("$i$")
         ax.set_ylabel("$G$")
-        fig.savefig(Field.plotting_dir + "/gain_over_iterations.png")
+        fig.savefig(Field.plotting_dir + "/.png")
+        ax.plot(phase_space_data[0][-1], phase_space_data[1][-1], "bo")
+        fig.savefig(
+            Field.plotting_dir
+            + "/gain_over_iterations_"
+            + "{:06}".format(self.i)
+            + ".png"
+        )
 
         # save state for easy restarting
         fname = Field.field_dir + "/velocity_latest"
