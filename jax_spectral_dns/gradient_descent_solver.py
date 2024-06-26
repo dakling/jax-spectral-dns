@@ -321,148 +321,71 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.value = self.dual_problem.get_gain()
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
             self.old_value = self.value
-            self.old_grad = self.grad
-            self.old_nse_dual = self.dual_problem
-            self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
-            self.u_0_hat_old = v0_hat
             print_verb("")
             print_verb("gain:", self.value)
             print_verb("")
 
     def update(self) -> None:
 
+        start_time = time.time()
         v0_hat = self.current_guess
         domain = v0_hat.get_physical_domain()
-        iteration_successful = False
-        break_iteration = False
-        j = 0
-        success = False
-        while (not iteration_successful) and (not break_iteration):
-            start_time = time.time()
-            print_verb("iteration", self.i + 1, "of", self.number_of_steps)
-            if j + 1 > 1:
-                print_verb("sub-iteration", j + 1)
-            print_verb("step size:", self.step_size, "; beta:", self.beta)
+        print_verb("iteration", self.i + 1, "of", self.number_of_steps)
+        print_verb("step size:", self.step_size, "; beta:", self.beta)
 
-            v0_hat_new: VectorField[FourierField] = VectorField.FromData(
-                FourierField,
-                domain,
-                v0_hat.get_data() + self.step_size * self.grad,
-                name="velocity_hat",
-            )
-            v0_hat_new = self.normalize_field(v0_hat_new)
+        gain = self.dual_problem.get_gain()
+        gain_change = gain - self.old_value
+        print_verb("")
+        print_verb("gain:", gain)
+        print_verb("gain change:", gain_change)
+        print_verb("")
 
-            # TODO remove this eventually
-            grad_field: VectorField[FourierField] = VectorField.FromData(
-                FourierField, domain, self.grad, name="grad_hat"
-            )
-            print_verb(
-                "grad energy:",
-                grad_field.no_hat().energy(),
-            )
-            print_verb(
-                "grad energy times step size:",
-                (self.step_size * grad_field).no_hat().energy(),
-            )
+        self.grad, _ = self.dual_problem.get_projected_cg_grad(
+            self.step_size, self.beta, self.grad
+        )
 
-            v0_hat_new.set_name("velocity_hat")
-            self.dual_problem.forward_equation.set_initial_field(
-                "velocity_hat", v0_hat_new
-            )
-            self.dual_problem.update_with_nse()
+        v0_hat_new: VectorField[FourierField] = VectorField.FromData(
+            FourierField,
+            domain,
+            v0_hat.get_data() + self.step_size * self.grad,
+            name="velocity_hat",
+        )
+        v0_hat_new = self.normalize_field(v0_hat_new)
+        v0_hat_new.set_name("velocity_hat")
+        self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat_new)
+        self.dual_problem.update_with_nse()
 
-            gain = self.dual_problem.get_gain()
-            gain_change = gain - self.old_value
-            print_verb("")
-            print_verb("gain:", gain)
-            print_verb("gain change:", gain_change)
-            print_verb("")
+        # TODO remove this eventually
+        grad_field: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, self.grad, name="grad_hat"
+        )
+        print_verb(
+            "grad energy:",
+            grad_field.no_hat().energy(),
+        )
+        print_verb(
+            "grad energy times step size:",
+            (self.step_size * grad_field).no_hat().energy(),
+        )
 
-            gain_change_ok: bool = (
-                math.isfinite(gain)
-                and (gain_change > 0.0)
-                and (
-                    gain_change / self.old_value < self.relative_gain_increase_threshold
-                )
-            )
+        if gain_change >= 0.0:
+            self.increase_step_size()
             self.reset_beta = False
-            if gain_change_ok:
-                iteration_successful = True
-                self.almost_done = False
-                self.increase_step_size()
+        else:
+            self.decrease_step_size()
+            self.reset_beta = True
 
-                self.grad, success = self.dual_problem.get_projected_cg_grad(
-                    self.step_size, self.beta, self.old_grad
-                )
-                if not success and abs(self.beta) > 1e2:
-                    print_verb(
-                        "problems with finding lambda due to high beta detected, repeating gradient calculation with beta=0."
-                    )
-                    self.reset_beta = True
-                    self.beta = 0.0
-                    self.grad, success = self.dual_problem.get_projected_cg_grad(
-                        self.step_size, self.beta, self.old_grad
-                    )
-                # if gain_change <= 1e-4:
-                #     self.beta = 0.0
-            else:
-                # if gain_change <= 0.0:
-                #     print_verb(
-                #         "gain decrease/stagnation detected, repeating iteration with smaller step size."
-                #     )
-                # if (
-                #     gain_change / self.old_value
-                #     >= self.relative_gain_increase_threshold
-                # ):
-                #     print_verb(
-                #         "high gain increase detected, repeating iteration with smaller step size."
-                #     )
-                # TODO is always accepting new guess a good idea?
-                iteration_successful = True
-                self.almost_done = False
+        self.update_beta(not self.reset_beta)
+        self.current_guess = v0_hat_new
+        self.value = gain
+        self.old_value = self.value
 
-                self.decrease_step_size()
-                if gain_change <= 0.0:
-                    self.reset_beta = True
-                    self.beta = 0.0
-                self.grad, success = self.dual_problem.get_projected_cg_grad(
-                    self.step_size, self.beta, self.old_grad
-                )
-                # self.grad, _ = self.dual_problem.get_projected_grad_from_u_and_v(
-                #     self.step_size,
-                #     self.u_0_hat_old,
-                #     self.v_0_hat_old,
-                # )
-
-            # make sure we stop at some point
-            if (
-                abs(self.step_size - self.min_step_size) <= 1e-50
-                and abs(self.beta) <= 1e-50
-            ):
-                if self.almost_done:
-                    self.done = True
-                self.almost_done = True
-
-            j += 1
-            if j > self.max_number_of_sub_iterations or self.done:
-                break_iteration = True
-            iteration_duration = time.time() - start_time
-            try:
-                print_verb("sub-iteration took", format_timespan(iteration_duration))
-            except Exception:
-                print_verb("sub-iteration took", iteration_duration, "seconds")
-            print_verb("\n")
-
-        if iteration_successful:
-            self.update_beta(not self.reset_beta)
-            self.current_guess = v0_hat_new
-            # self.normalize_current_guess()
-            self.value = gain
-
-            self.old_value = self.value
-            self.old_grad = self.grad
-            self.v_0_hat_old = self.dual_problem.get_latest_field("velocity_hat")
-            self.u_0_hat_old = v0_hat_new
+        iteration_duration = time.time() - start_time
+        try:
+            print_verb("sub-iteration took", format_timespan(iteration_duration))
+        except Exception:
+            print_verb("sub-iteration took", iteration_duration, "seconds")
+        print_verb("\n")
 
     def decrease_step_size(self) -> None:
         self.step_size = max(self.step_size / 2.0, self.min_step_size)
