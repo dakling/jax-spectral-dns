@@ -321,6 +321,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.value = self.dual_problem.get_gain()
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
             self.old_value = self.value
+            self.old_grad = self.grad
             print_verb("")
             print_verb("gain:", self.value)
             print_verb("")
@@ -341,7 +342,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("")
 
         self.grad, _ = self.dual_problem.get_projected_cg_grad(
-            self.step_size, self.beta, self.grad
+            self.step_size, self.beta, self.old_grad
         )
 
         v0_hat_new: VectorField[FourierField] = VectorField.FromData(
@@ -379,6 +380,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.current_guess = v0_hat_new
         self.value = gain
         self.old_value = self.value
+        self.old_grad = self.grad
 
         iteration_duration = time.time() - start_time
         try:
