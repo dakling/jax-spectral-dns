@@ -38,7 +38,7 @@ class GradientDescentSolver(ABC):
         self._e_0 = v0_no_hat.energy()
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
-        self.value = -1.0
+        self.value: Optional[float] = -1.0
         self.old_value: Optional[float] = self.value
 
         # set various solver options
@@ -81,7 +81,7 @@ class GradientDescentSolver(ABC):
             (i >= self.number_of_steps)
             or (self.step_size < self.step_size_threshold)
             or (
-                (self.old_value is not None)
+                ((self.value is not None) and (self.old_value is not None))
                 and (
                     abs((self.value - self.old_value) / self.value)
                     < self.value_change_threshold
@@ -96,14 +96,13 @@ class GradientDescentSolver(ABC):
 
     def optimise(self) -> None:
         self.initialise(self.number_of_steps >= 0)
-        if self.number_of_steps >= 0:
-            assert math.isfinite(self.value), "calculation failure detected."
         self.update_done(self.i)
         while not self.done:
             self.update()
             self.post_process_iteration()
             self.i += 1
             self.update_done(self.i)
+            assert self.value is not None
             assert math.isfinite(self.value), "calculation failure detected."
         self.perform_final_run()
 
@@ -334,6 +333,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.dual_problem.update_with_nse()
 
+        self.value: Optional["float"] = None
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
@@ -349,8 +349,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         print_verb("")
         print_verb("gain:", gain)
-        if self.old_value is not None:
-            gain_change = gain - self.old_value
+        if self.value is not None:
+            gain_change = gain - self.value
             print_verb("gain change:", gain_change)
         else:
             gain_change = None
