@@ -348,7 +348,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
             # TODO remove this at some point
             if abs(self.beta) <= 1e-50:
-                gr = self.dual_problem.get_projected_grad(self.step_size)
+                gr, _ = self.dual_problem.get_projected_grad(self.step_size)
                 print_verb("grad diff:", jnp.linalg.norm(gr - self.grad))
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
