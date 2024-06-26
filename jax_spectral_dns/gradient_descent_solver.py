@@ -7,7 +7,9 @@ import math
 from typing import Any, Optional, Tuple, cast, TYPE_CHECKING
 import jax
 import jax.numpy as jnp
-from matplotlib.axes import subplot_class_factory
+from matplotlib import figure
+import numpy as np
+from matplotlib.axes import Axes, subplot_class_factory
 from jax_spectral_dns.equation import Equation, print_verb
 from jax_spectral_dns.field import Field, FourierField, VectorField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
@@ -107,13 +109,56 @@ class GradientDescentSolver(ABC):
         self.perform_final_run()
 
     def post_process_iteration(self) -> None:
+
         v0_hat = self.current_guess
         v0 = v0_hat.no_hat()
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
+
+        # document path to the optimal
+        i = self.i
+        gain = self.value
+        energy = v0.energy()
+        e_x_2d_over_3d = v0_hat.energy_2d(0) / energy
+        e_z_2d_over_3d = v0_hat.energy_2d(2) / energy
+        phase_space_data_name = Field.plotting_dir + "data.txt"
+        with open(phase_space_data_name, "a") as file:
+            file.write(
+                str(i)
+                + ", "
+                + str(gain)
+                + ", "
+                + str(e_x_2d_over_3d)
+                + ", "
+                + str(e_z_2d_over_3d)
+            )
+
+        # plot current state
         v0.plot_3d(0)
         v0.plot_3d(2)
         v0[1].plot_isosurfaces(0.4)
+
+        phase_space_data = np.genfromtxt(
+            phase_space_data_name,
+            delimiter=",",
+        ).T
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ax.plot(phase_space_data[2][0], phase_space_data[3][0], "b+")
+        ax.plot(phase_space_data[2], phase_space_data[3], "g--")
+        ax.set_xlabel("$E_2d_x / E_3d$")
+        ax.set_ylabel("$E_2d_z / E_3d$")
+        fig.savefig(Field.plotting_dir + "/phase_space.png")
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ax.plot(phase_space_data[0], phase_space_data[1], "o")
+        ax.set_xlabel("$i$")
+        ax.set_ylabel("$G$")
+        fig.savefig(Field.plotting_dir + "/gain_over_iterations.png")
+
+        # save state for easy restarting
         fname = Field.field_dir + "/velocity_latest"
         if (
             os.path.isfile(fname) and os.stat(fname).st_blocks > 1
@@ -131,12 +176,6 @@ class GradientDescentSolver(ABC):
         except FileNotFoundError:
             pass
         v0.save_to_file("velocity_latest")
-        # document the path to the optimal
-        # i = self.i
-        # gain = self.value
-        # # TODO
-        # mass_flux = ...
-        # e_2d_over_3d = ...
 
     def perform_final_run(self) -> None:
         print_verb("performing final run with optimised initial condition")

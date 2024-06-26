@@ -12,7 +12,7 @@ setup(
     packages=["jax_spectral_dns"],
     install_requires=[
         "jax",
-        "numpy",
+        "numpy<2",  # TODO change this at some point
         "scipy",
         "matplotlib",
         "scikit-image",

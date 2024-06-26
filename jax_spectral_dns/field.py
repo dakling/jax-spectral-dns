@@ -438,6 +438,12 @@ class VectorField(Generic[T]):
             float, ((energy_field_p.volume_integral()) / domain_volume) ** (1.0 / p)
         )
 
+    def energy_2d(self: VectorField[FourierField], direction: int) -> float:
+        en: float = 0.0
+        for f in self:
+            en += f.energy_2d(direction)
+        return en
+
     def normalize_by_energy(
         self: VectorField[PhysicalField],
     ) -> VectorField[PhysicalField]:
@@ -1996,6 +2002,22 @@ class FourierField(Field):
         out.fourier_domain = field.physical_domain.hat()
         out.data = out.physical_domain.field_hat(field.data)
         return out
+
+    def energy_2d(self, direction: int) -> float:
+        N = self.data.shape[direction]
+        u_hat_const_data_0 = jnp.take(
+            self.data, indices=jnp.arange(0, 1), axis=direction
+        )
+        u_hat_const_data_rest = jnp.zeros_like(
+            jnp.take(self.data, indices=jnp.arange(1, N), axis=direction)
+        )
+        u_hat_const_data = jnp.concatenate(
+            [u_hat_const_data_0, u_hat_const_data_rest], axis=direction
+        )
+        energy = (
+            FourierField(self.get_physical_domain(), u_hat_const_data).no_hat().energy()
+        )
+        return energy
 
     def project_onto_domain(self, domain: PhysicalDomain) -> FourierField:
         out_data = self.get_domain().project_onto_domain(domain, self.data)
