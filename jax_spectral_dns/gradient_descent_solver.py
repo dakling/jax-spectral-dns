@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import os, glob
 import time
 import math
-from typing import Any, Tuple, cast, TYPE_CHECKING
+from typing import Any, Optional, Tuple, cast, TYPE_CHECKING
 import jax
 import jax.numpy as jnp
 from matplotlib.axes import subplot_class_factory
@@ -39,7 +39,7 @@ class GradientDescentSolver(ABC):
         self.done = False
         self.post_process_fn = params.get("post_process_function", None)
         self.value = -1.0
-        self.old_value = self.value
+        self.old_value: Optional[float] = self.value
 
         # set various solver options
         self.i = params.get("start_iteration", 0)
@@ -248,12 +248,16 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             )
 
             gain = self.dual_problem.get_gain()
-            gain_change = gain - self.old_value
             print_verb("")
             print_verb("gain:", gain)
-            print_verb("gain change:", gain_change)
+            if self.old_value is not None:
+                gain_change = gain - self.old_value
+                print_verb("gain change:", gain_change)
+            else:
+                gain_change = None
             print_verb("")
 
+            assert gain_change is not None
             if gain_change > 0.0:
                 iteration_successful = True
                 self.increase_step_size()
@@ -316,15 +320,17 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.dual_problem.update_with_nse()
 
-        if prepare_for_iterations:
-            self.almost_done = False
-            self.value = self.dual_problem.get_gain()
-            self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
-            self.old_value = self.value
-            self.old_grad = self.grad
-            print_verb("")
-            print_verb("gain:", self.value)
-            print_verb("")
+        self.old_value: Optional["float"] = None
+        self.old_grad: Optional["jnp_array"] = None
+
+        # if prepare_for_iterations:
+        #     self.value = self.dual_problem.get_gain()
+        #     self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+        #     self.old_value = self.value
+        #     self.old_grad = self.grad
+        #     print_verb("")
+        #     print_verb("gain:", self.value)
+        #     print_verb("")
 
     def update(self) -> None:
 
@@ -335,15 +341,22 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("step size:", self.step_size, "; beta:", self.beta)
 
         gain = self.dual_problem.get_gain()
-        gain_change = gain - self.old_value
+
         print_verb("")
         print_verb("gain:", gain)
-        print_verb("gain change:", gain_change)
+        if self.old_value is not None:
+            gain_change = gain - self.old_value
+            print_verb("gain change:", gain_change)
+        else:
+            gain_change = None
         print_verb("")
 
-        self.grad, _ = self.dual_problem.get_projected_cg_grad(
-            self.step_size, self.beta, self.old_grad
-        )
+        if self.old_grad is not None:
+            self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                self.step_size, self.beta, self.old_grad
+            )
+        else:
+            self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
         v0_hat_new: VectorField[FourierField] = VectorField.FromData(
             FourierField,
@@ -369,12 +382,13 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             (self.step_size * grad_field).no_hat().energy(),
         )
 
-        if gain_change >= 0.0:
-            self.increase_step_size()
-            self.reset_beta = False
-        else:
-            self.decrease_step_size()
-            self.reset_beta = True
+        if gain_change is not None:
+            if gain_change > 0.0:
+                self.increase_step_size()
+                self.reset_beta = False
+            else:
+                self.decrease_step_size()
+                self.reset_beta = True
 
         self.update_beta(not self.reset_beta)
         self.current_guess = v0_hat_new
@@ -394,6 +408,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def update_beta(self, last_iteration_successful: bool) -> None:
         if last_iteration_successful:
+            assert self.old_grad is not None
             grad = self.grad.flatten()
             old_grad = self.old_grad.flatten()
             self.beta = cast(
