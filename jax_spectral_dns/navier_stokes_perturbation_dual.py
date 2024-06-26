@@ -572,6 +572,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def run_forward_calculation(self) -> None:
         nse = self.forward_equation
+        self.velocity_u_hat_0 = nse.get_initial_field("velocity_hat")
         nse.activate_jit()
         nse.write_intermediate_output = True
         nse.end_time = -1.0 * self.end_time
