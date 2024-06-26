@@ -389,6 +389,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             else:
                 self.decrease_step_size()
                 self.reset_beta = True
+        else:
+            self.reset_beta = False
 
         self.update_beta(not self.reset_beta)
         self.current_guess = v0_hat_new
