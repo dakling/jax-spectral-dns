@@ -155,10 +155,10 @@ class GradientDescentSolver(ABC):
         ax.set_xlabel("$E_2d_x / E_3d$")
         ax.set_ylabel("$E_2d_z / E_3d$")
         ax.set_xlim((-0.1, 1.1))
-        ax.set_ylim((1e-10, 1.1))
         ax.set_yscale("log")
         fig.legend()
-        fig.savefig(Field.plotting_dir + "/phase_space.png")
+        fig.savefig(Field.plotting_dir + "/plot_phase_space.png")
+        ax.set_ylim((1e-10, 1.1))
         ax.plot(
             phase_space_data[2][-1],
             phase_space_data[3][-1],
@@ -166,7 +166,7 @@ class GradientDescentSolver(ABC):
             label="current guess",
         )
         fig.savefig(
-            Field.plotting_dir + "/phase_space_" + "{:06}".format(self.i) + ".png"
+            Field.plotting_dir + "/plot_phase_space_" + "{:06}".format(self.i) + ".png"
         )
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
@@ -174,11 +174,11 @@ class GradientDescentSolver(ABC):
         ax.plot(phase_space_data[0], phase_space_data[1], "o")
         ax.set_xlabel("$i$")
         ax.set_ylabel("$G$")
-        fig.savefig(Field.plotting_dir + "/.png")
+        fig.savefig(Field.plotting_dir + "/plot_gain_over_iterations.png")
         ax.plot(phase_space_data[0][-1], phase_space_data[1][-1], "bo")
         fig.savefig(
             Field.plotting_dir
-            + "/gain_over_iterations_"
+            + "/plot_gain_over_iterations_"
             + "{:06}".format(self.i)
             + ".png"
         )
