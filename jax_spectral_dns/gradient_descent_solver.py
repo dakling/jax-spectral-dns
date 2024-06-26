@@ -166,7 +166,10 @@ class GradientDescentSolver(ABC):
             label="current guess",
         )
         fig.savefig(
-            Field.plotting_dir + "/plot_phase_space_" + "{:06}".format(self.i) + ".png"
+            Field.plotting_dir
+            + "/plot_phase_space_t_"
+            + "{:06}".format(self.i)
+            + ".png"
         )
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
@@ -178,7 +181,7 @@ class GradientDescentSolver(ABC):
         ax.plot(phase_space_data[0][-1], phase_space_data[1][-1], "bo")
         fig.savefig(
             Field.plotting_dir
-            + "/plot_gain_over_iterations_"
+            + "/plot_gain_over_iterations_t_"
             + "{:06}".format(self.i)
             + ".png"
         )
