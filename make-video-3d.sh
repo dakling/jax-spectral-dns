@@ -3,27 +3,39 @@
 
 make_video_mp4(){
     mkdir img || echo
+    scfmt="640:480"
     ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4" &> /dev/null
 }
 
 combine_two_mp4(){
     mkdir img || echo
+    scfmt="640:480"
+    layout="0_0|w0_0"
+    scale="[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [a0][a1]xstack=inputs=2:layout=$layout[v]"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" &> /dev/null
     ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -filter_complex hstack=inputs=2 "img/$1.mp4" &> /dev/null
 }
 
 combine_three_mp4(){
     mkdir img || echo
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4" &> /dev/null
+    scfmt="640:480"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4"  -filter_complex "[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [a0][a1][a2]xstack=inputs=3:layout=0_0|w0_0|w0+w1_0[v]" -map "[v]" "img/$1.mp4" # &> /dev/null
 }
 
 combine_four_mp4(){
     mkdir img || echo
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "[0:v][1:v][2:v][3:v]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
+    scfmt="640:480"
+    layout="0_0|w0_0|0_h0|w0_h0"
+    scale="[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [a0][a1][a2][a3]xstack=inputs=4:layout=$layout[v]"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 combine_six_mp4(){
     mkdir img || echo
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4"-i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "[0:v][1:v][2:v][3:v][4:v][5:v]xstack=inputs=6:layout=0_0|w0_0|0_h0|w0_h0|w0+w1_0|w0+w1_h_0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
+    scfmt="640:480"
+    layout="0_0|w0_0|w0+w1_0|0_h0|w0_h0|w0+w1_h0"
+    scale="[0:v] scale=$scfmt [a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [4:v] scale=$scfmt [a4]; [5:v] scale=$scfmt [a5]; [a0][a1][a2][a3][a4][a5]xstack=inputs=6:layout=$layout[v]"
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 make_video_gif(){
@@ -133,7 +145,7 @@ make_video isosurfaces_vel_0_z __isosurfaces_vel_0_z
 make_video phase_space __phase_space
 make_video gain_over_iterations __gain_over_iterations
 make_video localisation __localisation
-combine_six initial_condition_evolution __isosurfaces_vel_0_x __isosurfaces_vel_0_y __isosurfaces_vel_0_z __phase_space __gain_over_iterations __localisation
+combine_six initial_condition_evolution __isosurfaces_vel_0_x __isosurfaces_vel_0_y __isosurfaces_vel_0_z __gain_over_iterations __phase_space __localisation
 
 # final calculation
 make_video isosurfaces_velocity_x __isosurfaces_velocity_x
