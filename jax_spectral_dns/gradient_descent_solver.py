@@ -122,6 +122,22 @@ class GradientDescentSolver(ABC):
         e_x_2d_over_3d = v0_hat.energy_2d(0) / energy
         e_z_2d_over_3d = v0_hat.energy_2d(2) / energy
         phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
+        localisation = v0.get_localisation()
+        localisation_x = (
+            v0.definite_integral(2).definite_integral(1)
+            / (2.0 * v0.get_physical_domain().scale_factors[2])
+        ).get_localisation()
+        localisation_y = (
+            v0.definite_integral(2).definite_integral(0)
+            / (
+                v0.get_physical_domain().scale_factors[0]
+                * v0.get_physical_domain().scale_factors[2]
+            )
+        ).get_localisation()
+        localisation_z = (
+            v0.definite_integral(1).definite_integral(0)
+            / (2.0 * v0.get_physical_domain().scale_factors[0])
+        ).get_localisation()
         with open(phase_space_data_name, "a") as file:
             file.write(
                 str(i)
@@ -131,6 +147,14 @@ class GradientDescentSolver(ABC):
                 + str(e_x_2d_over_3d)
                 + ", "
                 + str(e_z_2d_over_3d)
+                + ", "
+                + str(localisation)
+                + ", "
+                + str(localisation_x)
+                + ", "
+                + str(localisation_y)
+                + ", "
+                + str(localisation_z)
                 + "\n"
             )
 
@@ -152,8 +176,8 @@ class GradientDescentSolver(ABC):
             phase_space_data[2][0], phase_space_data[3][0], "k+", label="initial guess"
         )
         ax.plot(phase_space_data[2], phase_space_data[3], "g--")
-        ax.set_xlabel("$E_2d_x / E_3d$")
-        ax.set_ylabel("$E_2d_z / E_3d$")
+        ax.set_xlabel("$E_{2d}_{x} / E_{3d}$")
+        ax.set_ylabel("$E_{2d}_{z} / E_{3d}$")
         ax.set_xlim((-0.1, 1.1))
         ax.set_yscale("log")
         fig.legend()
@@ -174,7 +198,7 @@ class GradientDescentSolver(ABC):
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
-        ax.plot(phase_space_data[0], phase_space_data[1], "o")
+        ax.plot(phase_space_data[0], phase_space_data[1], "k.")
         ax.set_xlabel("$i$")
         ax.set_ylabel("$G$")
         fig.savefig(Field.plotting_dir + "/plot_gain_over_iterations.png")

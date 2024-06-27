@@ -417,6 +417,16 @@ class VectorField(Generic[T]):
             out += abs(f)
         return out
 
+    def definite_integral(
+        self: VectorField[PhysicalField], direction: int
+    ) -> VectorField[PhysicalField]:
+        return VectorField(
+            [
+                cast(PhysicalField, self[i].definite_integral(direction))
+                for i in range(len(self))
+            ]
+        )
+
     def energy(self: VectorField[PhysicalField]) -> float:
         en: float = 0.0
         for f in self:
@@ -443,6 +453,9 @@ class VectorField(Generic[T]):
         for f in self:
             en += f.energy_2d(direction)
         return en
+
+    def get_localisation(self: VectorField[PhysicalField]) -> float:
+        return self.energy_p(30) / self.energy()
 
     def normalize_by_energy(
         self: VectorField[PhysicalField],
@@ -1094,6 +1107,9 @@ class PhysicalField(Field):
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return cast(float, ((energy_p.volume_integral()) / domain_volume) ** (1 / p))
+
+    def get_localisation(self: PhysicalField) -> float:
+        return self.energy_p(30) / self.energy()
 
     def normalize_by_energy(self) -> Self:
         en = self.energy()
