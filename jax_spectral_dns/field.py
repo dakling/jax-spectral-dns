@@ -1741,7 +1741,7 @@ class PhysicalField(Field):
                     "title": name,
                     "vertical": params.get("vertical_cbar", True),
                     "position_x": params.get("cbar_position_x", 0.85),
-                    "position_y": params.get("cbar_position_y", 0.85),
+                    "position_y": params.get("cbar_position_y"),
                 },
                 # opacity=dist,
             )
@@ -1753,20 +1753,24 @@ class PhysicalField(Field):
             p.show_axes()
 
             def save() -> None:
-                p.show(
-                    screenshot=self.plotting_dir
+                out_name = (
+                    self.plotting_dir
                     + "plot_isosurfaces_"
                     + self.name
                     + "_t_"
                     + "{:06}".format(self.time_step)
                     + self.plotting_format
                 )
-                p.show(
-                    screenshot=self.plotting_dir
+                p.show(screenshot=out_name)
+                from shutil import copyfile
+
+                copyfile(
+                    out_name,
+                    self.plotting_dir
                     + "plot_isosurfaces_"
                     + self.name
                     + "_latest"
-                    + self.plotting_format
+                    + self.plotting_format,
                 )
 
             try:
