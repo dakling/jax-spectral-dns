@@ -176,8 +176,8 @@ class GradientDescentSolver(ABC):
             phase_space_data[2][0], phase_space_data[3][0], "k+", label="initial guess"
         )
         ax.plot(phase_space_data[2], phase_space_data[3], "g--")
-        ax.set_xlabel("$E_{2d}_{x} / E_{3d}$")
-        ax.set_ylabel("$E_{2d}_{z} / E_{3d}$")
+        ax.set_xlabel("$E_{2d_{x}} / E_{3d}$")
+        ax.set_ylabel("$E_{2d_{z}} / E_{3d}$")
         ax.set_xlim((-0.1, 1.1))
         ax.set_yscale("log")
         fig.legend()
