@@ -6,12 +6,11 @@ import time
 
 from abc import ABC, abstractmethod
 import math
-from numpy.polynomial.chebyshev import chebfit
 import jax
 import jax.numpy as jnp
-import jax.scipy as jsc
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
+import pyvista as pv
 
 try:
     from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
@@ -38,11 +37,6 @@ from typing import (
     cast,
 )
 from typing_extensions import Self
-
-try:
-    from skimage import measure
-except ModuleNotFoundError:
-    print("WARNING: module skimage not found, some plotting features may not work.")
 
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import AnyScalarField, AnyVectorField
@@ -1721,34 +1715,54 @@ class PhysicalField(Field):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot_isosurfaces(self, iso_val: float = 0.4) -> None:
+    def plot_isosurfaces(
+        self, iso_val: float = 0.6, plot_min_and_max: bool = True, **params: Any
+    ) -> None:
         try:
             min_val = self.min()
             max_val = self.max()
-            adjusted_val = min_val + iso_val * (max_val - min_val)
-            verts, faces, _, _ = measure.marching_cubes(np.array(self.data, copy=False), adjusted_val, spacing=(0.1, 0.1, 0.1))  # type: ignore[no-untyped-call]
-            fig = figure.Figure()
-            ax = fig.add_subplot(111, projection="3d")
-            assert type(ax) is Axes3D
-            ax.plot_trisurf(
-                verts[:, 0], verts[:, 1], faces, verts[:, 2], cmap="Spectral", lw=1
+            domain = self.get_physical_domain()
+            name = self.name
+            grid = pv.RectilinearGrid(*domain.grid)
+            grid.point_data[name] = self.get_data().T.flatten()
+            values = grid.point_data[name]
+            if plot_min_and_max:
+                mesh = grid.contour([iso_val * min_val, iso_val * max_val], values)
+            else:
+                mesh = grid.contour([iso_val * max_val], values)
+
+            p = pv.Plotter(off_screen=True)
+            p.add_mesh(
+                mesh,
+                opacity=params.get("opacity", 0.6),
+                smooth_shading=True,
+                cmap="plasma",
+                scalar_bar_args={
+                    "title": name,
+                    "vertical": params.get("vertical_cbar", True),
+                    "position_x": params.get("cbar_position_x", 0.85),
+                    "position_y": params.get("cbar_position_y", 0.85),
+                },
+                # opacity=dist,
             )
-            ax.set_xlabel("x")
-            ax.set_ylabel("y")
-            ax.set_zlabel("z")
-            ax.set_ylim(min(verts[:, 1]), max(verts[:, 1] / 2))
+            p.camera_position = "xy"
+            p.camera.elevation = 20
+            p.camera.roll = -0
+            p.camera.azimuth = -45
+            p.camera.zoom(0.9)
+            p.show_axes()
 
             def save() -> None:
-                fig.savefig(
-                    self.plotting_dir
+                p.show(
+                    screenshot=self.plotting_dir
                     + "plot_isosurfaces_"
                     + self.name
                     + "_t_"
                     + "{:06}".format(self.time_step)
                     + self.plotting_format
                 )
-                fig.savefig(
-                    self.plotting_dir
+                p.show(
+                    screenshot=self.plotting_dir
                     + "plot_isosurfaces_"
                     + self.name
                     + "_latest"

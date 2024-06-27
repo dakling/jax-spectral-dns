@@ -161,7 +161,7 @@ class GradientDescentSolver(ABC):
         # plot current state
         v0.plot_3d(0)
         v0.plot_3d(2)
-        v0[1].plot_isosurfaces(0.4)
+        v0.plot_isosurfaces(0.6)
 
         phase_space_data = np.atleast_2d(
             np.genfromtxt(
@@ -195,6 +195,7 @@ class GradientDescentSolver(ABC):
             + "{:06}".format(self.i)
             + ".png"
         )
+
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
@@ -206,6 +207,30 @@ class GradientDescentSolver(ABC):
         fig.savefig(
             Field.plotting_dir
             + "/plot_gain_over_iterations_t_"
+            + "{:06}".format(self.i)
+            + ".png"
+        )
+
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        assert type(ax) is Axes
+        ax.plot(
+            phase_space_data[5][0], phase_space_data[4][0], "k+", label="initial guess"
+        )
+        ax.plot(phase_space_data[5], phase_space_data[4], "g--")
+        ax.set_xlabel("localisation (x)")
+        ax.set_ylabel("localisation")
+        fig.legend()
+        fig.savefig(Field.plotting_dir + "/plot_localisation.png")
+        ax.plot(
+            phase_space_data[5][-1],
+            phase_space_data[4][-1],
+            "bo",
+            label="current guess",
+        )
+        fig.savefig(
+            Field.plotting_dir
+            + "/plot_localisation_t_"
             + "{:06}".format(self.i)
             + ".png"
         )

@@ -15,7 +15,7 @@ setup(
         "numpy<2",  # TODO change this at some point
         "scipy",
         "matplotlib",
-        "scikit-image",
+        "pyvista",
         "jaxopt",
         "optax",
         "humanfriendly",
