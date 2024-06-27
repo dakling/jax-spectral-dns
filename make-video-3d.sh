@@ -21,9 +21,9 @@ combine_four_mp4(){
     ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "[0:v][1:v][2:v][3:v]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
-combine_five_mp4(){
+combine_six_mp4(){
     mkdir img || echo
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -filter_complex hstack=inputs=5 "img/$1.mp4" &> /dev/null
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4"-i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "[0:v][1:v][2:v][3:v][4:v][5:v]xstack=inputs=6:layout=0_0|w0_0|0_h0|w0_h0|w0+w1_0|w0+w1_h_0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 make_video_gif(){
@@ -101,12 +101,12 @@ combine_four(){
     fi
 }
 
-combine_five(){
+combine_six(){
     # if $GIF; then
-    #     combine_five_gif $@
+    #     combine_six_gif $@
     # fi
     if $MP4; then
-        combine_five_mp4 $@
+        combine_six_mp4 $@
     fi
 }
 
@@ -126,24 +126,20 @@ GIF=false
 MP4=true
 
 
-make_video 3d_z_vel_0_x __vel0_z_3d_x
-make_video 3d_z_vel_0_y __vel0_z_3d_y
-make_video 3d_z_vel_0_z __vel0_z_3d_z
-make_video 3d_x_vel_0_x __vel0_x_3d_x
-make_video 3d_x_vel_0_y __vel0_x_3d_y
-make_video 3d_x_vel_0_z __vel0_x_3d_z
-make_video 3d_z_velocity_x __velocity_z_x
-make_video 3d_z_velocity_y __velocity_z_y
-make_video 3d_z_vorticity_z __vorticity_z_z
-make_video 3d_x_velocity_x __velocity_x_x
-make_video 3d_x_velocity_y __velocity_x_y
-make_video 3d_x_vorticity_z __vorticity_x_z
-make_video energy __energy
+# initial condition evolution
+make_video isosurfaces_vel_0_x __isosurfaces_vel_0_x
+make_video isosurfaces_vel_0_y __isosurfaces_vel_0_y
+make_video isosurfaces_vel_0_z __isosurfaces_vel_0_z
 make_video phase_space __phase_space
 make_video gain_over_iterations __gain_over_iterations
+make_video localisation __localisation
+combine_six initial_condition_evolution __isosurfaces_vel_0_x __isosurfaces_vel_0_y __isosurfaces_vel_0_z __phase_space __gain_over_iterations __localisation
 
-combine_five transient_growth_initial_x __vel0_x_3d_x __vel0_x_3d_y __vel0_x_3d_z __phase_space __gain_over_iterations
-combine_five transient_growth_initial_z __vel0_z_3d_x __vel0_z_3d_y __vel0_z_3d_z __phase_space __gain_over_iterations
-combine_four transient_growth_z __velocity_z_x __velocity_z_y __vorticity_z_z __energy
+# final calculation
+make_video isosurfaces_velocity_x __isosurfaces_velocity_x
+make_video isosurfaces_velocity_y __isosurfaces_velocity_y
+make_video isosurfaces_velocity_z __isosurfaces_velocity_z
+make_video energy __energy
+combine_four final_run __isosurfaces_velocity_x __isosurfaces_velocity_y __isosurfaces_vorticity_z __energy
 
 cleanup
