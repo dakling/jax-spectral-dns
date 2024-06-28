@@ -2251,7 +2251,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     min_step_size = params.get("min_step_size", 1.0e-4)
     max_step_size = params.get("max_step_size", 1.0e-1)
 
-    if start_iteration <= 0:
+    if start_iteration == 0:
         Equation.initialize()
 
     domain = PhysicalDomain.create(
