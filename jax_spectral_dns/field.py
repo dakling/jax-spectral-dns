@@ -1725,7 +1725,7 @@ class PhysicalField(Field):
             domain = self.get_physical_domain()
             name = self.name
             grid = pv.RectilinearGrid(*domain.grid)
-            grid.point_data[name] = self.get_data().T.flatten()
+            grid.point_data[name] = self.get_data().T.flatten()  # type: ignore[assignment]
             values = grid.point_data[name]
             if plot_min_and_max:
                 mesh = grid.contour([iso_val * min_val, iso_val * max_val], values)
