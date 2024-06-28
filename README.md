@@ -20,6 +20,17 @@ cd ./jax-spectral-dns
 pip install .
 ```
 
+#### For running on a server
+
+If running on a system without a graphical display, e.g. a server, `pyvista` (which is used for some plotting commands) may require some additional manual setup:
+```
+cd ./jax-spectral-dns
+pip install .
+pip uninstall vtk -y
+pip uninstall vtk-osmesa -y
+pip install --extra-index-url https://wheels.vtk.org vtk-osmesa
+```
+
 
 ### Dependencies
 

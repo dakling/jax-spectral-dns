@@ -1761,7 +1761,7 @@ class PhysicalField(Field):
                     + "{:06}".format(self.time_step)
                     + self.plotting_format
                 )
-                p.show(screenshot=out_name)
+                p.screenshot(out_name)
                 from shutil import copyfile
 
                 copyfile(
@@ -1782,6 +1782,7 @@ class PhysicalField(Field):
             print("plot_isosurfaces failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
+        p.deep_clean()
 
     def hat(self) -> FourierField:
         out = FourierField.FromField(self)
