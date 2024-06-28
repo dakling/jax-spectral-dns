@@ -10,19 +10,18 @@ from jax_spectral_dns.gradient_descent_solver import (
     OptimiserWrapper,
 )
 
+import os
+
 try:
     from humanfriendly import format_timespan  # type: ignore
 except ModuleNotFoundError:
     pass
-import jax
 import jax.numpy as jnp
 import numpy as np
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from functools import partial, reduce
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast, Tuple, List
-import time
 
 from jax_spectral_dns import navier_stokes_perturbation
 from jax_spectral_dns.cheb import cheb
@@ -1933,6 +1932,10 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
 
+        if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+            vel.set_time_step(i)
+            vel.set_name("velocity")
+            vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
         if i >= n_steps - 1:
             vel.set_time_step(i)
             vel.set_name("velocity")
@@ -2411,6 +2414,11 @@ def run_ld_2021_dual(**params: Any) -> None:
         # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
+
+        if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+            vel.set_time_step(i)
+            vel.set_name("velocity")
+            vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
 
         vel_base_hat = nse.get_initial_field("velocity_base_hat")
         vel_base = vel_base_hat.no_hat()

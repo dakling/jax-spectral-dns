@@ -55,6 +55,7 @@ import numpy as np
 
 from pathlib import Path
 import os
+from shutil import copyfile
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
 
@@ -1762,8 +1763,6 @@ class PhysicalField(Field):
                     + self.plotting_format
                 )
                 p.screenshot(out_name)
-                from shutil import copyfile
-
                 copyfile(
                     out_name,
                     self.plotting_dir

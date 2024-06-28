@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 import os, glob
+from shutil import copyfile
 import time
 import math
 from typing import Any, Optional, Tuple, cast, TYPE_CHECKING
@@ -119,7 +120,7 @@ class GradientDescentSolver(ABC):
         v0.save_to_file("velocity_latest")
         if out_dir is not None:
             fname = "velocity_latest_" + str(self.i)
-            os.rename(Field.field_dir + "/velocity_latest", out_dir + "/" + fname)
+            copyfile(Field.field_dir + "/velocity_latest", out_dir + "/" + fname)
 
         # document path to the optimal
         i = self.i
