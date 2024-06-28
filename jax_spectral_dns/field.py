@@ -1732,7 +1732,8 @@ class PhysicalField(Field):
             else:
                 mesh = grid.contour([iso_val * max_val], values)
 
-            p = pv.Plotter(off_screen=True)
+            interactive = params.get("interactive", False)
+            p = pv.Plotter(off_screen=(not interactive))
             p.add_mesh(
                 mesh,
                 opacity=params.get("opacity", 0.6),
@@ -1762,15 +1763,18 @@ class PhysicalField(Field):
                     + "{:06}".format(self.time_step)
                     + self.plotting_format
                 )
-                p.screenshot(out_name)
-                copyfile(
-                    out_name,
-                    self.plotting_dir
-                    + "plot_isosurfaces_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format,
-                )
+                if interactive:
+                    p.show()
+                else:
+                    p.screenshot(out_name)
+                    copyfile(
+                        out_name,
+                        self.plotting_dir
+                        + "plot_isosurfaces_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format,
+                    )
 
             try:
                 save()
