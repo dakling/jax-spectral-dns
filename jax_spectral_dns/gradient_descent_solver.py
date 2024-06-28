@@ -46,6 +46,8 @@ class GradientDescentSolver(ABC):
 
         # set various solver options
         self.i = params.get("start_iteration", 0)
+        if self.i == -1:
+            self.determine_last_iteration_step()
         self.max_step_size = params.get("max_step_size", 1e-1)
         self.min_step_size = params.get("min_step_size", 1e-4)
         self.step_size = params.get("step_size", 1e-2)
@@ -299,6 +301,19 @@ class GradientDescentSolver(ABC):
         v0_hat = self.current_guess
         v0_norm_hat = self.normalize_field(v0_hat)
         self.current_guess = v0_norm_hat
+
+    def determine_last_iteration_step(self) -> None:
+        try:
+            phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
+            with open(phase_space_data_name, "r") as file:
+                data = np.genfromtxt(phase_space_data_name, delimiter=",").T
+                self.i = int(data[0][-1]) + 1
+        except FileNotFoundError:
+            raise Exception(
+                "file",
+                phase_space_data_name,
+                "not found, unable to last iteration step.",
+            )
 
 
 class SteepestAdaptiveDescentSolver(GradientDescentSolver):
