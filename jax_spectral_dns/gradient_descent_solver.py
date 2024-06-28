@@ -115,6 +115,12 @@ class GradientDescentSolver(ABC):
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
 
+        out_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR")
+        v0.save_to_file("velocity_latest")
+        if out_dir is not None:
+            fname = "velocity_latest_" + str(self.i)
+            os.rename(Field.field_dir + "/velocity_latest", out_dir + "/" + fname)
+
         # document path to the optimal
         i = self.i
         gain = self.value

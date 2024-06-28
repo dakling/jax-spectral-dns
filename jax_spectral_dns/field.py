@@ -67,15 +67,15 @@ class Field(ABC):
     """Class that holds the information needed to describe a dependent variable
     and to perform operations on it."""
 
-    plotting_dir = "./plots/"
-    plotting_format = ".png"
+    plotting_dir = os.environ.get("JAX_SPECTRAL_DNS_PLOT_DIR", "./plots/")
+    plotting_format = os.environ.get("JAX_SPECTRAL_DNS_PLOT_FORMAT", ".png")
 
     # setting this to True activates increases performance dramatically,
     # though some convenience features such as printing or plotting intermediate
     # state are disabled.
     activate_jit_ = False
 
-    field_dir = "./fields/"
+    field_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR", "./fields/")
 
     def __init__(self, domain: Domain, data: "jnp_array", name: str):
         self.domain = domain
