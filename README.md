@@ -30,6 +30,13 @@ pip uninstall vtk -y
 pip uninstall vtk-osmesa -y
 pip install --extra-index-url https://wheels.vtk.org vtk-osmesa
 ```
+Note that this can lead to already running jobs using `pyvista` segfaulting, so only run this when necessary (i.e. not everytime you submit a job).
+In such a situation, if `jax-spectral-dns` itself is to be reinstalled without it affecting running jobs, consider using
+```
+cd ./jax-spectral-dns
+pip install --no-deps .
+```
+to avoid the dependencies (in particular `pyvista` and its dependencies) to be reinstalled.
 
 
 ### Dependencies
