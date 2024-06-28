@@ -1104,7 +1104,7 @@ class PhysicalField(Field):
         return cast(float, ((energy_p.volume_integral()) / domain_volume) ** (1 / p))
 
     def get_localisation(self: PhysicalField) -> float:
-        return self.energy_p(30) / self.energy()
+        return self.energy_p(10) / self.energy()
 
     def normalize_by_energy(self) -> Self:
         en = self.energy()
