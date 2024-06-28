@@ -450,7 +450,7 @@ class VectorField(Generic[T]):
         return en
 
     def get_localisation(self: VectorField[PhysicalField]) -> float:
-        return self.energy_p(30) / self.energy()
+        return self.energy_p(10) / self.energy()
 
     def normalize_by_energy(
         self: VectorField[PhysicalField],
