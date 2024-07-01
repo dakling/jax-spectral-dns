@@ -300,7 +300,11 @@ class VectorField(Generic[T]):
         if not data_matches_domain:
             data_domain_shape = tuple(
                 [
-                    int(data.shape[i + 1] / domain.aliasing)
+                    (
+                        int(data.shape[i + 1] / domain.aliasing)
+                        if domain.is_periodic(i)
+                        else data.shape[i + 1]
+                    )
                     for i in domain.all_dimensions()
                 ]
             )
@@ -1112,7 +1116,14 @@ class PhysicalField(Field):
             ), "Data in provided file does not match domain. Call with allow_projection=True if you would like to automatically project the data onto the provided domain."
         if not data_matches_domain:
             data_domain_shape = tuple(
-                [int(data.shape[i] / domain.aliasing) for i in domain.all_dimensions()]
+                [
+                    (
+                        int(data.shape[i] / domain.aliasing)
+                        if domain.is_periodic(i)
+                        else data.shape[i]
+                    )
+                    for i in domain.all_dimensions()
+                ]
             )
             data_domain = PhysicalDomain.create(
                 data_domain_shape,
