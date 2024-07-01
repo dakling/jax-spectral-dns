@@ -27,6 +27,7 @@ from jax_spectral_dns import navier_stokes_perturbation
 from jax_spectral_dns.cheb import cheb
 from jax_spectral_dns.domain import PhysicalDomain, get_cheb_grid
 from jax_spectral_dns.field import (
+    Field,
     FourierField,
     PhysicalField,
     FourierFieldSlice,
@@ -225,7 +226,7 @@ def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
     ax[0].set_ylabel("$E$")
     ax[1].set_ylabel("$E/E_0$")
     fig.legend()
-    fig.savefig("plots/energy.png")
+    fig.savefig(Field.plotting_dir + "energy.png")
 
 
 def run_navier_stokes_turbulent(**params: Any) -> None:
@@ -393,7 +394,7 @@ def run_navier_stokes_turbulent(**params: Any) -> None:
     ax[0].set_ylabel("$E$")
     ax[1].set_ylabel("$E/E_0$")
     fig.legend()
-    fig.savefig("plots/energy.png")
+    fig.savefig(Field.plotting_dir + "/energy.png")
 
 
 def run_pseudo_2d(**params: Any) -> None:
@@ -544,19 +545,19 @@ def run_pseudo_2d(**params: Any) -> None:
                 assert type(ax) is Axes
                 ax.plot(ts, energy_t_ana)
                 ax.plot(ts, energy_t, ".")
-                fig.savefig("plots/energy_t.png")
+                fig.savefig(Field.plotting_dir + "energy_t.png")
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 ax.plot(ts, energy_x_t_ana)
                 ax.plot(ts, energy_x_t, ".")
-                fig.savefig("plots/energy_x_t.png")
+                fig.savefig(Field.plotting_dir + "/energy_x_t.png")
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 ax.plot(ts, energy_y_t_ana)
                 ax.plot(ts, energy_y_t, ".")
-                fig.savefig("plots/energy_y_t.png")
+                fig.savefig(Field.plotting_dir + "/energy_y_t.png")
         # input("carry on?")
 
     nse.set_before_time_step_fn(before_time_step)
@@ -793,7 +794,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
     assert type(ax) is Axes
     ax.plot(ts, energy_t, ".")
     ax.plot(ts, energy_t_ana, "-")
-    fig.savefig("plots/energy_t.png")
+    fig.savefig(Field.plotting_dir + "/energy_t.png")
 
     return (
         energy_t,
@@ -1028,7 +1029,9 @@ def run_transient_growth_nonpert(
             ax.set_xlabel("$t$")
             ax.set_ylabel("$G$")
             fig.legend()
-            fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+            fig.savefig(
+                Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png"
+            )
         vel_pert_energy = vel_pert.energy()
         ts.append(time)
         energy_t.append(vel_pert_energy)
@@ -1161,7 +1164,9 @@ def run_transient_growth(
             ax.set_xlabel("$t$")
             ax.set_ylabel("$G$")
             fig.legend()
-            fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+            fig.savefig(
+                Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png"
+            )
         vel_energy = vel.energy()
         ts.append(time)
         energy_t.append(vel_energy)
@@ -1190,7 +1195,7 @@ def run_transient_growth(
                 label="growth (Reddy/Henningson 1993)",
             )
         fig.legend()
-        fig.savefig("plots/energy_t.png")
+        fig.savefig(Field.plotting_dir + "/energy_t.png")
 
     gain = energy_t_arr[-1] / energy_t_arr[0]
     print_verb("final energy gain:", gain)
@@ -1225,7 +1230,7 @@ def run_transient_growth_time_study(
         label="max gain (Reddy/Henningson 1993)",
     )
     fig.legend()
-    fig.savefig("plots/energy_t_intermediate.png")
+    fig.savefig(Field.plotting_dir + "/energy_t_intermediate.png")
     ts_list = []
     energy_t_list = []
     T_list = np.arange(5, 41, 5)
@@ -1246,7 +1251,7 @@ def run_transient_growth_time_study(
             "b--",
         )
         fig.legend()
-        fig.savefig("plots/energy_t_intermediate.png")
+        fig.savefig(Field.plotting_dir + "/energy_t_intermediate.png")
 
     ts_list.reverse()
     energy_t_list.reverse()
@@ -1277,7 +1282,7 @@ def run_transient_growth_time_study(
         "b--",
     )
     fig_final.legend()
-    fig_final.savefig("plots/energy_t_final.png")
+    fig_final.savefig(Field.plotting_dir + "/energy_t_final.png")
 
 
 def run_optimisation_transient_growth(**params: Any) -> None:
@@ -1365,8 +1370,8 @@ def run_optimisation_transient_growth(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-        fig.savefig("plots/plot_energy_t_final.png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_final.png")
 
     def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
 
@@ -1496,7 +1501,7 @@ def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
 
     def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
         U = U_hat.no_hat()
@@ -1677,8 +1682,8 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
-        fig.savefig("plots/plot_energy_t_final.png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_final.png")
 
     if vel_0_path is None:
         v0_hat = v0_0_hat
@@ -1873,7 +1878,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             except Exception:
                 pass
             fig.legend()
-            fig.savefig("plots/energy.png")
+            fig.savefig(Field.plotting_dir + "/energy.png")
 
             try:
                 avg_vel_coeffs = np.loadtxt(
@@ -2183,7 +2188,7 @@ def run_ld_2021(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
 
     def run_case(U_hat: VectorField[FourierField], out: bool = False) -> "jsd_float":
 
@@ -2465,7 +2470,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
 
     if init_file is None:
         v0_hat = vel_hat
@@ -2631,7 +2636,7 @@ def run_optimisation_farano_2015(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig("plots/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
 
     if init_file is None:
         v0_hat = vel_hat
