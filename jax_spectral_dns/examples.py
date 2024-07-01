@@ -1767,6 +1767,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
 
     time_step_file = Field.plotting_dir + "/time_step.txt"
 
+    time_step = 0
+
     if init_file is None:
         # v0_0 = lsc.calculate_transient_growth_initial_condition(
         #     domain,
@@ -1831,7 +1833,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             print_verb(
                 "Unable to determine the latest time step of the previous calculation"
             )
-            time_step = 0
 
     def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
