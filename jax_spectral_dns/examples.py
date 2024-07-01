@@ -1831,6 +1831,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             print_verb(
                 "Unable to determine the latest time step of the previous calculation"
             )
+            time_step = 0
 
     def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
