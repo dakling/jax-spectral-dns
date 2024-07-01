@@ -608,9 +608,10 @@ class PhysicalDomain(Domain):
             for i in self.all_nonperiodic_dimensions():
                 N_target = self.get_shape()[i]
                 sh = field.shape[i]
-                out = jsc.fft.dctn(out, axes=(i,), s=(N_target,))
+                out = jsc.fft.dctn(out, axes=(i,))
+                out = jsc.fft.idctn(out, s=(N_target,), axes=(i,))
                 ratio = out.shape[i] / sh
-                field *= ratio
+                out *= ratio
 
         return out.astype(jnp.complex128)
 
@@ -748,11 +749,7 @@ class FourierDomain(Domain):
             f_diff: "jnp_array" = jnp.array(diff_array * field_hat)
         else:
             assert self.physical_domain is not None
-            field = self.field_no_hat(field_hat)
-            f_diff_no_hat = self.physical_domain.diff(
-                field, direction, order
-            )  # TODO maybe implement diff mat directly
-            f_diff = self.physical_domain.field_hat(f_diff_no_hat)
+            f_diff = self.physical_domain.diff(field_hat, direction, order)
         return f_diff
 
     def curl(self, field_hat: "jnp_array") -> "jnp_array":
@@ -993,9 +990,9 @@ class FourierDomain(Domain):
 
         if self.dealias_nonperiodic:
             for i in self.all_nonperiodic_dimensions():
-                # N_target = int(Ns[i] * self.aliasing)
                 N_target = self.get_shape_aliasing()[i]
                 sh = field.shape[i]
+                field = jsc.fft.dctn(field, axes=(i,))
                 field = jsc.fft.idctn(field, s=(N_target,), axes=(i,))
                 ratio = field.shape[i] / sh
                 field *= ratio
