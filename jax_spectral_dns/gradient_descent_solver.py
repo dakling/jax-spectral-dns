@@ -103,6 +103,7 @@ class GradientDescentSolver(ABC):
         self.initialise(self.number_of_steps >= 0)
         self.update_done(self.i)
         while not self.done:
+            jax.clear_caches()  # type: ignore[no-untyped-call]
             self.update()
             self.post_process_iteration()
             self.i += 1
