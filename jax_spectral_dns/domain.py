@@ -169,7 +169,7 @@ class Domain(ABC):
             else:
                 if type(scale_factors) == NoneType:
                     scale_factors_.append(1.0)
-                grid.append(get_cheb_grid(shape[dim], scale_factors_[dim]))
+                grid.append(get_cheb_grid(physical_shape[dim], scale_factors_[dim]))
                 diff_mats.append(assemble_cheb_diff_mat(grid[dim]))
         # make grid immutable
         for gr in grid:
@@ -478,7 +478,6 @@ class Domain(ABC):
             b_left = 0.0
             b = set_first_of_field(field, b_right)
         inv_mat = jnp.linalg.inv(mat)
-
         inds = "ijk"
         int_mat_ind = "l" + inds[direction]
         other_inds = "".join(
@@ -605,6 +604,14 @@ class PhysicalDomain(Domain):
             out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
             out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
 
+        if self.dealias_nonperiodic:
+            for i in self.all_nonperiodic_dimensions():
+                N_target = self.get_shape()[i]
+                sh = field.shape[i]
+                out = jsc.fft.dctn(out, axes=(i,), s=(N_target,))
+                ratio = out.shape[i] / sh
+                field *= ratio
+
         return out.astype(jnp.complex128)
 
 
@@ -653,7 +660,10 @@ class FourierDomain(Domain):
             Ns.append(physical_domain.shape[i])
         fourier_grid = []
         for i in physical_domain.all_dimensions():
-            if physical_domain.periodic_directions[i]:
+            if (
+                physical_domain.periodic_directions[i]
+                or physical_domain.dealias_nonperiodic
+            ):
                 fourier_grid.append(np.linspace(0, Ns[i] - 1, int(Ns[i])))
             else:
                 fourier_grid.append(physical_domain.grid[i])
@@ -662,6 +672,14 @@ class FourierDomain(Domain):
         )
         grid = fourier_grid_shifted
         mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
+        # diff_mats = [
+        #     (
+        #         physical_domain.diff_mats[i]
+        #         if physical_domain.is_periodic(i)
+        #         else assemble_cheb_diff_mat(grid[i])
+        #     )
+        #     for i in physical_domain.all_dimensions()
+        # ]
         out = FourierDomain(
             number_of_dimensions=physical_domain.number_of_dimensions,
             periodic_directions=tuple(physical_domain.periodic_directions),
@@ -730,7 +748,11 @@ class FourierDomain(Domain):
             f_diff: "jnp_array" = jnp.array(diff_array * field_hat)
         else:
             assert self.physical_domain is not None
-            f_diff = self.physical_domain.diff(field_hat, direction, order)
+            field = self.field_no_hat(field_hat)
+            f_diff_no_hat = self.physical_domain.diff(
+                field, direction, order
+            )  # TODO maybe implement diff mat directly
+            f_diff = self.physical_domain.field_hat(f_diff_no_hat)
         return f_diff
 
     def curl(self, field_hat: "jnp_array") -> "jnp_array":
@@ -968,6 +990,15 @@ class FourierDomain(Domain):
                 field_2 = field_2.take(indices=jnp.arange(1, field_2.shape[i]), axis=i)
             extra_zeros = jnp.zeros(zeros_shape)
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
+
+        if self.dealias_nonperiodic:
+            for i in self.all_nonperiodic_dimensions():
+                # N_target = int(Ns[i] * self.aliasing)
+                N_target = self.get_shape_aliasing()[i]
+                sh = field.shape[i]
+                field = jsc.fft.idctn(field, s=(N_target,), axes=(i,))
+                ratio = field.shape[i] / sh
+                field *= ratio
 
         out = jnp.fft.ifftn(
             field,

@@ -1740,6 +1740,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=3 / 2,
+        dealias_nonperiodic=True,
     )
     dt = Equation.find_suitable_dt(domain, max_cfl, (Re_tau / 2, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
@@ -1753,6 +1754,13 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
+    print(domain.diff_mats[1].shape)
+    print(domain.hat().diff_mats[1].shape)
+    print(domain.get_shape())
+    print(domain.get_shape_aliasing())
+    print(vel_base_lam.get_data().shape)
+    print(vel_base_lam.hat().get_data().shape)
+    print(vel_base_lam.hat().no_hat().get_data().shape)
 
     # number_of_modes = 60
     # n = 64
