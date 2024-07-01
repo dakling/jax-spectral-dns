@@ -294,9 +294,13 @@ class VectorField(Generic[T]):
         dim = domain.number_of_dimensions
         data_matches_domain = data.shape[1:] == domain.get_shape_aliasing()
         if not allow_projection:
-            assert (
-                data_matches_domain
-            ), "Data in provided file does not match domain. Call with allow_projection=True if you would like to automatically project the data onto the provided domain."
+            assert data_matches_domain, (
+                "Data in provided file (shape: "
+                + str(data.shape[1:])
+                + ") does not match domain (shape: "
+                + str(domain.get_shape_aliasing())
+                + " ). Call with allow_projection=True if you would like to automatically project the data onto the provided domain."
+            )
         if not data_matches_domain:
             data_domain_shape = tuple(
                 [

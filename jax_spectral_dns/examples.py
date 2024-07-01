@@ -1732,7 +1732,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
 
     scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
 
-    Equation.initialize()
+    if init_file is None:
+        Equation.initialize()
 
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
@@ -1763,6 +1764,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
     #     n=n,
     #     U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
     # )
+
+    time_step_file = Field.plotting_dir + "/time_step.txt"
 
     if init_file is None:
         # v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -1820,6 +1823,14 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         U = vel_base_lam + v0_0
     else:
         U = VectorField.FromFile(domain, init_file, "velocity")
+        try:
+            with open(time_step_file, "r") as file:
+                time_step = int(file.readlines()[0]) + 1
+                U.set_time_step(time_step)
+        except FileNotFoundError:
+            print_verb(
+                "Unable to determine the latest time step of the previous calculation"
+            )
 
     def post_process(nse: NavierStokesVelVort, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
@@ -1845,7 +1856,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             )
             print_verb("max value (avg):", jnp.max(avg_vel[0].get_data()))
             # avg_vel = avg_vel.normalize_by_max_value()
-            avg_vel.set_time_step(0)
+            avg_vel.set_time_step(time_step)
             avg_vel.set_name("average_velocity")
             avg_vel.save_to_file("avg_vel")
             avg_vel.plot_3d(0)
@@ -1917,19 +1928,19 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             for i_x in range(Nx):
                 for i_z in range(Nz):
                     avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
-            avg_vel_x_slice.set_time_step(0)
+            avg_vel_x_slice.set_time_step(time_step)
             avg_vel_x_slice.set_name("average_velocity_x_slice")
             avg_vel_x_slice.save_to_file("avg_vel_x_slice")
             avg_vel_x_slice.plot()
 
-        vel.set_time_step(i)
+        vel.set_time_step(i + time_step)
         vel.set_name("velocity")
 
         if i == n_steps // 2:  # just save some random snapshot
             vel.save_to_file("velocity_" + str(i))
 
             vel_pert = vel - vel_base_lam
-            vel_pert.set_time_step(i)
+            vel_pert.set_time_step(i + time_step)
             vel_pert.set_name("velocity_pert")
             vel_pert.save_to_file("velocity_pert" + str(i))
 
@@ -1938,13 +1949,15 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         vel[2].plot_3d(2)
 
         if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
-            vel.set_time_step(i)
+            vel.set_time_step(i + time_step)
             vel.set_name("velocity")
             vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
         if i >= n_steps - 1:
-            vel.set_time_step(i)
+            vel.set_time_step(i + time_step)
             vel.set_name("velocity")
             vel.save_to_file("vel_latest")
+            with open(time_step_file, "w") as file:
+                file.write(str(i))
 
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time
@@ -2159,12 +2172,12 @@ def run_ld_2021(**params: Any) -> None:
         vort[2].plot_3d(2)
         vel.plot_streamlines(2)
         vel[0].plot_isolines(2)
-        vel[0].plot_isosurfaces(0.4)
+        vel.plot_isosurfaces(0.6)
 
         vel_total = vel + vel_base
         vel_total.set_name("velocity_total")
         vel_total[0].plot_3d(0)
-        vel_total[0].plot_isosurfaces(0.4)
+        vel_total.plot_isosurfaces(0.6)
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
