@@ -359,9 +359,7 @@ class NavierStokesVelVort(Equation):
                 rk_mats_lhs_inv_inhom,
                 rk_mats_rhs_ns,
                 rk_mats_lhs_inv_ns,
-            ) = self.prepare_assemble_rk_matrices(
-                domain, physical_domain, Re_tau, dt, n_rk_steps
-            )
+            ) = self.prepare_assemble_rk_matrices(domain, Re_tau, dt, n_rk_steps)
 
             poisson_mat.setflags(write=False)
             rk_mats_rhs.setflags(write=False)
@@ -672,9 +670,7 @@ class NavierStokesVelVort(Equation):
         ).hat()
 
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> "np_float_array":
-        return self.get_initial_field("velocity_hat")[
-            0
-        ].get_cheb_mat_2_homogeneous_dirichlet(1)
+        return self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(1)
 
     def update_dt(self, new_dt: float) -> None:
         if self.prepare_matrices:
@@ -689,7 +685,6 @@ class NavierStokesVelVort(Equation):
                 rk_mats_lhs_inv_ns,
             ) = self.prepare_assemble_rk_matrices(
                 self.get_domain(),
-                self.get_physical_domain(),
                 self.get_Re_tau(),
                 new_dt,
                 3,
@@ -790,13 +785,12 @@ class NavierStokesVelVort(Equation):
     def prepare_assemble_rk_matrices(
         self,
         domain: FourierDomain,
-        physical_domain: PhysicalDomain,
         Re_tau: "jsd_float",
         dt: "jsd_float",
         number_of_rk_steps: int,
     ) -> Tuple["np_complex_array", ...]:
         alpha, beta, _, _ = self.get_rk_parameters(number_of_rk_steps)
-        D2 = np.linalg.matrix_power(physical_domain.diff_mats[1], 2)
+        D2 = np.linalg.matrix_power(domain.diff_mats[1], 2)
         Ly = 1 / Re_tau * D2
         n = Ly.shape[0]
         I = np.eye(n)

@@ -673,21 +673,21 @@ class FourierDomain(Domain):
         )
         grid = fourier_grid_shifted
         mgrid = np.meshgrid(*fourier_grid_shifted, indexing="ij")
-        # diff_mats = [
-        #     (
-        #         physical_domain.diff_mats[i]
-        #         if physical_domain.is_periodic(i)
-        #         else assemble_cheb_diff_mat(grid[i])
-        #     )
-        #     for i in physical_domain.all_dimensions()
-        # ]
+        diff_mats = [
+            (
+                physical_domain.diff_mats[i]
+                if physical_domain.is_periodic(i)
+                else assemble_cheb_diff_mat(grid[i])
+            )
+            for i in physical_domain.all_dimensions()
+        ]
         out = FourierDomain(
             number_of_dimensions=physical_domain.number_of_dimensions,
             periodic_directions=tuple(physical_domain.periodic_directions),
             scale_factors=tuple(physical_domain.scale_factors),
             shape=tuple(physical_domain.shape),
             grid=tuple(grid),
-            diff_mats=tuple(physical_domain.diff_mats),
+            diff_mats=tuple(diff_mats),
             mgrid=tuple(mgrid),
             aliasing=physical_domain.aliasing,
             dealias_nonperiodic=physical_domain.dealias_nonperiodic,
@@ -748,8 +748,21 @@ class FourierDomain(Domain):
             diff_array = (1j * np.array(self.mgrid[direction])) ** order
             f_diff: "jnp_array" = jnp.array(diff_array * field_hat)
         else:
-            assert self.physical_domain is not None
-            f_diff = self.physical_domain.diff(field_hat, direction, order)
+            inds = "ijk"
+            diff_mat_ind = "l" + inds[direction]
+            other_inds = "".join(
+                [
+                    ind
+                    for ind in inds[0 : self.number_of_dimensions]
+                    if ind != inds[direction]
+                ]
+            )
+            target_inds = other_inds[:direction] + "l" + other_inds[direction:]
+            field_ind = inds[0 : self.number_of_dimensions]
+            ind = field_ind + "," + diff_mat_ind + "->" + target_inds
+            f_diff = jnp.einsum(
+                ind, field_hat, np.linalg.matrix_power(self.diff_mats[direction], order)
+            )
         return f_diff
 
     def curl(self, field_hat: "jnp_array") -> "jnp_array":
