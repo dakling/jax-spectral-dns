@@ -289,19 +289,69 @@ class VectorField(Generic[T]):
         domain: PhysicalDomain,
         data: "jnp_array",
         name: str = "field",
+        allow_projection: bool = False,
     ) -> Self:
         dim = domain.number_of_dimensions
-        fs = cast(List[T], [field_cls(domain, data[i]) for i in range(dim)])
+        data_matches_domain = data.shape[1:] == domain.get_shape_aliasing()
+        if not allow_projection:
+            assert (
+                data_matches_domain
+            ), "Data in provided file does not match domain. Call with allow_projection=True if you would like to automatically project the data onto the provided domain."
+        if not data_matches_domain:
+            data_domain_shape = tuple(
+                [
+                    int(data.shape[i + 1] / domain.aliasing)
+                    for i in domain.all_dimensions()
+                ]
+            )
+            data_domain = PhysicalDomain.create(
+                data_domain_shape,
+                domain.periodic_directions,
+                domain.scale_factors,
+                domain.aliasing,
+                domain.dealias_nonperiodic,
+            )
+            if field_cls is PhysicalField:
+                fs = cast(
+                    List[T],
+                    [
+                        cast(PhysicalField, field_cls(data_domain, data[i]))
+                        .hat()
+                        .project_onto_domain(domain)
+                        .no_hat()
+                        for i in range(dim)
+                    ],
+                )
+            elif field_cls is FourierField:
+                fs = cast(
+                    List[T],
+                    [
+                        cast(
+                            FourierField, field_cls(data_domain, data[i])
+                        ).project_onto_domain(domain)
+                        for i in range(dim)
+                    ],
+                )
+            else:
+                raise Exception(field_cls, "not known.")
+        else:
+            fs = cast(List[T], [field_cls(domain, data[i]) for i in range(dim)])
         return cls(fs, name)
 
     @classmethod
     def FromFile(
-        cls, domain: PhysicalDomain, filename: str, name: str = "field"
+        cls,
+        domain: PhysicalDomain,
+        filename: str,
+        name: str = "field",
+        allow_projection: bool = False,
     ) -> VectorField[PhysicalField]:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
         field_array = np.load(PhysicalField.field_dir + filename, allow_pickle=True)
-        return VectorField.FromData(PhysicalField, domain, field_array, name)
+        return VectorField.FromData(
+            PhysicalField, domain, field_array, name, allow_projection
+        )
 
     def project_onto_domain(
         self: VectorField[FourierField], domain: PhysicalDomain
@@ -1045,13 +1095,40 @@ class PhysicalField(Field):
 
     @classmethod
     def FromFile(
-        cls, domain: PhysicalDomain, filename: str, name: str = "field"
+        cls,
+        domain: PhysicalDomain,
+        filename: str,
+        name: str = "field",
+        allow_projection: bool = False,
     ) -> PhysicalField:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
-        out = PhysicalField.Zeros(domain, name=name)
-        field_array = np.load(out.field_dir + filename, allow_pickle=True)
-        out.data = jnp.array(field_array.tolist())
+        field_array = np.load(Field.field_dir + filename, allow_pickle=True)
+        data = jnp.array(field_array.tolist())
+        data_matches_domain = data.shape == domain.get_shape_aliasing()
+        if not allow_projection:
+            assert (
+                data_matches_domain
+            ), "Data in provided file does not match domain. Call with allow_projection=True if you would like to automatically project the data onto the provided domain."
+        if not data_matches_domain:
+            data_domain_shape = tuple(
+                [int(data.shape[i] / domain.aliasing) for i in domain.all_dimensions()]
+            )
+            data_domain = PhysicalDomain.create(
+                data_domain_shape,
+                domain.periodic_directions,
+                domain.scale_factors,
+                domain.aliasing,
+                domain.dealias_nonperiodic,
+            )
+            out = (
+                PhysicalField(data_domain, data, name=name)
+                .hat()
+                .project_onto_domain(domain)
+                .no_hat()
+            )
+        else:
+            out = PhysicalField(domain, data, name=name)
         return out
 
     def normalize_by_max_value(self) -> Self:

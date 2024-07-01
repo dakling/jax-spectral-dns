@@ -2470,7 +2470,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     if init_file is None:
         v0_hat = vel_hat
     else:
-        v0 = VectorField.FromFile(domain, init_file, "velocity")
+        v0 = VectorField.FromFile(domain, init_file, "velocity", allow_projection=True)
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0)
         v0_hat = v0.hat()
