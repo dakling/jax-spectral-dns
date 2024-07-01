@@ -292,7 +292,13 @@ class VectorField(Generic[T]):
         allow_projection: bool = False,
     ) -> Self:
         dim = domain.number_of_dimensions
-        data_matches_domain = data.shape[1:] == domain.get_shape_aliasing()
+        if field_cls is PhysicalField:
+            data_matches_domain = data.shape[1:] == domain.get_shape_aliasing()
+        elif field_cls is FourierField:
+            data_matches_domain = data.shape[1:] == domain.get_shape()
+        else:
+            raise Exception(field_cls, "not known.")
+
         if not allow_projection:
             assert data_matches_domain, (
                 "Data in provided file (shape: "
