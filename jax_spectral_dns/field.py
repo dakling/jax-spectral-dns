@@ -1952,7 +1952,7 @@ class PhysicalField(Field):
                     periodic_directions,
                     scale_factors=scale_factors,
                     aliasing=self.get_domain().aliasing,
-                    # aliasing=1,
+                    dealias_nonperiodic=self.get_domain().dealias_nonperiodic,
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
                     int.data, indices=N - 1, axis=direction
@@ -1987,7 +1987,7 @@ class PhysicalField(Field):
                     periodic_directions,
                     scale_factors=scale_factors,
                     aliasing=self.get_domain().aliasing,
-                    # aliasing=1,
+                    dealias_nonperiodic=self.get_domain().dealias_nonperiodic,
                 )
                 data = (
                     self.physical_domain.scale_factors[direction]
