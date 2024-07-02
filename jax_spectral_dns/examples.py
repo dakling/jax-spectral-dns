@@ -1852,7 +1852,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 energy_t.append(vel.energy())
                 print_verb("time:", ts[-1], "energy:", energy_t[-1])
             slice_domain = PhysicalDomain.create(
-                (Ny,),
+                (domain.get_shape_aliasing()[1],),
                 (False,),
                 scale_factors=(1.0,),
                 aliasing=1,

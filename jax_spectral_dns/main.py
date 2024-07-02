@@ -114,7 +114,7 @@ if __name__ == "__main__":
                     with open("simulation_settings_.yml", "w") as file:
                         yaml.dump(args, file)
                         print_verb(
-                            "writing out arguments to file simulation_settings_.yml. Rename this file to simulation_settings.yml to make sure it is read."
+                            "writing out arguments to file simulation_settings_.yml. Rename this file to simulation_settings.yml to make sure it is read during the next run of jax-spectral-dns."
                         )
                 except yaml.YAMLError as e:
                     print_verb("could not parse command line arguments.")
