@@ -14,6 +14,7 @@ setup(
         "jax",
         "numpy<2",  # TODO change this at some point
         "scipy",
+        "orthax",
         "matplotlib",
         "pyvista",
         "jaxopt",

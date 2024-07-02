@@ -8,6 +8,7 @@ import math
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsc
+from orthax import chebyshev  # type: ignore
 import numpy as np
 import scipy as sc  # type: ignore
 import dataclasses
@@ -605,13 +606,24 @@ class PhysicalDomain(Domain):
             out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
 
         if self.dealias_nonperiodic:
+            out_ = jnp.zeros(self.get_shape())
             for i in self.all_nonperiodic_dimensions():
-                N_target = self.get_shape()[i]
-                sh = field.shape[i]
-                out = jsc.fft.dctn(out, axes=(i,))
-                out = jsc.fft.idctn(out, s=(N_target,), axes=(i,))
-                ratio = out.shape[i] / sh
-                out *= ratio
+                out_grid = get_cheb_grid(self.get_shape()[i])
+                other_dims = [j for j in self.all_dimensions() if j != i]
+                other_shape = tuple([self.get_shape()[i] for i in other_dims])
+                for N in np.ndindex(other_shape):
+                    index = tuple(
+                        [
+                            N[other_dims.index(i)] if i in other_dims else slice(None)
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    cheb_coeffs = chebyshev.chebfit(
+                        self.grid[i], out[index], self.get_shape_aliasing()[i]
+                    )
+                    cheb_coeffs = cheb_coeffs[: self.get_shape()[i]]
+                    out_ = out_.at[index].set(chebyshev.chebval(out_grid, cheb_coeffs))
+            out = out_
 
         return out.astype(jnp.complex128)
 
@@ -619,7 +631,7 @@ class PhysicalDomain(Domain):
 # @dataclasses.dataclass(frozen=True, init=True, kw_only=True)
 @dataclasses.dataclass(frozen=True, init=True)
 class FourierDomain(Domain):
-    """Same as Domain but lives in Fourier space."""
+    """Same as PhysicalDomain but lives in Fourier space."""
 
     physical_domain: Optional[PhysicalDomain] = (
         None  # the physical domain it is based on
@@ -823,7 +835,7 @@ class FourierDomain(Domain):
                     1,
                 ).hat()
                 field = hybrid_domain_hat.field_no_hat(field_hat)
-                data_dct = jsc.fft.dctn(field, axes=(i,))
+                data_dct = jsc.fft.dctn(field, axes=(i,))  # TODO
                 field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
                 ratio = data_dct.shape[i] / field.shape[i]
                 field_hat = target_domain.field_hat(field * ratio)
@@ -1002,13 +1014,29 @@ class FourierDomain(Domain):
             field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
 
         if self.dealias_nonperiodic:
+            assert self.physical_domain is not None
+            out_grid = self.physical_domain.grid
+            field_ = jnp.zeros(self.get_shape_aliasing())
             for i in self.all_nonperiodic_dimensions():
-                N_target = self.get_shape_aliasing()[i]
-                sh = field.shape[i]
-                field = jsc.fft.dctn(field, axes=(i,))
-                field = jsc.fft.idctn(field, s=(N_target,), axes=(i,))
-                ratio = field.shape[i] / sh
-                field *= ratio
+                in_grid = get_cheb_grid(self.get_shape()[i])
+                other_dims = [j for j in self.all_dimensions() if j != i]
+                other_shape = tuple([self.get_shape()[i] for i in other_dims])
+                for N in np.ndindex(other_shape):
+                    index = tuple(
+                        [
+                            N[other_dims.index(i)] if i in other_dims else slice(None)
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    cheb_coeffs = chebyshev.chebfit(
+                        in_grid, field[index], self.get_shape()[i]
+                    )
+                    extra_zeros = jnp.zeros((len(out_grid[i]) - len(self.grid[i])))
+                    cheb_coeffs = jnp.concatenate([cheb_coeffs, extra_zeros])
+                    field_ = field_.at[index].set(
+                        chebyshev.chebval(out_grid[i], cheb_coeffs)
+                    )
+                field = field_
 
         out = jnp.fft.ifftn(
             field,
