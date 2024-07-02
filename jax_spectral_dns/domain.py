@@ -7,7 +7,6 @@ from functools import partial
 import math
 import jax
 import jax.numpy as jnp
-import jax.scipy as jsc
 from orthax import chebyshev  # type: ignore
 import numpy as np
 import scipy as sc  # type: ignore
@@ -824,21 +823,35 @@ class FourierDomain(Domain):
             else:
                 pass
 
+        field_ = jnp.zeros(target_domain.get_shape())
         for i in self.all_nonperiodic_dimensions():
             N = initial_shape[i]
             N_target = target_shape[i]
             if N != N_target:
-                hybrid_domain_hat = PhysicalDomain.create(
-                    field_hat.shape,
-                    self.periodic_directions,
-                    self.scale_factors,
-                    1,
-                ).hat()
-                field = hybrid_domain_hat.field_no_hat(field_hat)
-                data_dct = jsc.fft.dctn(field, axes=(i,))  # TODO
-                field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
-                ratio = data_dct.shape[i] / field.shape[i]
-                field_hat = target_domain.field_hat(field * ratio)
+                out_grid = get_cheb_grid(N_target)
+                in_grid = get_cheb_grid(self.get_shape()[i])
+                other_dims = [j for j in self.all_dimensions() if j != i]
+                other_shape = tuple([self.get_shape()[i] for i in other_dims])
+
+                for ns in np.ndindex(other_shape):
+                    index = tuple(
+                        [
+                            ns[other_dims.index(i)] if i in other_dims else slice(None)
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    cheb_coeffs = chebyshev.chebfit(
+                        in_grid, field_hat[index], self.get_shape()[i]
+                    )
+                    if N > N_target:
+                        cheb_coeffs = cheb_coeffs[:N_target]
+                    else:
+                        extra_zeros = jnp.zeros((len(out_grid) - len(self.grid[i])))
+                        cheb_coeffs = jnp.concatenate([cheb_coeffs, extra_zeros])
+                    field_ = field_.at[index].set(
+                        chebyshev.chebval(out_grid, cheb_coeffs)
+                    )
+                field_hat = field_
             else:
                 pass  # the shape is already correct (N = N_target), no need to do anything
 
@@ -853,14 +866,35 @@ class FourierDomain(Domain):
         target_domain_hat = target_domain.hat()
         target_shape = target_domain_hat.shape
 
+        field_ = jnp.zeros(target_shape)
         for i in self.all_nonperiodic_dimensions():
             N = initial_shape[i]
             N_target = target_shape[i]
             if N != N_target:
-                data_dct = jsc.fft.dctn(field, axes=(i,))
-                field = jsc.fft.idctn(data_dct, s=(target_shape[i],), axes=(i,))
-                ratio = data_dct.shape[i] / field.shape[i]
-                field *= ratio
+                out_grid = get_cheb_grid(N_target)
+                in_grid = get_cheb_grid(self.get_shape()[i])
+                other_dims = [j for j in self.all_dimensions() if j != i]
+                other_shape = tuple([self.get_shape()[i] for i in other_dims])
+
+                for ns in np.ndindex(other_shape):
+                    index = tuple(
+                        [
+                            ns[other_dims.index(i)] if i in other_dims else slice(None)
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    cheb_coeffs = chebyshev.chebfit(
+                        in_grid, field[index], self.get_shape()[i]
+                    )
+                    if N > N_target:
+                        cheb_coeffs = cheb_coeffs[:N_target]
+                    else:
+                        extra_zeros = jnp.zeros((len(out_grid) - len(self.grid[i])))
+                        cheb_coeffs = jnp.concatenate([cheb_coeffs, extra_zeros])
+                    field_ = field_.at[index].set(
+                        chebyshev.chebval(out_grid, cheb_coeffs)
+                    )
+                field = field_
             else:
                 pass  # the shape is already correct (N = N_target), no need to do anything
 
