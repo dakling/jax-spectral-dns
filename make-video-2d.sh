@@ -2,32 +2,32 @@
 
 
 make_video_mp4(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4" &> /dev/null
 }
 
 combine_two_mp4(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -filter_complex hstack=inputs=2 "img/$1.mp4" &> /dev/null
 }
 
 combine_three_mp4(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -filter_complex hstack=inputs=3 "img/$1.mp4" &> /dev/null
 }
 
 combine_four_mp4(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -filter_complex "[0:v][1:v][2:v][3:v]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 make_video_gif(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     convert "plots/plot_$1_t_*.png" "img/$2.gif"
 }
 
 combine_two_gif(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     for f in a-*.gif; do convert +append $f ${f/a/b} $f; done  # append frames side-by-side
@@ -36,7 +36,7 @@ combine_two_gif(){
 }
 
 combine_three_gif(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     convert "./img/$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif
@@ -46,7 +46,7 @@ combine_three_gif(){
 }
 
 combine_four_gif(){
-    mkdir img || echo
+    mkdir img &>/dev/null
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     convert "./img/$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif

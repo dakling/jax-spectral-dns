@@ -2,13 +2,13 @@
 
 
 make_video_mp4(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     scfmt="640:480"
     ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4" &> /dev/null
 }
 
 combine_two_mp4(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     scfmt="640:480"
     layout="0_0|w0_0"
     scale="[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [a0][a1]xstack=inputs=2:layout=$layout[v]"
@@ -17,13 +17,13 @@ combine_two_mp4(){
 }
 
 combine_three_mp4(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     scfmt="640:480"
     ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4"  -filter_complex "[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [a0][a1][a2]xstack=inputs=3:layout=0_0|w0_0|w0+w1_0[v]" -map "[v]" "img/$1.mp4" # &> /dev/null
 }
 
 combine_four_mp4(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     scfmt="640:480"
     layout="0_0|w0_0|0_h0|w0_h0"
     scale="[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [a0][a1][a2][a3]xstack=inputs=4:layout=$layout[v]"
@@ -31,7 +31,7 @@ combine_four_mp4(){
 }
 
 combine_six_mp4(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     scfmt="640:480"
     layout="0_0|w0_0|w0+w1_0|0_h0|w0_h0|w0+w1_h0"
     scale="[0:v] scale=$scfmt [a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [4:v] scale=$scfmt [a4]; [5:v] scale=$scfmt [a5]; [a0][a1][a2][a3][a4][a5]xstack=inputs=6:layout=$layout[v]"
@@ -39,12 +39,12 @@ combine_six_mp4(){
 }
 
 make_video_gif(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     convert "plots/plot_$1_t_*.png" "img/$2.gif"
 }
 
 combine_two_gif(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     for f in a-*.gif; do convert +append $f ${f/a/b} $f; done  # append frames side-by-side
@@ -53,7 +53,7 @@ combine_two_gif(){
 }
 
 combine_three_gif(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     convert "./img/$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif
@@ -63,7 +63,7 @@ combine_three_gif(){
 }
 
 combine_four_gif(){
-    mkdir img || echo
+    mkdir img &> /dev/null
     convert "./img/$2.gif" -coalesce a-%04d.gif                         # separate frames of 1.gif
     convert "./img/$3.gif" -coalesce b-%04d.gif                         # separate frames of 2.gif
     convert "./img/$4.gif" -coalesce c-%04d.gif                         # separate frames of 2.gif
@@ -131,7 +131,7 @@ cleanup(){
     fi
 }
 
-rm img/*
+rm img/* &> /dev/null
 
 # adapt this to the specific case output
 GIF=false
@@ -150,12 +150,12 @@ combine_six initial_condition_evolution_isosurfaces __isosurfaces_vel_0_x __isos
 make_video 3d_z_vel_0_x __3d_z_vel_0_x
 make_video 3d_z_vel_0_y __3d_z_vel_0_y
 make_video 3d_z_vel_0_z __3d_z_vel_0_z
-combine_six initial_condition_evolution_3d_z __3d_z_vel_0_x __3d_z_vel_0_y __3d_z_vel_0_z __gain_over_iterations __phase_space __localisation
+combine_six initial_condition_evolution_z __3d_z_vel_0_x __3d_z_vel_0_y __3d_z_vel_0_z __gain_over_iterations __phase_space __localisation
 
 make_video 3d_x_vel_0_x __3d_x_vel_0_x
 make_video 3d_x_vel_0_y __3d_x_vel_0_y
 make_video 3d_x_vel_0_z __3d_x_vel_0_z
-combine_six initial_condition_evolution_3d_x __3d_x_vel_0_x __3d_x_vel_0_y __3d_x_vel_0_z __gain_over_iterations __phase_space __localisation
+combine_six initial_condition_evolution_x __3d_x_vel_0_x __3d_x_vel_0_y __3d_x_vel_0_z __gain_over_iterations __phase_space __localisation
 
 # final calculation
 make_video isosurfaces_velocity_x __isosurfaces_velocity_x
