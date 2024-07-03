@@ -2458,7 +2458,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel[2].plot_3d(0)
         vel.plot_streamlines(2)
         vel[1].plot_isolines(2)
-        vel[1].plot_isosurfaces(0.4)
+        vel.plot_isosurfaces()
 
         vel_total = vel + vel_base
         vel_total.set_name("velocity_total")
@@ -2624,7 +2624,7 @@ def run_optimisation_farano_2015(**params: Any) -> None:
         vel[2].plot_3d(0)
         vel.plot_streamlines(2)
         vel[1].plot_isolines(2)
-        vel[1].plot_isosurfaces(0.4)
+        vel.plot_isosurfaces()
 
         vel_total = vel + vel_base
         vel_total.set_name("velocity_total")
