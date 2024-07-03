@@ -1887,13 +1887,13 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 print_verb("No dedalus data to compare results with were found.")
             try:
                 out_arr = np.array([[ts[i], energy_t_arr[i]] for i in range(len(ts))])
-                with open("energy-jax.txt", "a") as f:
+                with open(Field.plotting_dir + "/energy-jax.txt", "a") as f:
                     np.savetxt(f, out_arr, delimiter=",")
             except Exception:
                 pass
             try:
                 jax_data = np.genfromtxt(
-                    "./energy-jax.txt",
+                    Field.plotting_dir + "/energy-jax.txt",
                     delimiter=",",
                 ).T
                 ax.plot(
