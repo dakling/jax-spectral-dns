@@ -1740,7 +1740,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         (True, False, True),
         scale_factors=scale_factors,
         aliasing=3 / 2,
-        dealias_nonperiodic=True,
+        dealias_nonperiodic=False,
     )
     dt = Equation.find_suitable_dt(domain, max_cfl, (Re_tau / 2, 1e-5, 1e-5), end_time)
     print_verb("dt:", dt)
