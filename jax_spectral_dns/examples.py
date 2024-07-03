@@ -1888,7 +1888,9 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 print_verb("No dedalus data to compare results with were found.")
             try:
                 out_arr = np.array([[ts[i], energy_t_arr[i]] for i in range(len(ts))])
-                np.savetxt("energy-jax.txt", out_arr, delimiter=",")
+                with open("energy-jax.txt", "a") as f:
+                    f.write("\n")
+                    np.savetxt(f, out_arr, delimiter=",")
             except Exception:
                 pass
             fig.legend()
