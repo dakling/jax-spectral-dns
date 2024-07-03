@@ -1870,7 +1870,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
             print_verb("energy_0:", energy_t_arr[0])
-            ax.plot(ts, energy_t_arr / energy_t_arr[0], "o", label="jax-spectral-dns")
             ax.set_xlabel("$t$")
             ax.set_ylabel("$G$")
             try:
@@ -1889,10 +1888,22 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             try:
                 out_arr = np.array([[ts[i], energy_t_arr[i]] for i in range(len(ts))])
                 with open("energy-jax.txt", "a") as f:
-                    f.write("\n")
                     np.savetxt(f, out_arr, delimiter=",")
             except Exception:
                 pass
+            try:
+                jax_data = np.genfromtxt(
+                    "./energy-jax.txt",
+                    delimiter=",",
+                ).T
+                ax.plot(
+                    jax_data[0],
+                    jax_data[1] / jax_data[1][0],
+                    "--",
+                    label="jax-spectral-dns",
+                )
+            except FileNotFoundError:
+                print_verb("No jax data to compare results with were found.")
             fig.legend()
             fig.savefig(Field.plotting_dir + "/energy.png")
 
