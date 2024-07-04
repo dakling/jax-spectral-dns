@@ -417,7 +417,11 @@ class NavierStokesVelVort(Equation):
                 print_verb("enforcing constant pressure gradient")
             self.dPdx = -1.0
 
-        self.dpdx = self.update_pressure_gradient()
+        self.dPdx = self.update_pressure_gradient()
+        self.dpdx = PhysicalField.FromFunc(
+            self.get_physical_domain(),
+            lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
+        ).hat()
 
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
@@ -680,18 +684,20 @@ class NavierStokesVelVort(Equation):
         return cast("jsd_float", int[0, 0])
 
     def update_pressure_gradient(
-        self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> "PhysicalField":
+        self,
+        vel_new_field_hat: Optional["jnp_array"] = None,
+        dPdx: Optional["float"] = None,
+    ) -> "float":
+        if dPdx is None:
+            dPdx_ = self.dPdx
+        else:
+            dPdx_ = dPdx
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
 
             flow_rate_diff = current_flow_rate - self.flow_rate
             dpdx_change = flow_rate_diff / self.get_dt()
-            self.dPdx = self.dPdx + dpdx_change
-            dpdx = PhysicalField.FromFunc(
-                self.get_physical_domain(),
-                lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
-            ).hat()
+            dPdx_ = dPdx_ + dpdx_change
             self.dpdz = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
@@ -701,19 +707,19 @@ class NavierStokesVelVort(Equation):
                 self.flow_rate - current_flow_rate,
                 verbosity_level=3,
             )
-            print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
+            print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
         else:
             self.flow_rate = self.get_flow_rate()
-            dpdx = PhysicalField.FromFunc(
+            self.dpdx = PhysicalField.FromFunc(
                 self.get_physical_domain(),
-                lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
+                lambda X: dPdx_ + 0.0 * X[0] * X[1] * X[2],
             ).hat()
             self.dpdz = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
-            print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
-        return dpdx
+            print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
+        return cast(float, dPdx_)
 
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> "np_float_array":
         return self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(1)
@@ -1292,6 +1298,11 @@ class NavierStokesVelVort(Equation):
                             v_2_hat_sw_00,
                         ]
                     )
+                    # TODO HACK
+                    try:
+                        dpdx_: "FourierField" = dpdx
+                    except NameError:
+                        dpdx_ = self.dpdx
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
@@ -1299,7 +1310,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -self.dpdx[kx__, :, kz__],
+                            -dpdx_[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1311,7 +1322,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -self.dpdx[kx__, :, kz__],
+                            -dpdx_[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1596,10 +1607,15 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    self.dpdx = self.update_pressure_gradient(vel_new_hat_field)
+                    dPdx: float = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+
+                    dpdx = PhysicalField.FromFunc(
+                        self.get_physical_domain(),
+                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
+                    ).hat()
                 else:
                     if Equation.verbosity_level >= 3:
-                        self.update_pressure_gradient(vel_new_hat_field)
+                        self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
 
             vel_hat_data = vel_new_hat_field
 

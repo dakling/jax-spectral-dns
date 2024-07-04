@@ -365,17 +365,19 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             self.dPdx = 0.0
 
     def update_pressure_gradient(
-        self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> "PhysicalField":
+        self,
+        vel_new_field_hat: Optional["jnp_array"] = None,
+        dPdx: Optional["float"] = None,
+    ) -> "float":
+        if dPdx is None:
+            dPdx_ = self.dPdx
+        else:
+            dPdx_ = dPdx
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
             flow_rate_diff = current_flow_rate
             dpdx_change = flow_rate_diff / self.get_dt()
-            self.dPdx = self.dPdx + dpdx_change
-            dpdx = PhysicalField.FromFunc(
-                self.get_physical_domain(),
-                lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
-            ).hat()
+            dPdx_ = dPdx_ + dpdx_change
             self.dpdz = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
@@ -388,7 +390,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
         else:
             self.flow_rate = self.get_flow_rate(vel_new_field_hat)
-            dpdx = PhysicalField.FromFunc(
+            self.dpdx = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
             ).hat()
             self.dpdz = PhysicalField.FromFunc(
@@ -396,7 +398,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
-        return dpdx
+        return cast(float, dPdx_)
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
