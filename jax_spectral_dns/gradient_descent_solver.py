@@ -125,6 +125,10 @@ class GradientDescentSolver(ABC):
             fname = "velocity_latest_" + str(self.i)
             copyfile(Field.field_dir + "/velocity_latest", out_dir + "/" + fname)
 
+        print_verb(
+            "flow rate of intial condition:",
+            self.dual_problem.forward_equation.get_flow_rate(v0_hat.get_data()),
+        )
         # document path to the optimal
         i = self.i
         gain = self.value

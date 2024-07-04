@@ -1688,6 +1688,7 @@ class NavierStokesVelVort(Equation):
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
+        @jax.jit
         def inner_step_fn(
             u0: Tuple["jnp_array", "jsd_float", int], _: Any
         ) -> Tuple[Tuple["jnp_array", "jsd_float", int], None]:
@@ -1695,6 +1696,7 @@ class NavierStokesVelVort(Equation):
             out, dPdx = self.perform_time_step(u0_, cast(float, dPdx), time_step)
             return ((out, dPdx, time_step + 1), None)
 
+        @jax.jit
         def step_fn(
             u0: Tuple["jnp_array", "jsd_float", int], _: Any
         ) -> Tuple[
