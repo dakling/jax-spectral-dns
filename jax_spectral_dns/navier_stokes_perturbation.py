@@ -379,8 +379,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             self.dpdz = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
-            print_verb("current flow rate:", current_flow_rate)
-            print_verb("current pressure gradient:", self.dPdx)
+            print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
+            print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
             return current_flow_rate
         else:
             self.flow_rate = self.get_flow_rate(vel_new_field_hat)
@@ -390,8 +390,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             self.dpdz = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
             ).hat()
-            print_verb("current flow rate:", self.flow_rate)
-            print_verb("current pressure gradient:", self.dPdx)
+            print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
+            print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
             return self.flow_rate
 
     def set_linearize(self, lin: bool) -> None:
