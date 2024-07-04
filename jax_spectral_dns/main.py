@@ -4,9 +4,11 @@ from __future__ import annotations
 import jax
 
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
-import warnings
 
-warnings.filterwarnings("error")
+# import warnings
+
+# warnings.filterwarnings("error")
+
 import logging
 
 import os
