@@ -584,7 +584,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             nse.write_entire_output = True
         if not self.is_forward_calculation_done():
             start_time = time.time()
-            velocity_u_hat_history_, dPdx, _ = nse.solve_scan()
+            velocity_u_hat_history_, _ = nse.solve_scan()
             iteration_duration = time.time() - start_time
             try:
                 print_verb(
