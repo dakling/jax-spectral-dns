@@ -408,11 +408,13 @@ class NavierStokesVelVort(Equation):
 
         self.constant_mass_flux = params.get("constant_mass_flux", False)
         if self.constant_mass_flux:
-            print_verb("enforcing constant mass flux")
+            if not params.get("non_verbose", False):
+                print_verb("enforcing constant mass flux")
             self.flow_rate = self.get_flow_rate()
             self.dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
         else:
-            print_verb("enforcing constant pressure gradient")
+            if not params.get("non_verbose", False):
+                print_verb("enforcing constant pressure gradient")
             self.dPdx = -1.0
 
         self.update_pressure_gradient()
@@ -679,7 +681,7 @@ class NavierStokesVelVort(Equation):
 
     def update_pressure_gradient(
         self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> float:
+    ) -> "jsd_float":
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
 
@@ -695,7 +697,7 @@ class NavierStokesVelVort(Equation):
             ).hat()
             print_verb("current flow rate:", current_flow_rate)
             print_verb("current pressure gradient:", self.dPdx)
-            return cast(float, current_flow_rate)
+            return current_flow_rate
         else:
             self.flow_rate = self.get_flow_rate()
             self.dpdx = PhysicalField.FromFunc(
@@ -1554,6 +1556,8 @@ class NavierStokesVelVort(Equation):
                     ]
                 )
                 vel_new_hat_field += velocity_correction_hat
+                self.update_pressure_gradient(vel_new_hat_field)
+            else:
                 self.update_pressure_gradient(vel_new_hat_field)
 
             vel_hat_data = vel_new_hat_field

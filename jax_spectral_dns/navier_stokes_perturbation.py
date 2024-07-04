@@ -8,7 +8,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import TYPE_CHECKING, Any, Tuple, cast
+from typing import TYPE_CHECKING, Any, Tuple, cast, Optional
 
 # from importlib import reload
 import sys
@@ -320,7 +320,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
     def __init__(self, velocity_field: VectorField[FourierField], **params: Any):
 
-        super().__init__(velocity_field, **params)
+        super().__init__(velocity_field, non_verbose=True, **params)
 
         try:
             velocity_base_hat = params["velocity_base_hat"]
@@ -356,9 +356,17 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         self.linearize: bool = params.get("linearize", False)
         self.set_linearize(self.linearize)
 
+        if self.constant_mass_flux:
+            print_verb("enforcing constant mass flux")
+            self.flow_rate = self.get_flow_rate()
+            self.dPdx = 0.0
+        else:
+            print_verb("enforcing constant pressure gradient")
+            self.dPdx = 0.0
+
     def update_pressure_gradient(
         self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> float:
+    ) -> "jsd_float":
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
             flow_rate_diff = current_flow_rate
@@ -373,9 +381,9 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             ).hat()
             print_verb("current flow rate:", current_flow_rate)
             print_verb("current pressure gradient:", self.dPdx)
-            return cast(float, current_flow_rate)
+            return current_flow_rate
         else:
-            self.flow_rate = 0.0
+            self.flow_rate = self.get_flow_rate(vel_new_field_hat)
             self.dpdx = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
             ).hat()
