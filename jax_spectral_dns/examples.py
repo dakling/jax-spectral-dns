@@ -2651,12 +2651,12 @@ def run_ld_2021_dual(**params: Any) -> None:
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
 
-    # print_verb("flow rate turbulent:", vel_base_turb[0].get_flow_rate(1))
-    # print_verb("max value turbulent:", vel_base_turb[0].max())
-    # print_verb("flow rate laminar:", vel_base_lam[0].get_flow_rate(1))
-    # print_verb("max value laminar:", vel_base_lam[0].max())
-    # print_verb("flow rate:", vel_base[0].get_flow_rate(1))
-    # print_verb("max value:", vel_base[0].max())
+    print_verb("flow rate turbulent:", vel_base_turb[0].get_flow_rate(1))
+    print_verb("max value turbulent:", vel_base_turb[0].max())
+    print_verb("flow rate laminar:", vel_base_lam[0].get_flow_rate(1))
+    print_verb("max value laminar:", vel_base_lam[0].max())
+    print_verb("flow rate:", vel_base[0].get_flow_rate(1))
+    print_verb("max value:", vel_base[0].max())
 
     if init_file is None:
         number_of_modes = params.get("number_of_modes", 60)

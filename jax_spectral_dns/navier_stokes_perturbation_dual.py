@@ -396,7 +396,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             dt=-dt,
             end_time=-end_time,
             velocity_base_hat=nse.get_latest_field("velocity_base_hat"),
-            constant_mass_flux=nse.constant_mass_flux**params,
+            constant_mass_flux=nse.constant_mass_flux,
+            **params,
         )
         nse_dual.set_linearize(nse.linearize)
         return nse_dual
