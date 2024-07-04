@@ -476,7 +476,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     self.current_velocity_field_u_history = (
                         current_velocity_field_u_history
                     )
-                    out, dPdx = self.perform_time_step(
+                    out, dPdx, time_step = self.perform_time_step(
                         u0_, cast(float, dPdx), time_step
                     )
                     self.current_velocity_field_u_history = None
@@ -500,6 +500,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     u0,
                     xs=None,
                     length=self.number_of_inner_steps,
+                    unroll=True,
                     # inner_step_fn, u0, xs=None, length=number_of_inner_steps
                 )
                 return out, out
@@ -510,7 +511,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
             if self.write_intermediate_output and not self.write_entire_output:
                 u_final, trajectory = jax.lax.scan(
-                    step_fn, (u0, dPdx, 0), xs=None, length=self.number_of_outer_steps
+                    step_fn,
+                    (u0, dPdx, 0),
+                    xs=None,
+                    length=self.number_of_outer_steps,
+                    unroll=True,
                 )
                 for u in trajectory[0]:
                     velocity = VectorField(
@@ -532,7 +537,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 return (trajectory[0], len(ts))
             elif self.write_entire_output:
                 u_final, trajectory = jax.lax.scan(
-                    step_fn, (u0, dPdx, 0), xs=None, length=self.number_of_outer_steps
+                    step_fn,
+                    (u0, dPdx, 0),
+                    xs=None,
+                    length=self.number_of_outer_steps,
+                    unroll=True,
                 )
                 velocity_final = VectorField(
                     [
@@ -550,7 +559,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 return (trajectory[0], len(ts))
             else:
                 u_final, _ = jax.lax.scan(
-                    step_fn, (u0, dPdx, 0), xs=None, length=self.number_of_outer_steps
+                    step_fn,
+                    (u0, dPdx, 0),
+                    xs=None,
+                    length=self.number_of_outer_steps,
+                    unroll=True,
                 )
                 velocity_final = VectorField(
                     [
