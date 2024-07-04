@@ -2617,13 +2617,13 @@ def run_ld_2021_dual(**params: Any) -> None:
         return vel_base, U_y_slice, cast(float, max), flow_rate
 
     vel_base_turb, _, max, flow_rate = get_vel_field(domain, avg_vel_coeffs)
-    vel_base_turb = vel_base_turb.normalize_by_max_value()
+    vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
                 # domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
                 domain,
-                lambda X: (3.0 / 4.0) / (max / flow_rate) * (1 - X[1] ** 2) + 0 * X[2],
+                lambda X: (3.0 / 4.0) * (1 - X[1] ** 2) + 0 * X[2],
             ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
@@ -2640,7 +2640,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = max
+    u_max_over_u_tau = flow_rate
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
@@ -2776,6 +2776,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         dt=dt,
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
+        constant_mass_flux=True,
     )
     nse.set_linearize(linearise)
     nse.set_post_process_fn(post_process)
