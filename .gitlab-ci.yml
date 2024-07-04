@@ -28,6 +28,7 @@ test:   # This job runs in the test stage.
         - black --check jax_spectral_dns
         - black --check tests/test_project.py
         - echo "Running mypy type tests..."
+        - mypy --install-types
         - mypy jax_spectral_dns/
         - mypy tests/test_project.py
         - echo "Running unit tests..."
