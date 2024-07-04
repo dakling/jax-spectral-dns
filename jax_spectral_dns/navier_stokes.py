@@ -417,7 +417,7 @@ class NavierStokesVelVort(Equation):
                 print_verb("enforcing constant pressure gradient")
             self.dPdx = -1.0
 
-        self.update_pressure_gradient()
+        self.dpdx = self.update_pressure_gradient()
 
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
@@ -681,14 +681,14 @@ class NavierStokesVelVort(Equation):
 
     def update_pressure_gradient(
         self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> None:
+    ) -> "PhysicalField":
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
 
             flow_rate_diff = current_flow_rate - self.flow_rate
             dpdx_change = flow_rate_diff / self.get_dt()
             self.dPdx = self.dPdx + dpdx_change
-            self.dpdx = PhysicalField.FromFunc(
+            dpdx = PhysicalField.FromFunc(
                 self.get_physical_domain(),
                 lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
             ).hat()
@@ -704,7 +704,7 @@ class NavierStokesVelVort(Equation):
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
         else:
             self.flow_rate = self.get_flow_rate()
-            self.dpdx = PhysicalField.FromFunc(
+            dpdx = PhysicalField.FromFunc(
                 self.get_physical_domain(),
                 lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
             ).hat()
@@ -713,6 +713,7 @@ class NavierStokesVelVort(Equation):
             ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
+        return dpdx
 
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> "np_float_array":
         return self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(1)
@@ -1595,7 +1596,7 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    self.update_pressure_gradient(vel_new_hat_field)
+                    self.dpdx = self.update_pressure_gradient(vel_new_hat_field)
                 else:
                     if Equation.verbosity_level >= 3:
                         self.update_pressure_gradient(vel_new_hat_field)
