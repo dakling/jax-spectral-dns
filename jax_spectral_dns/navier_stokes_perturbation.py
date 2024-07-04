@@ -356,14 +356,35 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         self.linearize: bool = params.get("linearize", False)
         self.set_linearize(self.linearize)
 
-    def update_flow_rate(self) -> None:
-        self.flow_rate = 0.0
-        self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
-        ).hat()
-        self.dpdz = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
-        ).hat()
+    def update_pressure_gradient(
+        self, vel_new_field_hat: Optional["jnp_array"] = None
+    ) -> float:
+        if self.constant_mass_flux:
+            current_flow_rate = self.get_flow_rate(vel_new_field_hat)
+            flow_rate_diff = current_flow_rate
+            dpdx_change = flow_rate_diff / self.get_dt()
+            self.dPdx = self.dPdx + dpdx_change
+            self.dpdx = PhysicalField.FromFunc(
+                self.get_physical_domain(),
+                lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
+            ).hat()
+            self.dpdz = PhysicalField.FromFunc(
+                self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
+            ).hat()
+            print_verb("current flow rate:", current_flow_rate)
+            print_verb("current pressure gradient:", self.dPdx)
+            return cast(float, current_flow_rate)
+        else:
+            self.flow_rate = 0.0
+            self.dpdx = PhysicalField.FromFunc(
+                self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
+            ).hat()
+            self.dpdz = PhysicalField.FromFunc(
+                self.get_physical_domain(), lambda X: 0.0 * X[0] * X[1] * X[2]
+            ).hat()
+            print_verb("current flow rate:", self.flow_rate)
+            print_verb("current pressure gradient:", self.dPdx)
+            return self.flow_rate
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
@@ -427,6 +448,7 @@ def solve_navier_stokes_perturbation(
     aliasing: float = 1.0,
     dealias_nonperiodic: bool = False,
     rotated: bool = False,
+    **params: Any,
 ) -> NavierStokesVelVortPerturbation:
 
     domain = PhysicalDomain.create(
@@ -499,7 +521,7 @@ def solve_navier_stokes_perturbation(
 
     if not rotated:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            vel, Re=Re, dt=dt, end_time=end_time, prepare_matrices=True
+            vel, Re=Re, dt=dt, end_time=end_time, prepare_matrices=True, **params
         )
     else:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
@@ -509,6 +531,7 @@ def solve_navier_stokes_perturbation(
             velocity_base_hat=velocity_base_hat,
             end_time=end_time,
             prepare_matrices=True,
+            **params,
         )
 
     nse.before_time_step_fn = None

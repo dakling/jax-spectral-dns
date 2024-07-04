@@ -78,6 +78,7 @@ def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
     Nx = params.get("Nx", 128)
     Ny = params.get("Nx", 128)
     dt = params.get("dt", 5e-3)
+    constant_mass_flux = params.get("constant_mass_flux", False)
 
     use_antialias = False
     # use_antialias = True # also works fine
@@ -96,6 +97,7 @@ def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
         end_time=end_time,
         scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
         aliasing=aliasing,
+        constant_mass_flux=constant_mass_flux,
     )
     u_fn = (
         lambda X: 1
@@ -661,6 +663,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
     dealias_nonperiodic = params.get("dealias_nonperiodic", False)
     rotated = params.get("rotated", False)
     jit = params.get("jit", True)
+    constant_mass_flux = params.get("constant_mass_flux", False)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
 
@@ -677,6 +680,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
             aliasing=aliasing,
             dealias_nonperiodic=dealias_nonperiodic,
             rotated=False,
+            constant_mass_flux=constant_mass_flux,
         )
     else:
         nse = solve_navier_stokes_perturbation(
@@ -691,6 +695,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
             aliasing=aliasing,
             dealias_nonperiodic=dealias_nonperiodic,
             rotated=True,
+            constant_mass_flux=constant_mass_flux,
         )
 
     nse.set_linearize(linearize)
@@ -935,7 +940,7 @@ def run_transient_growth_nonpert(
 
     # set pressure gradient so as to cause a flow rate that matches linear stability calculation
     nse.dPdx = cast("float", -nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau())
-    nse.update_flow_rate()
+    nse.update_pressure_gradient()
 
     # nse.initialize()
 

@@ -338,9 +338,6 @@ class NavierStokesVelVort(Equation):
         )
         super().__init__(domain, velocity_field, **params)
 
-        # dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
-        self.dPdx = -1.0
-
         n_rk_steps = 3
         calculation_size = self.end_time / self.get_dt()
         for i in self.all_dimensions():
@@ -408,7 +405,18 @@ class NavierStokesVelVort(Equation):
             number_of_rk_steps=n_rk_steps,
         )
         print_verb("using RK" + str(n_rk_steps) + " time stepper", verbosity_level=2)
-        self.update_flow_rate()
+
+        self.constant_mass_flux = params.get("constant_mass_flux", False)
+        if self.constant_mass_flux:
+            print_verb("enforcing constant mass flux")
+            self.flow_rate = self.get_flow_rate()
+            self.dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
+        else:
+            print_verb("enforcing constant pressure gradient")
+            self.dPdx = -1.0
+
+        self.update_pressure_gradient()
+
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
         cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
@@ -654,20 +662,52 @@ class NavierStokesVelVort(Equation):
             hel_hat[i].name = "hel_hat_" + str(i)
         return (vort_hat, hel_hat)
 
-    def get_flow_rate(self) -> "jsd_float":
-        vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
+    def get_flow_rate(
+        self, vel_new_field_hat: Optional["jnp_array"] = None
+    ) -> "jsd_float":
+
+        if type(vel_new_field_hat) == NoneType:
+            vel_hat: VectorField[FourierField] = self.get_latest_field("velocity_hat")
+        else:
+            assert vel_new_field_hat is not None
+            vel_hat = VectorField.FromData(
+                FourierField, self.get_physical_domain(), vel_new_field_hat
+            )
         vel_hat_0: FourierField = vel_hat[0]
         int: PhysicalField = vel_hat_0.no_hat().definite_integral(1)  # type: ignore[assignment]
         return cast("jsd_float", int[0, 0])
 
-    def update_flow_rate(self) -> None:
-        self.flow_rate = self.get_flow_rate()
-        self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
-        self.dpdz = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
+    def update_pressure_gradient(
+        self, vel_new_field_hat: Optional["jnp_array"] = None
+    ) -> float:
+        if self.constant_mass_flux:
+            current_flow_rate = self.get_flow_rate(vel_new_field_hat)
+
+            flow_rate_diff = current_flow_rate - self.flow_rate
+            dpdx_change = flow_rate_diff / self.get_dt()
+            self.dPdx = self.dPdx + dpdx_change
+            self.dpdx = PhysicalField.FromFunc(
+                self.get_physical_domain(),
+                lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
+            ).hat()
+            self.dpdz = PhysicalField.FromFunc(
+                self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
+            ).hat()
+            print_verb("current flow rate:", current_flow_rate)
+            print_verb("current pressure gradient:", self.dPdx)
+            return cast(float, current_flow_rate)
+        else:
+            self.flow_rate = self.get_flow_rate()
+            self.dpdx = PhysicalField.FromFunc(
+                self.get_physical_domain(),
+                lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
+            ).hat()
+            self.dpdz = PhysicalField.FromFunc(
+                self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
+            ).hat()
+            print_verb("current flow rate:", self.flow_rate)
+            print_verb("current pressure gradient:", self.dPdx)
+            return self.flow_rate
 
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> "np_float_array":
         return self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(1)
@@ -1493,6 +1533,29 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
+
+            if self.constant_mass_flux and step == number_of_rk_steps - 1:
+
+                # current_flow_rate = cast(float, FourierField(self.get_physical_domain(), vel_new_hat_field[0, ...]).no_hat().definite_integral(1)[0,0]) # type: ignore
+                current_flow_rate = self.update_pressure_gradient(vel_new_hat_field)
+                flow_rate_diff = current_flow_rate - self.flow_rate
+                print_verb("flow_rate_diff", flow_rate_diff)
+                velocity_correction_hat = jnp.array(
+                    [
+                        (
+                            self.get_physical_domain().field_hat(
+                                jnp.ones_like(vel_new_hat_field[i])
+                                * (-1 * flow_rate_diff * 0.5)
+                            )
+                            if i == 0
+                            else jnp.zeros_like(vel_new_hat_field[i])
+                        )
+                        for i in self.all_dimensions()
+                    ]
+                )
+                vel_new_hat_field += velocity_correction_hat
+                self.update_pressure_gradient(vel_new_hat_field)
+
             vel_hat_data = vel_new_hat_field
 
         if not Field.activate_jit_:
