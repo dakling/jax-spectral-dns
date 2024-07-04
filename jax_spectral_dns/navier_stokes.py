@@ -1621,6 +1621,7 @@ class NavierStokesVelVort(Equation):
                     # )
 
                     dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+                    print(dPdx)
                     print(dPdx.shape)
                 else:
                     if Equation.verbosity_level >= 3:
