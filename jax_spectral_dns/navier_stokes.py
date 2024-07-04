@@ -1311,10 +1311,6 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    dpdx_ = PhysicalField.FromFunc(
-                        self.get_physical_domain(),
-                        lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
-                    ).hat()
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
@@ -1322,7 +1318,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx_[kx__, :, kz__],
+                            -dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1334,7 +1330,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx_[kx__, :, kz__],
+                            -dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1619,8 +1615,8 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    # HACK to avoid tracer error. TODO: make this nice (pass dpdx as argument like velocity field)
                     dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+                    print(dPdx.shape)
 
                     dpdx = PhysicalField.FromFunc(
                         self.get_physical_domain(),
