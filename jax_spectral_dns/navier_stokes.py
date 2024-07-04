@@ -1692,13 +1692,14 @@ class NavierStokesVelVort(Equation):
         def step_fn(
             u0: Tuple["jnp_array", int], _: Any
         ) -> Tuple[Tuple["jnp_array", int], Tuple["jnp_array", int]]:
-            out, dPdx, _ = jax.lax.scan(
+            u0, dPdx, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
                 xs=None,
                 length=number_of_inner_steps,
                 # inner_step_fn, u0, xs=None, length=number_of_inner_steps
             )
+            out = (u0, dPdx)
             return out, out
 
         def median_factor(n: int) -> int:
