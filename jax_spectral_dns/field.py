@@ -1471,8 +1471,8 @@ class PhysicalField(Field):
 
                 elif self.physical_domain.number_of_dimensions == 2:
                     fig = figure.Figure(figsize=(15, 5))
-                    ax = np.array([fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)])
-                    assert type(ax) is np.ndarray
+                    ax_ = np.array([fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)])
+                    assert type(ax_) is np.ndarray
                     ax3d = fig.add_subplot(1, 3, 3, projection="3d")
                     assert type(ax3d) is Axes3D
                     for dimension in self.all_dimensions():
@@ -1480,7 +1480,7 @@ class PhysicalField(Field):
                             i for i in self.all_dimensions() if i != dimension
                         ][0]
                         N_c = self.physical_domain.number_of_cells(other_dim) // 2
-                        ax[dimension].plot(
+                        ax_[dimension].plot(
                             self.physical_domain.grid[dimension],
                             self.data.take(indices=N_c, axis=other_dim),
                             label=self.name,
@@ -1491,7 +1491,7 @@ class PhysicalField(Field):
                             self.data,
                         )
                         for other_field in other_fields:
-                            ax[dimension].plot(
+                            ax_[dimension].plot(
                                 other_field.physical_domain.grid[dimension],
                                 other_field.data.take(indices=N_c, axis=other_dim),
                                 "--",
@@ -1529,8 +1529,8 @@ class PhysicalField(Field):
                 elif self.physical_domain.number_of_dimensions == 3:
                     fig = figure.Figure()
                     # ax = fig.subplots(1, 3, figsize=(15, 5))
-                    ax = fig.subplots(1, 3)
-                    assert type(ax) is np.ndarray
+                    ax__ = fig.subplots(1, 3)
+                    assert type(ax__) is np.ndarray
                     for dimension in self.all_dimensions():
                         other_dims = [
                             i for i in self.all_dimensions() if i != dimension
@@ -1539,7 +1539,7 @@ class PhysicalField(Field):
                             self.physical_domain.number_of_cells(dim) // 2
                             for dim in other_dims
                         ]
-                        ax[dimension].plot(
+                        ax__[dimension].plot(
                             self.physical_domain.grid[dimension],
                             self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
                                 indices=N_cs[0], axis=other_dims[0]
@@ -1547,7 +1547,7 @@ class PhysicalField(Field):
                             label=self.name,
                         )
                         for other_field in other_fields:
-                            ax[dimension].plot(
+                            ax__[dimension].plot(
                                 other_field.physical_domain.grid[dimension],
                                 other_field.data.take(
                                     indices=N_cs[1], axis=other_dims[1]

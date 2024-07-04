@@ -21,7 +21,6 @@ setup(
         "optax",
         "humanfriendly",
         "pyyaml",
-        "types-PyYAML",
     ],
     extras_require={
         "notifications": ["PyGObject"],
@@ -31,6 +30,7 @@ setup(
             "pytest-xdist",
             "black",
             "pre-commit",
+            "types-PyYAML",
         ],
     },
     classifiers=[
