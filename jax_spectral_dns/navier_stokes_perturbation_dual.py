@@ -469,16 +469,16 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 [Tuple["jnp_array", int], Any], Tuple[Tuple["jnp_array", int], None]
             ]:
                 def inner_step_fn(
-                    u0: Tuple["jnp_array", int], _: Any
-                ) -> Tuple[Tuple["jnp_array", int], None]:
-                    u0_, time_step = u0
+                    u0: Tuple["jnp_array", float, int], _: Any
+                ) -> Tuple[Tuple["jnp_array", float, int], None]:
+                    u0_, dPdx, time_step = u0
                     self.current_velocity_field_u_history = (
                         current_velocity_field_u_history
                     )
-                    out = self.perform_time_step(u0_, time_step)
+                    out, dPdx = self.perform_time_step(u0_, dPdx, time_step)
                     self.current_velocity_field_u_history = None
 
-                    return ((out, time_step + 1), None)
+                    return ((out, dPdx, time_step + 1), None)
 
                 return inner_step_fn
 

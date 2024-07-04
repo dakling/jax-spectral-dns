@@ -73,7 +73,10 @@ class Heat_Eq(Equation):
         out = self.fields["u"]
 
     def perform_time_step(
-        self, _: Optional[Any] = None, time_step: Optional[int] = None
+        self,
+        _: Optional[Any] = None,
+        __: Optional[Any] = None,
+        time_step: Optional[int] = None,
     ) -> None:
         self.perform_explicit_euler_step()
         self.i += 1

@@ -701,13 +701,24 @@ class NavierStokesVelVort(Equation):
             self.dpdz = PhysicalField.FromFunc(
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
-            print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
+            print_verb(
+                "current flow rate:",
+                current_flow_rate,
+                verbosity_level=3,
+                debug=Field.activate_jit_,
+            )
             print_verb(
                 "current flow rate deficit:",
                 self.flow_rate - current_flow_rate,
                 verbosity_level=3,
+                debug=Field.activate_jit_,
             )
-            print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
+            print_verb(
+                "current pressure gradient:",
+                dPdx_,
+                verbosity_level=3,
+                debug=Field.activate_jit_,
+            )
         else:
             self.flow_rate = self.get_flow_rate()
             self.dpdx = PhysicalField.FromFunc(
@@ -1073,8 +1084,8 @@ class NavierStokesVelVort(Equation):
         return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(
-        self, vel_hat_data: "jnp_array", time_step: int
-    ) -> "jnp_array":
+        self, vel_hat_data: "jnp_array", dPdx: float, time_step: int
+    ) -> Tuple["jnp_array", float]:
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
@@ -1298,11 +1309,11 @@ class NavierStokesVelVort(Equation):
                             v_2_hat_sw_00,
                         ]
                     )
-                    # TODO HACK
-                    try:
-                        dpdx_: "FourierField" = dpdx
-                    except NameError:
-                        dpdx_ = self.dpdx
+
+                    dpdx_ = PhysicalField.FromFunc(
+                        self.get_physical_domain(),
+                        lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
+                    ).hat()
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
@@ -1607,14 +1618,8 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    try:
-                        dPdx: float = self.update_pressure_gradient(
-                            vel_new_hat_field, dPdx
-                        )
-                    except NameError:
-                        dPdx = self.update_pressure_gradient(
-                            vel_new_hat_field, cast(float, self.dPdx)
-                        )
+                    # HACK to avoid tracer error. TODO: make this nice (pass dpdx as argument like velocity field)
+                    dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
 
                     dpdx = PhysicalField.FromFunc(
                         self.get_physical_domain(),
@@ -1641,21 +1646,29 @@ class NavierStokesVelVort(Equation):
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
-        return cast("jnp_array", vel_new_hat_field)
+        return cast("jnp_array", vel_new_hat_field), dPdx
 
     # @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
         self,
         vel_hat_data: Optional["jnp_array"] = None,
+        dPdx: Optional[float] = None,
         time_step: Optional[int] = None,
-    ) -> "jnp_array":
+    ) -> Tuple["jnp_array", float]:
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
         else:
             assert vel_hat_data is not None
             vel_hat_data_ = vel_hat_data
+        if type(dPdx) == NoneType:
+            dPdx_ = self.dPdx
+        else:
+            assert dPdx is not None
+            dPdx_ = dPdx
         assert time_step is not None
-        vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_, time_step)
+        vel_hat_data_new_, dPdx_ = self.perform_runge_kutta_step(
+            vel_hat_data_, cast(float, dPdx_), time_step
+        )
         if type(vel_hat_data) == NoneType:
             vel_hat_new = VectorField(
                 [
@@ -1668,22 +1681,24 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", vel_hat_new)
-        return vel_hat_data_new_
+        return vel_hat_data_new_, dPdx_
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
         def inner_step_fn(
-            u0: Tuple["jnp_array", int], _: Any
-        ) -> Tuple[Tuple["jnp_array", int], None]:
-            u0_, time_step = u0
-            out = self.perform_time_step(u0_, time_step)
-            return ((out, time_step + 1), None)
+            u0: Tuple["jnp_array", "jsd_float", int], _: Any
+        ) -> Tuple[Tuple["jnp_array", "jsd_float", int], None]:
+            u0_, dPdx, time_step = u0
+            out, dPdx = self.perform_time_step(u0_, cast(float, dPdx), time_step)
+            return ((out, dPdx, time_step + 1), None)
 
         def step_fn(
-            u0: Tuple["jnp_array", int], _: Any
-        ) -> Tuple[Tuple["jnp_array", int], Tuple["jnp_array", int]]:
+            u0: Tuple["jnp_array", "jsd_float", int], _: Any
+        ) -> Tuple[
+            Tuple["jnp_array", "jsd_float", int], Tuple["jnp_array", "jsd_float", int]
+        ]:
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
@@ -1704,6 +1719,7 @@ class NavierStokesVelVort(Equation):
             return factors[number_of_factors // 2]
 
         u0 = self.get_initial_field("velocity_hat").get_data()
+        dPdx = self.dPdx
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
@@ -1743,7 +1759,7 @@ class NavierStokesVelVort(Equation):
 
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
-                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
             for u in trajectory[0]:
                 velocity = VectorField(
@@ -1772,7 +1788,7 @@ class NavierStokesVelVort(Equation):
             return (out, len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
-                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
             velocity_final = VectorField(
                 [
@@ -1796,7 +1812,7 @@ class NavierStokesVelVort(Equation):
             return (out, len(ts))
         else:
             u_final, _ = jax.lax.scan(
-                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
             velocity_final = VectorField(
                 [

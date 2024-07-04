@@ -279,7 +279,10 @@ class NavierStokesEDAC(Equation):
         return U
 
     def perform_time_step(
-        self, U: Optional["jnp_array"] = None, i: Optional[int] = None
+        self,
+        U: Optional["jnp_array"] = None,
+        __: Optional[Any] = None,
+        i: Optional[int] = None,
     ) -> "jnp_array":
         assert U is not None
         assert i is not None

@@ -295,7 +295,10 @@ class Equation:
         return iteration_done or time_done
 
     def perform_time_step(
-        self, _: Optional[Any] = None, time_step: Optional[int] = None
+        self,
+        _: Optional[Any] = None,
+        __: Optional[Any] = None,
+        time_step: Optional[int] = None,
     ) -> Any:
         raise NotImplementedError()
 
@@ -395,7 +398,7 @@ class Equation:
                 )
                 start_time = time.time()
                 self.before_time_step()
-                self.perform_time_step(None, i)
+                self.perform_time_step(None, None, i)
                 self.update_time()
                 self.after_time_step()
                 print_verb("Took " + str(time.time() - start_time) + " seconds")
