@@ -380,6 +380,11 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
             print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
+            print_verb(
+                "current flow rate deficit:",
+                self.flow_rate - current_flow_rate,
+                verbosity_level=3,
+            )
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
         else:
             self.flow_rate = self.get_flow_rate(vel_new_field_hat)

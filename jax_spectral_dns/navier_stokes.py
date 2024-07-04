@@ -696,6 +696,11 @@ class NavierStokesVelVort(Equation):
                 self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
             ).hat()
             print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
+            print_verb(
+                "current flow rate deficit:",
+                self.flow_rate - current_flow_rate,
+                verbosity_level=3,
+            )
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
         else:
             self.flow_rate = self.get_flow_rate()
@@ -1539,7 +1544,6 @@ class NavierStokesVelVort(Equation):
 
                     current_flow_rate = self.get_flow_rate(vel_new_hat_field)
                     flow_rate_diff = current_flow_rate - self.flow_rate
-                    print_verb("diff:", flow_rate_diff)
                     # most numerically accurate
                     velocity_correction = jnp.array(
                         [
@@ -1565,7 +1569,7 @@ class NavierStokesVelVort(Equation):
                             for i in self.all_dimensions()
                         ]
                     )
-                    # most efficient but numerical errors seem to be problematic
+                    # most efficient but numerical errors seem to be problematic -> TODO
                     # velocity_correction_hat = jnp.array(
                     #     [
                     #         (
