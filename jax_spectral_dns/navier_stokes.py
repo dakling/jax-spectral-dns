@@ -1607,7 +1607,12 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    dPdx: float = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+                    try:
+                        dPdx: float = self.update_pressure_gradient(
+                            vel_new_hat_field, dPdx
+                        )
+                    except NameError:
+                        dPdx = self.dPdx
 
                     dpdx = PhysicalField.FromFunc(
                         self.get_physical_domain(),
