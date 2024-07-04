@@ -1686,7 +1686,7 @@ class NavierStokesVelVort(Equation):
             u0: Tuple["jnp_array", int], _: Any
         ) -> Tuple[Tuple["jnp_array", int], None]:
             u0_, dPdx, time_step = u0
-            out = self.perform_time_step(u0_, time_step)
+            out = self.perform_time_step(u0_, dPdx, time_step)
             return ((out, time_step + 1), None)
 
         def step_fn(
