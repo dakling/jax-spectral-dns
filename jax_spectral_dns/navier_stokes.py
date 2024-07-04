@@ -1073,7 +1073,7 @@ class NavierStokesVelVort(Equation):
         return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(
-        self, vel_hat_data: "jnp_array", time_step: int
+        self, vel_hat_data: "jnp_array", dPdx, time_step: int
     ) -> "jnp_array":
 
         # start runge-kutta stepping
@@ -1641,12 +1641,13 @@ class NavierStokesVelVort(Equation):
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
-        return cast("jnp_array", vel_new_hat_field)
+        return cast("jnp_array", vel_new_hat_field), dPdx
 
     # @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
         self,
         vel_hat_data: Optional["jnp_array"] = None,
+        dPdx: Optional["jnp_array"] = None,
         time_step: Optional[int] = None,
     ) -> "jnp_array":
         if type(vel_hat_data) == NoneType:
@@ -1654,8 +1655,15 @@ class NavierStokesVelVort(Equation):
         else:
             assert vel_hat_data is not None
             vel_hat_data_ = vel_hat_data
+        if type(dPdx) == NoneType:
+            dPdx_ = self.dPdx
+        else:
+            dPdx_ = dPdx
+
         assert time_step is not None
-        vel_hat_data_new_ = self.perform_runge_kutta_step(vel_hat_data_, time_step)
+        vel_hat_data_new_ = self.perform_runge_kutta_step(
+            vel_hat_data_, dPdx_, time_step
+        )
         if type(vel_hat_data) == NoneType:
             vel_hat_new = VectorField(
                 [
@@ -1668,17 +1676,16 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", vel_hat_new)
-        return vel_hat_data_new_
+        return vel_hat_data_new_, dPdx
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
         cfl_initial = self.get_cfl()
-        print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
         print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
         def inner_step_fn(
             u0: Tuple["jnp_array", int], _: Any
         ) -> Tuple[Tuple["jnp_array", int], None]:
-            u0_, time_step = u0
+            u0_, dPdx, time_step = u0
             out = self.perform_time_step(u0_, time_step)
             return ((out, time_step + 1), None)
 
@@ -1705,6 +1712,7 @@ class NavierStokesVelVort(Equation):
             return factors[number_of_factors // 2]
 
         u0 = self.get_initial_field("velocity_hat").get_data()
+        dPdx = self.dPdx
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
@@ -1744,7 +1752,7 @@ class NavierStokesVelVort(Equation):
 
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
-                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
             for u in trajectory[0]:
                 velocity = VectorField(
@@ -1773,7 +1781,7 @@ class NavierStokesVelVort(Equation):
             return (out, len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
-                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
             velocity_final = VectorField(
                 [
@@ -1797,7 +1805,7 @@ class NavierStokesVelVort(Equation):
             return (out, len(ts))
         else:
             u_final, _ = jax.lax.scan(
-                step_fn, (u0, 0), xs=None, length=number_of_outer_steps
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
             velocity_final = VectorField(
                 [
