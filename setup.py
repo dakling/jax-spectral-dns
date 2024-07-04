@@ -21,6 +21,7 @@ setup(
         "optax",
         "humanfriendly",
         "pyyaml",
+        "types-PyYAML",
     ],
     extras_require={
         "notifications": ["PyGObject"],
