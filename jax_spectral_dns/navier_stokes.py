@@ -681,7 +681,7 @@ class NavierStokesVelVort(Equation):
 
     def update_pressure_gradient(
         self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> "jsd_float":
+    ) -> None:
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
 
@@ -697,7 +697,6 @@ class NavierStokesVelVort(Equation):
             ).hat()
             print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
-            return current_flow_rate
         else:
             self.flow_rate = self.get_flow_rate()
             self.dpdx = PhysicalField.FromFunc(
@@ -709,7 +708,6 @@ class NavierStokesVelVort(Equation):
             ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
-            return self.flow_rate
 
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> "np_float_array":
         return self.get_domain().get_cheb_mat_2_homogeneous_dirichlet(1)
@@ -1536,29 +1534,67 @@ class NavierStokesVelVort(Equation):
                 ]
             )
 
-            if self.constant_mass_flux and step == number_of_rk_steps - 1:
+            if step == number_of_rk_steps - 1:
+                if self.constant_mass_flux:
 
-                # current_flow_rate = cast(float, FourierField(self.get_physical_domain(), vel_new_hat_field[0, ...]).no_hat().definite_integral(1)[0,0]) # type: ignore
-                current_flow_rate = self.update_pressure_gradient(vel_new_hat_field)
-                flow_rate_diff = current_flow_rate - self.flow_rate
-                velocity_correction_hat = jnp.array(
-                    [
-                        (
-                            self.get_physical_domain().field_hat(
-                                jnp.ones_like(vel_new_hat_field[i])
+                    current_flow_rate = self.get_flow_rate(vel_new_hat_field)
+                    flow_rate_diff = current_flow_rate - self.flow_rate
+                    print_verb("diff:", flow_rate_diff)
+                    # most numerically accurate
+                    velocity_correction = jnp.array(
+                        [
+                            (
+                                jnp.ones(
+                                    self.get_physical_domain().get_shape_aliasing()
+                                )
                                 * (-1 * flow_rate_diff * 0.5)
+                                if i == 0
+                                else jnp.zeros(
+                                    self.get_physical_domain().get_shape_aliasing()
+                                )
                             )
-                            if i == 0
-                            else jnp.zeros_like(vel_new_hat_field[i])
-                        )
-                        for i in self.all_dimensions()
-                    ]
-                )
-                vel_new_hat_field += velocity_correction_hat
-                self.update_pressure_gradient(vel_new_hat_field)
-            else:
-                if Equation.verbosity_level >= 3:
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    vel_new_hat_field = jnp.array(
+                        [
+                            self.get_physical_domain().field_hat(
+                                self.get_domain().field_no_hat(vel_new_hat_field[i])
+                                + velocity_correction[i]
+                            )
+                            for i in self.all_dimensions()
+                        ]
+                    )
+                    # most efficient but numerical errors seem to be problematic
+                    # velocity_correction_hat = jnp.array(
+                    #     [
+                    #         (
+                    #             self.get_physical_domain().field_hat(jnp.ones(self.get_physical_domain().get_shape()) * (-1 * flow_rate_diff * 0.5))
+                    #             if i == 0
+                    #             else jnp.zeros(self.get_physical_domain().get_shape())
+                    #         )
+                    #         for i in self.all_dimensions()
+                    #     ]
+                    # )
+                    # vel_new_hat_field = vel_new_hat_field + velocity_correction_hat
+                    # joe's version
+                    # vel_new_hat_field = jnp.array(
+                    #     [
+                    #         (
+                    #             FourierField(
+                    #                 self.get_physical_domain(),
+                    #                 vel_new_hat_field[i, ...],
+                    #             ).no_hat()
+                    #             - flow_rate_diff * 0.5 * (i == 0)
+                    #         ).hat()[...]
+                    #         for i in self.all_dimensions()
+                    #     ]
+                    # )
+
                     self.update_pressure_gradient(vel_new_hat_field)
+                else:
+                    if Equation.verbosity_level >= 3:
+                        self.update_pressure_gradient(vel_new_hat_field)
 
             vel_hat_data = vel_new_hat_field
 

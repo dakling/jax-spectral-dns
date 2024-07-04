@@ -77,9 +77,10 @@ def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
 
     end_time = params.get("end_time", 5.0)
     Nx = params.get("Nx", 128)
-    Ny = params.get("Nx", 128)
+    Ny = params.get("Ny", 128)
     dt = params.get("dt", 5e-3)
     constant_mass_flux = params.get("constant_mass_flux", False)
+    jit = params.get("jit", True)
 
     use_antialias = False
     # use_antialias = True # also works fine
@@ -149,7 +150,10 @@ def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
     nse.initialize()
     nse.set_before_time_step_fn(None)
     nse.set_after_time_step_fn(None)
-    nse.activate_jit()
+    if jit:
+        nse.activate_jit()
+    else:
+        nse.deactivate_jit()
     nse.write_intermediate_output = True
     nse.solve()
 
@@ -814,10 +818,14 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
     )
 
 
-def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux() -> None:
-    Re = 5000
+def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux(**params: Any) -> None:
+    Re = params.get("Re", 5000.0)
 
-    end_time = 500
+    end_time = params.get("end_time", 500.0)
+    Nx = params.get("Nx", 128)
+    Ny = params.get("Nx", 128)
+    dt = params.get("dt", 2.5e-3)
+    jit = params.get("jit", True)
 
     use_antialias = False
     # use_antialias = True # also works fine
@@ -829,10 +837,10 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux() -> None:
         Nz = 2
     nse = solve_navier_stokes_laminar(
         Re=Re,
-        Nx=128,
-        Ny=128,
+        Nx=Nx,
+        Ny=Ny,
         Nz=Nz,
-        dt=2.5e-3,
+        dt=dt,
         end_time=end_time,
         scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
         aliasing=aliasing,
@@ -887,7 +895,10 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux() -> None:
     nse.initialize()
     nse.set_before_time_step_fn(None)
     nse.set_after_time_step_fn(None)
-    nse.activate_jit()
+    if jit:
+        nse.activate_jit()
+    else:
+        nse.deactivate_jit()
     nse.write_intermediate_output = True
     nse.solve()
 
@@ -947,8 +958,16 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux() -> None:
     fig.savefig("plots/energy.png")
 
 
-def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert() -> None:
-    Re = 5000
+def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert(
+    **params: Any,
+) -> None:
+    Re = params.get("Re", 5000.0)
+
+    end_time = params.get("end_time", 500.0)
+    Nx = params.get("Nx", 128)
+    Ny = params.get("Nx", 128)
+    dt = params.get("dt", 5e-3)
+    jit = params.get("jit", True)
 
     end_time = 500.0
 
@@ -962,10 +981,10 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert() -> None:
         Nz = 2
     nse = solve_navier_stokes_perturbation(
         Re=Re,
-        Nx=128,
-        Ny=128,
+        Nx=Nx,
+        Ny=Ny,
         Nz=Nz,
-        dt=5e-3,
+        dt=dt,
         end_time=end_time,
         scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
         aliasing=aliasing,
@@ -1004,7 +1023,10 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert() -> None:
     nse.initialize()
     nse.set_before_time_step_fn(None)
     nse.set_after_time_step_fn(None)
-    nse.activate_jit()
+    if jit:
+        nse.activate_jit()
+    else:
+        nse.deactivate_jit()
     nse.write_intermediate_output = True
     nse.solve()
 

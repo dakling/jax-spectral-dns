@@ -366,7 +366,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
     def update_pressure_gradient(
         self, vel_new_field_hat: Optional["jnp_array"] = None
-    ) -> "jsd_float":
+    ) -> None:
         if self.constant_mass_flux:
             current_flow_rate = self.get_flow_rate(vel_new_field_hat)
             flow_rate_diff = current_flow_rate
@@ -381,7 +381,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             ).hat()
             print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
-            return current_flow_rate
         else:
             self.flow_rate = self.get_flow_rate(vel_new_field_hat)
             self.dpdx = PhysicalField.FromFunc(
@@ -392,7 +391,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", self.dPdx, verbosity_level=3)
-            return self.flow_rate
 
     def set_linearize(self, lin: bool) -> None:
         self.linearize = lin
@@ -529,7 +527,7 @@ def solve_navier_stokes_perturbation(
 
     if not rotated:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            vel, Re=Re, dt=dt, end_time=end_time, prepare_matrices=True, **params
+            vel, Re=Re, dt=dt, end_time=end_time, **params
         )
     else:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
@@ -538,7 +536,6 @@ def solve_navier_stokes_perturbation(
             dt=dt,
             velocity_base_hat=velocity_base_hat,
             end_time=end_time,
-            prepare_matrices=True,
             **params,
         )
 
