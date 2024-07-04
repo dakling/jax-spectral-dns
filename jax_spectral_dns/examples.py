@@ -18,6 +18,7 @@ except ModuleNotFoundError:
     pass
 import jax.numpy as jnp
 import numpy as np
+import pickle
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
@@ -811,6 +812,237 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
         ts,
         vel_pert,
     )
+
+
+def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux() -> None:
+    Re = 5000
+
+    end_time = 500
+
+    use_antialias = False
+    # use_antialias = True # also works fine
+    if use_antialias:
+        aliasing = 3 / 2
+        Nz = 4
+    else:
+        aliasing = 1
+        Nz = 2
+    nse = solve_navier_stokes_laminar(
+        Re=Re,
+        Nx=128,
+        Ny=128,
+        Nz=Nz,
+        dt=2.5e-3,
+        end_time=end_time,
+        scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
+        aliasing=aliasing,
+        constant_mass_flux=True,
+    )
+    u_fn = (
+        lambda X: 1
+        - X[1] ** 2
+        + 0.1
+        * (
+            jnp.sin(X[0])
+            * (
+                jnp.cos(jnp.pi / 2 * X[1]) * (-2 * X[1])
+                - jnp.pi / 2 * jnp.sin(jnp.pi / 2 * X[1]) * (1 - X[1] ** 2)
+            )
+        )
+        + 0 * X[2]
+    )
+    v_fn = (
+        lambda X: 0.1 * (-jnp.cos(X[0]) * (1 - X[1] ** 2) * jnp.cos(jnp.pi / 2 * X[1]))
+        + 0 * X[2]
+    )
+
+    w_fn = lambda X: 0 * X[2]
+
+    vel_x = PhysicalField.FromFunc(nse.get_physical_domain(), u_fn, name="velocity_x")
+    vel_y = PhysicalField.FromFunc(nse.get_physical_domain(), v_fn, name="velocity_y")
+    vel_z = PhysicalField.FromFunc(nse.get_physical_domain(), w_fn, name="velocity_z")
+    vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
+    vel_hat = vel.hat()
+    vel_hat.set_name("velocity_hat")
+    nse.init_velocity(vel_hat)
+
+    u_base_fn = lambda X: 1 - X[1] ** 2
+    v_base_fn = lambda X: 0.0 * jnp.sin(X[2])
+    w_base_fn = lambda X: 0.0 * jnp.sin(X[2])
+
+    vel_base_x = PhysicalField.FromFunc(
+        nse.get_physical_domain(), u_base_fn, name="velocity_base_x"
+    )
+    vel_base_y = PhysicalField.FromFunc(
+        nse.get_physical_domain(), v_base_fn, name="velocity_base_y"
+    )
+    vel_base_z = PhysicalField.FromFunc(
+        nse.get_physical_domain(), w_base_fn, name="velocity_base_z"
+    )
+    vel_base = VectorField([vel_base_x, vel_base_y, vel_base_z], name="velocity_base")
+
+    ts = []
+    energy_t = []
+
+    nse.initialize()
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
+    nse.activate_jit()
+    nse.write_intermediate_output = True
+    nse.solve()
+
+    n_steps = nse.get_number_of_fields("velocity_hat")
+
+    def post_process(nse: NavierStokesVelVort, i: int) -> None:
+        time = (i / (n_steps - 1)) * end_time
+        vel = nse.get_field("velocity_hat", i).no_hat()
+        vel_pert = vel - vel_base
+        vel_pert.set_name("velocity_pert")
+        vel_pert.set_time_step(i)
+        # vort_hat, _ = nse.get_vorticity_and_helicity()
+        # vort = vort_hat.no_hat()
+        # vort.set_time_step(i)
+        if i % 125 == 0:
+            vel[0].plot_3d(2)
+            vel[1].plot_3d(2)
+            vel[2].plot_3d(2)
+            vel_pert[0].plot_3d(2)
+            vel_pert[1].plot_3d(2)
+            vel_pert[2].plot_3d(2)
+            # vort[0].plot_3d(2)
+            # vort[1].plot_3d(2)
+            # vort[2].plot_3d(2)
+            vel[0].plot_center(1)
+            vel[1].plot_center(1)
+            vel[2].plot_center(1)
+        ts.append(time)
+        energy = vel_pert.energy()
+        energy_t.append(energy)
+        print_verb(time, ",", energy)
+
+    nse.set_post_process_fn(post_process)
+    nse.post_process()
+
+    energy_t_arr = np.array(energy_t)
+    fig = figure.Figure()
+    ax = fig.subplots(2, 1)
+    assert type(ax) is np.ndarray
+    try:
+        with open("Re5000_T500_128x128_pert_E_dedalus.pickle", "rb") as f:
+            dedalus_data = pickle.load(f)
+        ax[0].plot(dedalus_data[0], dedalus_data[1], label="dedalus")
+    except FileNotFoundError:
+        print_verb("No dedalus data to compare results with were found.")
+
+    ax[0].plot(ts, energy_t_arr, "--", label="jax")
+    try:
+        ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
+    except Exception:
+        print_verb("No dedalus data to compare results with were found.")
+    ax[1].plot(ts, energy_t_arr / energy_t_arr[0], "--")
+    ax[1].set_xlabel("$t$")
+    ax[0].set_ylabel("$E$")
+    ax[1].set_ylabel("$E/E_0$")
+    fig.legend()
+    fig.savefig("plots/energy.png")
+
+
+def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert() -> None:
+    Re = 5000
+
+    end_time = 500.0
+
+    use_antialias = False
+    # use_antialias = True # also works fine
+    if use_antialias:
+        aliasing = 3 / 2
+        Nz = 4
+    else:
+        aliasing = 1
+        Nz = 2
+    nse = solve_navier_stokes_perturbation(
+        Re=Re,
+        Nx=128,
+        Ny=128,
+        Nz=Nz,
+        dt=5e-3,
+        end_time=end_time,
+        scale_factors=(2 * np.pi, 1.0, 2 * np.pi * 1e-3),
+        aliasing=aliasing,
+        constant_mass_flux=True,
+        prepare_matrices=True,
+    )
+    u_fn = (
+        lambda X: 0.1
+        * (
+            jnp.sin(X[0])
+            * (
+                jnp.cos(jnp.pi / 2 * X[1]) * (-2 * X[1])
+                - jnp.pi / 2 * jnp.sin(jnp.pi / 2 * X[1]) * (1 - X[1] ** 2)
+            )
+        )
+        + 0 * X[2]
+    )
+    v_fn = (
+        lambda X: 0.1 * (-jnp.cos(X[0]) * (1 - X[1] ** 2) * jnp.cos(jnp.pi / 2 * X[1]))
+        + 0 * X[2]
+    )
+
+    w_fn = lambda X: 0 * X[2]
+
+    vel_x = PhysicalField.FromFunc(nse.get_physical_domain(), u_fn, name="velocity_x")
+    vel_y = PhysicalField.FromFunc(nse.get_physical_domain(), v_fn, name="velocity_y")
+    vel_z = PhysicalField.FromFunc(nse.get_physical_domain(), w_fn, name="velocity_z")
+    vel = VectorField([vel_x, vel_y, vel_z], name="velocity")
+    vel_hat = vel.hat()
+    vel_hat.set_name("velocity_hat")
+    nse.init_velocity(vel_hat)
+
+    ts = []
+    energy_t = []
+
+    nse.initialize()
+    nse.set_before_time_step_fn(None)
+    nse.set_after_time_step_fn(None)
+    nse.activate_jit()
+    nse.write_intermediate_output = True
+    nse.solve()
+
+    n_steps = nse.get_number_of_fields("velocity_hat")
+
+    def post_process(nse: NavierStokesVelVort, i: int) -> None:
+        time = (i / (n_steps - 1)) * end_time
+        vel = nse.get_field("velocity_hat", i).no_hat()
+        ts.append(time)
+        energy = vel.energy()
+        energy_t.append(energy)
+        print_verb(time, ",", energy)
+
+    nse.set_post_process_fn(post_process)
+    nse.post_process()
+
+    energy_t_arr = np.array(energy_t)
+    fig = figure.Figure()
+    ax = fig.subplots(2, 1)
+    assert type(ax) is np.ndarray
+    try:
+        with open("Re5000_T500_128x128_pert_E_dedalus.pickle", "rb") as f:
+            dedalus_data = pickle.load(f)
+        ax[0].plot(dedalus_data[0], dedalus_data[1], label="dedalus")
+    except FileNotFoundError:
+        print_verb("No dedalus data to compare results with were found.")
+
+    ax[0].plot(ts, energy_t_arr, "--", label="jax")
+    try:
+        ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
+    except Exception:
+        print_verb("No dedalus data to compare results with were found.")
+    ax[1].plot(ts, energy_t_arr / energy_t_arr[0], "--")
+    ax[1].set_xlabel("$t$")
+    ax[0].set_ylabel("$E$")
+    ax[1].set_ylabel("$E/E_0$")
+    fig.legend()
+    fig.savefig("plots/energy.png")
 
 
 def run_jimenez_1990(**params: Any) -> None:
