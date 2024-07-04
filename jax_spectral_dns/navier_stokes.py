@@ -1673,6 +1673,7 @@ class NavierStokesVelVort(Equation):
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
+        print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
         def inner_step_fn(
             u0: Tuple["jnp_array", int], _: Any
