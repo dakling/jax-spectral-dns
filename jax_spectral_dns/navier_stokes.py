@@ -1632,7 +1632,6 @@ class NavierStokesVelVort(Equation):
                     #         for i in self.all_dimensions()
                     #     ]
                     # )
-                    dPdx = self.update_pressure_gradient(vel_new_hat_field)
 
                     dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
                 else:
