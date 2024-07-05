@@ -1585,7 +1585,7 @@ class NavierStokesVelVort(Equation):
                                     * (-1 * flow_rate_diff * 0.5)
                                 )
                                 if i == 0
-                                else jnp.zeros(self.get_physical_domain().get_shape())
+                                else vel_new_hat_field[i]
                             )
                             for i in self.all_dimensions()
                         ]
