@@ -351,7 +351,7 @@ class Equation:
 
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
-            _, number_of_time_steps = self.solve_scan()
+            _, _, number_of_time_steps = self.solve_scan()
             duration = time.time() - start_time
             try:
                 print_verb(

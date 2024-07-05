@@ -694,17 +694,38 @@ class NavierStokesVelVort(Equation):
             flow_rate_diff = current_flow_rate - self.flow_rate
             dpdx_change = flow_rate_diff / self.get_dt()
             dPdx_ = dPdx_ + dpdx_change
-            print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
+            print_verb(
+                "current flow rate:",
+                current_flow_rate,
+                verbosity_level=3,
+                debug=Field.activate_jit_,
+            )
             print_verb(
                 "current flow rate deficit:",
                 self.flow_rate - current_flow_rate,
                 verbosity_level=3,
+                debug=Field.activate_jit_,
             )
-            print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
+            print_verb(
+                "current pressure gradient:",
+                dPdx_,
+                verbosity_level=3,
+                debug=Field.activate_jit_,
+            )
         else:
             self.flow_rate = self.get_flow_rate()
-            print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
-            print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
+            print_verb(
+                "current flow rate:",
+                self.flow_rate,
+                verbosity_level=3,
+                debug=Field.activate_jit_,
+            )
+            print_verb(
+                "current pressure gradient:",
+                dPdx_,
+                verbosity_level=3,
+                debug=Field.activate_jit_,
+            )
         return cast(float, dPdx_)
 
     def get_cheb_mat_2_homogeneous_dirichlet(self) -> "np_float_array":
