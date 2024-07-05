@@ -1059,8 +1059,8 @@ class NavierStokesVelVort(Equation):
         return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(
-        self, vel_hat_data: "jnp_array", dPdx, time_step: int
-    ) -> "jnp_array":
+        self, vel_hat_data: "jnp_array", dPdx: "jsd_float", time_step: int
+    ) -> Tuple["jnp_array", "jsd_float"]:
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
@@ -1544,8 +1544,6 @@ class NavierStokesVelVort(Equation):
                 conv_ns_hat,
             )
 
-            dPdx = self.update_pressure_gradient()
-
             vel_new_hat_field = jnp.array(
                 [
                     self.get_domain().update_boundary_conditions(vel_new_hat_field[i])
@@ -1615,11 +1613,8 @@ class NavierStokesVelVort(Equation):
                     #         for i in self.all_dimensions()
                     #     ]
                     # )
+                    dPdx = self.update_pressure_gradient(vel_new_hat_field)
 
-                    dpdx = PhysicalField.FromFunc(
-                        self.get_physical_domain(),
-                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    ).hat()
                 else:
                     if Equation.verbosity_level >= 3:
                         self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
