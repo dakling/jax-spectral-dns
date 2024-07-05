@@ -1299,13 +1299,16 @@ class NavierStokesVelVort(Equation):
                     dpdx = (
                         dPdx
                         * (
-                            domain.get_shape_aliasing()[0]
-                            * (2 * jnp.pi / domain.scale_factors[0]) ** 2
+                            (
+                                domain.get_shape_aliasing()[0]
+                                * (2 * jnp.pi / domain.scale_factors[0]) ** 2
+                            )
+                            * (
+                                domain.get_shape_aliasing()[2]
+                                * (2 * jnp.pi / domain.scale_factors[2]) ** 2
+                            )
                         )
-                        * (
-                            domain.get_shape_aliasing()[2]
-                            * (2 * jnp.pi / domain.scale_factors[2]) ** 2
-                        )
+                        ** 0.5
                     )
 
                     N_00_new = jnp.block(
