@@ -507,7 +507,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 return out, out
 
             u0 = self.get_initial_field("velocity_hat").get_data()
-            dPdx = self.forward_equation.dPdx  # TODO
+            # dPdx = self.forward_equation.dPdx  # TODO
+            dPdx = 0.0
             ts = jnp.arange(0, self.end_time, self.get_dt())
 
             if self.write_intermediate_output and not self.write_entire_output:
