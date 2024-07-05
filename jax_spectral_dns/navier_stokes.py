@@ -418,10 +418,6 @@ class NavierStokesVelVort(Equation):
             self.dPdx = -1.0
 
         self.dPdx = self.update_pressure_gradient()
-        self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(),
-            lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
-        ).hat()
 
         self.dpdz = PhysicalField.FromFunc(
             self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
@@ -722,13 +718,6 @@ class NavierStokesVelVort(Equation):
             )
         else:
             self.flow_rate = self.get_flow_rate()
-            self.dpdx = PhysicalField.FromFunc(
-                self.get_physical_domain(),
-                lambda X: dPdx_ + 0.0 * X[0] * X[1] * X[2],
-            ).hat()
-            self.dpdz = PhysicalField.FromFunc(
-                self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-            ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
         return cast(float, dPdx_)
@@ -1085,8 +1074,8 @@ class NavierStokesVelVort(Equation):
         return jnp.array([u_w[0], vel_y, u_w[1]])
 
     def perform_runge_kutta_step(
-        self, vel_hat_data: "jnp_array", dPdx: float, time_step: int
-    ) -> Tuple["jnp_array", float]:
+        self, vel_hat_data: "jnp_array", dPdx: "jsd_float", time_step: int
+    ) -> Tuple["jnp_array", "jsd_float"]:
 
         # start runge-kutta stepping
         _, _, gamma, xi = self.get_rk_parameters()
@@ -1315,16 +1304,28 @@ class NavierStokesVelVort(Equation):
                         self.get_physical_domain(),
                         lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
                     ).hat()
+                    dpdx = (
+                        dPdx
+                        * (
+                            domain.get_shape_aliasing()[0]
+                            * (2 * jnp.pi / domain.scale_factors[0]) ** 2
+                        )
+                        * (
+                            domain.get_shape_aliasing()[2]
+                            * (2 * jnp.pi / domain.scale_factors[2]) ** 2
+                        )
+                    )
 
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
                             -conv_ns_hat_sw_2_00,
                         ]
-                    ) + jnp.block(
+                    )
+                    +jnp.block(
                         [
-                            -dpdx[kx__, :, kz__],
-                            -self.dpdz[kx__, :, kz__],
+                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
+                            -0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
                         ]
                     )
 
@@ -1333,10 +1334,11 @@ class NavierStokesVelVort(Equation):
                             -conv_ns_hat_old_sw_0_00,
                             -conv_ns_hat_old_sw_2_00,
                         ]
-                    ) + jnp.block(
+                    )
+                    +jnp.block(
                         [
-                            -dpdx[kx__, :, kz__],
-                            -self.dpdz[kx__, :, kz__],
+                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
+                            -0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
                         ]
                     )
                     v_hat_new = lhs_mat_inv_00 @ (
@@ -1570,26 +1572,33 @@ class NavierStokesVelVort(Equation):
                     current_flow_rate = self.get_flow_rate(vel_new_hat_field)
                     flow_rate_diff = current_flow_rate - self.flow_rate
                     # most numerically accurate
-                    velocity_correction = jnp.array(
-                        [
-                            (
-                                jnp.ones(
-                                    self.get_physical_domain().get_shape_aliasing()
-                                )
-                                * (-1 * flow_rate_diff * 0.5)
-                                if i == 0
-                                else jnp.zeros(
-                                    self.get_physical_domain().get_shape_aliasing()
-                                )
-                            )
-                            for i in self.all_dimensions()
-                        ]
-                    )
+                    # velocity_correction = jnp.array(
+                    #     [
+                    #         (
+                    #             jnp.ones(
+                    #                 self.get_physical_domain().get_shape_aliasing()
+                    #             )
+                    #             * (-1 * flow_rate_diff * 0.5)
+                    #             if i == 0
+                    #             else jnp.zeros(
+                    #                 self.get_physical_domain().get_shape_aliasing()
+                    #             )
+                    #         )
+                    #         for i in self.all_dimensions()
+                    #     ]
+                    # )
                     vel_new_hat_field = jnp.array(
                         [
-                            self.get_physical_domain().field_hat(
-                                self.get_domain().field_no_hat(vel_new_hat_field[i])
-                                + velocity_correction[i]
+                            (
+                                self.get_physical_domain().field_hat(
+                                    self.get_domain().field_no_hat(vel_new_hat_field[i])
+                                    + jnp.ones(
+                                        self.get_physical_domain().get_shape_aliasing()
+                                    )
+                                    * (-1 * flow_rate_diff * 0.5)
+                                )
+                                if i == 0
+                                else jnp.zeros(self.get_physical_domain().get_shape())
                             )
                             for i in self.all_dimensions()
                         ]
@@ -1619,6 +1628,7 @@ class NavierStokesVelVort(Equation):
                     #         for i in self.all_dimensions()
                     #     ]
                     # )
+                    dPdx = self.update_pressure_gradient(vel_new_hat_field)
 
                     dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
                 else:
@@ -1648,9 +1658,9 @@ class NavierStokesVelVort(Equation):
     def perform_time_step(
         self,
         vel_hat_data: Optional["jnp_array"] = None,
-        dPdx: Optional[float] = None,
+        dPdx: Optional["float"] = None,
         time_step: Optional[int] = None,
-    ) -> Tuple["jnp_array", float]:
+    ) -> Tuple["jnp_array", "jsd_float"]:
         if type(vel_hat_data) == NoneType:
             vel_hat_data_ = self.get_latest_field("velocity_hat").get_data()
         else:
