@@ -415,6 +415,7 @@ class NavierStokesVelVort(Equation):
         else:
             if not params.get("non_verbose", False):
                 print_verb("enforcing constant pressure gradient")
+            self.flow_rate = self.get_flow_rate()
             self.dPdx = -1.0
 
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
