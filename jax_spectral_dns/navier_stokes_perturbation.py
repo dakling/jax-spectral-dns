@@ -365,13 +365,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             print_verb("enforcing constant pressure gradient")
             self.dPdx = 0.0
 
-        self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
-        self.dpdz = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
-
     def update_pressure_gradient(
         self,
         vel_new_field_hat: Optional["jnp_array"] = None,

@@ -419,10 +419,6 @@ class NavierStokesVelVort(Equation):
 
         self.dPdx = self.update_pressure_gradient()
 
-        self.dpdz = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
-
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
         cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
