@@ -411,7 +411,6 @@ class NavierStokesVelVort(Equation):
             if not params.get("non_verbose", False):
                 print_verb("enforcing constant mass flux")
             self.flow_rate = self.get_flow_rate()
-            self.dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
         else:
             if not params.get("non_verbose", False):
                 print_verb("enforcing constant pressure gradient")
