@@ -1676,7 +1676,7 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             self.append_field("velocity_hat", vel_hat_new)
-        return vel_hat_data_new_, dPdx
+        return vel_hat_data_new_, dPdx_
 
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[FourierField]], int]:
         cfl_initial = self.get_cfl()
