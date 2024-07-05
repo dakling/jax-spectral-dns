@@ -1300,10 +1300,10 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    dpdx = PhysicalField.FromFunc(
-                        self.get_physical_domain(),
-                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    ).hat()
+                    # dpdx = PhysicalField.FromFunc(
+                    #     self.get_physical_domain(),
+                    #     lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
+                    # ).hat()
 
                     N_00_new = jnp.block(
                         [
@@ -1312,7 +1312,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx[kx__, :, kz__],
+                            # -dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1324,7 +1324,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx[kx__, :, kz__],
+                            # -dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
