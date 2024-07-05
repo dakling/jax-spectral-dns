@@ -1576,15 +1576,15 @@ class NavierStokesVelVort(Equation):
                             for i in self.all_dimensions()
                         ]
                     )
-                    vel_new_hat_field = jnp.array(
-                        [
-                            self.get_physical_domain().field_hat(
-                                self.get_domain().field_no_hat(vel_new_hat_field[i])
-                                + velocity_correction[i]
-                            )
-                            for i in self.all_dimensions()
-                        ]
-                    )
+                    # vel_new_hat_field = jnp.array(
+                    #     [
+                    #         self.get_physical_domain().field_hat(
+                    #             self.get_domain().field_no_hat(vel_new_hat_field[i])
+                    #             + velocity_correction[i]
+                    #         )
+                    #         for i in self.all_dimensions()
+                    #     ]
+                    # )
                     # most efficient but numerical errors seem to be problematic -> TODO
                     # velocity_correction_hat = jnp.array(
                     #     [
@@ -1611,7 +1611,8 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+                    # dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+                    dPdx = 0.0
 
                 else:
                     if Equation.verbosity_level >= 3:
