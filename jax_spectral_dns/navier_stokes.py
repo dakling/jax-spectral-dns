@@ -423,6 +423,10 @@ class NavierStokesVelVort(Equation):
             lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
         ).hat()
 
+        self.dpdz = PhysicalField.FromFunc(
+            self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
+        ).hat()
+
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
         cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
@@ -698,9 +702,6 @@ class NavierStokesVelVort(Equation):
             flow_rate_diff = current_flow_rate - self.flow_rate
             dpdx_change = flow_rate_diff / self.get_dt()
             dPdx_ = dPdx_ + dpdx_change
-            self.dpdz = PhysicalField.FromFunc(
-                self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-            ).hat()
             print_verb("current flow rate:", current_flow_rate, verbosity_level=3)
             print_verb(
                 "current flow rate deficit:",
@@ -1298,11 +1299,12 @@ class NavierStokesVelVort(Equation):
                             v_2_hat_sw_00,
                         ]
                     )
-                    # TODO HACK
-                    try:
-                        dpdx_: "FourierField" = dpdx
-                    except NameError:
-                        dpdx_ = self.dpdx
+
+                    dpdx = PhysicalField.FromFunc(
+                        self.get_physical_domain(),
+                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
+                    ).hat()
+
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
@@ -1310,7 +1312,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx_[kx__, :, kz__],
+                            -dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1322,7 +1324,7 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx_[kx__, :, kz__],
+                            -dpdx[kx__, :, kz__],
                             -self.dpdz[kx__, :, kz__],
                         ]
                     )
@@ -1609,13 +1611,75 @@ class NavierStokesVelVort(Equation):
                     #     ]
                     # )
 
-                    dpdx = PhysicalField.FromFunc(
-                        self.get_physical_domain(),
-                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    ).hat()
+                    dPdx = self.update_pressure_gradient(vel_new_hat_field, dPdx)
+
                 else:
                     if Equation.verbosity_level >= 3:
                         self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
+
+            # if step == number_of_rk_steps - 1:
+            #     if self.constant_mass_flux:
+
+            #         current_flow_rate = self.get_flow_rate(vel_new_hat_field)
+            #         flow_rate_diff = current_flow_rate - self.flow_rate
+            #         # most numerically accurate
+            #         velocity_correction = jnp.array(
+            #             [
+            #                 (
+            #                     jnp.ones(
+            #                         self.get_physical_domain().get_shape_aliasing()
+            #                     )
+            #                     * (-1 * flow_rate_diff * 0.5)
+            #                     if i == 0
+            #                     else jnp.zeros(
+            #                         self.get_physical_domain().get_shape_aliasing()
+            #                     )
+            #                 )
+            #                 for i in self.all_dimensions()
+            #             ]
+            #         )
+            #         vel_new_hat_field = jnp.array(
+            #             [
+            #                 self.get_physical_domain().field_hat(
+            #                     self.get_domain().field_no_hat(vel_new_hat_field[i])
+            #                     + velocity_correction[i]
+            #                 )
+            #                 for i in self.all_dimensions()
+            #             ]
+            #         )
+            #         # most efficient but numerical errors seem to be problematic -> TODO
+            #         # velocity_correction_hat = jnp.array(
+            #         #     [
+            #         #         (
+            #         #             self.get_physical_domain().field_hat(jnp.ones(self.get_physical_domain().get_shape()) * (-1 * flow_rate_diff * 0.5))
+            #         #             if i == 0
+            #         #             else jnp.zeros(self.get_physical_domain().get_shape())
+            #         #         )
+            #         #         for i in self.all_dimensions()
+            #         #     ]
+            #         # )
+            #         # vel_new_hat_field = vel_new_hat_field + velocity_correction_hat
+            #         # joe's version
+            #         # vel_new_hat_field = jnp.array(
+            #         #     [
+            #         #         (
+            #         #             FourierField(
+            #         #                 self.get_physical_domain(),
+            #         #                 vel_new_hat_field[i, ...],
+            #         #             ).no_hat()
+            #         #             - flow_rate_diff * 0.5 * (i == 0)
+            #         #         ).hat()[...]
+            #         #         for i in self.all_dimensions()
+            #         #     ]
+            #         # )
+
+            #         dpdx = PhysicalField.FromFunc(
+            #             self.get_physical_domain(),
+            #             lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
+            #         ).hat()
+            #     else:
+            #         if Equation.verbosity_level >= 3:
+            #             self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
 
             vel_hat_data = vel_new_hat_field
 
