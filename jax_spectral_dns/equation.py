@@ -295,7 +295,10 @@ class Equation:
         return iteration_done or time_done
 
     def perform_time_step(
-        self, _: Optional[Any] = None, time_step: Optional[int] = None
+        self,
+        _: Optional[Any] = None,
+        __: Optional[Any] = None,
+        time_step: Optional[int] = None,
     ) -> Any:
         raise NotImplementedError()
 

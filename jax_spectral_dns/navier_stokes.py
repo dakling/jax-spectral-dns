@@ -1285,10 +1285,6 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    dpdx = PhysicalField.FromFunc(
-                        self.get_physical_domain(),
-                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    ).hat()
                     dpdx = (
                         dPdx
                         * (
@@ -1557,21 +1553,6 @@ class NavierStokesVelVort(Equation):
                     current_flow_rate = self.get_flow_rate(vel_new_hat_field)
                     flow_rate_diff = current_flow_rate - self.flow_rate
                     # most numerically accurate
-                    # velocity_correction = jnp.array(
-                    #     [
-                    #         (
-                    #             jnp.ones(
-                    #                 self.get_physical_domain().get_shape_aliasing()
-                    #             )
-                    #             * (-1 * flow_rate_diff * 0.5)
-                    #             if i == 0
-                    #             else jnp.zeros(
-                    #                 self.get_physical_domain().get_shape_aliasing()
-                    #             )
-                    #         )
-                    #         for i in self.all_dimensions()
-                    #     ]
-                    # )
                     vel_new_hat_field = jnp.array(
                         [
                             (
@@ -1613,7 +1594,9 @@ class NavierStokesVelVort(Equation):
                     #         for i in self.all_dimensions()
                     #     ]
                     # )
-                    dPdx = self.update_pressure_gradient(vel_new_hat_field)
+                    dPdx = self.update_pressure_gradient(
+                        vel_new_hat_field, cast(float, dPdx)
+                    )
 
                 else:
                     if Equation.verbosity_level >= 3:
@@ -1681,7 +1664,7 @@ class NavierStokesVelVort(Equation):
             u0: Tuple["jnp_array", "jsd_float", int], _: Any
         ) -> Tuple[Tuple["jnp_array", "jsd_float", int], None]:
             u0_, dPdx, time_step = u0
-            out, dPdx = self.perform_time_step(u0_, dPdx, time_step)
+            out, dPdx = self.perform_time_step(u0_, cast(float, dPdx), time_step)
             return ((out, dPdx, time_step + 1), None)
 
         def step_fn(
@@ -1710,8 +1693,7 @@ class NavierStokesVelVort(Equation):
             return factors[number_of_factors // 2]
 
         u0 = self.get_initial_field("velocity_hat").get_data()
-        # dPdx = self.dPdx
-        dPdx = 1.0
+        dPdx = self.dPdx
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
