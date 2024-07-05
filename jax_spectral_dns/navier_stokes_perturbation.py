@@ -359,10 +359,38 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
 
         if self.constant_mass_flux:
             print_verb("enforcing constant mass flux")
-            self.flow_rate = self.get_flow_rate()
+            self.flow_rate = 0.0
             self.dPdx = 0.0
+            current_flow_rate = self.get_flow_rate()
+            print_verb("mass flux before correction:", current_flow_rate)
+            flow_rate_diff = current_flow_rate - self.flow_rate
+            vel_new_hat_field = self.get_initial_field("velocity_hat").get_data()
+            vel_new_hat_field = jnp.array(
+                [
+                    (
+                        self.get_physical_domain().field_hat(
+                            self.get_domain().field_no_hat(vel_new_hat_field[i])
+                            + jnp.ones(self.get_physical_domain().get_shape_aliasing())
+                            * (-1 * flow_rate_diff * 0.5)
+                        )
+                        if i == 0
+                        else vel_new_hat_field[i]
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            v0_corr: VectorField[FourierField] = VectorField.FromData(
+                FourierField,
+                self.get_physical_domain(),
+                vel_new_hat_field,
+                name="velocity_hat",
+            )
+            self.set_initial_field("velocity_hat", v0_corr)
+            print_verb("correcting initial condition to have zero mass flux")
+            print_verb("mass flux after correction:", self.get_flow_rate())
         else:
             print_verb("enforcing constant pressure gradient")
+            self.flow_rate = self.get_flow_rate()
             self.dPdx = 0.0
 
     def update_pressure_gradient(

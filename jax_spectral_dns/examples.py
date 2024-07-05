@@ -1949,7 +1949,9 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     else:
         v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
     v0_hat.set_name("velocity_hat")
-    nse = NavierStokesVelVortPerturbation(v0_hat, Re=Re, dt=dt, end_time=end_time)
+    nse = NavierStokesVelVortPerturbation(
+        v0_hat, Re=Re, dt=dt, end_time=end_time, constant_mass_flux=True
+    )
     # nse.set_linearize(True)
     nse.set_linearize(False)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
