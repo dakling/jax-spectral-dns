@@ -417,8 +417,6 @@ class NavierStokesVelVort(Equation):
                 print_verb("enforcing constant pressure gradient")
             self.dPdx = -1.0
 
-        self.dPdx = self.update_pressure_gradient()
-
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
         cont_error = jnp.sqrt(velocity_field.no_hat().div().energy())
@@ -1695,7 +1693,6 @@ class NavierStokesVelVort(Equation):
         ) -> Tuple[
             Tuple["jnp_array", "jsd_float", int], Tuple["jnp_array", "jsd_float", int]
         ]:
-            out_ = inner_step_fn(u0, None)
             out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
