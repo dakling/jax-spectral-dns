@@ -1300,10 +1300,6 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    dpdx = PhysicalField.FromFunc(
-                        self.get_physical_domain(),
-                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    ).hat()
                     dpdx = (
                         dPdx
                         * (
