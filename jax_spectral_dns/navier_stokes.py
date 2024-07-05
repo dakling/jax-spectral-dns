@@ -1686,20 +1686,19 @@ class NavierStokesVelVort(Equation):
             u0: Tuple["jnp_array", int], _: Any
         ) -> Tuple[Tuple["jnp_array", int], None]:
             u0_, dPdx, time_step = u0
-            out = self.perform_time_step(u0_, dPdx, time_step)
-            return ((out[0], out[1], time_step + 1), None)
+            out, dPdx = self.perform_time_step(u0_, dPdx, time_step)
+            return ((out, dPdx, time_step + 1), None)
 
         def step_fn(
             u0: Tuple["jnp_array", int], _: Any
         ) -> Tuple[Tuple["jnp_array", int], Tuple["jnp_array", int]]:
-            u0, dPdx, _ = jax.lax.scan(
+            out, _ = jax.lax.scan(
                 jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                 u0,
                 xs=None,
                 length=number_of_inner_steps,
                 # inner_step_fn, u0, xs=None, length=number_of_inner_steps
             )
-            out = u0, dPdx
             return out, out
 
         def median_factor(n: int) -> int:
