@@ -490,11 +490,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 Tuple["jnp_array", "jsd_float", int],
                 Tuple["jnp_array", "jsd_float", int],
             ]:
+                dPdx = u0[1]
                 timestep = u0[2]
                 outer_start_step = timestep // self.number_of_inner_steps
                 self.current_u_history_start_step = outer_start_step
                 current_velocity_field_u_history, dPdx = (
-                    self.run_forward_calculation_subrange(outer_start_step)
+                    self.run_forward_calculation_subrange(dPdx, outer_start_step)
                 )
                 out, _ = jax.lax.scan(
                     jax.checkpoint(get_inner_step_fn(current_velocity_field_u_history, dPdx)),  # type: ignore[attr-defined]
@@ -599,13 +600,14 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             except Exception:
                 print_verb("forward calculation took", iteration_duration, "seconds")
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
+            self.dPdx = dPdx  # TODO
         self.set_initial_field(
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
         )
         self.forward_equation = nse  # not sure if this is necessary
 
     def run_forward_calculation_subrange(
-        self, outer_timestep: int
+        self, dPdx: "jsd_float", outer_timestep: int
     ) -> Tuple["jnp_array", "jsd_float"]:
         nse = self.forward_equation
         nse.write_intermediate_output = True
@@ -621,10 +623,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             name="velocity_hat",
         )
         nse.set_initial_field("velocity_hat", init_field)
+        nse.dPdx = dPdx
         nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
-        velocity_u_hat_history_, dPdx, _ = nse.solve_scan()
+        velocity_u_hat_history_, dPdx_, _ = nse.solve_scan()
         current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
-        return current_velocity_field_u_history, dPdx
+        return current_velocity_field_u_history, dPdx_
 
     def run_backward_calculation(self) -> None:
         if not self.is_backward_calculation_done():
