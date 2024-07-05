@@ -418,14 +418,6 @@ class NavierStokesVelVort(Equation):
             self.dPdx = -1.0
 
         self.dPdx = self.update_pressure_gradient()
-        self.dpdx = PhysicalField.FromFunc(
-            self.get_physical_domain(),
-            lambda X: self.dPdx + 0.0 * X[0] * X[1] * X[2],
-        ).hat()
-
-        self.dpdz = PhysicalField.FromFunc(
-            self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-        ).hat()
 
         print_verb("calculated flow rate: ", self.flow_rate, verbosity_level=3)
 
@@ -711,13 +703,6 @@ class NavierStokesVelVort(Equation):
             print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
         else:
             self.flow_rate = self.get_flow_rate()
-            self.dpdx = PhysicalField.FromFunc(
-                self.get_physical_domain(),
-                lambda X: dPdx_ + 0.0 * X[0] * X[1] * X[2],
-            ).hat()
-            self.dpdz = PhysicalField.FromFunc(
-                self.get_physical_domain(), lambda X: 0.0 + 0.0 * X[0] * X[1] * X[2]
-            ).hat()
             print_verb("current flow rate:", self.flow_rate, verbosity_level=3)
             print_verb("current pressure gradient:", dPdx_, verbosity_level=3)
         return cast(float, dPdx_)
@@ -1300,10 +1285,21 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    # dpdx = PhysicalField.FromFunc(
-                    #     self.get_physical_domain(),
-                    #     lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    # ).hat()
+                    dpdx = PhysicalField.FromFunc(
+                        self.get_physical_domain(),
+                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
+                    ).hat()
+                    dpdx = (
+                        dPdx
+                        * (
+                            domain.get_shape_aliasing()[0]
+                            * (2 * jnp.pi / domain.scale_factors[0]) ** 2
+                        )
+                        * (
+                            domain.get_shape_aliasing()[2]
+                            * (2 * jnp.pi / domain.scale_factors[2]) ** 2
+                        )
+                    )
 
                     N_00_new = jnp.block(
                         [
@@ -1311,12 +1307,12 @@ class NavierStokesVelVort(Equation):
                             -conv_ns_hat_sw_2_00,
                         ]
                     )
-                    # + jnp.block(
-                    #     [
-                    #         # -dpdx[kx__, :, kz__],
-                    #         -self.dpdz[kx__, :, kz__],
-                    #     ]
-                    # )
+                    +jnp.block(
+                        [
+                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
+                            -0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
+                        ]
+                    )
 
                     N_00_old = jnp.block(
                         [
@@ -1324,12 +1320,12 @@ class NavierStokesVelVort(Equation):
                             -conv_ns_hat_old_sw_2_00,
                         ]
                     )
-                    # + jnp.block(
-                    #     [
-                    #         # -dpdx[kx__, :, kz__],
-                    #         -self.dpdz[kx__, :, kz__],
-                    #     ]
-                    # )
+                    +jnp.block(
+                        [
+                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
+                            -0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
+                        ]
+                    )
                     v_hat_new = lhs_mat_inv_00 @ (
                         rhs_mat_00 @ v_hat
                         + (self.get_dt() * gamma[step]) * N_00_new
