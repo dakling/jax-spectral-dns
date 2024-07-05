@@ -411,6 +411,7 @@ class NavierStokesVelVort(Equation):
             if not params.get("non_verbose", False):
                 print_verb("enforcing constant mass flux")
             self.flow_rate = self.get_flow_rate()
+            self.dPdx = -self.flow_rate * 3 / 2 / self.get_Re_tau()
         else:
             if not params.get("non_verbose", False):
                 print_verb("enforcing constant pressure gradient")
@@ -1713,6 +1714,7 @@ class NavierStokesVelVort(Equation):
 
         u0 = self.get_initial_field("velocity_hat").get_data()
         dPdx = self.dPdx
+        self.dPdx = 0.0
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
