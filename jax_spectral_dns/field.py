@@ -2337,12 +2337,12 @@ class FourierField(Field):
                 elif self.get_physical_domain().number_of_dimensions == 2:
                     # TODO generalize this - currently this assumes that the field has been averaged over y
                     fig = figure.Figure()
-                    ax = fig.subplots(1, 1)
-                    assert type(ax) is Axes
+                    ax_ = fig.subplots(1, 1)
+                    assert type(ax_) is Axes
                     ims = []
                     other_dim = [i for i in self.all_dimensions()]
                     ims.append(
-                        ax.imshow(
+                        ax_.imshow(
                             np.fft.fftshift(abs(self.data.T)),
                             interpolation=None,
                             extent=(
@@ -2353,15 +2353,17 @@ class FourierField(Field):
                             ),
                         )
                     )
-                    ax.set_xlabel("xz"[other_dim[0]])
-                    ax.set_ylabel("xz"[other_dim[1]])
+                    ax_.set_xlabel("xz"[other_dim[0]])
+                    ax_.set_ylabel("xz"[other_dim[1]])
                     # Find the min and max of all colors for use in setting the color scale.
                     vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
                     vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
                     norm = colors.Normalize(vmin=vmin, vmax=vmax)
                     for im in ims:
                         im.set_norm(norm)
-                    fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+                    fig.colorbar(
+                        ims[0], ax=ax_, label=self.name, orientation="vertical"
+                    )
 
                     def save() -> None:
                         fig.savefig(

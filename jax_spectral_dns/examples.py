@@ -955,7 +955,7 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux(**params: Any) -> N
     ax[0].set_ylabel("$E$")
     ax[1].set_ylabel("$E/E_0$")
     fig.legend()
-    fig.savefig("plots/energy.png")
+    fig.savefig(Field.plotting_dir + "/energy.png")
 
 
 def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert(
@@ -1064,7 +1064,7 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux_pert(
     ax[0].set_ylabel("$E$")
     ax[1].set_ylabel("$E/E_0$")
     fig.legend()
-    fig.savefig("plots/energy.png")
+    fig.savefig(Field.plotting_dir + "/energy.png")
 
 
 def run_jimenez_1990(**params: Any) -> None:
