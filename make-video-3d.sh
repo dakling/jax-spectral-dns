@@ -35,7 +35,7 @@ combine_six_mp4(){
     scfmt="640:480"
     layout="0_0|w0_0|w0+w1_0|0_h0|w0_h0|w0+w1_h0"
     scale="[0:v] scale=$scfmt [a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [4:v] scale=$scfmt [a4]; [5:v] scale=$scfmt [a5]; [a0][a1][a2][a3][a4][a5]xstack=inputs=6:layout=$layout[v]"
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" &> /dev/null
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" #&> /dev/null
 }
 
 make_video_gif(){
@@ -144,18 +144,18 @@ make_video isosurfaces_vel_0_y __isosurfaces_vel_0_y
 make_video isosurfaces_vel_0_z __isosurfaces_vel_0_z
 make_video phase_space __phase_space
 make_video gain_over_iterations __gain_over_iterations
-make_video 3d_y_velocity_hat_0_x __3d_y_velocity_hat_0_x
-combine_six initial_condition_evolution_isosurfaces __isosurfaces_vel_0_x __isosurfaces_vel_0_y __isosurfaces_vel_0_z __gain_over_iterations __phase_space __3d_y_velocity_hat_0_x
+make_video 3d_y_vel_y_avg_hat_0_x __3d_y_vel_y_avg_hat_0_x
+combine_six initial_condition_evolution_isosurfaces __isosurfaces_vel_0_x __isosurfaces_vel_0_y __isosurfaces_vel_0_z __gain_over_iterations __phase_space __3d_y_vel_y_avg_hat_0_x
 
 make_video 3d_z_vel_0_x __3d_z_vel_0_x
 make_video 3d_z_vel_0_y __3d_z_vel_0_y
 make_video 3d_z_vel_0_z __3d_z_vel_0_z
-combine_six initial_condition_evolution_z __3d_z_vel_0_x __3d_z_vel_0_y __3d_z_vel_0_z __gain_over_iterations __phase_space __3d_y_velocity_hat_0_x
+combine_six initial_condition_evolution_z __3d_z_vel_0_x __3d_z_vel_0_y __3d_z_vel_0_z __gain_over_iterations __phase_space __3d_y_vel_y_avg_hat_0_x
 
 make_video 3d_x_vel_0_x __3d_x_vel_0_x
 make_video 3d_x_vel_0_y __3d_x_vel_0_y
 make_video 3d_x_vel_0_z __3d_x_vel_0_z
-combine_six initial_condition_evolution_x __3d_x_vel_0_x __3d_x_vel_0_y __3d_x_vel_0_z __gain_over_iterations __phase_space __3d_y_velocity_hat_0_x
+combine_six initial_condition_evolution_x __3d_x_vel_0_x __3d_x_vel_0_y __3d_x_vel_0_z __gain_over_iterations __phase_space __3d_y_vel_y_avg_hat_0_x
 
 # final calculation
 make_video isosurfaces_velocity_x __isosurfaces_velocity_x

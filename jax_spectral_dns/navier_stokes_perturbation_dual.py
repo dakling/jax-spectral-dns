@@ -360,6 +360,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.current_velocity_field_u_history: Optional["jnp_array"] = None
             self.current_u_history_start_step = -1
             self.current_dPdx_history: Optional[List["jsd_float"]] = None
+            self.dPdx_fwd: jsd_float = 0.0
         else:
             print_verb("not using checkpointing")
         self.forward_equation.activate_jit()
@@ -420,15 +421,30 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     def get_dPdx(self, timestep: int) -> "jsd_float":
         if self.checkpointing:
             assert self.current_dPdx_history is not None
-            return self.current_dPdx_history[
-                -1
-                - (
-                    timestep
-                    - self.current_u_history_start_step * self.number_of_inner_steps
-                )
-            ]
+            ts = (
+                timestep
+                - self.current_u_history_start_step * self.number_of_inner_steps
+            )
+            return jax.lax.cond(
+                ts >= len(self.current_dPdx_history),
+                lambda: self.dPdx_fwd,  # TODO
+                lambda: self.current_dPdx_history[-1 - ts],
+            )
+            # return self.current_dPdx_history[
+            #     -1
+            #     - (
+            #         timestep
+            #         - self.current_u_history_start_step * self.number_of_inner_steps
+            #     )
+            # ]
         else:
-            return cast("jsd_float", self.dPdx_history.at[-1 - timestep].get())  # type: ignore[union-attr]
+            assert self.dPdx_history is not None
+            return jax.lax.cond(
+                timestep >= len(self.dPdx_history),
+                lambda: 0.0,
+                lambda: self.dPdx_history[-1 - timestep],
+            )
+            # return self.dPdx_history[-1 - timestep]
 
     def update_with_nse(self) -> None:
         self.forward_equation.write_entire_output = True
@@ -473,6 +489,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     def enforce_constant_mass_flux(
         self, vel_new_hat_field: "jnp_array", _: "jsd_float", time_step: int
     ) -> Tuple["jnp_array", "jsd_float"]:
+
         return vel_new_hat_field, -self.get_dPdx(time_step + 1)
 
     def solve_scan(
@@ -660,9 +677,14 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             name="velocity_hat",
         )
         assert self.dPdx_history is not None
-        dPdx = self.dPdx_history[step]
+        dPdx = jax.lax.cond(
+            outer_timestep >= self.number_of_outer_steps - 1,
+            lambda: 0.0,
+            lambda: self.dPdx_history[step],
+        )
         nse.set_initial_field("velocity_hat", init_field)
         nse.dPdx = dPdx
+        self.dPdx_fwd = dPdx
         nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
         velocity_u_hat_history, current_dPdx_history, _ = nse.solve_scan()
         current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history)
@@ -676,6 +698,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.write_entire_output = False
             self.write_intermediate_output = False
             self.activate_jit()
+            assert self.dPdx_history is not None
+            self.dPdx = -self.dPdx_history[-1]
             print_verb("performing backward (adjoint) calculation...")
             self.solve()
 
