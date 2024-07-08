@@ -1161,16 +1161,16 @@ def run_transient_growth_nonpert(
     **params: Any,
 ) -> Tuple[float, float, List[float], List[float]]:
 
-    Re: float = params.get("Re:", 3000.0)
-    T: float = params.get("T:", 15.0)
-    alpha: float = params.get("alpha:", 1.0)
-    beta: float = params.get("beta:", 0.0)
-    end_time: Optional[float] = params.get("end_time:", None)
-    eps: float = params.get("eps:", 1e-3)
-    Nx: int = params.get("Nx:", 4)
-    Ny: int = params.get("Ny:", 50)
-    Nz: int = params.get("Nz:", 4)
-    plot: bool = params.get("plot:", True)
+    Re: float = params.get("Re", 3000.0)
+    T: float = params.get("T", 15.0)
+    alpha: float = params.get("alpha", 1.0)
+    beta: float = params.get("beta", 0.0)
+    end_time: Optional[float] = params.get("end_time", None)
+    eps: float = params.get("eps", 1e-3)
+    Nx: int = params.get("Nx", 4)
+    Ny: int = params.get("Ny", 50)
+    Nz: int = params.get("Nz", 4)
+    plot: bool = params.get("plot", True)
     number_of_modes = params.get("number_of_modes", 60)
 
     if end_time is None:
@@ -1315,17 +1315,17 @@ def run_transient_growth_nonpert(
 def run_transient_growth(
     **params: Any,
 ) -> Tuple[float, float, List[float], List[float]]:
-    Re: float = params.get("Re:", 3000.0)
-    T: float = params.get("T:", 15.0)
-    alpha: float = params.get("alpha:", 1.0)
-    beta: float = params.get("beta:", 0.0)
-    end_time: Optional[float] = params.get("end_time:", None)
-    eps: float = params.get("eps:", 1e-5)
-    Nx: int = params.get("Nx:", 4)
-    Ny: int = params.get("Ny:", 50)
-    Nz: int = params.get("Nz:", 4)
-    linearize: bool = params.get("linearize:", True)
-    plot: bool = params.get("plot:", True)
+    Re: float = params.get("Re", 3000.0)
+    T: float = params.get("T", 15.0)
+    alpha: float = params.get("alpha", 1.0)
+    beta: float = params.get("beta", 0.0)
+    end_time: Optional[float] = params.get("end_time", None)
+    eps: float = params.get("eps", 1e-5)
+    Nx: int = params.get("Nx", 4)
+    Ny: int = params.get("Ny", 50)
+    Nz: int = params.get("Nz", 4)
+    linearize: bool = params.get("linearize", True)
+    plot: bool = params.get("plot", True)
     number_of_modes = params.get("number_of_modes", 60)
 
     eps = float(eps)
@@ -1545,13 +1545,13 @@ def run_transient_growth_time_study(
 
 
 def run_optimisation_transient_growth(**params: Any) -> None:
-    Re: float = params.get("Re:", 3000.0)
-    T: float = params.get("T:", 15)
-    Nx: int = params.get("Nx:", 8)
-    Ny: int = params.get("Ny:", 90)
-    Nz: int = params.get("Nz:", 8)
-    number_of_steps: int = params.get("number_of_steps:", 20)
-    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps:", -1)
+    Re: float = params.get("Re", 3000.0)
+    T: float = params.get("T", 15)
+    Nx: int = params.get("Nx", 8)
+    Ny: int = params.get("Ny", 90)
+    Nz: int = params.get("Nz", 8)
+    number_of_steps: int = params.get("number_of_steps", 20)
+    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps", -1)
 
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 0.0)
@@ -1680,13 +1680,13 @@ def run_optimisation_transient_growth(**params: Any) -> None:
 
 
 def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
-    Re: float = params.get("Re:", 3000.0)
-    T: float = params.get("T:", 15.0)
-    Nx: int = params.get("Nx:", 8)
-    Ny: int = params.get("Ny:", 90)
-    Nz: int = params.get("Nz:", 8)
-    number_of_steps: int = params.get("number_of_steps:", 20)
-    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps:", 4)
+    Re: float = params.get("Re", 3000.0)
+    T: float = params.get("T", 15.0)
+    Nx: int = params.get("Nx", 8)
+    Ny: int = params.get("Ny", 90)
+    Nz: int = params.get("Nz", 8)
+    number_of_steps: int = params.get("number_of_steps", 20)
+    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps", 4)
 
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 0.0)
@@ -1829,16 +1829,17 @@ def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
 
 
 def run_optimisation_transient_growth_dual(**params: Any) -> None:
-    Re: float = params.get("Re:", 3000.0)
-    T: float = params.get("T:", 15)
-    Nx: int = params.get("Nx:", 4)
-    Ny: int = params.get("Ny:", 64)
-    Nz: int = params.get("Nz:", 4)
-    number_of_steps: int = params.get("number_of_steps:", 20)
-    use_custom_optimiser: bool = params.get("use_custom_optimiser:", True)
-    vel_0_path: Optional[str] = params.get("vel_0_path:", None)
+    Re: float = params.get("Re", 3000.0)
+    T: float = params.get("T", 15)
+    Nx: int = params.get("Nx", 4)
+    Ny: int = params.get("Ny", 64)
+    Nz: int = params.get("Nz", 4)
+    number_of_steps: int = params.get("number_of_steps", 20)
+    use_custom_optimiser: bool = params.get("use_custom_optimiser", True)
+    vel_0_path: Optional[str] = params.get("vel_0_path", None)
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 0.0)
+    e_0 = params.get("e_0", 1e-10)
 
     Equation.initialize()
     dt = params.get("dt", 1e-3)
@@ -1861,7 +1862,6 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
         aliasing=aliasing,
     )
 
-    e_0 = 1e-10
     eps = 1e-2  # step size
 
     skip_preparation = True
@@ -2248,15 +2248,15 @@ def run_ld_2021_get_mean(**params: Any) -> None:
 
 
 def run_ld_2021(**params: Any) -> None:
-    turb: float = params.get("turb:", 1.0)
-    Re_tau: float = params.get("Re_tau:", 180.0)
-    Nx: int = params.get("Nx:", 28)
-    Ny: int = params.get("Ny:", 129)
-    Nz: int = params.get("Nz:", 24)
-    number_of_steps: int = params.get("number_of_steps:", 10)
-    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps:", -1)
-    e_0: float = params.get("e_0:", 1e-3)
-    init_file: Optional[str] = params.get("init_file:", None)
+    turb: float = params.get("turb", 1.0)
+    Re_tau: float = params.get("Re_tau", 180.0)
+    Nx: int = params.get("Nx", 28)
+    Ny: int = params.get("Ny", 129)
+    Nz: int = params.get("Nz", 24)
+    number_of_steps: int = params.get("number_of_steps", 10)
+    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps", -1)
+    e_0: float = params.get("e_0", 1e-3)
+    init_file: Optional[str] = params.get("init_file", None)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
     aliasing = 3 / 2
     e_0 = params.get("e_0", 1.0e0)
@@ -2796,16 +2796,16 @@ def run_ld_2021_dual(**params: Any) -> None:
 
 
 def run_optimisation_farano_2015(**params: Any) -> None:
-    Re: float = params.get("Re:", 2000)
-    Nx: int = params.get("Nx:", 300)
-    Ny: int = params.get("Ny:", 100)
-    Nz: int = params.get("Nz:", 120)
-    number_of_steps: int = params.get("number_of_steps:", 10)
-    e_0: float = params.get("e_0:", 1.1e-5)
-    end_time: float = params.get("end_time:", 10.0)
-    linearise: bool = params.get("linearise:", False)
-    start_iteration: int = params.get("start_iteration:", 0)
-    init_file: Optional[str] = params.get("init_file:")
+    Re: float = params.get("Re", 2000)
+    Nx: int = params.get("Nx", 300)
+    Ny: int = params.get("Ny", 100)
+    Nz: int = params.get("Nz", 120)
+    number_of_steps: int = params.get("number_of_steps", 10)
+    e_0: float = params.get("e_0", 1.1e-5)
+    end_time: float = params.get("end_time", 10.0)
+    linearise: bool = params.get("linearise", False)
+    start_iteration: int = params.get("start_iteration", 0)
+    init_file: Optional[str] = params.get("init_file")
     aliasing = params.get("aliasing", 3 / 2)
 
     initial_step_size = params.get("initial_step_size", 1.0e-3)
