@@ -1078,6 +1078,60 @@ class NavierStokesVelVort(Equation):
         # return jnp.array([u_w[0], u_w[1], u_w[2]])
         return jnp.array([u_w[0], vel_y, u_w[1]])
 
+    def enforce_constant_mass_flux(
+        self, vel_new_hat_field: "jnp_array", dPdx: "jsd_float", time_step: int
+    ) -> Tuple["jnp_array", "jsd_float"]:
+        if self.constant_mass_flux:
+
+            current_flow_rate = self.get_flow_rate(vel_new_hat_field)
+            flow_rate_diff = current_flow_rate - self.flow_rate
+            # most numerically accurate
+            vel_new_hat_field = jnp.array(
+                [
+                    (
+                        self.get_physical_domain().field_hat(
+                            self.get_domain().field_no_hat(vel_new_hat_field[i])
+                            + jnp.ones(self.get_physical_domain().get_shape_aliasing())
+                            * (-1 * flow_rate_diff * 0.5)
+                        )
+                        if i == 0
+                        else vel_new_hat_field[i]
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            # most efficient but numerical errors seem to be problematic -> TODO
+            # velocity_correction_hat = jnp.array(
+            #     [
+            #         (
+            #             self.get_physical_domain().field_hat(jnp.ones(self.get_physical_domain().get_shape()) * (-1 * flow_rate_diff * 0.5))
+            #             if i == 0
+            #             else jnp.zeros(self.get_physical_domain().get_shape())
+            #         )
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
+            # vel_new_hat_field = vel_new_hat_field + velocity_correction_hat
+            # joe's version
+            # vel_new_hat_field = jnp.array(
+            #     [
+            #         (
+            #             FourierField(
+            #                 self.get_physical_domain(),
+            #                 vel_new_hat_field[i, ...],
+            #             ).no_hat()
+            #             - flow_rate_diff * 0.5 * (i == 0)
+            #         ).hat()[...]
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
+            dPdx = self.update_pressure_gradient(vel_new_hat_field, cast(float, dPdx))
+
+        else:
+            if Equation.verbosity_level >= 3:
+                self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
+        return vel_new_hat_field, dPdx
+
     def perform_runge_kutta_step(
         self, vel_hat_data: "jnp_array", dPdx: "jsd_float", time_step: int
     ) -> Tuple["jnp_array", "jsd_float"]:
@@ -1568,59 +1622,9 @@ class NavierStokesVelVort(Equation):
             )
 
             if step == number_of_rk_steps - 1:
-                if self.constant_mass_flux:
-
-                    current_flow_rate = self.get_flow_rate(vel_new_hat_field)
-                    flow_rate_diff = current_flow_rate - self.flow_rate
-                    # most numerically accurate
-                    vel_new_hat_field = jnp.array(
-                        [
-                            (
-                                self.get_physical_domain().field_hat(
-                                    self.get_domain().field_no_hat(vel_new_hat_field[i])
-                                    + jnp.ones(
-                                        self.get_physical_domain().get_shape_aliasing()
-                                    )
-                                    * (-1 * flow_rate_diff * 0.5)
-                                )
-                                if i == 0
-                                else vel_new_hat_field[i]
-                            )
-                            for i in self.all_dimensions()
-                        ]
-                    )
-                    # most efficient but numerical errors seem to be problematic -> TODO
-                    # velocity_correction_hat = jnp.array(
-                    #     [
-                    #         (
-                    #             self.get_physical_domain().field_hat(jnp.ones(self.get_physical_domain().get_shape()) * (-1 * flow_rate_diff * 0.5))
-                    #             if i == 0
-                    #             else jnp.zeros(self.get_physical_domain().get_shape())
-                    #         )
-                    #         for i in self.all_dimensions()
-                    #     ]
-                    # )
-                    # vel_new_hat_field = vel_new_hat_field + velocity_correction_hat
-                    # joe's version
-                    # vel_new_hat_field = jnp.array(
-                    #     [
-                    #         (
-                    #             FourierField(
-                    #                 self.get_physical_domain(),
-                    #                 vel_new_hat_field[i, ...],
-                    #             ).no_hat()
-                    #             - flow_rate_diff * 0.5 * (i == 0)
-                    #         ).hat()[...]
-                    #         for i in self.all_dimensions()
-                    #     ]
-                    # )
-                    dPdx = self.update_pressure_gradient(
-                        vel_new_hat_field, cast(float, dPdx)
-                    )
-
-                else:
-                    if Equation.verbosity_level >= 3:
-                        self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
+                vel_new_hat_field, dPdx = self.enforce_constant_mass_flux(
+                    vel_new_hat_field, dPdx, time_step
+                )
 
             vel_hat_data = vel_new_hat_field
 
@@ -1678,7 +1682,7 @@ class NavierStokesVelVort(Equation):
 
     def solve_scan(
         self,
-    ) -> Tuple[Union["jnp_array", VectorField[FourierField]], "jsd_float", int]:
+    ) -> Tuple[Union["jnp_array", VectorField[FourierField]], "List[jsd_float]", int]:
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
@@ -1781,7 +1785,7 @@ class NavierStokesVelVort(Equation):
                 self.get_initial_field("velocity_hat").get_data(),
                 axis=0,
             )
-            return (out, u_final[1], len(ts))
+            return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
@@ -1805,7 +1809,7 @@ class NavierStokesVelVort(Equation):
                 self.get_initial_field("velocity_hat").get_data(),
                 axis=0,
             )
-            return (out, u_final[1], len(ts))
+            return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
         else:
             u_final, _ = jax.lax.scan(
                 step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
@@ -1823,7 +1827,7 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-            return (velocity_final, u_final[1], len(ts))
+            return (velocity_final, [u_final[1]], len(ts))
 
     def post_process(self: E) -> None:
         if type(self.post_process_fn) != NoneType:

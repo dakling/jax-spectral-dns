@@ -345,6 +345,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         velocity_field_.set_name("velocity_hat")
         super().__init__(velocity_field_, **params)
         self.velocity_field_u_history: Optional["jnp_array"] = None
+        self.dPdx_history: Optional[List["jsd_float"]] = None
         self.forward_equation = forward_equation
         self.velocity_u_hat_0 = forward_equation.get_initial_field("velocity_hat")
         calculation_size = self.end_time / self.get_dt()
@@ -358,6 +359,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             print_verb("using checkpointing to reduce peak memory usage")
             self.current_velocity_field_u_history: Optional["jnp_array"] = None
             self.current_u_history_start_step = -1
+            self.current_dPdx_history: Optional[List["jsd_float"]] = None
         else:
             print_verb("not using checkpointing")
         self.forward_equation.activate_jit()
@@ -415,11 +417,25 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             return self.velocity_field_u_history.at[-1 - timestep].get()  # type: ignore[union-attr]
 
+    def get_dPdx(self, timestep: int) -> "jsd_float":
+        if self.checkpointing:
+            assert self.current_dPdx_history is not None
+            return self.current_dPdx_history[
+                -1
+                - (
+                    timestep
+                    - self.current_u_history_start_step * self.number_of_inner_steps
+                )
+            ]
+        else:
+            return cast("jsd_float", self.dPdx_history.at[-1 - timestep].get())  # type: ignore[union-attr]
+
     def update_with_nse(self) -> None:
         self.forward_equation.write_entire_output = True
         self.forward_equation.write_intermediate_output = False
         self.clear_field("velocity_hat")
         self.velocity_field_u_history = None
+        self.dPdx_history = None
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
         dX = (
@@ -454,9 +470,14 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
+    def enforce_constant_mass_flux(
+        self, vel_new_hat_field: "jnp_array", _: "jsd_float", time_step: int
+    ) -> Tuple["jnp_array", "jsd_float"]:
+        return vel_new_hat_field, self.get_dPdx(time_step + 1)
+
     def solve_scan(
         self,
-    ) -> Tuple[Union["jnp_array", VectorField[FourierField]], "jsd_float", int]:
+    ) -> Tuple[Union["jnp_array", VectorField[FourierField]], List["jsd_float"], int]:
         if not self.checkpointing:
             return super().solve_scan()
         else:
@@ -467,7 +488,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
             def get_inner_step_fn(
                 current_velocity_field_u_history: "jnp_array",
-                dPdx_0: "jsd_float",  # TODO
+                current_dPdx_history: List["jsd_float"],
             ) -> Callable[
                 [Tuple["jnp_array", "jsd_float", int], Any],
                 Tuple[Tuple["jnp_array", "jsd_float", int], None],
@@ -475,12 +496,16 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 def inner_step_fn(
                     u0: Tuple["jnp_array", "jsd_float", int], _: Any
                 ) -> Tuple[Tuple["jnp_array", "jsd_float", int], None]:
-                    u0_, dPdx, time_step = u0
+                    u0_, _, time_step = u0
                     self.current_velocity_field_u_history = (
                         current_velocity_field_u_history
                     )
+                    self.current_dPdx_history = current_dPdx_history
+                    assert self.current_dPdx_history is not None
+                    dPdx = self.current_dPdx_history[-1 - time_step]
                     out = self.perform_time_step(u0_, cast(float, dPdx), time_step)
                     self.current_velocity_field_u_history = None
+                    self.current_dPdx_history = None
 
                     return ((out[0], out[1], time_step + 1), None)
 
@@ -490,15 +515,15 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 Tuple["jnp_array", "jsd_float", int],
                 Tuple["jnp_array", "jsd_float", int],
             ]:
-                dPdx = u0[1]
                 timestep = u0[2]
+                dPdx = self.get_dPdx(timestep)
                 outer_start_step = timestep // self.number_of_inner_steps
                 self.current_u_history_start_step = outer_start_step
-                current_velocity_field_u_history, dPdx = (
+                current_velocity_field_u_history, dPdx_history = (
                     self.run_forward_calculation_subrange(dPdx, outer_start_step)
                 )
                 out, _ = jax.lax.scan(
-                    jax.checkpoint(get_inner_step_fn(current_velocity_field_u_history, dPdx)),  # type: ignore[attr-defined]
+                    jax.checkpoint(get_inner_step_fn(current_velocity_field_u_history, dPdx_history)),  # type: ignore[attr-defined]
                     u0,
                     xs=None,
                     length=self.number_of_inner_steps,
@@ -535,7 +560,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 #     print_verb("i: ", i, "cfl:", cfl_s)
                 cfl_final = self.get_cfl()
                 print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-                return (trajectory[0], u_final[1], len(ts))
+                return (trajectory[0], [u_final[1]], len(ts))
             elif self.write_entire_output:
                 u_final, trajectory = jax.lax.scan(
                     step_fn,
@@ -556,7 +581,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 self.append_field("velocity_hat", velocity_final, in_place=False)
                 cfl_final = self.get_cfl()
                 print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-                return (trajectory[0], u_final[1], len(ts))
+                return (trajectory[0], [u_final[1]], len(ts))
             else:
                 u_final, _ = jax.lax.scan(
                     step_fn,
@@ -577,7 +602,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 self.append_field("velocity_hat", velocity_final, in_place=False)
                 cfl_final = self.get_cfl()
                 print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-                return (velocity_final, u_final[1], len(ts))
+                return (velocity_final, [u_final[1]], len(ts))
 
     def is_forward_calculation_done(self) -> bool:
         return (
@@ -601,7 +626,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             nse.write_entire_output = True
         if not self.is_forward_calculation_done():
             start_time = time.time()
-            velocity_u_hat_history_, dPdx, _ = nse.solve_scan()
+            velocity_u_hat_history_, dPdx_history, _ = nse.solve_scan()
             iteration_duration = time.time() - start_time
             try:
                 print_verb(
@@ -610,7 +635,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             except Exception:
                 print_verb("forward calculation took", iteration_duration, "seconds")
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
-            self.dPdx = dPdx  # TODO
+            self.dPdx_history = dPdx_history
         self.set_initial_field(
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
         )
@@ -618,7 +643,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def run_forward_calculation_subrange(
         self, dPdx: "jsd_float", outer_timestep: int
-    ) -> Tuple["jnp_array", "jsd_float"]:
+    ) -> Tuple["jnp_array", List["jsd_float"]]:
         nse = self.forward_equation
         nse.write_intermediate_output = True
         nse.write_entire_output = True
@@ -635,9 +660,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         nse.set_initial_field("velocity_hat", init_field)
         nse.dPdx = dPdx
         nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
-        velocity_u_hat_history_, dPdx_, _ = nse.solve_scan()
-        current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
-        return current_velocity_field_u_history, dPdx_
+        velocity_u_hat_history, current_dPdx_history, _ = nse.solve_scan()
+        current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history)
+        return current_velocity_field_u_history, current_dPdx_history
 
     def run_backward_calculation(self) -> None:
         if not self.is_backward_calculation_done():
