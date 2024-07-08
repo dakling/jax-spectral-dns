@@ -532,7 +532,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 return out, out
 
             u0 = self.get_initial_field("velocity_hat").get_data()
-            # dPdx = self.forward_equation.dPdx  # TODO
             dPdx = -self.get_dPdx(0)
             ts = jnp.arange(0, self.end_time, self.get_dt())
 
@@ -636,6 +635,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 print_verb("forward calculation took", iteration_duration, "seconds")
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
             self.dPdx_history = dPdx_history
+            self.current_dPdx_history = dPdx_history
         self.set_initial_field(
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
         )
