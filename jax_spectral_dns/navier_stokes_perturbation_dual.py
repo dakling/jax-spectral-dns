@@ -532,7 +532,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 return out, out
 
             u0 = self.get_initial_field("velocity_hat").get_data()
-            dPdx = -self.get_dPdx(0)
+            if type(self.dPdx_history) is NoneType:
+                self.dPdx_history = self.current_dPdx_history
+            assert self.dPdx_history is not None
+            dPdx = -self.dPdx_history[-1]
             ts = jnp.arange(0, self.end_time, self.get_dt())
 
             if self.write_intermediate_output and not self.write_entire_output:

@@ -119,11 +119,6 @@ class GradientDescentSolver(ABC):
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
 
-        print_verb(
-            "current flow rate:",
-            self.dual_problem.forward_equation.get_flow_rate(v0_hat.get_data()),
-        )
-
         out_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR")
         v0.save_to_file("velocity_latest")
         if out_dir is not None:
@@ -541,6 +536,13 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_grad = self.grad
         self.old_value = self.value
         self.value = gain
+
+        print_verb(
+            "current flow rate:",
+            self.dual_problem.forward_equation.get_flow_rate(
+                self.current_guess.get_data()
+            ),
+        )
 
         iteration_duration = time.time() - start_time
         try:
