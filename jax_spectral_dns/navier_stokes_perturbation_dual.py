@@ -473,7 +473,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     def enforce_constant_mass_flux(
         self, vel_new_hat_field: "jnp_array", _: "jsd_float", time_step: int
     ) -> Tuple["jnp_array", "jsd_float"]:
-        return vel_new_hat_field, self.get_dPdx(time_step + 1)
+        return vel_new_hat_field, -self.get_dPdx(time_step + 1)
 
     def solve_scan(
         self,
@@ -502,7 +502,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     )
                     self.current_dPdx_history = current_dPdx_history
                     assert self.current_dPdx_history is not None
-                    dPdx = self.current_dPdx_history[-1 - time_step]
+                    dPdx = -self.get_dPdx(time_step)
                     out = self.perform_time_step(u0_, cast(float, dPdx), time_step)
                     self.current_velocity_field_u_history = None
                     self.current_dPdx_history = None
@@ -533,7 +533,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
             u0 = self.get_initial_field("velocity_hat").get_data()
             # dPdx = self.forward_equation.dPdx  # TODO
-            dPdx = 0.0
+            dPdx = -self.get_dPdx(0)
             ts = jnp.arange(0, self.end_time, self.get_dt())
 
             if self.write_intermediate_output and not self.write_entire_output:
