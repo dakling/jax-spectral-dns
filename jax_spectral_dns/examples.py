@@ -1840,9 +1840,6 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 0.0)
 
-    if type(use_custom_optimiser) is str:  # type: ignore
-        use_custom_optimiser = use_custom_optimiser == "True"  # type: ignore
-
     Equation.initialize()
     dt = params.get("dt", 1e-3)
     # end_time = dt * 1
@@ -2538,6 +2535,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     start_iteration = params.get("start_iteration", 0)
     linearise = params.get("linearise", False)
     init_file = params.get("init_file")
+    constant_mass_flux = params.get("constant_mass_flux", True)
 
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 2.0)
@@ -2778,7 +2776,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         dt=dt,
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
-        constant_mass_flux=True,
+        constant_mass_flux=constant_mass_flux,
     )
     nse.set_linearize(linearise)
     nse.set_post_process_fn(post_process)
