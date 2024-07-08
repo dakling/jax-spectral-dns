@@ -660,7 +660,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             name="velocity_hat",
         )
         assert self.dPdx_history is not None
-        dPdx = -self.dPdx_history[step]
+        dPdx = self.dPdx_history[step]
         nse.set_initial_field("velocity_hat", init_field)
         nse.dPdx = dPdx
         nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
