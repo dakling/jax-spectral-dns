@@ -1611,11 +1611,9 @@ class NavierStokesVelVort(Equation):
 
             vel_hat_data = vel_new_hat_field
 
-        print_verb(self.get_flow_rate(vel_hat_data), debug=True)
         vel_hat_data, dPdx = self.enforce_constant_mass_flux(
             vel_hat_data, dPdx, time_step
         )
-        print_verb(self.get_flow_rate(vel_hat_data), debug=True)
 
         if not Field.activate_jit_:
             vel_new_hat = VectorField(
