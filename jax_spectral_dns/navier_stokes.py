@@ -1611,9 +1611,11 @@ class NavierStokesVelVort(Equation):
 
             vel_hat_data = vel_new_hat_field
 
+        print_verb(self.get_flow_rate(vel_hat_data), debug=True)
         vel_hat_data, dPdx = self.enforce_constant_mass_flux(
             vel_hat_data, dPdx, time_step
         )
+        print_verb(self.get_flow_rate(vel_hat_data), debug=True)
 
         if not Field.activate_jit_:
             vel_new_hat = VectorField(
@@ -1630,7 +1632,7 @@ class NavierStokesVelVort(Equation):
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
-        return cast("jnp_array", vel_hat_data), dPdx
+        return vel_hat_data, dPdx
 
     # @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
@@ -1710,7 +1712,7 @@ class NavierStokesVelVort(Equation):
         ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
-        vb = 1
+        vb = 2
         if not self.write_entire_output:
             number_of_inner_steps = median_factor(number_of_time_steps)
             number_of_outer_steps = number_of_time_steps // number_of_inner_steps

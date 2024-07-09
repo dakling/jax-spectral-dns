@@ -22,6 +22,9 @@ os.environ.update(
         "NCCL_PROTO": "SIMPLE,LL,LL128",
     }
 )
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = (
+    "False"  # TODO does this help with memory? how much runtime does this cost?
+)
 
 logging.getLogger("jax").setLevel(logging.WARNING)
 
