@@ -1620,7 +1620,7 @@ class NavierStokesVelVort(Equation):
                 [
                     FourierField(
                         self.get_physical_domain(),
-                        vel_new_hat_field[i],
+                        vel_hat_data[i],
                         name="velocity_hat_" + "xyz"[i],
                     )
                     for i in self.all_dimensions()
@@ -1630,7 +1630,7 @@ class NavierStokesVelVort(Equation):
             for i in self.all_dimensions():
                 vel_new_hat[i].name = "velocity_hat_" + "xyz"[i]
             self.append_field("velocity_hat", vel_new_hat, in_place=False)
-        return cast("jnp_array", vel_new_hat_field), dPdx
+        return cast("jnp_array", vel_hat_data), dPdx
 
     # @partial(jax.jit, static_argnums=(0, 2))
     def perform_time_step(
