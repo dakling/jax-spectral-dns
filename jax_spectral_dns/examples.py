@@ -2521,6 +2521,16 @@ def run_ld_2021(**params: Any) -> None:
 
 
 def run_ld_2021_dual(**params: Any) -> None:
+    """
+    In order to best facilitate comparison between different shapes of base profile, it makes sense to enforce that all base profiles have the same mass flux $\dot{m}$.
+    As a result, it also appears most reasonable to run the simulations with constant mass flux.
+    Nondimensionalisation is done using a laminar base profile as a reference. Its maximum velocity is used for the Reynolds number, i.e. $Re=U_\text{max, laminar} h / \nu$,
+    where $h$ is the channel half-height and $\nu$ is the kinematic viscosity.
+    The turbulent base profile (or any other base profile) is related to the laminar reference profile by having the same mass flux.
+    Perturbation energy is nondimensionalised using the energy of the laminar reference profile (even when using a different base profile).
+    The viscosity is calculated from the turbulent base profile, i.e., since a turbulent base profile with friction Reynolds number $Re_\tau$ is rescaled by a factor of $4 / 3 \dot{m}$, it holds that
+    $Re = 4 / 3 \dot{m} Re_\tau$.
+    """
     Re_tau = params.get("Re_tau", 180.0)
     turb = params.get("turbulent_base", 1.0)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
@@ -2618,12 +2628,13 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     vel_base_turb, _, max, flow_rate = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
+    vel_base_turb *= 4.0 / 3.0
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
                 # domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
                 domain,
-                lambda X: (3.0 / 4.0) * (1 - X[1] ** 2) + 0 * X[2],
+                lambda X: (1 - X[1] ** 2) + 0 * X[2],
             ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
@@ -2640,7 +2651,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = flow_rate
+    u_max_over_u_tau = flow_rate * 4.0 / 3.0
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
@@ -2653,10 +2664,15 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     print_verb("flow rate turbulent:", vel_base_turb[0].get_flow_rate(1))
     print_verb("max value turbulent:", vel_base_turb[0].max())
+    print_verb("energy turbulent:", vel_base_turb.energy())
     print_verb("flow rate laminar:", vel_base_lam[0].get_flow_rate(1))
     print_verb("max value laminar:", vel_base_lam[0].max())
+    print_verb("energy laminar:", vel_base_lam.energy())
     print_verb("flow rate:", vel_base[0].get_flow_rate(1))
     print_verb("max value:", vel_base[0].max())
+    print_verb("energy:", vel_base.energy())
+
+    E_0 = vel_base_lam.energy()
 
     if init_file is None:
         number_of_modes = params.get("number_of_modes", 60)
@@ -2667,14 +2683,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, max, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base / max
-        # vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
-        #     1 - lsc_domain.grid[1] ** 2
-        # )  # continuously blend from turbulent to laminar mean profile
-        vel_base_y_slice = turb * U_base + (1 - turb) * (3.0 / 4.0) / (
-            max / flow_rate
-        ) * (
+        _, U_base, _, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base / flow_rate * (4.0 / 3.0)
+        vel_base_y_slice = turb * U_base + (1 - turb) * (
             1 - lsc_domain.grid[1] ** 2
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
@@ -2686,7 +2697,6 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
 
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
-            # coarse_domain,
             domain,
             end_time_,
             number_of_modes,
@@ -2698,7 +2708,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
-        v0_0 *= jnp.sqrt(e_0)
+        v0_0 *= jnp.sqrt(e_0 / E_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
@@ -2765,7 +2775,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     else:
         v0 = VectorField.FromFile(domain, init_file, "velocity", allow_projection=True)
         v0 = v0.normalize_by_energy()
-        v0 *= jnp.sqrt(e_0)
+        v0 *= jnp.sqrt(e_0 / E_0)
         v0_hat = v0.hat()
     v0_hat.set_name("velocity_hat")
 

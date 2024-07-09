@@ -19,7 +19,7 @@ combine_two_mp4(){
 combine_three_mp4(){
     mkdir img &> /dev/null
     scfmt="640:480"
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4"  -filter_complex "[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [a0][a1][a2]xstack=inputs=3:layout=0_0|w0_0|w0+w1_0[v]" -map "[v]" "img/$1.mp4" # &> /dev/null
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4"  -filter_complex "[0:v] scale=$scfmt[a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [a0][a1][a2]xstack=inputs=3:layout=0_0|w0_0|w0+w1_0[v]" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 combine_four_mp4(){
@@ -35,7 +35,7 @@ combine_six_mp4(){
     scfmt="640:480"
     layout="0_0|w0_0|w0+w1_0|0_h0|w0_h0|w0+w1_h0"
     scale="[0:v] scale=$scfmt [a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [4:v] scale=$scfmt [a4]; [5:v] scale=$scfmt [a5]; [a0][a1][a2][a3][a4][a5]xstack=inputs=6:layout=$layout[v]"
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" #&> /dev/null
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" &> /dev/null
 }
 
 make_video_gif(){
