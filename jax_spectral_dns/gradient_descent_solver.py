@@ -511,33 +511,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        print_verb(
-            "flow rate b4: ",
-            self.dual_problem.forward_equation.get_flow_rate(
-                self.current_guess.get_data()
-            ),
-        )
-        print_verb(
-            "flow rate grad: ",
-            self.dual_problem.forward_equation.get_flow_rate(self.grad),
-        )
-
-        v_hat_0 = self.dual_problem.get_latest_field("velocity_hat")
-        print_verb(
-            "flow rate v0: ",
-            self.dual_problem.forward_equation.get_flow_rate(v_hat_0.get_data()),
-        )
-        u_hat_0 = self.dual_problem.velocity_u_hat_0
-        print_verb(
-            "flow rate u0: ",
-            self.dual_problem.forward_equation.get_flow_rate(u_hat_0.get_data()),
-        )
-
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
         self.current_guess = self.dual_problem.forward_equation.update_velocity_field(
             self.current_guess
-        )  # TODO this should not be needed
+        )
 
         if Equation.verbosity_level >= 3:
             grad_field: VectorField[FourierField] = VectorField.FromData(
