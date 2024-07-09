@@ -450,6 +450,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self.forward_equation.write_entire_output = True
         self.forward_equation.write_intermediate_output = False
         self.clear_field("velocity_hat")
+        self.dPdx = 0.0
+        self.forward_equation.dPdx = 0.0
         self.velocity_field_u_history = None
         self.dPdx_history = None
 
