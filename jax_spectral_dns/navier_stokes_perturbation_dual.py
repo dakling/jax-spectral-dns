@@ -490,7 +490,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self, vel_new_hat_field: "jnp_array", _: "jsd_float", time_step: int
     ) -> Tuple["jnp_array", "jsd_float"]:
 
-        return vel_new_hat_field, -self.get_dPdx(time_step + 1)
+        return vel_new_hat_field, -self.get_dPdx(time_step + 2)
 
     def solve_scan(
         self,
@@ -519,7 +519,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     )
                     self.current_dPdx_history = current_dPdx_history
                     assert self.current_dPdx_history is not None
-                    dPdx = -self.get_dPdx(time_step)
+                    dPdx = -self.get_dPdx(time_step + 1)
                     out = self.perform_time_step(u0_, cast(float, dPdx), time_step)
                     self.current_velocity_field_u_history = None
                     self.current_dPdx_history = None
@@ -699,7 +699,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.write_intermediate_output = False
             self.activate_jit()
             assert self.dPdx_history is not None
-            self.dPdx = -self.dPdx_history[-1]
+            self.dPdx = -self.dPdx_history[-2]
             print_verb("performing backward (adjoint) calculation...")
             self.solve()
 

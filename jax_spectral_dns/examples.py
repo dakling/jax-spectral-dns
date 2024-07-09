@@ -1952,7 +1952,9 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     # nse.set_linearize(True)
     nse.set_linearize(False)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse, checkpointing=True
+        nse,
+        checkpointing=False,
+        # checkpointing=True,
     )
     if use_custom_optimiser:
         print_verb("using custom optimiser")
@@ -2522,14 +2524,14 @@ def run_ld_2021(**params: Any) -> None:
 
 def run_ld_2021_dual(**params: Any) -> None:
     """
-    In order to best facilitate comparison between different shapes of base profile, it makes sense to enforce that all base profiles have the same mass flux $\dot{m}$.
+    In order to best facilitate comparison between different shapes of base profile, it makes sense to enforce that all base profiles have the same mass flux $\\dot{m}$.
     As a result, it also appears most reasonable to run the simulations with constant mass flux.
-    Nondimensionalisation is done using a laminar base profile as a reference. Its maximum velocity is used for the Reynolds number, i.e. $Re=U_\text{max, laminar} h / \nu$,
-    where $h$ is the channel half-height and $\nu$ is the kinematic viscosity.
+    Nondimensionalisation is done using a laminar base profile as a reference. Its maximum velocity is used for the Reynolds number, i.e. $Re=U_\text{max, laminar} h / \\nu$,
+    where $h$ is the channel half-height and $\\nu$ is the kinematic viscosity.
     The turbulent base profile (or any other base profile) is related to the laminar reference profile by having the same mass flux.
     Perturbation energy is nondimensionalised using the energy of the laminar reference profile (even when using a different base profile).
-    The viscosity is calculated from the turbulent base profile, i.e., since a turbulent base profile with friction Reynolds number $Re_\tau$ is rescaled by a factor of $4 / 3 \dot{m}$, it holds that
-    $Re = 3 / 4 \dot{m} Re_\tau$.
+    The viscosity is calculated from the turbulent base profile, i.e., since a turbulent base profile with friction Reynolds number $Re_\\tau$ is rescaled by a factor of $4 / 3 \\dot{m}$, it holds that
+    $Re = 3 / 4 \\dot{m} Re_\\tau$.
     """
     Re_tau = params.get("Re_tau", 180.0)
     turb = params.get("turbulent_base", 1.0)

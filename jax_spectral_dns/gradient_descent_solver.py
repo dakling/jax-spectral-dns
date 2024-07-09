@@ -513,9 +513,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
-        self.current_guess = self.dual_problem.forward_equation.update_velocity_field(
-            self.current_guess
-        )
+        # self.current_guess = self.dual_problem.forward_equation.update_velocity_field(
+        #     self.current_guess
+        # ) # TODO this should not be needed
 
         if Equation.verbosity_level >= 3:
             grad_field: VectorField[FourierField] = VectorField.FromData(
