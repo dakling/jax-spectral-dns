@@ -1609,12 +1609,11 @@ class NavierStokesVelVort(Equation):
                 ]
             )
 
-            if step == number_of_rk_steps - 1:
-                vel_new_hat_field, dPdx = self.enforce_constant_mass_flux(
-                    vel_new_hat_field, dPdx, time_step
-                )
-
             vel_hat_data = vel_new_hat_field
+
+        vel_hat_data, dPdx = self.enforce_constant_mass_flux(
+            vel_hat_data, dPdx, time_step
+        )
 
         if not Field.activate_jit_:
             vel_new_hat = VectorField(
