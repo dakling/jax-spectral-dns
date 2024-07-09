@@ -2529,7 +2529,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     The turbulent base profile (or any other base profile) is related to the laminar reference profile by having the same mass flux.
     Perturbation energy is nondimensionalised using the energy of the laminar reference profile (even when using a different base profile).
     The viscosity is calculated from the turbulent base profile, i.e., since a turbulent base profile with friction Reynolds number $Re_\tau$ is rescaled by a factor of $4 / 3 \dot{m}$, it holds that
-    $Re = 4 / 3 \dot{m} Re_\tau$.
+    $Re = 3 / 4 \dot{m} Re_\tau$.
     """
     Re_tau = params.get("Re_tau", 180.0)
     turb = params.get("turbulent_base", 1.0)
@@ -2626,7 +2626,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         return vel_base, U_y_slice, cast(float, max), flow_rate
 
-    vel_base_turb, _, max, flow_rate = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb, _, _, flow_rate = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
     vel_base_turb *= 4.0 / 3.0
     vel_base_lam = VectorField(
@@ -2651,7 +2651,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = flow_rate * 4.0 / 3.0
+    u_max_over_u_tau = flow_rate * 3.0 / 4.0
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
