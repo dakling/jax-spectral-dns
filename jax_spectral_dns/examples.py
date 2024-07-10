@@ -2528,13 +2528,15 @@ def run_ld_2021_dual(**params: Any) -> None:
     turbulent and the laminar profile are related by having the same x-velocity
     gradient at the wall (unity).  As a result, the laminar profile will usually
     have a much higher maximum value than the turbulent profile.  In order to
-    facilitate comparisons between these profiles, it is sometimes convenient to
-    refer to the bulk Reynolds number and the time horizon to account for the
-    vastly different values of $U_\\text{max}$, $Re = U_\\text{max} / u_\\tau$, and
-    $T = t U_\\text{max} / u_\\tau$.  The energy of the turbulent mean profile is
-    used as a reference.  To setup and refer to the case, wall units ($Re_\\tau$,
-    $t$) are used, but for the linear stability calculation, external units
-    ($Re_\\text{max}, $T$) are used.
+    facilitate comparisons between these profiles, it is important to adjust the
+    Reynolds number and time horizon when using the laminar profile (or any profile
+    other than the turbulent one).  To this end, given an arbitrary velocity profile
+    with maximum velocity $U_\\text{max}$, we define the adjusted friction Reynolds
+    number $Re_\\tau' = Re_\\tau / (U_\\text{max} / U_text{max, turb})$ and the
+    adjusted time horizon $T' = T / (U_\\text{max} / U_text{max, turb})$.
+    Obviously, when using the turbulent base profile, the adjusted properties are
+    equal to the original, non-adjusted ones.  The energy of the turbulent mean
+    profile is used as a reference for the perturbation energy.
     """
     Re_tau = params.get("Re_tau", 180.0)
     turb = params.get("turbulent_base", 1.0)
