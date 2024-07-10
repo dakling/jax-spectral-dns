@@ -2541,7 +2541,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     Nz = params.get("Nz", 1)
     number_of_steps = params.get("number_of_steps", -1)
     aliasing = 3 / 2
-    e_0 = params.get("e_0", 1.0)
+    e_0_over_E_0 = params.get("e_0", 1.0e-1)
     max_cfl = params.get("max_cfl", 0.7)
     end_time = params.get("end_time", 0.35)
     start_iteration = params.get("start_iteration", 0)
@@ -2710,7 +2710,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
-        v0_0 *= jnp.sqrt(e_0 / E_0)
+        v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
@@ -2777,7 +2777,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     else:
         v0 = VectorField.FromFile(domain, init_file, "velocity", allow_projection=True)
         v0 = v0.normalize_by_energy()
-        v0 *= jnp.sqrt(e_0 / E_0)
+        v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         v0_hat = v0.hat()
     v0_hat.set_name("velocity_hat")
 
