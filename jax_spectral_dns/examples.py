@@ -2620,9 +2620,13 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
+    end_time__ = end_time * (u_max_over_u_tau / max)
+    Re__ = Re_tau * (u_max_over_u_tau / max)
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
+    print_verb("equivalent Re:", Re__)
+    print_verb("equivalent end time:", end_time__)
 
     print_verb("max value turbulent:", vel_base_turb[0].max())
     print_verb("energy turbulent:", vel_base_turb.energy())
@@ -2645,10 +2649,12 @@ def run_ld_2021_dual(**params: Any) -> None:
         _, U_base, max = get_vel_field(lsc_domain, avg_vel_coeffs)
         U_base = U_base
         vel_base_y_slice = (
-            turb * U_base + (1 - turb) * (1 - lsc_domain.grid[1] ** 2)
-        ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile
+            turb * U_base
+            + (1 - turb) * (1 - lsc_domain.grid[1] ** 2)
+            # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile
+        )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
-            Re=Re,
+            Re=Re__,
             alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
             beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
             n=n,
@@ -2657,14 +2663,14 @@ def run_ld_2021_dual(**params: Any) -> None:
 
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             domain,
-            end_time_,
+            end_time__,
             number_of_modes,
             recompute_full=True,
             save_final=False,
         )
         print_verb(
             "expected gain:",
-            lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
+            lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
         )
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
@@ -2739,13 +2745,13 @@ def run_ld_2021_dual(**params: Any) -> None:
     v0_hat.set_name("velocity_hat")
 
     dt = Equation.find_suitable_dt(
-        domain, max_cfl, (u_max_over_u_tau, 1e-3, 1e-3), end_time
+        domain, max_cfl, (u_max_over_u_tau, 1e-3, 1e-3), end_time__
     )
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
-        Re=Re_tau,
+        Re=Re__,
         dt=dt,
-        end_time=end_time,
+        end_time=end_time__,
         velocity_base_hat=vel_base.hat(),
         constant_mass_flux=constant_mass_flux,
     )
