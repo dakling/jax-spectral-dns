@@ -2534,6 +2534,10 @@ def run_ld_2021_dual(**params: Any) -> None:
     with maximum velocity $U_\\text{max}$, we define the adjusted friction Reynolds
     number $Re_\\tau' = Re_\\tau / (U_\\text{max} / U_text{max, turb})$ and the
     adjusted time horizon $T' = T / (U_\\text{max} / U_text{max, turb})$.
+    The rationale behind this is that the gain of the linear optimal is
+    invariant to the rescaling $U_\\text{max}^* = \\alpha U_\\text{max}$, $Re^* =
+    Re / \\alpha$, $T^* = T / \\alpha$, where $\\alpha > 0$ is an arbitrary
+    positive real number.
     Obviously, when using the turbulent base profile, the adjusted properties are
     equal to the original, non-adjusted ones.  The energy of the turbulent mean
     profile is used as a reference for the perturbation energy.
