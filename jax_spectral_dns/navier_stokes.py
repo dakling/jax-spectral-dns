@@ -1113,8 +1113,8 @@ class NavierStokesVelVort(Equation):
         self, vel_new_hat_field: "jnp_array", dPdx: "jsd_float", time_step: int
     ) -> Tuple["jnp_array", "jsd_float"]:
         if self.constant_mass_flux:
-            vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
             dPdx = self.update_pressure_gradient(vel_new_hat_field, cast(float, dPdx))
+            vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
         else:
             if Equation.verbosity_level >= 3:
                 self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
