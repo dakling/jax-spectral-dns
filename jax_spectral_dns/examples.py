@@ -2620,8 +2620,8 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
-    end_time__ = end_time * (u_max_over_u_tau / max)
-    Re__ = Re_tau * (u_max_over_u_tau / max)
+    end_time__ = end_time / (u_max_over_u_tau / max)
+    Re__ = Re_tau / (u_max_over_u_tau / max)
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
@@ -2650,7 +2650,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         U_base = U_base
         vel_base_y_slice = (
             turb * U_base
-            + (1 - turb) * (1 - lsc_domain.grid[1] ** 2)
+            + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
             # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
