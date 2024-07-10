@@ -494,8 +494,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     # ) -> Tuple["jnp_array", "jsd_float"]:
 
     #     if self.constant_mass_flux:
-    #         vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
     #         dPdx = -self.get_dPdx(time_step + 2)
+    #         vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
     #     else:
     #         dPdx = 0.0
 

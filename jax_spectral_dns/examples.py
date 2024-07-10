@@ -1947,7 +1947,7 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
         v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(
-        v0_hat, Re=Re, dt=dt, end_time=end_time, constant_mass_flux=True
+        v0_hat, Re=Re, dt=dt, end_time=end_time, constant_mass_flux=False
     )
     # nse.set_linearize(True)
     nse.set_linearize(False)
@@ -2524,14 +2524,17 @@ def run_ld_2021(**params: Any) -> None:
 
 def run_ld_2021_dual(**params: Any) -> None:
     """
-    In order to best facilitate comparison between different shapes of base profile, it makes sense to enforce that all base profiles have the same mass flux $\\dot{m}$.
-    As a result, it also appears most reasonable to run the simulations with constant mass flux.
-    Nondimensionalisation is done using a laminar base profile as a reference. Its maximum velocity is used for the Reynolds number, i.e. $Re=U_\text{max, laminar} h / \\nu$,
-    where $h$ is the channel half-height and $\\nu$ is the kinematic viscosity.
-    The turbulent base profile (or any other base profile) is related to the laminar reference profile by having the same mass flux.
-    Perturbation energy is nondimensionalised using the energy of the laminar reference profile (even when using a different base profile).
-    The viscosity is calculated from the turbulent base profile, i.e., since a turbulent base profile with friction Reynolds number $Re_\\tau$ is rescaled by a factor of $4 / 3 \\dot{m}$, it holds that
-    $Re = 3 / 4 \\dot{m} Re_\\tau$.
+    We use wall units, i.e. $Re_\\tau$ is the characterising property.  The
+    turbulent and the laminar profile are related by having the same x-velocity
+    gradient at the wall (unity).  As a result, the laminar profile will usually
+    have a much higher maximum value than the turbulent profile.  In order to
+    facilitate comparisons between these profiles, it is sometimes convenient to
+    refer to the bulk Reynolds number and the time horizon to account for the
+    vastly different values of $U_\\text{max}$, $Re = U_\\text{max} / u_\\tau$, and
+    $T = t U_\\text{max} / u_\\tau$.  The energy of the turbulent mean profile is
+    used as a reference.  To setup and refer to the case, wall units ($Re_\\tau$,
+    $t$) are used, but for the linear stability calculation, external units
+    ($Re_\\text{max}, $T$) are used.
     """
     Re_tau = params.get("Re_tau", 180.0)
     turb = params.get("turbulent_base", 1.0)
@@ -2547,7 +2550,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     start_iteration = params.get("start_iteration", 0)
     linearise = params.get("linearise", False)
     init_file = params.get("init_file")
-    constant_mass_flux = params.get("constant_mass_flux", True)
+    constant_mass_flux = params.get("constant_mass_flux", False)
 
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 2.0)
@@ -2571,42 +2574,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
 
-    def get_flow_rate(domain: "PhysicalDomain", data: "np_complex_array") -> float:
-        def set_first_mat_row_and_col_to_unit(
-            matr: "np_float_array",
-        ) -> "np_float_array":
-            N = matr.shape[0]
-            out = np.block(
-                [
-                    ([np.ones((1)), np.zeros((1, N - 1))]),
-                    ([np.zeros((N - 1, 1)), matr[1:, 1:]]),
-                ]
-            )
-            return out
-
-        def set_first_of_field(
-            field: "np_complex_array", new_first: float
-        ) -> "np_complex_array":
-            N = field.shape[0]
-            inds = np.arange(1, N)
-            inner = field.take(indices=inds, axis=0)
-            out = np.pad(
-                inner,
-                (1, 0),
-                mode="constant",
-                constant_values=new_first,
-            )
-            return out
-
-        mat = domain.diff_mats[1]
-        mat = set_first_mat_row_and_col_to_unit(mat)
-        data = set_first_of_field(data, 0.0)
-        inv_mat = np.linalg.inv(mat)
-        return cast(float, -(inv_mat @ data)[-1])
-
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float"]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
@@ -2618,7 +2588,6 @@ def run_ld_2021_dual(**params: Any) -> None:
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
-        flow_rate = get_flow_rate(domain, U_y_slice)
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2626,34 +2595,25 @@ def run_ld_2021_dual(**params: Any) -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
-        return vel_base, U_y_slice, cast(float, max), flow_rate
+        return vel_base, U_y_slice, cast(float, max)
 
-    vel_base_turb, _, _, flow_rate = get_vel_field(domain, avg_vel_coeffs)
-    vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
-    vel_base_turb *= 4.0 / 3.0
+    vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
-                # domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
-                domain,
-                lambda X: (1 - X[1] ** 2) + 0 * X[2],
+                domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
             ),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
-    # vel_base = (
-    #     # turb * vel_base_turb + (1 - turb) * vel_base_lam * max
-    #     turb * vel_base_turb
-    #     + (1 - turb) * vel_base_lam
-    # )  # continuously blend from turbulent to laminar mean profile
     vel_base = (
         turb * vel_base_turb + (1 - turb) * vel_base_lam
     )  # continuously blend from turbulent to laminar mean profile
 
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = flow_rate * 3.0 / 4.0
+    u_max_over_u_tau = turb * max + (1 - turb) * Re_tau / 2.0
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
@@ -2664,17 +2624,14 @@ def run_ld_2021_dual(**params: Any) -> None:
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
 
-    print_verb("flow rate turbulent:", vel_base_turb[0].get_flow_rate(1))
     print_verb("max value turbulent:", vel_base_turb[0].max())
     print_verb("energy turbulent:", vel_base_turb.energy())
-    print_verb("flow rate laminar:", vel_base_lam[0].get_flow_rate(1))
     print_verb("max value laminar:", vel_base_lam[0].max())
     print_verb("energy laminar:", vel_base_lam.energy())
-    print_verb("flow rate:", vel_base[0].get_flow_rate(1))
     print_verb("max value:", vel_base[0].max())
     print_verb("energy:", vel_base.energy())
 
-    E_0 = vel_base_lam.energy()
+    E_0 = vel_base_turb.energy()
 
     if init_file is None:
         number_of_modes = params.get("number_of_modes", 60)
@@ -2685,10 +2642,11 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, _, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base / flow_rate * (4.0 / 3.0)
-        vel_base_y_slice = turb * U_base + (1 - turb) * (
-            1 - lsc_domain.grid[1] ** 2
+        _, U_base, max = get_vel_field(lsc_domain, avg_vel_coeffs)
+        U_base = U_base
+        vel_base_y_slice = (
+            turb * U_base
+            + (1 - turb) * (1 - lsc_domain.grid[1] ** 2) / u_max_over_u_tau
         )  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re,
@@ -2781,10 +2739,12 @@ def run_ld_2021_dual(**params: Any) -> None:
         v0_hat = v0.hat()
     v0_hat.set_name("velocity_hat")
 
-    dt = Equation.find_suitable_dt(domain, max_cfl, (1.3, 1e-3, 1e-3), end_time_)
+    dt = Equation.find_suitable_dt(
+        domain, max_cfl, (u_max_over_u_tau, 1e-3, 1e-3), end_time_
+    )
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
-        Re=Re,
+        Re=Re_tau,
         dt=dt,
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
