@@ -1206,12 +1206,17 @@ class TestProject(unittest.TestCase):
             else:
                 N = 6
                 aliasing = 1
+            if dealias_nonperiodic:
+                Ny = 32
+            else:
+                Ny = 50
+                aliasing = 1
             if rotated:
                 return run_pseudo_2d_perturbation(
                     Re=Re,
                     end_time=end_time,
                     Nx=N,
-                    Ny=50,
+                    Ny=Ny,
                     Nz=N,
                     linearize=True,
                     plot=True,
@@ -1228,7 +1233,7 @@ class TestProject(unittest.TestCase):
                     Re=Re,
                     end_time=end_time,
                     Nx=N,
-                    Ny=50,
+                    Ny=Ny,
                     Nz=N,
                     linearize=True,
                     plot=True,

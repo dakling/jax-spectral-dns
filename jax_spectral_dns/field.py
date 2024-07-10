@@ -653,6 +653,18 @@ class VectorField(Generic[T]):
             print(e)
             print("ignoring this and carrying on.")
 
+    def plot_wavenumbers(self, direction: int) -> None:
+        try:
+            for f in self:
+                assert (
+                    type(f) is PhysicalField
+                ), "plot_wavenumbers only implemented for PhysicalField."
+                f.plot_wavenumbers(direction)
+        except Exception as e:
+            print("VectorField.plot_wavenumbers failed with the following exception:")
+            print(e)
+            print("ignoring this and carrying on.")
+
     def plot_isosurfaces(self, iso_val: float = 0.4) -> None:
         try:
             for f in self:
@@ -1748,6 +1760,73 @@ class PhysicalField(Field):
             print(e)
             print("ignoring this and carrying on.")
 
+    def plot_wavenumbers(self, normal_direction: int) -> None:
+        try:
+            assert (
+                self.physical_domain.number_of_dimensions == 3
+            ), "Only 3D supported for this plotting method."
+            v_avg = cast(PhysicalField, self.definite_integral(normal_direction)).hat()
+            name = self.name + "_avg"
+            v_avg.set_time_step(self.time_step)
+            fig = figure.Figure()
+            ax_ = fig.subplots(1, 1)
+            assert type(ax_) is Axes
+            ims = []
+            other_dim = [i for i in self.all_dimensions() if i != normal_direction]
+            domain_hat = self.get_physical_domain().hat()
+            ims.append(
+                ax_.imshow(
+                    np.fft.fftshift(abs(v_avg.data.T)),
+                    interpolation=None,
+                    extent=(
+                        min(domain_hat.grid[other_dim[0]]),
+                        max(domain_hat.grid[other_dim[0]]),
+                        min(domain_hat.grid[other_dim[1]]),
+                        max(domain_hat.grid[other_dim[1]]),
+                    ),
+                )
+            )
+            ax_.set_xlabel("xyz"[other_dim[0]])
+            ax_.set_ylabel("xyz"[other_dim[1]])
+            # Find the min and max of all colors for use in setting the color scale.
+            vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+            vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            for im in ims:
+                im.set_norm(norm)
+            fig.colorbar(ims[0], ax=ax_, label=self.name, orientation="vertical")
+
+            def save() -> None:
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "y"
+                    + "_"
+                    + name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "y"
+                    + "_"
+                    + name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
+        except Exception as e:
+            print("FourierField.plot_wavenumbers failed with the following exception:")
+            print(e)
+            print("ignoring this and carrying on.")
+
     def plot_isolines(
         self, normal_direction: int, isolines: Optional[List["jsd_float"]] = None
     ) -> None:
@@ -2334,63 +2413,6 @@ class FourierField(Field):
             if not self.activate_jit_:
                 if direction is not None:
                     self.plot_3d_single(direction)
-                elif self.get_physical_domain().number_of_dimensions == 2:
-                    # TODO generalize this - currently this assumes that the field has been averaged over y
-                    fig = figure.Figure()
-                    ax_ = fig.subplots(1, 1)
-                    assert type(ax_) is Axes
-                    ims = []
-                    other_dim = [i for i in self.all_dimensions()]
-                    ims.append(
-                        ax_.imshow(
-                            np.fft.fftshift(abs(self.data.T)),
-                            interpolation=None,
-                            extent=(
-                                min(self.get_domain().grid[other_dim[0]]),
-                                max(self.get_domain().grid[other_dim[0]]),
-                                min(self.get_domain().grid[other_dim[1]]),
-                                max(self.get_domain().grid[other_dim[1]]),
-                            ),
-                        )
-                    )
-                    ax_.set_xlabel("xz"[other_dim[0]])
-                    ax_.set_ylabel("xz"[other_dim[1]])
-                    # Find the min and max of all colors for use in setting the color scale.
-                    vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
-                    vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
-                    norm = colors.Normalize(vmin=vmin, vmax=vmax)
-                    for im in ims:
-                        im.set_norm(norm)
-                    fig.colorbar(
-                        ims[0], ax=ax_, label=self.name, orientation="vertical"
-                    )
-
-                    def save() -> None:
-                        fig.savefig(
-                            self.plotting_dir
-                            + "plot_3d_"
-                            + "y"
-                            + "_"
-                            + self.name
-                            + "_latest"
-                            + self.plotting_format
-                        )
-                        fig.savefig(
-                            self.plotting_dir
-                            + "plot_3d_"
-                            + "y"
-                            + "_"
-                            + self.name
-                            + "_t_"
-                            + "{:06}".format(self.time_step)
-                            + self.plotting_format
-                        )
-
-                    try:
-                        save()
-                    except FileNotFoundError:
-                        Field.initialize(False)
-                        save()
                 else:
                     assert (
                         self.physical_domain.number_of_dimensions == 3

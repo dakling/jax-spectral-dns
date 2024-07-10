@@ -245,10 +245,7 @@ class GradientDescentSolver(ABC):
             + ".png"
         )
 
-        v_y_avg = v0.definite_integral(1).hat()
-        v_y_avg.set_name("vel_y_avg_hat_0")
-        v_y_avg.set_time_step(self.i)
-        v_y_avg.plot_3d()
+        v0.plot_wavenumbers(1)
 
         # save state for easy restarting
         fname = Field.field_dir + "/velocity_latest"

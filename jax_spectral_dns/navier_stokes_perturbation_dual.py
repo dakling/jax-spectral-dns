@@ -488,17 +488,18 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
-    def enforce_constant_mass_flux(
-        self, vel_new_hat_field: "jnp_array", _: "jsd_float", time_step: int
-    ) -> Tuple["jnp_array", "jsd_float"]:
+    # TODO with or without this?
+    # def enforce_constant_mass_flux(
+    #     self, vel_new_hat_field: "jnp_array", _: "jsd_float", time_step: int
+    # ) -> Tuple["jnp_array", "jsd_float"]:
 
-        if self.constant_mass_flux:
-            vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
-            dPdx = -self.get_dPdx(time_step + 2)
-        else:
-            dPdx = 0.0
+    #     if self.constant_mass_flux:
+    #         vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
+    #         dPdx = -self.get_dPdx(time_step + 2)
+    #     else:
+    #         dPdx = 0.0
 
-        return vel_new_hat_field, dPdx
+    #     return vel_new_hat_field, dPdx
 
     def solve_scan(
         self,
