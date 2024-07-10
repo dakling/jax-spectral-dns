@@ -2645,9 +2645,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         _, U_base, max = get_vel_field(lsc_domain, avg_vel_coeffs)
         U_base = U_base
         vel_base_y_slice = (
-            turb * U_base
-            + (1 - turb) * (1 - lsc_domain.grid[1] ** 2) / u_max_over_u_tau
-        )  # continuously blend from turbulent to laminar mean profile
+            turb * U_base + (1 - turb) * (1 - lsc_domain.grid[1] ** 2)
+        ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile
         lsc_xz = LinearStabilityCalculation(
             Re=Re,
             alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
@@ -2740,13 +2739,13 @@ def run_ld_2021_dual(**params: Any) -> None:
     v0_hat.set_name("velocity_hat")
 
     dt = Equation.find_suitable_dt(
-        domain, max_cfl, (u_max_over_u_tau, 1e-3, 1e-3), end_time_
+        domain, max_cfl, (u_max_over_u_tau, 1e-3, 1e-3), end_time
     )
     nse = NavierStokesVelVortPerturbation(
         v0_hat,
         Re=Re_tau,
         dt=dt,
-        end_time=end_time_,
+        end_time=end_time,
         velocity_base_hat=vel_base.hat(),
         constant_mass_flux=constant_mass_flux,
     )
