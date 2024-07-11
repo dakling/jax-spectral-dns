@@ -702,12 +702,15 @@ class NavierStokesVelVort(Equation):
     def update_velocity_field(
         self, vel_new_hat: "VectorField[FourierField]"
     ) -> "VectorField[FourierField]":
-        return VectorField.FromData(
-            FourierField,
-            self.get_physical_domain(),
-            self.update_velocity_field_data(vel_new_hat.get_data()),
-            name="velocity_hat",
-        )
+        if self.constant_mass_flux:
+            return VectorField.FromData(
+                FourierField,
+                self.get_physical_domain(),
+                self.update_velocity_field_data(vel_new_hat.get_data()),
+                name="velocity_hat",
+            )
+        else:
+            return vel_new_hat
 
     def update_pressure_gradient(
         self,
