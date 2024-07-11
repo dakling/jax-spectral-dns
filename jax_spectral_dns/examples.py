@@ -2090,8 +2090,9 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         U = VectorField.FromFile(domain, init_file, "velocity")
         try:
             with open(time_step_file, "r") as file:
-                time_step = int(file.readlines()[0]) + 1
-                last_end_time = float(file.readlines()[1])
+                lines = file.readlines()
+                time_step = int(lines[0]) + 1
+                last_end_time = float(lines[1])
                 U.set_time_step(time_step)
         except FileNotFoundError:
             print_verb(

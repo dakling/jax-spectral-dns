@@ -1094,7 +1094,7 @@ class TestProject(unittest.TestCase):
             nse.solve()
 
             vel_x_fn_ana = (
-                lambda X: -1 * nse.get_u_max_over_u_tau() * (X[1] + 1) * (X[1] - 1)
+                lambda X: nse.get_u_max_over_u_tau() * (1 - X[1] ** 2)
                 + 0.0 * X[0] * X[2]
             )
             vel_x_ana = PhysicalField.FromFunc(
