@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from enum import Enum
 import sys
 
 from jax_spectral_dns.gradient_descent_solver import (
@@ -2565,6 +2566,14 @@ def run_ld_2021_dual(**params: Any) -> None:
     min_step_size = params.get("min_step_size", 1.0e-4)
     max_step_size = params.get("max_step_size", 1.0e-1)
 
+    laminar_correction_modes = Enum(
+        "laminar_correction_modes", ["NoCorrection", "MaxValue", "FlowRate"]
+    )
+
+    laminar_correction_mode = laminar_correction_modes[
+        params.get("laminar_correction_mode", "NoCorrection")
+    ]
+
     if start_iteration == 0:
         Equation.initialize()
 
@@ -2580,9 +2589,42 @@ def run_ld_2021_dual(**params: Any) -> None:
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
     )
 
+    def get_flow_rate(domain: "PhysicalDomain", data: "np_complex_array") -> float:
+        def set_first_mat_row_and_col_to_unit(
+            matr: "np_float_array",
+        ) -> "np_float_array":
+            N = matr.shape[0]
+            out = np.block(
+                [
+                    ([np.ones((1)), np.zeros((1, N - 1))]),
+                    ([np.zeros((N - 1, 1)), matr[1:, 1:]]),
+                ]
+            )
+            return out
+
+        def set_first_of_field(
+            field: "np_complex_array", new_first: float
+        ) -> "np_complex_array":
+            N = field.shape[0]
+            inds = np.arange(1, N)
+            inner = field.take(indices=inds, axis=0)
+            out = np.pad(
+                inner,
+                (1, 0),
+                mode="constant",
+                constant_values=new_first,
+            )
+            return out
+
+        mat = domain.diff_mats[1]
+        mat = set_first_mat_row_and_col_to_unit(mat)
+        data = set_first_of_field(data, 0.0)
+        inv_mat = np.linalg.inv(mat)
+        return cast(float, -(inv_mat @ data)[-1])
+
     def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float"]:
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
@@ -2594,6 +2636,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
+        flow_rate = get_flow_rate(domain, U_y_slice)
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2601,9 +2644,9 @@ def run_ld_2021_dual(**params: Any) -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
-        return vel_base, U_y_slice, cast(float, max)
+        return vel_base, U_y_slice, cast(float, max), flow_rate
 
-    vel_base_turb, _, max = get_vel_field(domain, avg_vel_coeffs)
+    vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, avg_vel_coeffs)
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
@@ -2613,21 +2656,32 @@ def run_ld_2021_dual(**params: Any) -> None:
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
+    flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
+
     vel_base = (
         turb * vel_base_turb + (1 - turb) * vel_base_lam
     )  # continuously blend from turbulent to laminar mean profile
 
+    flow_rate = turb * flow_rate_turb + (1 - turb) * flow_rate_lam
     vel_base.set_name("velocity_base")
 
-    u_max_over_u_tau = turb * max + (1 - turb) * Re_tau / 2.0
+    u_max_over_u_tau = turb * max_turb + (1 - turb) * Re_tau / 2.0
     h_over_delta: float = (
         1.0  # confusingly, LD2021 use channel half-height but call it channel height
     )
 
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
-    end_time__ = end_time / (u_max_over_u_tau / max)
-    Re__ = Re_tau / (u_max_over_u_tau / max)
+
+    if laminar_correction_mode == laminar_correction_modes.NoCorrection:
+        correction_factor = 1.0
+    elif laminar_correction_mode == laminar_correction_modes.MaxValue:
+        correction_factor = max_turb / u_max_over_u_tau
+    elif laminar_correction_mode == laminar_correction_modes.FlowRate:
+        correction_factor = flow_rate_turb / flow_rate
+
+    end_time__ = end_time * correction_factor
+    Re__ = Re_tau * correction_factor
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
@@ -2652,8 +2706,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, max = get_vel_field(lsc_domain, avg_vel_coeffs)
-        U_base = U_base
+        _, U_base, _, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         vel_base_y_slice = (
             turb * U_base
             + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
