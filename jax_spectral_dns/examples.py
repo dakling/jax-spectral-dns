@@ -2030,6 +2030,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
     time_step_file = Field.plotting_dir + "/time_step.txt"
 
     time_step = 0
+    last_end_time = 0.0
 
     if init_file is None:
         # v0_0 = lsc.calculate_transient_growth_initial_condition(
@@ -2090,6 +2091,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         try:
             with open(time_step_file, "r") as file:
                 time_step = int(file.readlines()[0]) + 1
+                last_end_time = int(file.readlines()[1]) + 1
                 U.set_time_step(time_step)
         except FileNotFoundError:
             print_verb(
@@ -2105,7 +2107,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             energy_t = []
             ts = []
             for j in range(n_steps):
-                time = ((j + time_step) / (n_steps - 1)) * end_time
+                time = ((j + time_step) / (n_steps - 1)) * end_time + last_end_time
                 vel_hat = nse.get_field("velocity_hat", j)
                 vel = vel_hat.no_hat()
                 avg_vel += vel / n_steps
@@ -2235,6 +2237,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             vel.save_to_file("vel_latest")
             with open(time_step_file, "w") as file:
                 file.write(str(i))
+                file.write("\n")
+                file.write(str(end_time))
 
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time
@@ -2683,7 +2687,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
 
     end_time__ = end_time * correction_factor
-    Re__ = Re_tau * correction_factor
+    # Re__ = Re_tau * correction_factor
+    Re__ = Re_tau
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
