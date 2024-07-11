@@ -1064,7 +1064,7 @@ class TestProject(unittest.TestCase):
         for activate_jit in [True, False]:
             Re = 1.5e0
 
-            end_time = 1.0
+            end_time = 2.0
             nse = solve_navier_stokes_laminar(
                 Re=Re,
                 Nx=4,
@@ -1072,7 +1072,7 @@ class TestProject(unittest.TestCase):
                 Nz=4,
                 end_time=end_time,
                 # max_dt=1e-2,
-                dt=2e-2,
+                dt=4e-2,
                 perturbation_factor=perturbation_factor,
             )
 
@@ -1110,6 +1110,11 @@ class TestProject(unittest.TestCase):
             print_verb(abs(vel[0] - u_max * vel_x_ana), verbosity_level=2)
             print_verb(abs(vel[1]), verbosity_level=2)
             print_verb(abs(vel[2]), verbosity_level=2)
+            vel[0].plot_center(1, vel_x_ana * u_max)
+            print(u_max)
+            print(abs(vel[0] - u_max * vel_x_ana))
+            print(abs(vel[1]))
+            print(abs(vel[2]))
             # check that the simulation is really converged
             self.assertTrue(abs(vel[0] - u_max * vel_x_ana) < tol)
             self.assertTrue(abs(vel[1]) < tol)
