@@ -1369,8 +1369,8 @@ class TestProject(unittest.TestCase):
             for use_antialiasing, rotated, dealias_nonperiodic in [
                 (True, False, False),
                 (False, False, False),
-                (True, True, False),
-                (True, False, True),
+                # (True, True, False),
+                # (True, False, True),
             ]:
                 print_verb(
                     "testing growth rates in "

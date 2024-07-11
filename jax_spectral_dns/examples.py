@@ -2567,11 +2567,11 @@ def run_ld_2021_dual(**params: Any) -> None:
     max_step_size = params.get("max_step_size", 1.0e-1)
 
     laminar_correction_modes = Enum(
-        "laminar_correction_modes", ["NoCorrection", "MaxValue", "FlowRate"]
+        "laminar_correction_modes", ["NoCorrection", "MaxValue", "FlowRate", "Energy"]
     )
 
     laminar_correction_mode = laminar_correction_modes[
-        params.get("laminar_correction_mode", "NoCorrection")
+        params.get("laminar_correction_mode", "MaxValue")
     ]
 
     if start_iteration == 0:
@@ -2679,6 +2679,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         correction_factor = max_turb / u_max_over_u_tau
     elif laminar_correction_mode == laminar_correction_modes.FlowRate:
         correction_factor = flow_rate_turb / flow_rate
+    elif laminar_correction_mode == laminar_correction_modes.Energy:
+        correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
 
     end_time__ = end_time * correction_factor
     Re__ = Re_tau * correction_factor
@@ -2720,17 +2722,21 @@ def run_ld_2021_dual(**params: Any) -> None:
             U_base=cast("np_float_array", vel_base_y_slice),
         )
 
+        T = end_time__
+        Ts = [T / 8, T / 4, T / 2, T, 2 * T, 4 * T, 8 * T, 16 * T, 32 * T, 64 * T]
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             domain,
             end_time__,
             number_of_modes,
             recompute_full=True,
             save_final=False,
+            Ts=Ts,
         )
         print_verb(
             "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
         )
+        raise Exception("break")
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()

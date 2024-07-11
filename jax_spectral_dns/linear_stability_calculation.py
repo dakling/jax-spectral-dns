@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-from typing import TYPE_CHECKING, Any, Callable, Union, Optional, cast
+from typing import TYPE_CHECKING, Any, Callable, List, Union, Optional, cast
 from matplotlib import figure
 from matplotlib.axes import Axes
 import numpy as np
@@ -424,6 +424,7 @@ class LinearStabilityCalculation:
         number_of_modes: int,
         save: bool = False,
         recompute: bool = False,
+        Ts: Optional[List[float]] = None,
     ) -> tuple["np_float_array", "np_complex_array"]:
         if type(self.eigenvalues) == NoneType or type(self.eigenvectors) == NoneType:
             try:
@@ -504,6 +505,13 @@ class LinearStabilityCalculation:
             C[j, j] = C[j, j].real
         F = cholesky(C, lower=False)
         F_inv = np.linalg.inv(F)
+        if type(Ts) is not NoneType:
+            assert Ts is not None
+            for t in Ts:
+                Sigma = np.diag([np.exp(evs[i] * t) for i in range(number_of_modes)])
+                mat = F @ Sigma @ F_inv
+                U, S, Vh = svd(mat, compute_uv=True)
+                print("time:", t, "gain:", S[0] ** 2)
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         mat = F @ Sigma @ F_inv
         U, S, Vh = svd(mat, compute_uv=True)
@@ -516,17 +524,20 @@ class LinearStabilityCalculation:
         return (S, coeffs)
 
     def calculate_transient_growth_max_energy(
-        self, T: float, number_of_modes: int
+        self,
+        T: float,
+        number_of_modes: int,
+        Ts: Optional[List[float]] = None,
     ) -> float:
         if type(self.S) == NoneType:
             self.S, _ = self.calculate_transient_growth_svd(
-                T, number_of_modes, save=False
+                T, number_of_modes, save=False, Ts=Ts
             )
         else:
             assert self.S is not None
             if self.S.shape[0] != number_of_modes:
                 self.S, _ = self.calculate_transient_growth_svd(
-                    T, number_of_modes, save=False
+                    T, number_of_modes, save=False, Ts=Ts
                 )
         assert self.S is not None
         return cast(float, self.S[0] ** 2)
@@ -559,6 +570,7 @@ class LinearStabilityCalculation:
         recompute_partial: bool = True,
         recompute_full: bool = True,
         save_final: bool = False,
+        Ts: Optional[List[float]] = None,
     ) -> VectorField[PhysicalField]:
         """Calcluate the initial condition that achieves maximum growth at time
         T. Uses cached values for velocity fields and eigenvalues/-vectors,
@@ -591,13 +603,13 @@ class LinearStabilityCalculation:
         except FileNotFoundError:
             if recompute_full or type(self.coeffs) == NoneType:
                 self.S, factors = self.calculate_transient_growth_svd(
-                    T, number_of_modes, save=False, recompute=recompute_full
+                    T, number_of_modes, save=False, recompute=recompute_full, Ts=Ts
                 )
             else:
                 assert self.coeffs is not None
                 if self.coeffs.shape[0] != number_of_modes:
                     self.S, factors = self.calculate_transient_growth_svd(
-                        T, number_of_modes, save=False, recompute=recompute_full
+                        T, number_of_modes, save=False, recompute=recompute_full, Ts=Ts
                     )
 
             u = self.calculate_transient_growth_initial_condition_from_coefficients(
