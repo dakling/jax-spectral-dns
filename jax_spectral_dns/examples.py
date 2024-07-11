@@ -2687,8 +2687,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
 
     end_time__ = end_time * correction_factor
-    # Re__ = Re_tau * correction_factor
-    Re__ = Re_tau
+    Re__ = Re_tau * correction_factor
+    # Re__ = Re_tau
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
