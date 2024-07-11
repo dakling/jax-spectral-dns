@@ -2236,9 +2236,9 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             vel.set_name("velocity")
             vel.save_to_file("vel_latest")
             with open(time_step_file, "w") as file:
-                file.write(str(i))
+                file.write(str(i + time_step))
                 file.write("\n")
-                file.write(str(end_time))
+                file.write(str(end_time + last_end_time))
 
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time
