@@ -2091,7 +2091,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         try:
             with open(time_step_file, "r") as file:
                 time_step = int(file.readlines()[0]) + 1
-                last_end_time = int(file.readlines()[1]) + 1
+                last_end_time = float(file.readlines()[1])
                 U.set_time_step(time_step)
         except FileNotFoundError:
             print_verb(
