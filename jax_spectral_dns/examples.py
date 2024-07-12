@@ -26,7 +26,7 @@ from matplotlib.axes import Axes
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union, cast, Tuple, List
 
 from jax_spectral_dns import navier_stokes_perturbation
-from jax_spectral_dns.cheb import cheb
+from jax_spectral_dns.cheb import cheby
 from jax_spectral_dns.domain import PhysicalDomain, get_cheb_grid
 from jax_spectral_dns.field import (
     Field,
@@ -1187,17 +1187,17 @@ def run_transient_growth_nonpert(
         Nz=Nz,
         end_time=end_time,
         perturbation_factor=0.0,
-        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3),
         dt=1e-2,
         aliasing=3 / 2,
         # aliasing=1,
     )
 
     # set pressure gradient so as to cause a flow rate that matches linear stability calculation
-    nse.dPdx = cast("float", -nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau())
+    nse.dPdx = cast("float", -1 * nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau())
     nse.update_pressure_gradient()
 
-    # nse.initialize()
+    nse.initialize()
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
 
@@ -1238,9 +1238,6 @@ def run_transient_growth_nonpert(
 
     e_max = lsc.calculate_transient_growth_max_energy(T, number_of_modes)
 
-    vel_pert = nse.get_initial_field("velocity_hat").no_hat()
-    vel_pert_0 = vel_pert[1]
-    vel_pert_0.name = "veloctity_y_0"
     ts = []
     energy_t = []
     if plot and abs(Re - 3000) < 1e-3:
@@ -1250,6 +1247,7 @@ def run_transient_growth_nonpert(
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
+        print("i:", i, "vel_max:", vel.max())
         vel_pert = vel - velocity_base
         time = (i / (n_steps - 1)) * end_time
 
@@ -2183,7 +2181,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                     U_mat = np.zeros((Ny, len(cheb_coeffs)))
                     for i in range(Ny):
                         for j in range(len(cheb_coeffs)):
-                            U_mat[i, j] = cheb(j, 0)(domain.grid[1][i])
+                            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
                     U_y_slice = U_mat @ cheb_coeffs
                     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
                     u_data = np.moveaxis(
@@ -2332,7 +2330,7 @@ def run_ld_2021(**params: Any) -> None:
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
             for j in range(len(cheb_coeffs)):
-                U_mat[i, j] = cheb(j, 0)(domain.grid[1][i])
+                U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
         U_y_slice = U_mat @ cheb_coeffs
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(
@@ -2634,7 +2632,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
             for j in range(len(cheb_coeffs)):
-                U_mat[i, j] = cheb(j, 0)(domain.grid[1][i])
+                U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
         U_y_slice = U_mat @ cheb_coeffs
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(

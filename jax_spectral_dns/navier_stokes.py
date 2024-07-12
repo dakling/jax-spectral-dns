@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from numpy.polynomial.chebyshev import Chebyshev
+
+from jax_spectral_dns.cheb import cheby
+
 NoneType = type(None)
 import os
 from operator import rshift
@@ -982,6 +986,45 @@ class NavierStokesVelVort(Equation):
         pass
 
     @classmethod
+    def smooth_and_enforce_bc_vel_y(
+        cls,
+        physical_domain: PhysicalDomain,
+        vel_y_slice: "jnp_array",
+        M: Optional[int] = None,
+    ) -> "jnp_array":
+        def phi_n(n: int) -> Chebyshev:
+            a = +(2 * (n + 2)) / (n + 1)
+            b = -(n + 3) / (n + 1)
+            arr = (
+                np.eye(4 * n + 1)[4 * n].flatten()
+                - a * np.eye(4 * n + 1)[2 * n].flatten()
+                - b * np.eye(4 * n + 1)[n].flatten()
+            )
+            assert (1 - a - b) < 1e-10, "first cond too big, n: " + str(n)
+            assert (
+                (n + 4) ** 2 - a * (n + 2) ** 2 - b * n**2
+            ) < 1e-10, "second cond too big, n: " + str(n)
+            # out: Chebyshev = cheby(n + 4, 0) - a * cheby(n + 2, 0) - b * cheby(n, 0)
+            out: Chebyshev = Chebyshev(arr)
+            return out
+
+        N = vel_y_slice.shape[0]
+        if M is None:
+            M_ = N
+        else:
+            M_ = M
+        A = np.zeros((N, M_))
+        ys = physical_domain.grid[1]
+        for i in range(N):
+            for j in range(M_):
+                A[i, j] = phi_n(i)(ys[j])
+
+        # coeffs, resid, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
+        # print(resid)
+        coeffs = np.eye(M_)[2].flatten()
+        return cast("jnp_array", jnp.asarray(A) @ coeffs)
+
+    @classmethod
     def vort_yvel_to_vel(
         cls,
         physical_domain: PhysicalDomain,
@@ -1120,7 +1163,7 @@ class NavierStokesVelVort(Equation):
             vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
         else:
             if Equation.verbosity_level >= 3:
-                self.dPdx = self.update_pressure_gradient(vel_new_hat_field)
+                dPdx = self.update_pressure_gradient(vel_new_hat_field)
         return vel_new_hat_field, dPdx
 
     def perform_runge_kutta_step(
@@ -1350,28 +1393,20 @@ class NavierStokesVelVort(Equation):
                         ]
                     )
 
-                    dpdx = (
-                        dPdx
-                        * (
-                            domain.get_shape_aliasing()[0]
-                            * (2 * jnp.pi / domain.scale_factors[0]) ** 2
-                        )
-                        * (
-                            domain.get_shape_aliasing()[2]
-                            * (2 * jnp.pi / domain.scale_factors[2]) ** 2
-                        )
-                    )
+                    dpdx = PhysicalField.FromFunc(
+                        self.get_physical_domain(),
+                        lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
+                    ).hat()[0, :, 0]
 
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
                             -conv_ns_hat_sw_2_00,
                         ]
-                    )
-                    +jnp.block(
+                    ) + jnp.block(
                         [
-                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
-                            -0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
+                            -dpdx,
+                            0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
                         ]
                     )
 
@@ -1380,11 +1415,10 @@ class NavierStokesVelVort(Equation):
                             -conv_ns_hat_old_sw_0_00,
                             -conv_ns_hat_old_sw_2_00,
                         ]
-                    )
-                    +jnp.block(
+                    ) + jnp.block(
                         [
-                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
-                            -0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
+                            -dpdx,
+                            0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
                         ]
                     )
                     v_hat_new = lhs_mat_inv_00 @ (

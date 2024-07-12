@@ -12,7 +12,7 @@ from scipy.linalg import eig, cholesky  # type: ignore
 from scipy.integrate import quad  # type: ignore
 import timeit
 
-from jax_spectral_dns.cheb import cheb, phi, phi_s, phi_a, phi_pressure
+from jax_spectral_dns.cheb import cheby, phi, phi_s, phi_a, phi_pressure
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, PhysicalField, VectorField
@@ -154,8 +154,8 @@ class LinearStabilityCalculation:
                     w = u
                     d2w = d2u
 
-                    p = cheb(k, 0)(y)
-                    dp = cheb(k, 1)(y)
+                    p = cheby(k, 0)(y)
+                    dp = cheby(k, 1)(y)
 
                 # eq 1 (momentum x)
                 setMat(B, 0, 0, u)

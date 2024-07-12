@@ -1061,7 +1061,7 @@ class TestProject(unittest.TestCase):
     def test_navier_stokes_laminar(
         self, Ny: int = 96, perturbation_factor: float = 0.01
     ) -> None:
-        for activate_jit in [True, False]:
+        for activate_jit in [False, True]:
             Re = 1.5e0
 
             end_time = 2.0
@@ -1081,8 +1081,13 @@ class TestProject(unittest.TestCase):
                 u = nse.get_latest_field("velocity_hat").no_hat()
                 u.set_time_step(nse.time_step)
                 u.plot_3d(2)
+                u[0].plot_center(1)
 
             Equation.initialize()
+
+            nse.dPdx = cast(
+                "float", -1 * nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau()
+            )
 
             if activate_jit:
                 nse.activate_jit()
@@ -1104,14 +1109,14 @@ class TestProject(unittest.TestCase):
             print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
-            u_max = jnp.max(vel[0].get_data())
-            print_verb("u max:", u_max)
+            u_max = 1.0
+            # print_verb("u max:", u_max)
+            print("u max:", vel[0].max())
             tol = 6e-5
             print_verb(abs(vel[0] - u_max * vel_x_ana), verbosity_level=2)
             print_verb(abs(vel[1]), verbosity_level=2)
             print_verb(abs(vel[2]), verbosity_level=2)
             vel[0].plot_center(1, vel_x_ana * u_max)
-            print(u_max)
             print(abs(vel[0] - u_max * vel_x_ana))
             print(abs(vel[1]))
             print(abs(vel[2]))
