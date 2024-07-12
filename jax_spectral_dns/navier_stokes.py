@@ -1018,8 +1018,8 @@ class NavierStokesVelVort(Equation):
             for j in range(N):
                 A[j, i] = phi_n(i)(ys[j])
 
-        coeffs, resid, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
-        return cast("jnp_array", jnp.asarray(A) @ coeffs)
+        coeffs, _, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
+        return jnp.asarray(A) @ coeffs
 
     @classmethod
     def vort_yvel_to_vel(
@@ -1047,7 +1047,9 @@ class NavierStokesVelVort(Equation):
         def rk_00() -> Tuple["jnp_array", ...]:
             return (
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
-                # vel_y[0, :, 0],
+                NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
+                    physical_domain, vel_y[0, :, 0], int(Ny * 2 / 3)
+                ),
                 (vel_z_00 * (1 + 0j)).astype(jnp.complex128),
             )
 
@@ -1142,11 +1144,9 @@ class NavierStokesVelVort(Equation):
             ],
             axis=1,
         )
-        # out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
         out = jax.vmap(outer_map(kz_arr))(kx_state)
-        u_w = [jnp.moveaxis(v, 1, 2) for v in out]
-        # return jnp.array([u_w[0], u_w[1], u_w[2]])
-        return jnp.array([u_w[0], vel_y, u_w[1]])
+        u_v_w = [jnp.moveaxis(v, 1, 2) for v in out]
+        return jnp.array([u_v_w[0], u_v_w[1], u_v_w[2]])
 
     def enforce_constant_mass_flux(
         self, vel_new_hat_field: "jnp_array", dPdx: "jsd_float", time_step: int
