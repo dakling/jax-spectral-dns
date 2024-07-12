@@ -2729,20 +2729,19 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
 
         T = end_time__
-        Ts = [T / 8, T / 4, T / 2, T, 2 * T, 4 * T, 8 * T, 16 * T, 32 * T, 64 * T]
+        # Ts = [T / 8, T / 4, T / 2, T, 2 * T, 4 * T, 8 * T, 16 * T, 32 * T, 64 * T]
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             domain,
             end_time__,
             number_of_modes,
             recompute_full=True,
             save_final=False,
-            Ts=Ts,
+            # Ts=Ts,
         )
         print_verb(
             "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
         )
-        raise Exception("break")
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()

@@ -1167,14 +1167,14 @@ class TestProject(unittest.TestCase):
         for activate_jit in [True, False]:
             Re = 1.5e0
 
-            end_time = 1.0
+            end_time = 2.0
             nse = solve_navier_stokes_perturbation(
                 Re=Re,
                 Nx=16,
                 Ny=Ny,
                 Nz=16,
                 end_time=end_time,
-                dt=2e-2,
+                dt=4e-2,
                 perturbation_factor=perturbation_factor,
             )
 
@@ -1204,7 +1204,7 @@ class TestProject(unittest.TestCase):
             use_antialiasing: bool = True,
             dealias_nonperiodic: bool = False,
         ) -> "pseudo_2d_perturbation_return_type":
-            end_time = 3e-1
+            end_time = 2e-1
             if use_antialiasing:
                 N = 4
                 aliasing = 3 / 2
@@ -1227,7 +1227,7 @@ class TestProject(unittest.TestCase):
                     plot=True,
                     save=False,
                     eps=1.0,
-                    dt=1e-2,
+                    dt=2e-2,
                     rotated=True,
                     aliasing=aliasing,
                     dealias_nonperiodic=dealias_nonperiodic,
@@ -1244,7 +1244,7 @@ class TestProject(unittest.TestCase):
                     plot=True,
                     save=False,
                     eps=1.0,
-                    dt=1e-2,
+                    dt=2e-2,
                     aliasing=aliasing,
                     dealias_nonperiodic=dealias_nonperiodic,
                     jit=True,
