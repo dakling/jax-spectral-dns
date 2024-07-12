@@ -996,15 +996,14 @@ class NavierStokesVelVort(Equation):
             a = +(2 * (n + 2)) / (n + 1)
             b = -(n + 3) / (n + 1)
             arr = (
-                np.eye(4 * n + 1)[4 * n].flatten()
-                - a * np.eye(4 * n + 1)[2 * n].flatten()
-                - b * np.eye(4 * n + 1)[n].flatten()
+                np.eye(4 + n + 1)[4 + n].flatten()
+                - a * np.eye(4 + n + 1)[2 + n].flatten()
+                - b * np.eye(4 + n + 1)[n].flatten()
             )
             assert (1 - a - b) < 1e-10, "first cond too big, n: " + str(n)
             assert (
                 (n + 4) ** 2 - a * (n + 2) ** 2 - b * n**2
             ) < 1e-10, "second cond too big, n: " + str(n)
-            # out: Chebyshev = cheby(n + 4, 0) - a * cheby(n + 2, 0) - b * cheby(n, 0)
             out: Chebyshev = Chebyshev(arr)
             return out
 
@@ -1015,13 +1014,11 @@ class NavierStokesVelVort(Equation):
             M_ = M
         A = np.zeros((N, M_))
         ys = physical_domain.grid[1]
-        for i in range(N):
-            for j in range(M_):
-                A[i, j] = phi_n(i)(ys[j])
+        for i in range(M_):
+            for j in range(N):
+                A[j, i] = phi_n(i)(ys[j])
 
-        # coeffs, resid, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
-        # print(resid)
-        coeffs = np.eye(M_)[2].flatten()
+        coeffs, resid, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
         return cast("jnp_array", jnp.asarray(A) @ coeffs)
 
     @classmethod
@@ -1062,23 +1059,19 @@ class NavierStokesVelVort(Equation):
             j_kx = 1j * kx_
             j_kz = 1j * kz_
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
-            vel_1_y_ = domain.diff_fourier_field_slice(vel_y_, 1, 1)
-            # vel_1_y_ = domain.update_boundary_conditions_fourier_field_slice(  # TODO
-            #     vel_1_y_, 1
-            # )
+            vel_y__ = NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
+                physical_domain, vel_y_, int(Ny * 2 / 3)
+            )
+            vel_1_y_ = domain.diff_fourier_field_slice(vel_y__, 1, 1)
             vel_x_ = (-j_kx * vel_1_y_ + j_kz * vort_) / minus_kx_kz_sq
             if two_d:
                 vel_z_ = jnp.zeros_like(vel_x_, dtype=jnp.complex128)
             else:
                 vel_z_ = (-j_kz * vel_1_y_ - j_kx * vort_) / minus_kx_kz_sq
 
-            # vel_y_ = domain.integrate_fourier_field_slice(vel_1_y_, 1, 1, bc_right=0.0, bc_left=0.0)
-            # vel_y_ = domain.update_boundary_conditions_fourier_field_slice(
-            #     vel_y_, 1
-            # )
             return (
                 vel_x_.astype(jnp.complex128),
-                # vel_y_.astype(jnp.complex128),
+                vel_y__.astype(jnp.complex128),
                 vel_z_.astype(jnp.complex128),
             )
 
