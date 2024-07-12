@@ -1421,6 +1421,7 @@ class NavierStokesVelVort(Equation):
                             0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
                         ]
                     )
+                    dpdx = None
                     v_hat_new = lhs_mat_inv_00 @ (
                         rhs_mat_00 @ v_hat
                         + (self.get_dt() * gamma[step]) * N_00_new
