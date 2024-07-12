@@ -1009,7 +1009,7 @@ class NavierStokesVelVort(Equation):
 
         N = vel_y_slice.shape[0]
         if M is None:
-            M_ = N
+            M_ = N - 4
         else:
             M_ = M
         A = np.zeros((N, M_))
@@ -1019,7 +1019,7 @@ class NavierStokesVelVort(Equation):
                 A[j, i] = phi_n(i)(ys[j])
 
         coeffs, _, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
-        return jnp.asarray(A) @ coeffs
+        return A @ coeffs
 
     @classmethod
     def vort_yvel_to_vel(
@@ -1047,9 +1047,12 @@ class NavierStokesVelVort(Equation):
         def rk_00() -> Tuple["jnp_array", ...]:
             return (
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
-                NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
-                    physical_domain, vel_y[0, :, 0], int(Ny * 2 / 3)
-                ),
+                (
+                    NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
+                        physical_domain, vel_y[0, :, 0]
+                    )
+                    * (1 + 0j)
+                ).astype(jnp.complex128),
                 (vel_z_00 * (1 + 0j)).astype(jnp.complex128),
             )
 
@@ -1062,7 +1065,7 @@ class NavierStokesVelVort(Equation):
             j_kz = 1j * kz_
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_y__ = NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
-                physical_domain, vel_y_, int(Ny * 2 / 3)
+                physical_domain, vel_y_
             )
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y__, 1, 1)
             vel_x_ = (-j_kx * vel_1_y_ + j_kz * vort_) / minus_kx_kz_sq
