@@ -2108,7 +2108,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             energy_t = []
             ts = []
             for j in range(n_steps):
-                time = ((j + time_step) / (n_steps - 1)) * end_time + last_end_time
+                time = (j / (n_steps - 1)) * end_time + last_end_time
                 vel_hat = nse.get_field("velocity_hat", j)
                 vel = vel_hat.no_hat()
                 avg_vel += vel / n_steps
