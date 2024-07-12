@@ -1396,19 +1396,17 @@ class NavierStokesVelVort(Equation):
                     dpdx = (
                         dPdx
                         * (
-                            domain.get_shape_aliasing()[0]
-                            * (2 * jnp.pi / domain.scale_factors[0]) ** 2
+                            (
+                                domain.get_shape_aliasing()[0]
+                                * (2 * jnp.pi / domain.scale_factors[0]) ** 2
+                            )
+                            * (
+                                domain.get_shape_aliasing()[2]
+                                * (2 * jnp.pi / domain.scale_factors[2]) ** 2
+                            )
                         )
-                        * (
-                            domain.get_shape_aliasing()[2]
-                            * (2 * jnp.pi / domain.scale_factors[2]) ** 2
-                        )
-                    )  # TODO
-
-                    # dpdx = PhysicalField.FromFunc(
-                    #     self.get_physical_domain(),
-                    #     lambda X: dPdx + 0.0 * X[0] * X[1] * X[2],
-                    # ).hat()[0, :, 0]
+                        ** 0.5
+                    )
 
                     N_00_new = jnp.block(
                         [
