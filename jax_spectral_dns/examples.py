@@ -2320,7 +2320,7 @@ def run_ld_2021(**params: Any) -> None:
         mat = domain.diff_mats[1]
         mat = set_first_mat_row_and_col_to_unit(mat)
         data = set_first_of_field(data, 0.0)
-        inv_mat = jnp.linalg.inv(mat)
+        inv_mat = np.linalg.inv(mat)
         return cast(float, -(inv_mat @ data)[-1])
 
     def get_vel_field(
@@ -2345,7 +2345,7 @@ def run_ld_2021(**params: Any) -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
-        return vel_base, U_y_slice, max, flow_rate
+        return vel_base, U_y_slice, cast(float, max), flow_rate
 
     vel_base_turb, _, max, flow_rate = get_vel_field(domain, avg_vel_coeffs)
     vel_base_turb = vel_base_turb.normalize_by_flow_rate(0, 1)
