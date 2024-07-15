@@ -2492,7 +2492,11 @@ def run_ld_2021(**params: Any) -> None:
         # U_norm.set_name("vel_norm")
         # U_norm.plot_3d(2)
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
-            U_norm, Re=Re, dt=dt, velocity_base_hat=vel_base.hat()
+            U_norm,
+            Re=Re,
+            dt=dt,
+            velocity_base_hat=vel_base.hat(),
+            prepare_matrices=True,
         )
         energy_0_ = U_norm.energy()
         nse.activate_jit()
