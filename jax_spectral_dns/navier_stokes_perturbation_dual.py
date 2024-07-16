@@ -419,6 +419,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             return self.velocity_field_u_history.at[-1 - timestep].get()  # type: ignore[union-attr]
 
     def get_dPdx(self, timestep: int) -> "jsd_float":
+        if not self.constant_mass_flux:
+            return 0.0
         if self.checkpointing:
             assert self.current_dPdx_history is not None
             ts = (
@@ -529,7 +531,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     self.current_dPdx_history = current_dPdx_history
                     assert self.current_dPdx_history is not None
                     dPdx = -self.get_dPdx(time_step + 1)
-                    # dPdx = self.get_dPdx(time_step + 1) # TODO
                     out = self.perform_time_step(u0_, cast(float, dPdx), time_step)
                     self.current_velocity_field_u_history = None
                     self.current_dPdx_history = None
@@ -561,8 +562,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             if type(self.dPdx_history) is NoneType:
                 self.dPdx_history = self.current_dPdx_history
             assert self.dPdx_history is not None
-            dPdx = -self.dPdx_history[-1]
-            # dPdx = self.dPdx_history[-1] # TODO
+
+            if self.constant_mass_flux:
+                dPdx = -self.dPdx_history[-1]
+            else:
+                dPdx = 0.0
             ts = jnp.arange(0, self.end_time, self.get_dt())
 
             if self.write_intermediate_output and not self.write_entire_output:
@@ -688,11 +692,14 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             name="velocity_hat",
         )
         assert self.dPdx_history is not None
-        dPdx = jax.lax.cond(
-            outer_timestep >= self.number_of_outer_steps - 1,
-            lambda: 0.0,
-            lambda: self.dPdx_history[step],
-        )
+        if self.constant_mass_flux:
+            dPdx = jax.lax.cond(
+                outer_timestep >= self.number_of_outer_steps - 1,
+                lambda: 0.0,
+                lambda: self.dPdx_history[step],
+            )
+        else:
+            dPdx = 0.0
         nse.set_initial_field("velocity_hat", init_field)
         nse.dPdx = dPdx
         self.dPdx_fwd = dPdx
@@ -710,7 +717,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.write_intermediate_output = False
             self.activate_jit()
             assert self.dPdx_history is not None
-            self.dPdx = -self.dPdx_history[-2]
+            if self.constant_mass_flux:
+                self.dPdx = -self.dPdx_history[-2]
+            else:
+                self.dPdx = 0.0
             # self.dPdx = self.dPdx_history[-2] # TODO
             print_verb("performing backward (adjoint) calculation...")
             self.solve()

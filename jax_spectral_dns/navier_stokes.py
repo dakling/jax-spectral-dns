@@ -1159,7 +1159,7 @@ class NavierStokesVelVort(Equation):
             vel_new_hat_field = self.update_velocity_field_data(vel_new_hat_field)
         else:
             if Equation.verbosity_level >= 3:
-                dPdx = self.update_pressure_gradient(vel_new_hat_field)
+                self.update_pressure_gradient(vel_new_hat_field, cast(float, dPdx))
         return vel_new_hat_field, dPdx
 
     def perform_runge_kutta_step(
@@ -1886,10 +1886,14 @@ def solve_navier_stokes_laminar(
         aliasing=aliasing,
     )
     # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
-    u_max_over_u_tau = 1.0
+    cmf = params.get("constant_mass_flux", False)
+    if cmf:
+        u_max_over_u_tau = 1.0
+    else:
+        u_max_over_u_tau = Re / 2.0
 
     vel_x_fn_ana: "Vel_fn_type" = (
-        lambda X: -1 * u_max_over_u_tau * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
+        lambda X: u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2]
     )
 
     vel_x_fn: "Vel_fn_type" = lambda X: jnp.pi / 3 * u_max_over_u_tau * (

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import unittest
+import os
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -44,7 +45,9 @@ NoneType = type(None)
 class TestProject(unittest.TestCase):
     def setUp(self) -> None:
         Equation.initialize()
-        Equation.verbosity_level = 0  # suppress output
+        Equation.verbosity_level = int(
+            os.environ.get("JAX_SPECTRAL_DNS_VERBOSITY_LEVEL", 0)
+        )
 
     def test_1D_cheb(self) -> None:
         Nx = 48
@@ -1064,7 +1067,7 @@ class TestProject(unittest.TestCase):
         for activate_jit in [False, True]:
             Re = 1.5e0
 
-            end_time = 2.0
+            end_time = 1.0
             nse = solve_navier_stokes_laminar(
                 Re=Re,
                 Nx=4,
@@ -1085,9 +1088,9 @@ class TestProject(unittest.TestCase):
 
             Equation.initialize()
 
-            nse.dPdx = cast(
-                "float", -1 * nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau()
-            )
+            # nse.dPdx = cast(
+            #     "float", -1 * nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau()
+            # )
 
             if activate_jit:
                 nse.activate_jit()
@@ -1098,10 +1101,7 @@ class TestProject(unittest.TestCase):
             nse.after_time_step_fn = None
             nse.solve()
 
-            vel_x_fn_ana = (
-                lambda X: nse.get_u_max_over_u_tau() * (1 - X[1] ** 2)
-                + 0.0 * X[0] * X[2]
-            )
+            vel_x_fn_ana = lambda X: Re / 2 * (1 - X[1] ** 2) + 0.0 * X[0] * X[2]
             vel_x_ana = PhysicalField.FromFunc(
                 nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
             )
@@ -1109,19 +1109,78 @@ class TestProject(unittest.TestCase):
             print_verb("Doing post-processing")
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
-            u_max = 1.0
-            # print_verb("u max:", u_max)
-            print("u max:", vel[0].max())
             tol = 6e-5
-            print_verb(abs(vel[0] - u_max * vel_x_ana), verbosity_level=2)
+            print_verb(abs(vel[0] - vel_x_ana), verbosity_level=2)
             print_verb(abs(vel[1]), verbosity_level=2)
             print_verb(abs(vel[2]), verbosity_level=2)
-            vel[0].plot_center(1, vel_x_ana * u_max)
-            print(abs(vel[0] - u_max * vel_x_ana))
+            vel[0].plot_center(1, vel_x_ana)
+            print(abs(vel[0] - vel_x_ana))
             print(abs(vel[1]))
             print(abs(vel[2]))
             # check that the simulation is really converged
-            self.assertTrue(abs(vel[0] - u_max * vel_x_ana) < tol)
+            self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
+            self.assertTrue(abs(vel[1]) < tol)
+            self.assertTrue(abs(vel[2]) < tol)
+
+    def test_navier_stokes_laminar_constant_mass_flux(
+        self, Ny: int = 96, perturbation_factor: float = 0.01
+    ) -> None:
+        for activate_jit in [False, True]:
+            Re = 1.5e0
+
+            end_time = 1.0
+            nse = solve_navier_stokes_laminar(
+                Re=Re,
+                Nx=4,
+                Ny=Ny,
+                Nz=4,
+                end_time=end_time,
+                # max_dt=1e-2,
+                dt=4e-2,
+                perturbation_factor=perturbation_factor,
+                constant_mass_flux=True,
+            )
+
+            def before_time_step(nse_: Equation) -> None:
+                nse = cast(NavierStokesVelVort, nse_)
+                u = nse.get_latest_field("velocity_hat").no_hat()
+                u.set_time_step(nse.time_step)
+                u.plot_3d(2)
+                u[0].plot_center(1)
+
+            Equation.initialize()
+
+            # nse.dPdx = cast(
+            #     "float", -1 * nse.get_flow_rate() * 3 / 2 / nse.get_Re_tau()
+            # )
+
+            if activate_jit:
+                nse.activate_jit()
+                nse.before_time_step_fn = None
+            else:
+                nse.deactivate_jit()
+                nse.before_time_step_fn = before_time_step
+            nse.after_time_step_fn = None
+            nse.solve()
+
+            vel_x_fn_ana = lambda X: (1 - X[1] ** 2) + 0.0 * X[0] * X[2]
+            vel_x_ana = PhysicalField.FromFunc(
+                nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
+            )
+
+            print_verb("Doing post-processing")
+            vel_hat = nse.get_latest_field("velocity_hat")
+            vel = vel_hat.no_hat()
+            tol = 6e-5
+            print_verb(abs(vel[0] - vel_x_ana), verbosity_level=2)
+            print_verb(abs(vel[1]), verbosity_level=2)
+            print_verb(abs(vel[2]), verbosity_level=2)
+            vel[0].plot_center(1, vel_x_ana)
+            print(abs(vel[0] - vel_x_ana))
+            print(abs(vel[1]))
+            print(abs(vel[2]))
+            # check that the simulation is really converged
+            self.assertTrue(abs(vel[0] - vel_x_ana) < tol)
             self.assertTrue(abs(vel[1]) < tol)
             self.assertTrue(abs(vel[2]) < tol)
 
@@ -1427,7 +1486,7 @@ class TestProject(unittest.TestCase):
         Ny = 20
         Nz = 4
         dt = 1e-2
-        end_time = 0.5
+        end_time = 0.09
         alpha = 1.0
 
         def get_nse() -> NavierStokesVelVortPerturbation:

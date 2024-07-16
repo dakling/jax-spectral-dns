@@ -504,7 +504,6 @@ def solve_navier_stokes_perturbation(
             * jnp.cos(4 * X[2])
         )
     )
-    # add small perturbation in y and z to see if it decays
     vel_y_fn = (
         lambda X: 0.1
         * perturbation_factor
