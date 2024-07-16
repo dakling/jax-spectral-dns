@@ -1019,7 +1019,7 @@ class NavierStokesVelVort(Equation):
                 A[j, i] = phi_n(i)(ys[j])
 
         coeffs, _, _, _ = jnp.linalg.lstsq(A, vel_y_slice)
-        return A @ coeffs
+        return cast("jnp_array", A @ coeffs)
 
     @classmethod
     def vort_yvel_to_vel(
