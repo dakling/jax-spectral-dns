@@ -2261,11 +2261,10 @@ def run_ld_2021(**params: Any) -> None:
     Nz: int = params.get("Nz", 24)
     number_of_steps: int = params.get("number_of_steps", 10)
     min_number_of_optax_steps: int = params.get("min_number_of_optax_steps", -1)
-    e_0: float = params.get("e_0", 1e-3)
     init_file: Optional[str] = params.get("init_file", None)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
     aliasing = 3 / 2
-    e_0 = params.get("e_0", 1.0e0)
+    e_0 = params.get("e_0", 1.0e-0)
 
     Equation.initialize()
 
@@ -2778,6 +2777,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel.plot_streamlines(2)
         vel[1].plot_isolines(2)
         vel.plot_isosurfaces()
+        vel.plot_wavenumbers(1)
 
         vel_total = vel + vel_base
         vel_total.set_name("velocity_total")
