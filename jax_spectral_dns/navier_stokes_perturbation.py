@@ -468,6 +468,43 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         w_cfl = cast(float, (abs(DZ) / abs(W)).min().real)
         return self.get_dt() / jnp.array([u_cfl, v_cfl, w_cfl])
 
+    def get_production(self, time_step: int = -1) -> "jsd_float":
+        U_base = self.get_initial_field("velocity_hat").no_hat()
+        u = self.get_field("velocity_hat", time_step).no_hat()
+        prod_field = -U_base[0].diff(1) * u[0] * u[1]
+        prod_field.set_name("prod_field")
+        prod_field.set_time_step(time_step)
+        prod_field.plot_3d(0)
+        prod_field.plot_3d(2)
+        prod = sum(
+            [
+                (-U_base[0].diff(i) * u[0] * u[i]).volume_integral()
+                for i in self.all_dimensions()
+            ]
+        )
+        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
+            jnp.array(self.get_physical_domain().scale_factors)
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return prod / domain_volume
+
+    def get_dissipation(self, time_step: int = -1) -> "jsd_float":
+        u_hat = self.get_field("velocity_hat", time_step)
+        diss_field = sum(
+            [
+                sum(
+                    [
+                        (u_hat[i].diff(j).no_hat() ** 2).volume_integral()
+                        for j in self.all_dimensions()
+                    ]
+                )
+                for i in self.all_dimensions()
+            ]
+        )
+        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
+            jnp.array(self.get_physical_domain().scale_factors)
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return -2 / self.get_Re_tau() * diss_field / domain_volume
+
 
 def solve_navier_stokes_perturbation(
     Re: float = 1.8e2,

@@ -2790,9 +2790,14 @@ def run_ld_2021_dual(**params: Any) -> None:
         fig_2d_over_3d = figure.Figure()
         ax_2d_over_3d = fig_2d_over_3d.subplots(1, 1)
         assert type(ax_2d_over_3d) is Axes
+        fig_pd = figure.Figure()
+        ax_pd = fig_pd.subplots(1, 1)
+        assert type(ax_pd) is Axes
         ts = []
         energy_t = []
         energy_x_2d_over_3d = []
+        prod = []
+        diss = []
         for j in range(n_steps):
             time_ = (j / (n_steps - 1)) * end_time_
             vel_hat_ = nse.get_field("velocity_hat", j)
@@ -2802,31 +2807,52 @@ def run_ld_2021_dual(**params: Any) -> None:
             energy_t.append(vel_energy_)
             e_x_2d_over_3d = v0_hat.energy_2d(0) / vel_energy_
             energy_x_2d_over_3d.append(e_x_2d_over_3d)
+            prod.append(nse.get_production(j))
+            diss.append(nse.get_dissipation(j))
 
         energy_t_arr = np.array(energy_t)
         energy_x_2d_over_3d_arr = np.array(energy_x_2d_over_3d)
+        prod_arr = np.array(prod)
+        diss_arr = np.array(diss)
         ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
         ax.plot(
             ts[: i + 1],
             energy_t_arr[: i + 1] / energy_t_arr[0],
             "bo",
-            label="energy gain",
         )
-        fig.legend()
+        ax.set_xlabel("$t$")
+        ax.set_ylabel("$G$")
         fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
         ax_2d_over_3d.plot(ts, energy_x_2d_over_3d_arr, "k.")
         ax_2d_over_3d.plot(
             ts[: i + 1],
             energy_x_2d_over_3d_arr[: i + 1],
             "bo",
-            label="$E_{kx=0} / E$",
         )
-        fig_2d_over_3d.legend()
+        ax_2d_over_3d.set_xlabel("$t$")
+        ax_2d_over_3d.set_ylabel("$E_{kx=0} / E$")
         fig_2d_over_3d.savefig(
             Field.plotting_dir
             + "/plot_energy_2d_over_3d_t_"
             + "{:06}".format(i)
             + ".png"
+        )
+        ax_pd.plot(prod_arr, -diss_arr, "k.")
+        ax_pd.plot(
+            np.array([0.0, -max(diss_arr)]),
+            np.array([0.0, -max(diss_arr)]),
+            color="0.8",
+            linestyle="dashed",
+        )
+        ax_pd.plot(
+            prod_arr[i],
+            -diss_arr[i],
+            "bo",
+        )
+        ax_pd.set_xlabel("$P$")
+        ax_pd.set_ylabel("$-D$")
+        fig_pd.savefig(
+            Field.plotting_dir + "/plot_prod_diss_t_" + "{:06}".format(i) + ".png"
         )
 
     if init_file is None:
