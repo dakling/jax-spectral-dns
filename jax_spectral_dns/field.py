@@ -481,6 +481,7 @@ class VectorField(Generic[T]):
         for i in range(1, len(self)):
             out += self[i] ** 2
         out.set_name(self.get_name() + "_magnitude")
+        out.set_time_step(self.time_step)
         return out
 
     def definite_integral(
