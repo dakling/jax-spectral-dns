@@ -224,23 +224,14 @@ class GradientDescentSolver(ABC):
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
-        ax.plot(
-            phase_space_data[5][0], phase_space_data[4][0], "k+", label="initial guess"
-        )
-        ax.plot(phase_space_data[5], phase_space_data[4], "g--")
-        ax.set_xlabel("localisation (x)")
-        ax.set_ylabel("localisation")
-        fig.legend()
-        fig.savefig(Field.plotting_dir + "/plot_localisation.png")
-        ax.plot(
-            phase_space_data[5][-1],
-            phase_space_data[4][-1],
-            "bo",
-            label="current guess",
-        )
+        ax.plot(phase_space_data[0], phase_space_data[2], "k.")
+        ax.set_xlabel("$i$")
+        ax.set_ylabel("$E_{x_2d} / E$")
+        fig.savefig(Field.plotting_dir + "/plot_e_2d_x_over_iterations.png")
+        ax.plot(phase_space_data[0][-1], phase_space_data[2][-1], "bo")
         fig.savefig(
             Field.plotting_dir
-            + "/plot_localisation_t_"
+            + "/plot_e_2d_x_over_iterations_t_"
             + "{:06}".format(self.i)
             + ".png"
         )
