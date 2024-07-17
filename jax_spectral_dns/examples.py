@@ -2839,8 +2839,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         ax_pd.plot(prod_arr, -diss_arr, "k.")
         ax_pd.plot(
-            np.array([0.0, -max(diss_arr)]),
-            np.array([0.0, -max(diss_arr)]),
+            np.array([0.0, max(-diss_arr)]),
+            np.array([0.0, max(-diss_arr)]),
             color="0.8",
             linestyle="dashed",
         )

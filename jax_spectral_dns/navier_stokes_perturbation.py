@@ -471,11 +471,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
     def get_production(self, time_step: int = -1) -> "jsd_float":
         U_base = self.get_initial_field("velocity_hat").no_hat()
         u = self.get_field("velocity_hat", time_step).no_hat()
-        prod_field = -U_base[0].diff(1) * u[0] * u[1]
-        prod_field.set_name("prod_field")
-        prod_field.set_time_step(time_step)
-        prod_field.plot_3d(0)
-        prod_field.plot_3d(2)
         prod = sum(
             [
                 (-U_base[0].diff(i) * u[0] * u[i]).volume_integral()
