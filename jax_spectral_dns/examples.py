@@ -2788,7 +2788,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
         fig_2d_over_3d = figure.Figure()
-        ax_2d_over_3d = fig.subplots(1, 1)
+        ax_2d_over_3d = fig_2d_over_3d.subplots(1, 1)
         assert type(ax_2d_over_3d) is Axes
         ts = []
         energy_t = []
