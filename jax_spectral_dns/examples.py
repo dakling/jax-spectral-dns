@@ -2824,7 +2824,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             ts[: i + 1],
             energy_x_2d_over_3d_arr[: i + 1],
             "bo",
-            label="E_{kx=0} / E",
+            label="$E_{kx=0} / E$",
         )
         fig_2d_over_3d.legend()
         fig_2d_over_3d.savefig(
