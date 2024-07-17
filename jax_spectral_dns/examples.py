@@ -2813,12 +2813,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig(
-            Field.plotting_dir
-            + "/plot_energy_2d_over_3d_t_"
-            + "{:06}".format(i)
-            + ".png"
-        )
+        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
         ax_2d_over_3d.plot(ts, energy_x_2d_over_3d_arr, "k.")
         ax_2d_over_3d.plot(
             ts[: i + 1],
