@@ -1486,11 +1486,11 @@ class TestProject(unittest.TestCase):
         Ny = 20
         Nz = 4
         dt = 1e-2
-        end_time = 0.09
+        end_time = 1.0
         alpha = 1.0
 
         def get_nse() -> NavierStokesVelVortPerturbation:
-            return solve_navier_stokes_perturbation(
+            out = solve_navier_stokes_perturbation(
                 Re=Re,
                 Nx=Nx,
                 Ny=Ny,
@@ -1502,6 +1502,8 @@ class TestProject(unittest.TestCase):
                 aliasing=True,
                 rotated=False,
             )
+            out.activate_jit()
+            return out
 
         nse_dual_cp = (
             NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(

@@ -476,6 +476,13 @@ class VectorField(Generic[T]):
             out += abs(f)
         return out
 
+    def magnitude(self: VectorField[PhysicalField]) -> PhysicalField:
+        out = self[0] ** 2
+        for i in range(1, len(self)):
+            out += self[i] ** 2
+        out.set_name(self.get_name() + "_magnitude")
+        return out
+
     def definite_integral(
         self: VectorField[PhysicalField], direction: int
     ) -> VectorField[PhysicalField]:

@@ -246,6 +246,7 @@ class GradientDescentSolver(ABC):
         )
 
         v0.plot_wavenumbers(1)
+        v0.magnitude().plot_wavenumbers(1)
 
         # save state for easy restarting
         fname = Field.field_dir + "/velocity_latest"

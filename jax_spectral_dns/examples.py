@@ -2778,6 +2778,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel[1].plot_isolines(2)
         vel.plot_isosurfaces()
         vel.plot_wavenumbers(1)
+        vel.magnitude().plot_wavenumbers(1)
 
         vel_total = vel + vel_base
         vel_total.set_name("velocity_total")
@@ -2786,8 +2787,12 @@ def run_ld_2021_dual(**params: Any) -> None:
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
+        fig_2d_over_3d = figure.Figure()
+        ax_2d_over_3d = fig.subplots(1, 1)
+        assert type(ax_2d_over_3d) is Axes
         ts = []
         energy_t = []
+        energy_x_2d_over_3d = []
         for j in range(n_steps):
             time_ = (j / (n_steps - 1)) * end_time_
             vel_hat_ = nse.get_field("velocity_hat", j)
@@ -2795,8 +2800,11 @@ def run_ld_2021_dual(**params: Any) -> None:
             vel_energy_ = vel_.energy()
             ts.append(time_)
             energy_t.append(vel_energy_)
+            e_x_2d_over_3d = v0_hat.energy_2d(0) / vel_energy_
+            energy_x_2d_over_3d.append(e_x_2d_over_3d)
 
         energy_t_arr = np.array(energy_t)
+        energy_x_2d_over_3d_arr = np.array(energy_x_2d_over_3d)
         ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
         ax.plot(
             ts[: i + 1],
@@ -2805,7 +2813,26 @@ def run_ld_2021_dual(**params: Any) -> None:
             label="energy gain",
         )
         fig.legend()
-        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(
+            Field.plotting_dir
+            + "/plot_energy_2d_over_3d_t_"
+            + "{:06}".format(i)
+            + ".png"
+        )
+        ax_2d_over_3d.plot(ts, energy_x_2d_over_3d_arr, "k.")
+        ax_2d_over_3d.plot(
+            ts[: i + 1],
+            energy_x_2d_over_3d_arr[: i + 1],
+            "bo",
+            label="E_{kx=0} / E",
+        )
+        fig_2d_over_3d.legend()
+        fig_2d_over_3d.savefig(
+            Field.plotting_dir
+            + "/plot_energy_2d_over_3d_t_"
+            + "{:06}".format(i)
+            + ".png"
+        )
 
     if init_file is None:
         v0_hat = vel_hat
