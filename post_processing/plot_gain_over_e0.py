@@ -63,10 +63,14 @@ def plot() -> None:
         1, 2, sharey=True, gridspec_kw={"width_ratios": [1, 8]}
     )
     fig.subplots_adjust(wspace=0.05)  # adjust space between Axes
-    ax.set_xlim([min(e_0[1:]) * 1e-2, 1.5 * max(e_0)])
+    ax.plot(e_0, gain, "k--")
+    ax.plot(e_0, gain, "bo")
+    ax_.plot(e_0, gain, "k--")
+    ax_.plot(e_0, gain, "bo")
+    ax.set_xscale("log")
+    ax.set_xlim(left=min(e_0[1:]) * 1e-1)
     ax_.set_xlim([-1e-20, 1e-20])
     ax_.get_xaxis().set_ticks([0.0])
-    ax.set_xscale("log")
     ax.set_xlabel("$e_0 / E_0$")
     ax_.set_ylabel("$G_\\text{opt}$")
     # hide the spines between ax and ax2
@@ -87,12 +91,6 @@ def plot() -> None:
     )
     ax_.plot([1, 1], [0, 1], transform=ax_.transAxes, **kwargs)
     ax.plot([0, 0], [1, 0], transform=ax.transAxes, **kwargs)
-    # ax.plot(e_0[1:], gain[1:], "k--")
-    # ax.plot(e_0[1:], gain[1:], "bo")
-    ax.plot(e_0, gain, "k--")
-    ax.plot(e_0, gain, "bo")
-    ax_.plot(e_0, gain, "k--")
-    ax_.plot(e_0, gain, "bo")
     fig.savefig("gain_over_e0.png")
 
 
