@@ -2799,7 +2799,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         prod = []
         diss = []
         for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time_
+            time_ = (j / (n_steps - 1)) * end_time
             vel_hat_ = nse.get_field("velocity_hat", j)
             vel_ = vel_hat_.no_hat()
             vel_energy_ = vel_.energy()
