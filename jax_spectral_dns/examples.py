@@ -2820,7 +2820,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             energy_t_arr[: i + 1] / energy_t_arr[0],
             "bo",
         )
-        ax.set_xlabel("$t$")
+        ax.set_xlabel("$t h / u_\\tau$")
         ax.set_ylabel("$G$")
         fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
         ax_2d_over_3d.plot(ts, energy_x_2d_over_3d_arr, "k.")
