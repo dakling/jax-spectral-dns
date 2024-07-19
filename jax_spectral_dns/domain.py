@@ -38,7 +38,8 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-use_rfftn = False
+use_rfftn = jax.default_backend() == "cpu"
+print("using rfftn?", use_rfftn)
 
 if use_rfftn:
     rfftn_jit = jax.jit(
