@@ -54,7 +54,7 @@ else:
         lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho"), static_argnums=1
     )
     irfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
+        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho").real,
         static_argnums=1,
     )
 
