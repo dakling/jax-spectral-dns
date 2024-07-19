@@ -38,7 +38,8 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-use_rfftn = jax.default_backend() == "cpu"
+# use_rfftn = jax.default_backend() == "cpu" # for some reason, this leads to a major performance loss on GPU
+use_rfftn = True
 print("using rfftn?", use_rfftn)
 
 if use_rfftn:
@@ -200,20 +201,13 @@ class Domain(ABC):
                 for i in range(len(shape))
             )
         if use_rfftn:
-            try:
-                rfftn_direction = [
-                    i for i in range(len(periodic_directions)) if periodic_directions[i]
-                ][-1]
-                shape = tuple(
-                    (
-                        int(shape[i])
-                        if i != rfftn_direction
-                        else ((shape[i] - 1) // 2) + 1
-                    )
-                    for i in range(len(shape))
-                )
-            except IndexError:
-                pass
+            rfftn_direction = [
+                i for i in range(len(periodic_directions)) if periodic_directions[i]
+            ][-1]
+            shape = tuple(
+                (int(shape[i]) if i != rfftn_direction else ((shape[i] - 1) // 2) + 1)
+                for i in range(len(shape))
+            )
         grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):
