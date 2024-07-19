@@ -231,14 +231,9 @@ class Domain(ABC):
     def get_shape_aliasing(self) -> tuple[int, ...]: ...
 
     def get_rfftn_direction(self) -> int:
-        try:
-            return self.all_periodic_dimensions()[
-                -1
-            ]  # rfftn performs the real transform over the last axis
-        except IndexError:
-            raise Exception(
-                "No periodic directions present, fourier-transforming makes no sense here."
-            )
+        return self.all_periodic_dimensions()[
+            -1
+        ]  # rfftn performs the real transform over the last axis
 
     def number_of_cells(self, direction: int) -> int:
         return len(self.grid[direction])
@@ -1087,8 +1082,9 @@ class FourierDomain(Domain):
 
         Ns = [int(self.number_of_cells(i)) for i in self.all_dimensions()]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
+        rfftn_direction = self.get_rfftn_direction()
         for i in self.all_periodic_dimensions():
-            if i != self.get_rfftn_direction():
+            if i != rfftn_direction:
                 field_1 = field_hat.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
                 zeros_shape = [
                     (
