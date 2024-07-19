@@ -642,16 +642,14 @@ class PhysicalDomain(Domain):
             for i in self.all_dimensions()
         ]
 
-        for i in self.all_periodic_dimensions():
-            if i != self.get_rfftn_direction():
-                out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
-                out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
-                out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
-                out = jnp.concatenate(
-                    [out_1, out_2, jnp.conjugate(out_2), out_3], axis=i
-                )
-            else:
-                out = out.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
+        # TODO rewrite this to improve GPU performance
+        for i in self.all_periodic_dimensions()[:-1]:
+            out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
+            out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
+            out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
+            out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
+        i = self.all_periodic_dimensions()[-1]
+        out = out.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
 
         if self.dealias_nonperiodic:
             out_ = jnp.zeros(self.get_shape())
@@ -1084,38 +1082,33 @@ class FourierDomain(Domain):
 
         Ns = [int(self.number_of_cells(i)) for i in self.all_dimensions()]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
-        rfftn_direction = self.get_rfftn_direction()
-        for i in self.all_periodic_dimensions():
-            if i != rfftn_direction:
-                field_1 = field_hat.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
-                zeros_shape = [
-                    (
-                        field_1.shape[dim]
-                        if dim != i
-                        else math.ceil(Ns[i] * (self.aliasing - 1))
-                    )
-                    for dim in self.all_dimensions()
-                ]
-                field_2 = field_hat.take(
-                    indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i
+        # TODO rewrite this to improve GPU performance
+        for i in self.all_periodic_dimensions()[:-1]:
+            field_1 = field_hat.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
+            zeros_shape = [
+                (
+                    field_1.shape[dim]
+                    if dim != i
+                    else math.ceil(Ns[i] * (self.aliasing - 1))
                 )
-                if zeros_shape[i] == 0:
-                    field_2 = field_2.take(
-                        indices=jnp.arange(1, field_2.shape[i]), axis=i
-                    )
-                extra_zeros = jnp.zeros(zeros_shape)
-                field_hat = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
-            else:
-                zeros_shape = [
-                    (
-                        field_hat.shape[dim]
-                        if dim != i
-                        else math.ceil(Ns[i] * (self.aliasing - 1))
-                    )
-                    for dim in self.all_dimensions()
-                ]
-                extra_zeros = jnp.zeros(zeros_shape)
-                field_hat = jnp.concatenate([field_hat, extra_zeros], axis=i)
+                for dim in self.all_dimensions()
+            ]
+            field_2 = field_hat.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
+            if zeros_shape[i] == 0:
+                field_2 = field_2.take(indices=jnp.arange(1, field_2.shape[i]), axis=i)
+            extra_zeros = jnp.zeros(zeros_shape)
+            field_hat = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
+        i = self.all_periodic_dimensions()[-1]
+        zeros_shape = [
+            (
+                field_hat.shape[dim]
+                if dim != i
+                else math.ceil(Ns[i] * (self.aliasing - 1))
+            )
+            for dim in self.all_dimensions()
+        ]
+        extra_zeros = jnp.zeros(zeros_shape)
+        field_hat = jnp.concatenate([field_hat, extra_zeros], axis=i)
 
         if self.dealias_nonperiodic:
             assert self.physical_domain is not None
