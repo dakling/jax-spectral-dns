@@ -730,14 +730,14 @@ class FourierDomain(Domain):
             if physical_domain.periodic_directions[i]:
                 rfftn_direction = physical_domain.get_rfftn_direction()
                 N = len(inp)
-                if i != rfftn_direction:
+                if use_rfftn and i == rfftn_direction:
+                    return inp * (2 * np.pi) / physical_domain.scale_factors[i]
+                else:
                     return (
                         (np.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
                         * (2 * np.pi)
                         / physical_domain.scale_factors[i]
                     )
-                else:
-                    return inp * (2 * np.pi) / physical_domain.scale_factors[i]
             else:
                 return inp
 

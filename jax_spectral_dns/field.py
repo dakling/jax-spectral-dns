@@ -57,7 +57,7 @@ from pathlib import Path
 import os
 from shutil import copyfile
 
-from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain
+from jax_spectral_dns.domain import Domain, PhysicalDomain, FourierDomain, use_rfftn
 
 NoneType = type(None)
 
@@ -1784,7 +1784,9 @@ class PhysicalField(Field):
             domain_hat = self.get_physical_domain().hat()
             ims.append(
                 ax_.imshow(
-                    np.fft.fftshift(abs(v_avg.data.T), axes=other_dim[0]),
+                    np.fft.fftshift(
+                        abs(v_avg.data.T), axes=(other_dim[0] if use_rfftn else None)
+                    ),
                     interpolation=None,
                     extent=(
                         min(domain_hat.grid[other_dim[0]]),
