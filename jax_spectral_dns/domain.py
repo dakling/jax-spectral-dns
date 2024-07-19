@@ -118,6 +118,7 @@ class Domain(ABC):
         scale_factors: Optional[Tuple[float, ...]] = None,
         aliasing: float = 3 / 2,
         dealias_nonperiodic: bool = False,
+        physical_shape_passed: bool = False,
     ) -> Self:
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
@@ -125,35 +126,59 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        shape = tuple(
-            (
-                int(shape[i])
-                if not periodic_directions[i] or int(shape[i]) % 2 != 0
-                else int(shape[i]) + 1
+        if not physical_shape_passed:
+            shape = tuple(
+                (
+                    int(shape[i])
+                    if not periodic_directions[i] or int(shape[i]) % 2 != 0
+                    else int(shape[i]) + 1
+                )
+                for i in range(len(shape))
             )
-            for i in range(len(shape))
-        )
-        physical_shape = tuple(
-            (
-                math.ceil(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+            physical_shape = tuple(
+                (
+                    math.ceil(
+                        shape[i]
+                        * (
+                            aliasing
+                            if periodic_directions[i] or dealias_nonperiodic
+                            else 1
+                        )
+                    )
+                    if not periodic_directions[i]
+                    or math.ceil(
+                        shape[i]
+                        * (
+                            aliasing
+                            if periodic_directions[i] or dealias_nonperiodic
+                            else 1
+                        )
+                    )
+                    % 2
+                    != 0
+                    else math.ceil(
+                        shape[i]
+                        * (
+                            aliasing
+                            if periodic_directions[i] or dealias_nonperiodic
+                            else 1
+                        )
+                    )
+                    + 1
                 )
-                if not periodic_directions[i]
-                or math.ceil(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                % 2
-                != 0
-                else math.ceil(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                + 1
+                for i in range(len(shape))
             )
-            for i in range(len(shape))
-        )
+        else:
+            physical_shape = shape
+            shape = tuple(
+                (
+                    math.floor(physical_shape[i] / aliasing)
+                    if periodic_directions[i]
+                    else physical_shape[i]
+                )
+                for i in range(len(shape))
+            )
+
         try:
             rfftn_direction = [
                 i for i in range(len(periodic_directions)) if periodic_directions[i]
@@ -684,8 +709,8 @@ class FourierDomain(Domain):
         directions and return the resulting domain."""
 
         def fftshift(inp: "np_float_array", i: int) -> "np_float_array":
-            rfftn_direction = physical_domain.get_rfftn_direction()
             if physical_domain.periodic_directions[i]:
+                rfftn_direction = physical_domain.get_rfftn_direction()
                 N = len(inp)
                 if i != rfftn_direction:
                     return (

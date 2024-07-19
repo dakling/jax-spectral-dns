@@ -1784,7 +1784,7 @@ class PhysicalField(Field):
             domain_hat = self.get_physical_domain().hat()
             ims.append(
                 ax_.imshow(
-                    np.fft.fftshift(abs(v_avg.data.T)),
+                    np.fft.fftshift(abs(v_avg.data.T), axes=other_dim[0]),
                     interpolation=None,
                     extent=(
                         min(domain_hat.grid[other_dim[0]]),
@@ -2021,8 +2021,12 @@ class PhysicalField(Field):
             else:
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
-                shape = tuple(
-                    (np.array(self.physical_domain.shape)[tuple(inds),]).tolist()
+                physical_shape = tuple(
+                    (
+                        np.array(self.physical_domain.get_shape_aliasing())[
+                            tuple(inds),
+                        ]
+                    ).tolist()
                 )
                 periodic_directions = tuple(
                     (
@@ -2035,11 +2039,12 @@ class PhysicalField(Field):
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
-                    shape,
+                    physical_shape,
                     periodic_directions,
                     scale_factors=scale_factors,
                     aliasing=self.get_domain().aliasing,
                     dealias_nonperiodic=self.get_domain().dealias_nonperiodic,
+                    physical_shape_passed=True,
                 )
                 field = jnp.take(int.data, indices=0, axis=direction) - jnp.take(
                     int.data, indices=N - 1, axis=direction
@@ -2056,8 +2061,12 @@ class PhysicalField(Field):
             else:
                 N = self.physical_domain.number_of_cells(direction)
                 inds = [i for i in self.all_dimensions() if i != direction]
-                shape = tuple(
-                    (np.array(self.physical_domain.shape)[tuple(inds),]).tolist()
+                physical_shape = tuple(
+                    (
+                        np.array(self.physical_domain.get_shape_aliasing())[
+                            tuple(inds),
+                        ]
+                    ).tolist()
                 )
                 periodic_directions = tuple(
                     (
@@ -2070,11 +2079,12 @@ class PhysicalField(Field):
                     ).tolist()
                 )
                 reduced_domain = PhysicalDomain.create(
-                    shape,
+                    physical_shape,
                     periodic_directions,
                     scale_factors=scale_factors,
                     aliasing=self.get_domain().aliasing,
                     dealias_nonperiodic=self.get_domain().dealias_nonperiodic,
+                    physical_shape_passed=True,
                 )
                 data = (
                     self.physical_domain.scale_factors[direction]

@@ -1885,12 +1885,11 @@ def solve_navier_stokes_laminar(
         scale_factors=scale_factors,
         aliasing=aliasing,
     )
-    # domain = PhysicalDomain.create((Nx, Ny, Nz), (True, False, True))
     cmf = params.get("constant_mass_flux", False)
     if cmf:
-        u_max_over_u_tau = 1.0
+        u_max_over_u_tau = params.get("u_max_over_u_tau", 1.0)
     else:
-        u_max_over_u_tau = Re / 2.0
+        u_max_over_u_tau = params.get("u_max_over_u_tau", Re / 2.0)
 
     vel_x_fn_ana: "Vel_fn_type" = (
         lambda X: u_max_over_u_tau * (1 - X[1] ** 2) + 0.0 * X[0] * X[2]

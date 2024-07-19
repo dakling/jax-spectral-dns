@@ -1190,6 +1190,7 @@ def run_transient_growth_nonpert(
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3),
         dt=1e-2,
         aliasing=3 / 2,
+        u_max_over_u_tau=1.0,
         # aliasing=1,
     )
 
@@ -1318,7 +1319,7 @@ def run_transient_growth(
     T: float = params.get("T", 15.0)
     alpha: float = params.get("alpha", 1.0)
     beta: float = params.get("beta", 0.0)
-    end_time: Optional[float] = params.get("end_time", None)
+    end_time: float = params.get("end_time", T)
     eps: float = params.get("eps", 1e-5)
     Nx: int = params.get("Nx", 4)
     Ny: int = params.get("Ny", 50)
@@ -1333,12 +1334,6 @@ def run_transient_growth(
     Ny = int(Ny)
     Nz = int(Nz)
 
-    if end_time is None:
-        end_time = T
-    else:
-        assert end_time is not None
-        end_time = float(end_time)
-
     nse = solve_navier_stokes_perturbation(
         Re=Re,
         Nx=Nx,
@@ -1346,7 +1341,7 @@ def run_transient_growth(
         Nz=Nz,
         end_time=end_time,
         perturbation_factor=0.0,
-        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 0.93),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1.0e-3),
         dt=1e-2,
         aliasing=3 / 2,
         # aliasing=1,
