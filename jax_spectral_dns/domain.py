@@ -38,6 +38,13 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
+rfftn_jit = jax.jit(
+    lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho"), static_argnums=1
+)
+irfftn_jit = jax.jit(
+    lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"), static_argnums=1
+)
+
 
 def get_cheb_grid(N: int, scale_factor: float = 1.0) -> "np_float_array":
     """Assemble a Chebyshev grid with N points on the interval [-1, 1],
@@ -627,12 +634,7 @@ class PhysicalDomain(Domain):
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        out = (
-            jnp.fft.rfftn(
-                field, axes=list(self.all_periodic_dimensions()), norm="ortho"
-            )
-            / scaling_factor
-        )
+        out = rfftn_jit(field, tuple(self.all_periodic_dimensions())) / scaling_factor
 
         Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
         ks = [
@@ -1140,12 +1142,9 @@ class FourierDomain(Domain):
                     )
                 field_hat = field_
 
-        out = jnp.fft.irfftn(
-            field_hat,
-            axes=self.all_periodic_dimensions(),
-            norm="ortho",
-        ).real / (1 / scaling_factor)
-        return out
+        return irfftn_jit(field_hat, tuple(self.all_periodic_dimensions())) / (
+            1 / scaling_factor
+        )
 
     def diff_fourier_field_slice(
         self,
