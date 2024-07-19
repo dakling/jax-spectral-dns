@@ -673,7 +673,7 @@ class PhysicalDomain(Domain):
                     out_ = out_.at[index].set(chebyshev.chebval(out_grid, cheb_coeffs))
             out = out_
 
-        return out.astype(jnp.complex128)
+        return cast("jnp_array", out.astype(jnp.complex128))
 
 
 # @dataclasses.dataclass(frozen=True, init=True, kw_only=True)
@@ -1142,8 +1142,10 @@ class FourierDomain(Domain):
                     )
                 field_hat = field_
 
-        return irfftn_jit(field_hat, tuple(self.all_periodic_dimensions())) / (
-            1 / scaling_factor
+        return cast(
+            "jnp_array",
+            irfftn_jit(field_hat, tuple(self.all_periodic_dimensions()))
+            / (1 / scaling_factor),
         )
 
     def diff_fourier_field_slice(
