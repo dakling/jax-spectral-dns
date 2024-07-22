@@ -39,7 +39,8 @@ from jax.sharding import PositionalSharding
 NoneType = type(None)
 
 # use_rfftn = jax.default_backend() == "cpu"
-use_rfftn = True
+# use_rfftn = True
+use_rfftn = False
 print("using rfftn?", use_rfftn)
 
 
@@ -61,8 +62,12 @@ if use_rfftn:
         lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho"),
         static_argnums=1,
     )
+    # irfftn_jit = jax.jit(
+    #     lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
+    #     static_argnums=1,
+    # )
     irfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
+        lambda f, dims: get_irfftn_data_custom(f, axes=list(dims)),
         static_argnums=1,
     )
 else:
@@ -70,12 +75,8 @@ else:
         lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho"), static_argnums=1
     )
 
-    # irfftn_jit = jax.jit(
-    #     lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
-    #     static_argnums=1,
-    # )
     irfftn_jit = jax.jit(
-        lambda f, dims: get_irfftn_data_custom(f, axes=list(dims)),
+        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
         static_argnums=1,
     )
 
