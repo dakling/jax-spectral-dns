@@ -44,7 +44,7 @@ use_rfftn = False
 print("using rfftn?", use_rfftn)
 
 
-def get_irfftn_data_custom(data, axes):
+def get_irfftn_data_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
     rfftn_axis = axes[-1]
     N = data.shape[rfftn_axis]
     inds = jnp.arange(1, N)
@@ -54,7 +54,7 @@ def get_irfftn_data_custom(data, axes):
     first_data = data.take(indices=jnp.arange(0, N - 1), axis=rfftn_axis)
     full_data = jnp.concatenate([first_data, added_data], axis=rfftn_axis)
     out = jnp.fft.ifftn(full_data, axes=axes, norm="ortho")
-    return out
+    return out.real
 
 
 if use_rfftn:
@@ -76,7 +76,7 @@ else:
     )
 
     irfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
+        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho").real,
         static_argnums=1,
     )
 
@@ -1186,11 +1186,12 @@ class FourierDomain(Domain):
                     )
                 field_hat = field_
 
-        return cast(
+        out = cast(
             "jnp_array",
             irfftn_jit(field_hat, tuple(self.all_periodic_dimensions()))
             / (1 / scaling_factor),
         )
+        return out
 
     def diff_fourier_field_slice(
         self,
