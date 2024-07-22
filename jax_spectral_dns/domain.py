@@ -38,8 +38,23 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-use_rfftn = jax.default_backend() == "cpu"
+# use_rfftn = jax.default_backend() == "cpu"
+use_rfftn = True
 print("using rfftn?", use_rfftn)
+
+
+def get_irfftn_data_custom(data, axes):
+    rfftn_axis = axes[-1]
+    N = data.shape[rfftn_axis]
+    inds = jnp.arange(1, N)
+    added_data = jnp.flip(
+        jnp.conjugate(data.take(indices=inds, axis=rfftn_axis)), axis=rfftn_axis
+    )
+    first_data = data.take(indices=jnp.arange(0, N - 1), axis=rfftn_axis)
+    full_data = jnp.concatenate([first_data, added_data], axis=rfftn_axis)
+    out = jnp.fft.ifftn(full_data, axes=axes, norm="ortho")
+    return out
+
 
 if use_rfftn:
     rfftn_jit = jax.jit(
@@ -54,8 +69,13 @@ else:
     rfftn_jit = jax.jit(
         lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho"), static_argnums=1
     )
+
+    # irfftn_jit = jax.jit(
+    #     lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
+    #     static_argnums=1,
+    # )
     irfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho").real,
+        lambda f, dims: get_irfftn_data_custom(f, axes=list(dims)),
         static_argnums=1,
     )
 
