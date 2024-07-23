@@ -39,8 +39,8 @@ from jax.sharding import PositionalSharding
 NoneType = type(None)
 
 # use_rfftn = jax.default_backend() == "cpu"
-# use_rfftn = True
-use_rfftn = False
+use_rfftn = True
+# use_rfftn = False
 # jit_rfftn = True
 jit_rfftn = False
 custom_irfftn = True
@@ -79,12 +79,12 @@ if use_rfftn:
                 static_argnums=1,
             )
     else:
-        rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")
+        rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
 
         if custom_irfftn:
-            irfftn_jit = lambda f, dims: get_irfftn_data_custom(f, axes=list(dims))
+            irfftn_jit = lambda f, dims: get_irfftn_data_custom(f, axes=list(dims))  # type: ignore[assignment]
         else:
-            irfftn_jit = lambda f, dims: jnp.fft.irfftn(
+            irfftn_jit = lambda f, dims: jnp.fft.irfftn(  # type: ignore[assignment]
                 f, axes=list(dims), norm="ortho"
             )
 
@@ -100,9 +100,9 @@ else:
             static_argnums=1,
         )
     else:
-        rfftn_jit = lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho")
+        rfftn_jit = lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
 
-        irfftn_jit = lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho")
+        irfftn_jit = lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
 
 
 def get_cheb_grid(N: int, scale_factor: float = 1.0) -> "np_float_array":
