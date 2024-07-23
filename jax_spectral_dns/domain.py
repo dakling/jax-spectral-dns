@@ -40,11 +40,12 @@ NoneType = type(None)
 
 # use_rfftn = jax.default_backend() == "cpu"
 use_rfftn = True
-jit_rfftn = False
+jit_rfftn = True
 # custom_irfftn = jax.default_backend() == "gpu"
 custom_irfftn = True
 print("using rfftn?", use_rfftn)
 print("jitting rfftn?", jit_rfftn)
+print("custom irfftn?", custom_irfftn)
 
 
 def irfftn_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
