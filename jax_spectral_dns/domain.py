@@ -84,15 +84,13 @@ if use_rfftn:
         )
         if custom_irfftn:
             irfftn_jit = jax.jit(
-                lambda f, s, dims: irfftn_custom(f, axes=list(dims)),
-                static_argnums=(1, 2),
+                lambda f, dims: irfftn_custom(f, axes=list(dims)),
+                static_argnums=(1,),
             )
         else:
             irfftn_jit = jax.jit(
-                lambda f, s, dims: jnp.fft.irfftn(
-                    f, s=s, axes=list(dims), norm="ortho"
-                ),
-                static_argnums=(1, 2),
+                lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
+                static_argnums=(1,),
             )
     else:
         rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
@@ -100,8 +98,8 @@ if use_rfftn:
         if custom_irfftn:
             irfftn_jit = lambda f, dims: irfftn_custom(f, axes=list(dims))  # type: ignore[assignment]
         else:
-            irfftn_jit = lambda f, s, dims: jnp.fft.irfftn(  # type: ignore[assignment]
-                f, s=s, axes=list(dims), norm="ortho"
+            irfftn_jit = lambda f, dims: jnp.fft.irfftn(  # type: ignore[assignment]
+                f, axes=list(dims), norm="ortho"
             )
 
 else:
@@ -1230,7 +1228,6 @@ class FourierDomain(Domain):
             "jnp_array",
             irfftn_jit(
                 field_hat,
-                (self.get_shape_aliasing()[0], self.get_shape_aliasing()[2]),
                 tuple(self.all_periodic_dimensions()),
             ).real
             / (1 / scaling_factor),
