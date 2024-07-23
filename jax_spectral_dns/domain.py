@@ -40,7 +40,7 @@ NoneType = type(None)
 
 # use_rfftn = jax.default_backend() == "cpu"
 use_rfftn = True
-jit_rfftn = True
+jit_rfftn = False
 # custom_irfftn = jax.default_backend() == "gpu"
 custom_irfftn = True
 print("using rfftn?", use_rfftn)
@@ -61,16 +61,17 @@ def irfftn_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
     )
     first_data = data.take(indices=jnp.arange(0, N - 1), axis=rfftn_axis)
     middle_data = data.take(indices=jnp.arange(N - 1, N), axis=rfftn_axis)
-    last_data = jnp.concatenate(
-        [
-            last_data.take(indices=jnp.arange(0, 1), axis=other_axis),
-            jnp.flip(
-                last_data.take(indices=jnp.arange(1, N_other), axis=other_axis),
-                axis=other_axis,
-            ),
-        ],
-        axis=other_axis,
-    )
+    if rfftn_axis != other_axis:
+        last_data = jnp.concatenate(
+            [
+                last_data.take(indices=jnp.arange(0, 1), axis=other_axis),
+                jnp.flip(
+                    last_data.take(indices=jnp.arange(1, N_other), axis=other_axis),
+                    axis=other_axis,
+                ),
+            ],
+            axis=other_axis,
+        )
     full_data = jnp.concatenate([first_data, middle_data, last_data], axis=rfftn_axis)
 
     out = jnp.fft.ifftn(full_data, axes=axes, norm="ortho")
