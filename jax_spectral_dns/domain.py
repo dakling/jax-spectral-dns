@@ -38,18 +38,16 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-# use_rfftn = jax.default_backend() == "cpu"
-use_rfftn = True
-# use_rfftn = False
-# jit_rfftn = True
+use_rfftn = jax.default_backend() == "cpu"
 jit_rfftn = False
-custom_irfftn = True
+# custom_irfftn = jax.default_backend() == "gpu"
+custom_irfftn = False
 print("using rfftn?", use_rfftn)
 print("jitting rfftn?", jit_rfftn)
 print("custom irfftn?", custom_irfftn)
 
 
-def get_irfftn_data_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
+def irfftn_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
     rfftn_axis = axes[-1]
     N = data.shape[rfftn_axis]
     inds = jnp.arange(1, N)
@@ -70,7 +68,7 @@ if use_rfftn:
         )
         if custom_irfftn:
             irfftn_jit = jax.jit(
-                lambda f, dims: get_irfftn_data_custom(f, axes=list(dims)),
+                lambda f, dims: irfftn_custom(f, axes=list(dims)),
                 static_argnums=1,
             )
         else:
@@ -82,7 +80,7 @@ if use_rfftn:
         rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
 
         if custom_irfftn:
-            irfftn_jit = lambda f, dims: get_irfftn_data_custom(f, axes=list(dims))  # type: ignore[assignment]
+            irfftn_jit = lambda f, dims: irfftn_custom(f, axes=list(dims))  # type: ignore[assignment]
         else:
             irfftn_jit = lambda f, dims: jnp.fft.irfftn(  # type: ignore[assignment]
                 f, axes=list(dims), norm="ortho"
