@@ -38,24 +38,40 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-use_rfftn = jax.default_backend() == "cpu"
+# use_rfftn = jax.default_backend() == "cpu"
+use_rfftn = True
 jit_rfftn = False
 # custom_irfftn = jax.default_backend() == "gpu"
-custom_irfftn = False
+custom_irfftn = True
 print("using rfftn?", use_rfftn)
 print("jitting rfftn?", jit_rfftn)
-print("custom irfftn?", custom_irfftn)
 
 
 def irfftn_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
+    # TODO generalize this to any dimension
     rfftn_axis = axes[-1]
+    other_axis = axes[0]
     N = data.shape[rfftn_axis]
-    inds = jnp.arange(1, N)
-    added_data = jnp.flip(
+    N_other = data.shape[other_axis]
+    inds = jnp.arange(1, N - 1)
+
+    last_data = jnp.flip(
         jnp.conjugate(data.take(indices=inds, axis=rfftn_axis)), axis=rfftn_axis
     )
     first_data = data.take(indices=jnp.arange(0, N - 1), axis=rfftn_axis)
-    full_data = jnp.concatenate([first_data, added_data], axis=rfftn_axis)
+    middle_data = data.take(indices=jnp.arange(N - 1, N), axis=rfftn_axis)
+    last_data = jnp.concatenate(
+        [
+            last_data.take(indices=jnp.arange(0, 1), axis=other_axis),
+            jnp.flip(
+                last_data.take(indices=jnp.arange(1, N_other), axis=other_axis),
+                axis=other_axis,
+            ),
+        ],
+        axis=other_axis,
+    )
+    full_data = jnp.concatenate([first_data, middle_data, last_data], axis=rfftn_axis)
+
     out = jnp.fft.ifftn(full_data, axes=axes, norm="ortho")
     return out
 
@@ -68,13 +84,15 @@ if use_rfftn:
         )
         if custom_irfftn:
             irfftn_jit = jax.jit(
-                lambda f, dims: irfftn_custom(f, axes=list(dims)),
-                static_argnums=1,
+                lambda f, s, dims: irfftn_custom(f, axes=list(dims)),
+                static_argnums=(1, 2),
             )
         else:
             irfftn_jit = jax.jit(
-                lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
-                static_argnums=1,
+                lambda f, s, dims: jnp.fft.irfftn(
+                    f, s=s, axes=list(dims), norm="ortho"
+                ),
+                static_argnums=(1, 2),
             )
     else:
         rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
@@ -82,8 +100,8 @@ if use_rfftn:
         if custom_irfftn:
             irfftn_jit = lambda f, dims: irfftn_custom(f, axes=list(dims))  # type: ignore[assignment]
         else:
-            irfftn_jit = lambda f, dims: jnp.fft.irfftn(  # type: ignore[assignment]
-                f, axes=list(dims), norm="ortho"
+            irfftn_jit = lambda f, s, dims: jnp.fft.irfftn(  # type: ignore[assignment]
+                f, s=s, axes=list(dims), norm="ortho"
             )
 
 else:
@@ -1210,7 +1228,11 @@ class FourierDomain(Domain):
 
         out = cast(
             "jnp_array",
-            irfftn_jit(field_hat, tuple(self.all_periodic_dimensions())).real
+            irfftn_jit(
+                field_hat,
+                (self.get_shape_aliasing()[0], self.get_shape_aliasing()[2]),
+                tuple(self.all_periodic_dimensions()),
+            ).real
             / (1 / scaling_factor),
         )
         return out
