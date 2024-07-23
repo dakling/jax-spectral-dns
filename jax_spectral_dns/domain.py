@@ -41,7 +41,12 @@ NoneType = type(None)
 # use_rfftn = jax.default_backend() == "cpu"
 # use_rfftn = True
 use_rfftn = False
+# jit_rfftn = True
+jit_rfftn = False
+custom_irfftn = True
 print("using rfftn?", use_rfftn)
+print("jitting rfftn?", jit_rfftn)
+print("custom irfftn?", custom_irfftn)
 
 
 def get_irfftn_data_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
@@ -54,31 +59,50 @@ def get_irfftn_data_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
     first_data = data.take(indices=jnp.arange(0, N - 1), axis=rfftn_axis)
     full_data = jnp.concatenate([first_data, added_data], axis=rfftn_axis)
     out = jnp.fft.ifftn(full_data, axes=axes, norm="ortho")
-    return out.real
+    return out
 
 
 if use_rfftn:
-    rfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho"),
-        static_argnums=1,
-    )
-    # irfftn_jit = jax.jit(
-    #     lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
-    #     static_argnums=1,
-    # )
-    irfftn_jit = jax.jit(
-        lambda f, dims: get_irfftn_data_custom(f, axes=list(dims)),
-        static_argnums=1,
-    )
-else:
-    rfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho"), static_argnums=1
-    )
+    if jit_rfftn:
+        rfftn_jit = jax.jit(
+            lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho"),
+            static_argnums=1,
+        )
+        if custom_irfftn:
+            irfftn_jit = jax.jit(
+                lambda f, dims: get_irfftn_data_custom(f, axes=list(dims)),
+                static_argnums=1,
+            )
+        else:
+            irfftn_jit = jax.jit(
+                lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
+                static_argnums=1,
+            )
+    else:
+        rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")
 
-    irfftn_jit = jax.jit(
-        lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho").real,
-        static_argnums=1,
-    )
+        if custom_irfftn:
+            irfftn_jit = lambda f, dims: get_irfftn_data_custom(f, axes=list(dims))
+        else:
+            irfftn_jit = lambda f, dims: jnp.fft.irfftn(
+                f, axes=list(dims), norm="ortho"
+            )
+
+else:
+    if jit_rfftn:
+        rfftn_jit = jax.jit(
+            lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho"),
+            static_argnums=1,
+        )
+
+        irfftn_jit = jax.jit(
+            lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
+            static_argnums=1,
+        )
+    else:
+        rfftn_jit = lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho")
+
+        irfftn_jit = lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho")
 
 
 def get_cheb_grid(N: int, scale_factor: float = 1.0) -> "np_float_array":
@@ -1188,7 +1212,7 @@ class FourierDomain(Domain):
 
         out = cast(
             "jnp_array",
-            irfftn_jit(field_hat, tuple(self.all_periodic_dimensions()))
+            irfftn_jit(field_hat, tuple(self.all_periodic_dimensions())).real
             / (1 / scaling_factor),
         )
         return out
