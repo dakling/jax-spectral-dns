@@ -2083,6 +2083,9 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         v0_0 = VectorField.FromFile(domain, init_file, "velocity")
         pert = params.get("perturbation_field", False)
         if pert:
+            e_0 = params.get("e_0", 3.0e-5)
+            v0_0 = v0_0.normalize_by_energy()
+            v0_0 *= e_0
             U = vel_base_lam + v0_0
         else:
             U = v0_0
@@ -2678,9 +2681,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         flow_rate = get_flow_rate(domain, u_y_slice)
         return VectorField([u, v, w]), u_y_slice, data_fn(0.0), flow_rate
 
-    # vel_base_turb_vilda, _, max_turb_vilda, flow_rate_turb_vilda = get_vel_field_vilda(
-    #     domain, avg_vel_coeffs
-    # )
+    vel_base_turb_vilda, _, max_turb_vilda, flow_rate_turb_vilda = get_vel_field_vilda(
+        domain, avg_vel_coeffs
+    )
     data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
     vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, data)
     vel_base_lam = VectorField(
@@ -2692,6 +2695,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
+    # vel_base_turb.set_name("velocity_mean_moser")
+    # vel_base_turb_vilda.set_name("velocity_mean_vilda")
+    # vel_base_turb[0].plot_center(1, vel_base_turb_vilda[0])
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
     vel_base = (
@@ -2760,21 +2766,20 @@ def run_ld_2021_dual(**params: Any) -> None:
             U_base=cast("np_float_array", vel_base_y_slice),
         )
 
-        T = end_time__
-        Ts = [T, 2 * T, 3 * T]
+        # T = end_time__
+        # Ts = [T, 2 * T, 3 * T]
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             domain,
             end_time__,
             number_of_modes,
             recompute_full=True,
             save_final=False,
-            Ts=Ts,
+            # Ts=Ts,
         )
         print_verb(
             "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
         )
-        raise Exception("break")
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()
