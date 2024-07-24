@@ -38,8 +38,8 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-# use_rfftn = jax.default_backend() == "cpu"
-use_rfftn = True
+use_rfftn = jax.default_backend() == "cpu"
+# use_rfftn = True
 jit_rfftn = False
 # custom_irfftn = jax.default_backend() == "gpu"
 custom_irfftn = True
@@ -49,7 +49,9 @@ print("custom irfftn?", custom_irfftn)
 
 
 def irfftn_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
-    # TODO generalize this to any dimension
+    assert (
+        len(axes) < 3
+    ), "only supported for one or two Fourier directions, use built-in irfftn or fftn/ifftn instead."
     rfftn_axis = axes[-1]
     other_axis = axes[0]
     N = data.shape[rfftn_axis]
