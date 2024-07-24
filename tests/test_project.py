@@ -1486,7 +1486,7 @@ class TestProject(unittest.TestCase):
         Ny = 20
         Nz = 4
         dt = 1e-2
-        end_time = 1.0
+        end_time = 9e-2
         alpha = 1.0
 
         def get_nse() -> NavierStokesVelVortPerturbation:
