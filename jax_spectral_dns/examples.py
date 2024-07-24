@@ -2422,7 +2422,7 @@ def run_ld_2021(**params: Any) -> None:
             lsc.calculate_transient_growth_max_energy(end_time_, number_of_modes),
         )
         v0_0.normalize_by_energy()
-        v0_0 *= e_0
+        v0_0 *= jnp.sqrt(e_0)
         vel_hat = v0_0.hat()
         vel_hat.set_name("velocity_hat")
     else:
@@ -2491,7 +2491,7 @@ def run_ld_2021(**params: Any) -> None:
         U = U_hat.no_hat()
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
-        U_norm *= e_0
+        U_norm *= jnp.sqrt(e_0)
         # U_norm.set_name("vel_norm")
         # U_norm.plot_3d(2)
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
