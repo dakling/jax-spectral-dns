@@ -1190,6 +1190,7 @@ def run_transient_growth_nonpert(
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3),
         dt=1e-2,
         aliasing=3 / 2,
+        u_max_over_u_tau=1.0,
         # aliasing=1,
     )
 
@@ -1318,7 +1319,7 @@ def run_transient_growth(
     T: float = params.get("T", 15.0)
     alpha: float = params.get("alpha", 1.0)
     beta: float = params.get("beta", 0.0)
-    end_time: Optional[float] = params.get("end_time", None)
+    end_time: float = params.get("end_time", T)
     eps: float = params.get("eps", 1e-5)
     Nx: int = params.get("Nx", 4)
     Ny: int = params.get("Ny", 50)
@@ -1333,12 +1334,6 @@ def run_transient_growth(
     Ny = int(Ny)
     Nz = int(Nz)
 
-    if end_time is None:
-        end_time = T
-    else:
-        assert end_time is not None
-        end_time = float(end_time)
-
     nse = solve_navier_stokes_perturbation(
         Re=Re,
         Nx=Nx,
@@ -1346,7 +1341,7 @@ def run_transient_growth(
         Nz=Nz,
         end_time=end_time,
         perturbation_factor=0.0,
-        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 0.93),
+        scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1.0e-3),
         dt=1e-2,
         aliasing=3 / 2,
         # aliasing=1,
@@ -2628,7 +2623,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         inv_mat = np.linalg.inv(mat)
         return cast(float, -(inv_mat @ data)[-1])
 
-    def get_vel_field(
+    def get_vel_field_vilda(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
     ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         Ny = domain.number_of_cells(1)
@@ -2652,7 +2647,36 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         return vel_base, U_y_slice, cast(float, max), flow_rate
 
-    vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, avg_vel_coeffs)
+    def get_vel_field(
+        domain: PhysicalDomain, data: "np_jnp_array"
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
+        def data_fn(y: float) -> float:
+            y_data_s = data[0]
+            u_mean = data[2]
+            y_data = y + 1.0  # shift
+            if y_data > 1.0:
+                y_data = 2.0 - y_data  # symmetry
+            y_sign_change_index = np.argmax(
+                (np.diff(np.sign(y_data_s - y_data)) != 0) * 1
+            )
+            y_0 = y_data_s[y_sign_change_index]
+            y_1 = y_data_s[y_sign_change_index + 1]
+            u_0 = u_mean[y_sign_change_index]
+            u_1 = u_mean[y_sign_change_index + 1]
+            return cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
+
+        u = PhysicalField.FromFunc(domain, func=lambda X: np.vectorize(data_fn)(X[1]))
+        v = PhysicalField.Zeros(domain)
+        w = PhysicalField.Zeros(domain)
+        u_y_slice = np.array(list(map(data_fn, domain.grid[1])))
+        flow_rate = get_flow_rate(domain, u_y_slice)
+        return VectorField([u, v, w]), u_y_slice, data_fn(0.0), flow_rate
+
+    vel_base_turb_vilda, _, max_turb_vilda, flow_rate_turb_vilda = get_vel_field_vilda(
+        domain, avg_vel_coeffs
+    )
+    data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+    vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, data)
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
@@ -2699,6 +2723,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     print_verb("max value turbulent:", vel_base_turb[0].max())
     print_verb("energy turbulent:", vel_base_turb.energy())
+    print_verb("flow rate turbulent:", flow_rate_turb)
     print_verb("max value laminar:", vel_base_lam[0].max())
     print_verb("energy laminar:", vel_base_lam.energy())
     print_verb("max value:", vel_base[0].max())

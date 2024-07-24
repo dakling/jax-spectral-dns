@@ -38,6 +38,7 @@ class LinearStabilityCalculation:
         alpha: float = 3.25,
         beta: float = 0.0,
         n: int = 50,
+        U_max: Optional["float"] = None,
         U_base: Optional["np_float_array"] = None,
     ):
         self.Re = Re
@@ -89,6 +90,8 @@ class LinearStabilityCalculation:
         if type(U_base) is not NoneType:
             assert U_base is not None
             self.U_base = U_base
+        elif type(U_max) is not NoneType:
+            self.U_base = U_max * np.array([1 - self.ys[i] ** 2 for i in range(self.n)])
         else:
             self.U_base = np.array([1 - self.ys[i] ** 2 for i in range(self.n)])
 

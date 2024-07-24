@@ -38,6 +38,93 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
+use_rfftn = jax.default_backend() == "cpu"
+# use_rfftn = False
+jit_rfftn = False
+custom_irfftn = jax.default_backend() == "gpu"
+# custom_irfftn = True
+print("using rfftn?", use_rfftn)
+print("jitting rfftn?", jit_rfftn)
+if use_rfftn:
+    print("custom irfftn?", custom_irfftn)
+
+import jax.scipy.special
+
+
+def irfftn_custom(data: "jnp_array", axes: List[int]) -> "jnp_array":
+    assert (
+        len(axes) < 3
+    ), "only supported for one or two Fourier directions, use built-in irfftn or fftn/ifftn instead."
+    rfftn_axis = axes[-1]
+    other_axis = axes[0]
+    N = data.shape[rfftn_axis]
+    N_other = data.shape[other_axis]
+    inds = jnp.arange(1, N - 1)
+
+    last_data = jnp.flip(
+        jnp.conjugate(data.take(indices=inds, axis=rfftn_axis)), axis=rfftn_axis
+    )
+    first_data = data.take(indices=jnp.arange(0, N - 1), axis=rfftn_axis)
+    middle_data = data.take(indices=jnp.arange(N - 1, N), axis=rfftn_axis)
+    if rfftn_axis != other_axis:
+        last_data = jnp.concatenate(
+            [
+                last_data.take(indices=jnp.arange(0, 1), axis=other_axis),
+                jnp.flip(
+                    last_data.take(indices=jnp.arange(1, N_other), axis=other_axis),
+                    axis=other_axis,
+                ),
+            ],
+            axis=other_axis,
+        )
+    full_data = jnp.concatenate([first_data, middle_data, last_data], axis=rfftn_axis)
+
+    out = jnp.fft.ifftn(full_data, axes=axes, norm="ortho")
+    return out
+
+
+if use_rfftn:
+    if jit_rfftn:
+        rfftn_jit = jax.jit(
+            lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho"),
+            static_argnums=1,
+        )
+        if custom_irfftn:
+            irfftn_jit = jax.jit(
+                lambda f, dims: irfftn_custom(f, axes=list(dims)),
+                static_argnums=(1,),
+            )
+        else:
+            irfftn_jit = jax.jit(
+                lambda f, dims: jnp.fft.irfftn(f, axes=list(dims), norm="ortho"),
+                static_argnums=(1,),
+            )
+    else:
+        rfftn_jit = lambda f, dims: jnp.fft.rfftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
+
+        if custom_irfftn:
+            irfftn_jit = lambda f, dims: irfftn_custom(f, axes=list(dims))  # type: ignore[assignment]
+        else:
+            irfftn_jit = lambda f, dims: jnp.fft.irfftn(  # type: ignore[assignment]
+                f, axes=list(dims), norm="ortho"
+            )
+
+else:
+    if jit_rfftn:
+        rfftn_jit = jax.jit(
+            lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho"),
+            static_argnums=1,
+        )
+
+        irfftn_jit = jax.jit(
+            lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho"),
+            static_argnums=1,
+        )
+    else:
+        rfftn_jit = lambda f, dims: jnp.fft.fftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
+
+        irfftn_jit = lambda f, dims: jnp.fft.ifftn(f, axes=list(dims), norm="ortho")  # type: ignore[assignment]
+
 
 def get_cheb_grid(N: int, scale_factor: float = 1.0) -> "np_float_array":
     """Assemble a Chebyshev grid with N points on the interval [-1, 1],
@@ -118,6 +205,7 @@ class Domain(ABC):
         scale_factors: Optional[Tuple[float, ...]] = None,
         aliasing: float = 3 / 2,
         dealias_nonperiodic: bool = False,
+        physical_shape_passed: bool = False,
     ) -> Self:
         number_of_dimensions = len(shape)
         if type(scale_factors) == NoneType:
@@ -125,35 +213,73 @@ class Domain(ABC):
         else:
             assert isinstance(scale_factors, list) or isinstance(scale_factors, tuple)
             scale_factors_ = list(scale_factors)
-        shape = tuple(
-            (
-                int(shape[i])
-                if not periodic_directions[i] or int(shape[i]) % 2 != 0
-                else int(shape[i]) + 1
+        if not physical_shape_passed:
+            shape = tuple(
+                (
+                    int(shape[i])
+                    if not periodic_directions[i] or int(shape[i]) % 2 != 0
+                    else int(shape[i]) + 1
+                )
+                for i in range(len(shape))
             )
-            for i in range(len(shape))
-        )
-        physical_shape = tuple(
-            (
-                math.ceil(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
+            physical_shape = tuple(
+                (
+                    math.ceil(
+                        shape[i]
+                        * (
+                            aliasing
+                            if periodic_directions[i] or dealias_nonperiodic
+                            else 1
+                        )
+                    )
+                    if not periodic_directions[i]
+                    or math.ceil(
+                        shape[i]
+                        * (
+                            aliasing
+                            if periodic_directions[i] or dealias_nonperiodic
+                            else 1
+                        )
+                    )
+                    % 2
+                    != 0
+                    else math.ceil(
+                        shape[i]
+                        * (
+                            aliasing
+                            if periodic_directions[i] or dealias_nonperiodic
+                            else 1
+                        )
+                    )
+                    + 1
                 )
-                if not periodic_directions[i]
-                or math.ceil(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                % 2
-                != 0
-                else math.ceil(
-                    shape[i]
-                    * (aliasing if periodic_directions[i] or dealias_nonperiodic else 1)
-                )
-                + 1
+                for i in range(len(shape))
             )
-            for i in range(len(shape))
-        )
+        else:
+            physical_shape = shape
+            shape = tuple(
+                (
+                    math.floor(physical_shape[i] / aliasing)
+                    if periodic_directions[i]
+                    else physical_shape[i]
+                )
+                for i in range(len(shape))
+            )
+        if use_rfftn:
+            try:
+                rfftn_direction = [
+                    i for i in range(len(periodic_directions)) if periodic_directions[i]
+                ][-1]
+                shape = tuple(
+                    (
+                        int(shape[i])
+                        if i != rfftn_direction
+                        else ((shape[i] - 1) // 2) + 1
+                    )
+                    for i in range(len(shape))
+                )
+            except IndexError:
+                pass
         grid = []
         diff_mats = []
         for dim in range(number_of_dimensions):
@@ -194,6 +320,11 @@ class Domain(ABC):
 
     @abstractmethod
     def get_shape_aliasing(self) -> tuple[int, ...]: ...
+
+    def get_rfftn_direction(self) -> int:
+        return self.all_periodic_dimensions()[
+            -1
+        ]  # rfftn performs the real transform over the last axis
 
     def number_of_cells(self, direction: int) -> int:
         return len(self.grid[direction])
@@ -587,10 +718,7 @@ class PhysicalDomain(Domain):
         for i in self.all_periodic_dimensions():
             scaling_factor *= self.scale_factors[i] / (2 * jnp.pi)
 
-        out = (
-            jnp.fft.fftn(field, axes=list(self.all_periodic_dimensions()), norm="ortho")
-            / scaling_factor
-        )
+        out = rfftn_jit(field, tuple(self.all_periodic_dimensions())) / scaling_factor
 
         Ns = [self.number_of_cells(i) for i in self.all_dimensions()]
         ks = [
@@ -598,11 +726,20 @@ class PhysicalDomain(Domain):
             for i in self.all_dimensions()
         ]
 
-        for i in self.all_periodic_dimensions():
+        # TODO rewrite this to improve GPU performance
+        periodic_dims = (
+            self.all_periodic_dimensions()[:-1]
+            if use_rfftn
+            else self.all_periodic_dimensions()
+        )
+        for i in periodic_dims:
             out_1 = out.take(indices=jnp.arange(0, ks[i]), axis=i)
             out_2 = out.take(indices=jnp.array([ks[i]]), axis=i)
             out_3 = out.take(indices=jnp.arange(Ns[i] - ks[i] + 1, Ns[i]), axis=i)
             out = jnp.concatenate([out_1, out_2, jnp.conjugate(out_2), out_3], axis=i)
+        if use_rfftn:
+            i = self.all_periodic_dimensions()[-1]
+            out = out.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
 
         if self.dealias_nonperiodic:
             out_ = jnp.zeros(self.get_shape())
@@ -624,7 +761,7 @@ class PhysicalDomain(Domain):
                     out_ = out_.at[index].set(chebyshev.chebval(out_grid, cheb_coeffs))
             out = out_
 
-        return out.astype(jnp.complex128)
+        return cast("jnp_array", out.astype(jnp.complex128))
 
 
 # @dataclasses.dataclass(frozen=True, init=True, kw_only=True)
@@ -658,12 +795,16 @@ class FourierDomain(Domain):
 
         def fftshift(inp: "np_float_array", i: int) -> "np_float_array":
             if physical_domain.periodic_directions[i]:
+                rfftn_direction = physical_domain.get_rfftn_direction()
                 N = len(inp)
-                return (
-                    (np.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
-                    * (2 * np.pi)
-                    / physical_domain.scale_factors[i]
-                )
+                if use_rfftn and i == rfftn_direction:
+                    return inp * (2 * np.pi) / physical_domain.scale_factors[i]
+                else:
+                    return (
+                        (np.block([inp[N // 2 :], inp[: N // 2]]) - N // 2)
+                        * (2 * np.pi)
+                        / physical_domain.scale_factors[i]
+                    )
             else:
                 return inp
 
@@ -1023,7 +1164,7 @@ class FourierDomain(Domain):
         )
         return out_field
 
-    def field_no_hat(self, field: "jnp_array") -> "jnp_array":
+    def field_no_hat(self, field_hat: "jnp_array") -> "jnp_array":
         """Compute the inverse Fourier transform of field."""
         scaling_factor = 1.0
         for i in self.all_periodic_dimensions():
@@ -1031,9 +1172,14 @@ class FourierDomain(Domain):
 
         Ns = [int(self.number_of_cells(i)) for i in self.all_dimensions()]
         ks = [int((Ns[i]) / 2) for i in self.all_dimensions()]
-        for i in self.all_periodic_dimensions():
-            field_1 = field.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
-            field_2 = field.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
+        # TODO rewrite this to improve GPU performance
+        periodic_dims = (
+            self.all_periodic_dimensions()[:-1]
+            if use_rfftn
+            else self.all_periodic_dimensions()
+        )
+        for i in periodic_dims:
+            field_1 = field_hat.take(indices=jnp.arange(0, ks[i] + 1), axis=i)
             zeros_shape = [
                 (
                     field_1.shape[dim]
@@ -1042,10 +1188,23 @@ class FourierDomain(Domain):
                 )
                 for dim in self.all_dimensions()
             ]
+            field_2 = field_hat.take(indices=jnp.arange(Ns[i] - ks[i], Ns[i]), axis=i)
             if zeros_shape[i] == 0:
                 field_2 = field_2.take(indices=jnp.arange(1, field_2.shape[i]), axis=i)
             extra_zeros = jnp.zeros(zeros_shape)
-            field = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
+            field_hat = jnp.concatenate([field_1, extra_zeros, field_2], axis=i)
+        if use_rfftn:
+            i = self.all_periodic_dimensions()[-1]
+            zeros_shape = [
+                (
+                    field_hat.shape[dim]
+                    if dim != i
+                    else math.ceil(Ns[i] * (self.aliasing - 1))
+                )
+                for dim in self.all_dimensions()
+            ]
+            extra_zeros = jnp.zeros(zeros_shape)
+            field_hat = jnp.concatenate([field_hat, extra_zeros], axis=i)
 
         if self.dealias_nonperiodic:
             assert self.physical_domain is not None
@@ -1063,20 +1222,23 @@ class FourierDomain(Domain):
                         ]
                     )
                     cheb_coeffs = chebyshev.chebfit(
-                        in_grid, field[index], self.get_shape()[i]
+                        in_grid, field_hat[index], self.get_shape()[i]
                     )
                     extra_zeros = jnp.zeros((len(out_grid[i]) - len(self.grid[i])))
                     cheb_coeffs = jnp.concatenate([cheb_coeffs, extra_zeros])
                     field_ = field_.at[index].set(
                         chebyshev.chebval(out_grid[i], cheb_coeffs)
                     )
-                field = field_
+                field_hat = field_
 
-        out = jnp.fft.ifftn(
-            field,
-            axes=self.all_periodic_dimensions(),
-            norm="ortho",
-        ).real / (1 / scaling_factor)
+        out = cast(
+            "jnp_array",
+            irfftn_jit(
+                field_hat,
+                tuple(self.all_periodic_dimensions()),
+            ).real
+            / (1 / scaling_factor),
+        )
         return out
 
     def diff_fourier_field_slice(
