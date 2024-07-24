@@ -2083,9 +2083,10 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         v0_0 = VectorField.FromFile(domain, init_file, "velocity")
         pert = params.get("perturbation_field", False)
         if pert:
-            e_0 = params.get("e_0", 3.0e-5)
-            v0_0 = v0_0.normalize_by_energy()
-            v0_0 *= e_0
+            e_0 = params.get("e_0")
+            if e_0 is not None:
+                v0_0 = v0_0.normalize_by_energy()
+                v0_0 *= e_0
             U = vel_base_lam + v0_0
         else:
             U = v0_0
