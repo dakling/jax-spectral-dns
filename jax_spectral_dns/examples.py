@@ -2590,8 +2590,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        # scale_factors=(2.0 * np.pi, 1.0, 1.0 * np.pi),
-        scale_factors=(2.0 * np.pi, 1.0, 2.0 * np.pi),
+        scale_factors=(2.0 * np.pi, 1.0, 1.0 * np.pi),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
