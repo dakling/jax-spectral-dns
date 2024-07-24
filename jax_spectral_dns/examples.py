@@ -2009,6 +2009,32 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         ]
     )
 
+    def get_vel_field(
+        domain: PhysicalDomain, data: "np_jnp_array"
+    ) -> VectorField[PhysicalField]:
+        def data_fn(y: float) -> float:
+            y_data_s = data[0]
+            u_mean = data[2]
+            y_data = y + 1.0  # shift
+            if y_data > 1.0:
+                y_data = 2.0 - y_data  # symmetry
+            y_sign_change_index = np.argmax(
+                (np.diff(np.sign(y_data_s - y_data)) != 0) * 1
+            )
+            y_0 = y_data_s[y_sign_change_index]
+            y_1 = y_data_s[y_sign_change_index + 1]
+            u_0 = u_mean[y_sign_change_index]
+            u_1 = u_mean[y_sign_change_index + 1]
+            return cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
+
+        u = PhysicalField.FromFunc(domain, func=lambda X: np.vectorize(data_fn)(X[1]))
+        v = PhysicalField.Zeros(domain)
+        w = PhysicalField.Zeros(domain)
+        return VectorField([u, v, w])
+
+    data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+    vel_base_turb = get_vel_field(domain, data)
+
     # number_of_modes = 60
     # n = 64
     # lsc = LinearStabilityCalculation(
@@ -2087,7 +2113,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             if e_0 is not None:
                 v0_0 = v0_0.normalize_by_energy()
                 v0_0 *= jnp.sqrt(e_0)
-            U = vel_base_lam + v0_0
+            U = vel_base_turb + v0_0
         else:
             U = v0_0
         try:
