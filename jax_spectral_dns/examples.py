@@ -2778,7 +2778,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, _, _ = get_vel_field(lsc_domain, data)
+        _, U_base, _, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
         vel_base_y_slice = (
             turb * U_base
             + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
