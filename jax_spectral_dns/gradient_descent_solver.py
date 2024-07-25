@@ -129,8 +129,10 @@ class GradientDescentSolver(ABC):
         i = self.i
         gain = self.value
         energy = v0.energy()
-        e_x_2d_over_3d = v0_hat.energy_2d(0) / energy
-        e_z_2d_over_3d = v0_hat.energy_2d(2) / energy
+        e_x_2d = v0_hat.energy_2d(0)
+        e_z_2d = v0_hat.energy_2d(2)
+        e_x_3d = energy - e_x_2d
+        e_z_3d = energy - e_z_2d
         phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
         localisation = v0.get_localisation()
         localisation_x = (
@@ -154,17 +156,17 @@ class GradientDescentSolver(ABC):
                 + ", "
                 + str(gain)
                 + ", "
-                + str(e_x_2d_over_3d)
+                + str(e_x_2d)
                 + ", "
-                + str(e_z_2d_over_3d)
+                + str(e_z_2d)
+                + ", "
+                + str(e_x_3d)
+                + ", "
+                + str(e_z_3d)
                 + ", "
                 + str(localisation)
                 + ", "
                 + str(localisation_x)
-                + ", "
-                + str(localisation_y)
-                + ", "
-                + str(localisation_z)
                 + "\n"
             )
 
@@ -225,10 +227,12 @@ class GradientDescentSolver(ABC):
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
         ax.plot(phase_space_data[0], phase_space_data[2], "k.")
+        ax.plot(phase_space_data[0], phase_space_data[4], "b.")
         ax.set_xlabel("$i$")
-        ax.set_ylabel("$E_{x_2d} / E$")
+        ax.set_ylabel("$E$")
         fig.savefig(Field.plotting_dir + "/plot_e_2d_x_over_iterations.png")
-        ax.plot(phase_space_data[0][-1], phase_space_data[2][-1], "bo")
+        ax.plot(phase_space_data[0][-1], phase_space_data[2][-1], "ko", label="E_2d (x)")
+        ax.plot(phase_space_data[0][-1], phase_space_data[4][-1], "bo", label="E_3d")
         fig.savefig(
             Field.plotting_dir
             + "/plot_e_2d_x_over_iterations_t_"

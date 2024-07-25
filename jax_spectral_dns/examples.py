@@ -2858,7 +2858,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         assert type(ax_pd) is Axes
         ts = []
         energy_t = []
-        energy_x_2d_over_3d = []
+        energy_x_2d = []
+        energy_x_3d = []
         prod = []
         diss = []
         for j in range(n_steps):
@@ -2868,13 +2869,16 @@ def run_ld_2021_dual(**params: Any) -> None:
             vel_energy_ = vel_.energy()
             ts.append(time_)
             energy_t.append(vel_energy_)
-            e_x_2d_over_3d = v0_hat.energy_2d(0) / vel_energy_
-            energy_x_2d_over_3d.append(e_x_2d_over_3d)
+            e_x_2d = v0_hat.energy_2d(0)
+            e_x_3d = vel_energy_ - e_x_2d
+            energy_x_2d.append(e_x_2d)
+            energy_x_3d.append(e_x_3d)
             prod.append(nse.get_production(j))
             diss.append(nse.get_dissipation(j))
 
         energy_t_arr = np.array(energy_t)
-        energy_x_2d_over_3d_arr = np.array(energy_x_2d_over_3d)
+        energy_x_2d_arr = np.array(energy_x_2d)
+        energy_x_3d_arr = np.array(energy_x_3d)
         prod_arr = np.array(prod)
         diss_arr = np.array(diss)
         ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
@@ -2886,14 +2890,13 @@ def run_ld_2021_dual(**params: Any) -> None:
         ax.set_xlabel("$t h / u_\\tau$")
         ax.set_ylabel("$G$")
         fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
-        ax_2d_over_3d.plot(ts, energy_x_2d_over_3d_arr, "k.")
-        ax_2d_over_3d.plot(
-            ts[: i + 1],
-            energy_x_2d_over_3d_arr[: i + 1],
-            "bo",
-        )
+        ax_2d_over_3d.plot(ts, energy_x_2d_arr, "k.")
+        ax_2d_over_3d.plot(ts, energy_x_3d_arr, "b.")
+        ax_2d_over_3d.plot(ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="E_2d")
+        ax_2d_over_3d.plot(ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="E_3d")
         ax_2d_over_3d.set_xlabel("$t$")
-        ax_2d_over_3d.set_ylabel("$E_{kx=0} / E$")
+        ax_2d_over_3d.set_ylabel("$E$")
+        fig_2d_over_3d.legend()
         fig_2d_over_3d.savefig(
             Field.plotting_dir
             + "/plot_energy_2d_over_3d_t_"
