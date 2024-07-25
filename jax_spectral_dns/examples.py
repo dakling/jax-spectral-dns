@@ -2660,7 +2660,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         inv_mat = np.linalg.inv(mat)
         return cast(float, -(inv_mat @ data)[-1])
 
-    def get_vel_field_vilda(
+    def get_vel_field(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
     ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         Ny = domain.number_of_cells(1)
@@ -2684,7 +2684,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         return vel_base, U_y_slice, cast(float, max), flow_rate
 
-    def get_vel_field(
+    def get_vel_field_full_channel(
         domain: PhysicalDomain, data: "np_jnp_array"
     ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         def data_fn(y: float) -> float:
@@ -2709,11 +2709,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         flow_rate = get_flow_rate(domain, u_y_slice)
         return VectorField([u, v, w]), u_y_slice, data_fn(0.0), flow_rate
 
-    vel_base_turb_vilda, _, max_turb_vilda, flow_rate_turb_vilda = get_vel_field_vilda(
-        domain, avg_vel_coeffs
-    )
-    data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-    vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, data)
+    # data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+    # vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, data)
+    vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, avg_vel_coeffs)
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(

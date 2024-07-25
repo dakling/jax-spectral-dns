@@ -726,7 +726,6 @@ class PhysicalDomain(Domain):
             for i in self.all_dimensions()
         ]
 
-        # TODO rewrite this to improve GPU performance
         periodic_dims = (
             self.all_periodic_dimensions()[:-1]
             if use_rfftn
