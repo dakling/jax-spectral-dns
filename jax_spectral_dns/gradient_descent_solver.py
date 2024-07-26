@@ -128,11 +128,10 @@ class GradientDescentSolver(ABC):
         # document path to the optimal
         i = self.i
         gain = self.value
-        energy = v0.energy()
-        e_x_2d = v0_hat.energy_2d(0)
-        e_z_2d = v0_hat.energy_2d(2)
-        e_x_3d = energy - e_x_2d
-        e_z_3d = energy - e_z_2d
+        e_x_2d = v0_hat[0].energy_2d(0)
+        e_z_2d = v0_hat[0].energy_2d(2)
+        e_x_3d = v0[0].energy() - e_x_2d
+        e_z_3d = v0[0].energy() - e_z_2d
         phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
         localisation = v0.get_localisation()
         localisation_x = (
@@ -231,7 +230,9 @@ class GradientDescentSolver(ABC):
         ax.set_xlabel("$i$")
         ax.set_ylabel("$E$")
         fig.savefig(Field.plotting_dir + "/plot_e_2d_x_over_iterations.png")
-        ax.plot(phase_space_data[0][-1], phase_space_data[2][-1], "ko", label="E_2d (x)")
+        ax.plot(
+            phase_space_data[0][-1], phase_space_data[2][-1], "ko", label="E_2d (x)"
+        )
         ax.plot(phase_space_data[0][-1], phase_space_data[4][-1], "bo", label="E_3d")
         fig.savefig(
             Field.plotting_dir

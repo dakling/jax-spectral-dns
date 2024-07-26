@@ -2869,8 +2869,8 @@ def run_ld_2021_dual(**params: Any) -> None:
             vel_energy_ = vel_.energy()
             ts.append(time_)
             energy_t.append(vel_energy_)
-            e_x_2d = v0_hat.energy_2d(0)
-            e_x_3d = vel_energy_ - e_x_2d
+            e_x_2d = v0_hat[0].energy_2d(0)
+            e_x_3d = vel_[0].energy() - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
             prod.append(nse.get_production(j))
