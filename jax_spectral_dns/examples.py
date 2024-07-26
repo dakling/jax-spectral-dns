@@ -2896,7 +2896,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         ax_2d_over_3d.plot(ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="E_3d")
         ax_2d_over_3d.set_xlabel("$t h / u_\\tau$")
         ax_2d_over_3d.set_ylabel("$E$")
-        ax_2d_over_3d.set_yscale("log")
+        # ax_2d_over_3d.set_yscale("log")
         fig_2d_over_3d.legend()
         fig_2d_over_3d.savefig(
             Field.plotting_dir

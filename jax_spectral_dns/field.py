@@ -362,7 +362,10 @@ class VectorField(Generic[T]):
     ) -> VectorField[PhysicalField]:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
-        field_array = np.load(PhysicalField.field_dir + filename, allow_pickle=True)
+        filename = (
+            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+        )
+        field_array = np.load(filename, allow_pickle=True)
         return VectorField.FromData(
             PhysicalField, domain, field_array, name, allow_projection
         )
@@ -514,6 +517,11 @@ class VectorField(Generic[T]):
         return cast(
             float, ((energy_field_p.volume_integral()) / domain_volume) ** (1.0 / p)
         )
+
+    def field_2d(
+        self: VectorField[FourierField], direction: int
+    ) -> VectorField[FourierField]:
+        return VectorField([f.field_2d(direction) for f in self])
 
     def energy_2d(self: VectorField[FourierField], direction: int) -> float:
         en: float = 0.0
@@ -2238,7 +2246,7 @@ class FourierField(Field):
         out.data = out.physical_domain.field_hat(field.data)
         return out
 
-    def energy_2d(self, direction: int) -> float:
+    def field_2d(self, direction: int) -> FourierField:
         N = self.data.shape[direction]
         u_hat_const_data_0 = jnp.take(
             self.data, indices=jnp.arange(0, 1), axis=direction
@@ -2249,10 +2257,10 @@ class FourierField(Field):
         u_hat_const_data = jnp.concatenate(
             [u_hat_const_data_0, u_hat_const_data_rest], axis=direction
         )
-        energy = (
-            FourierField(self.get_physical_domain(), u_hat_const_data).no_hat().energy()
-        )
-        return energy
+        return FourierField(self.get_physical_domain(), u_hat_const_data)
+
+    def energy_2d(self, direction: int) -> float:
+        return self.field_2d(direction).no_hat().energy()
 
     def project_onto_domain(self, domain: PhysicalDomain) -> FourierField:
         out_data = self.get_domain().project_onto_domain(domain, self.data)
