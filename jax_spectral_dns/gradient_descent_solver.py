@@ -191,7 +191,6 @@ class GradientDescentSolver(ABC):
         ax.set_ylabel("$E_{2d_{z}} / E_{3d}$")
         ax.set_xlim((-0.1, 1.1))
         ax.set_yscale("log")
-        fig.legend()
         fig.savefig(Field.plotting_dir + "/plot_phase_space.png")
         ax.set_ylim((1e-10, 1.1))
         ax.plot(
@@ -225,15 +224,14 @@ class GradientDescentSolver(ABC):
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
-        ax.plot(phase_space_data[0], phase_space_data[2], "k.")
-        ax.plot(phase_space_data[0], phase_space_data[4], "b.")
+        ax.plot(phase_space_data[0], phase_space_data[2], "k.", label="E_2d (x)")
+        ax.plot(phase_space_data[0], phase_space_data[4], "b.", label="E_3d")
         ax.set_xlabel("$i$")
         ax.set_ylabel("$E$")
+        fig.legend()
         fig.savefig(Field.plotting_dir + "/plot_e_2d_x_over_iterations.png")
-        ax.plot(
-            phase_space_data[0][-1], phase_space_data[2][-1], "ko", label="E_2d (x)"
-        )
-        ax.plot(phase_space_data[0][-1], phase_space_data[4][-1], "bo", label="E_3d")
+        ax.plot(phase_space_data[0][-1], phase_space_data[2][-1], "ko")
+        ax.plot(phase_space_data[0][-1], phase_space_data[4][-1], "bo")
         fig.savefig(
             Field.plotting_dir
             + "/plot_e_2d_x_over_iterations_t_"
