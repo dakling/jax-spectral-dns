@@ -44,7 +44,6 @@ def collect_gain_e0() -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
             e_0 = get_e0(dir)
             gain = get_gain(dir)
         except Exception as e:
-            print(e)
             e_0 = None
             gain = None
         if e_0 is not None and gain is not None:

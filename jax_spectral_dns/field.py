@@ -11,6 +11,7 @@ import jax.numpy as jnp
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 import pyvista as pv
+import h5py  # type: ignore
 
 try:
     from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
@@ -122,10 +123,27 @@ class Field(ABC):
                     if f.is_file():
                         f.unlink()
 
-    def save_to_file(self, filename: str) -> None:
-        """Save field to file filename."""
+    def save_to_pickle_file(self, filename: str) -> None:
+        """Save field to file filename using pickle."""
         field_array: "np_float_array" = np.array(self.data.tolist())
         field_array.dump(self.field_dir + filename)
+
+    def save_to_hdf_file(self, filename: str) -> None:
+        """Save field to file filename using hdf5."""
+        with h5py.File(filename, "w") as f:
+            dset = f.create_dataset(
+                self.name, data=self.get_data(), compression="gzip", compression_opts=9
+            )
+            dset.attrs.create("time_step", self.time_step)
+
+    def save_to_file(self, filename: str) -> None:
+        """Save field to file filename."""
+        try:
+            self.save_to_hdf_file(filename)
+        except Exception as e:
+            print("unable to save as hdf due to the following exception:")
+            print(e)
+            self.save_to_pickle_file(filename)
 
     def get_data(self) -> jnp.ndarray:
         return self.data
@@ -353,11 +371,27 @@ class VectorField(Generic[T]):
         return cls(fs, name)
 
     @classmethod
+    def read_pickle(cls, filename: str, _: str) -> "jnp_array":
+        field_array = np.load(Field.field_dir + filename, allow_pickle=True)
+        data = jnp.array(field_array.tolist())
+        return data
+
+    @classmethod
+    def read_hdf(cls, filename: str, name: str, time_step: int) -> "jnp_array":
+        with h5py.File(filename, "r") as f:
+            if time_step < 0:
+                time_step = len(f) + time_step
+            grp = f.get(str(time_step))
+            dset = grp.get(name)
+        return jnp.array(dset)
+
+    @classmethod
     def FromFile(
         cls,
         domain: PhysicalDomain,
         filename: str,
         name: str = "field",
+        time_step: int = -1,
         allow_projection: bool = False,
     ) -> VectorField[PhysicalField]:
         """Construct new field depending on the independent variables described
@@ -365,7 +399,12 @@ class VectorField(Generic[T]):
         filename = (
             filename if filename[0] in "./" else PhysicalField.field_dir + filename
         )
-        field_array = np.load(filename, allow_pickle=True)
+        try:
+            field_array = cls.read_hdf(filename, name, time_step)
+        except Exception as e:
+            print("unable to save as hdf due to the following exception:")
+            print(e)
+            field_array = cls.read_pickle(filename, name)
         return VectorField.FromData(
             PhysicalField, domain, field_array, name, allow_projection
         )
@@ -565,8 +604,8 @@ class VectorField(Generic[T]):
         energy += vort[1] * vort[1]
         return energy.volume_integral()
 
-    def save_to_file(self, filename: str) -> None:
-        """Save field to file filename.
+    def save_to_pickle_file(self, filename: str) -> None:
+        """Save field to file filename using pickle.
 
         Note: the resulting format is compatible with dedalus. Importing e.g. a
         velocity field into dedalus is as straightforward as:
@@ -583,6 +622,47 @@ class VectorField(Generic[T]):
             self.set_name(self.name)
         field_array = np.array(self.get_data().tolist())
         field_array.dump(self[0].field_dir + filename)
+
+    def save_to_hdf_file(self, filename: str) -> None:
+        """Save field to file filename using hdf5.
+
+        Note: the resulting format is compatible with dedalus. Importing e.g. a
+        velocity field into dedalus is as straightforward as:
+        u_array = np.load("/path/to/u_file", allow_pickle=True)
+        v_array = np.load("/path/to/v_file", allow_pickle=True)
+        w_array = np.load("/path/to/w_file", allow_pickle=True)
+
+        ... # dedalus case setup goes here...
+        u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
+        u.data = np.stack([u_array, v_array, w_array])"""
+        if self.name is None:
+            self.set_name("field")
+        else:
+            self.set_name(self.name)
+        with h5py.File(filename, "w") as f:
+            grp = f.create_group(str(self.get_time_step()))
+            dset = grp.create_dataset(
+                self.name, data=self.get_data(), compression="gzip", compression_opts=9
+            )
+
+    def save_to_file(self, filename: str) -> None:
+        """Save field to file filename.
+
+        Note: the resulting format is compatible with dedalus. Importing e.g. a
+        velocity field into dedalus is as straightforward as:
+        u_array = np.load("/path/to/u_file", allow_pickle=True)
+        v_array = np.load("/path/to/v_file", allow_pickle=True)
+        w_array = np.load("/path/to/w_file", allow_pickle=True)
+
+        ... # dedalus case setup goes here...
+        u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
+        u.data = np.stack([u_array, v_array, w_array])"""
+        try:
+            self.save_to_hdf_file(filename)
+        except Exception as e:
+            print("unable to save as hdf due to the following exception:")
+            print(e)
+            self.save_to_pickle_file(filename)
 
     def get_data(self) -> "jnp_array":
         return jnp.array([f.data for f in self])
@@ -1136,17 +1216,37 @@ class PhysicalField(Field):
         return PhysicalField(domain, out_arr, field.name + "_projected")
 
     @classmethod
+    def read_pickle(cls, filename: str, _: str) -> "jnp_array":
+        field_array = np.load(Field.field_dir + filename, allow_pickle=True)
+        data = jnp.array(field_array.tolist())
+        return data
+
+    @classmethod
+    def read_hdf(cls, filename: str, name: str, time_step: int) -> "jnp_array":
+        with h5py.File(filename, "r") as f:
+            if time_step < 0:
+                time_step = len(f) + time_step
+            grp = f.get(str(time_step))
+            dset = grp.get(name)
+        return jnp.array(dset)
+
+    @classmethod
     def FromFile(
         cls,
         domain: PhysicalDomain,
         filename: str,
         name: str = "field",
+        time_step: int = -1,
         allow_projection: bool = False,
     ) -> PhysicalField:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
-        field_array = np.load(Field.field_dir + filename, allow_pickle=True)
-        data = jnp.array(field_array.tolist())
+        try:
+            data = cls.read_hdf(filename, name, time_step)
+        except Exception as e:
+            print("unable to save as hdf due to the following exception:")
+            print(e)
+            data = cls.read_pickle(filename, name)
         data_matches_domain = data.shape == domain.get_shape_aliasing()
         if not allow_projection:
             assert (

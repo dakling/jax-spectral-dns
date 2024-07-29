@@ -21,6 +21,7 @@ setup(
         "optax",
         "humanfriendly",
         "pyyaml",
+        "h5py",
     ],
     extras_require={
         "notifications": ["PyGObject"],
