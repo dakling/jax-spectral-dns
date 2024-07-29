@@ -1804,7 +1804,7 @@ class NavierStokesVelVort(Equation):
                 with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
                     f.create_dataset(
                         "velocity_trajectory",
-                        data=trajectory,
+                        data=trajectory[0],
                         compression="gzip",
                         compression_opts=9,
                     )
