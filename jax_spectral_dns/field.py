@@ -730,13 +730,13 @@ class VectorField(Generic[T]):
     def hat(self: VectorField[PhysicalField]) -> VectorField[FourierField]:
         out = VectorField([f.hat() for f in self])
         out.set_name(out.get_name())
-        out.set_time_step(self.time_step)
+        out.set_time_step(self.get_time_step())
         return out
 
     def no_hat(self: VectorField[FourierField]) -> VectorField[PhysicalField]:
         out = VectorField([f.no_hat() for f in self])
         out.set_name(out.get_name())
-        out.set_time_step(self.time_step)
+        out.set_time_step(self.get_time_step())
         return out
 
     def plot(self, *other_fields: VectorField[PhysicalField]) -> None:
