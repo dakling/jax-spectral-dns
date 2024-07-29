@@ -406,7 +406,6 @@ class VectorField(Generic[T]):
         filename = (
             filename if filename[0] in "./" else PhysicalField.field_dir + filename
         )
-        field_array = cls.read_hdf(filename, name, time_step)
         try:
             field_array = cls.read_hdf(filename, name, time_step)
         except Exception as e:
