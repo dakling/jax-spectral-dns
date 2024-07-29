@@ -380,10 +380,17 @@ class VectorField(Generic[T]):
     def read_hdf(cls, filename: str, name: str, time_step: int) -> "jnp_array":
         with h5py.File(filename, "r") as f:
             if time_step < 0:
-                time_step = len(f) + time_step
-            grp = f.get(str(time_step))
+                time_step = int([name for name in f][-1]) + time_step + 1
+            grp = f[str(time_step)]
+            assert grp is not None, (
+                "time step "
+                + str(time_step)
+                + " not found, only "
+                + str([name for f in name])
+                + " found."
+            )
             dset = grp.get(name)
-        return jnp.array(dset)
+            return jnp.array(dset)
 
     @classmethod
     def FromFile(
@@ -399,6 +406,7 @@ class VectorField(Generic[T]):
         filename = (
             filename if filename[0] in "./" else PhysicalField.field_dir + filename
         )
+        field_array = cls.read_hdf(filename, name, time_step)
         try:
             field_array = cls.read_hdf(filename, name, time_step)
         except Exception as e:
@@ -658,7 +666,7 @@ class VectorField(Generic[T]):
         ... # dedalus case setup goes here...
         u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
         u.data = np.stack([u_array, v_array, w_array])"""
-        filename = self[0].field_dir + filenam
+        filename = self[0].field_dir + filename
         try:
             self.save_to_hdf_file(filename)
         except Exception as e:
@@ -1227,10 +1235,17 @@ class PhysicalField(Field):
     def read_hdf(cls, filename: str, name: str, time_step: int) -> "jnp_array":
         with h5py.File(filename, "r") as f:
             if time_step < 0:
-                time_step = len(f) + time_step
-            grp = f.get(str(time_step))
+                time_step = int([name for name in f][-1]) + time_step + 1
+            grp = f[str(time_step)]
+            assert grp is not None, (
+                "time step "
+                + str(time_step)
+                + " not found, only "
+                + str([name for f in name])
+                + " found."
+            )
             dset = grp.get(name)
-        return jnp.array(dset)
+            return jnp.array(dset)
 
     @classmethod
     def FromFile(

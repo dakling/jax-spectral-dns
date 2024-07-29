@@ -1938,7 +1938,7 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     if vel_0_path is None:
         v0_hat = v0_0_hat
     else:
-        v0_hat = VectorField.FromFile(domain, vel_0_path, "velocity").hat()
+        v0_hat = VectorField.FromFile(domain, vel_0_path, "vel_0").hat()
     v0_hat.set_name("velocity_hat")
     nse = NavierStokesVelVortPerturbation(
         v0_hat, Re=Re, dt=dt, end_time=end_time, constant_mass_flux=False
@@ -2925,7 +2925,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     if init_file is None:
         v0_hat = vel_hat
     else:
-        v0 = VectorField.FromFile(domain, init_file, "velocity", allow_projection=True)
+        v0 = VectorField.FromFile(domain, init_file, "vel_0", allow_projection=True)
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         v0_hat = v0.hat()
