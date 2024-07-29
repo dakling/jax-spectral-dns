@@ -38,8 +38,8 @@ from jax.sharding import PositionalSharding
 
 NoneType = type(None)
 
-use_rfftn = jax.default_backend() == "cpu"
-# use_rfftn = False
+# use_rfftn = jax.default_backend() == "cpu"
+use_rfftn = False
 jit_rfftn = False
 custom_irfftn = jax.default_backend() == "gpu"
 # custom_irfftn = True
