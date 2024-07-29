@@ -7,11 +7,15 @@ import yaml
 from glob import glob
 import matplotlib.pyplot as plt
 
-STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
-# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
-HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
+# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
+# # STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
+# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
+# MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
 
-MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
+HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
+
+MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
 
 
 def get_gain(directory: str) -> Optional[float]:
@@ -49,8 +53,8 @@ def collect_gain_e0() -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
         if e_0 is not None and gain is not None:
             e_0s.append(e_0)
             gains.append(gain)
-    e_0s.append(0.0)
-    gains.append(get_gain("linear"))
+    # e_0s.append(0.0)
+    # gains.append(get_gain("linear"))
     e_0s, gains = (list(x) for x in zip(*sorted(zip(e_0s, gains))))
     return np.array(e_0s), np.array(gains)
 
@@ -72,7 +76,8 @@ def plot() -> None:
     ax_.set_xlim([-1e-20, 1e-20])
     ax_.get_xaxis().set_ticks([0.0])
     ax.set_xlabel("$e_0 / E_0$")
-    ax_.set_ylabel("$G_\\text{opt}$")
+    # ax_.set_ylabel("$G_\\text{opt}(1.05)$")
+    ax_.set_ylabel("$G_\\text{opt}(0.7)$")
     # hide the spines between ax and ax2
     ax_.spines.right.set_visible(False)
     ax.spines.left.set_visible(False)

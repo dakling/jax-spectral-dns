@@ -1708,6 +1708,7 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
+            vel_hat_new.set_time_step(self.get_latest_field("velocity_hat").time_step)
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_, dPdx_
 
@@ -1777,6 +1778,8 @@ class NavierStokesVelVort(Equation):
         self.number_of_outer_steps = number_of_outer_steps
         self.number_of_inner_steps = number_of_inner_steps
 
+        start_step = self.get_initial_field("velocity_hat").time_step
+
         print_verb(
             "Dividing "
             + str(number_of_time_steps)
@@ -1792,6 +1795,7 @@ class NavierStokesVelVort(Equation):
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
+            t = 0
             for u in trajectory[0]:
                 velocity = VectorField(
                     [
@@ -1803,6 +1807,8 @@ class NavierStokesVelVort(Equation):
                         for i in self.all_dimensions()
                     ]
                 )
+                velocity.set_time_step(start_step + t)
+                t += 1
                 self.append_field("velocity_hat", velocity, in_place=False)
             if Equation.verbosity_level >= 3:
                 for i in range(self.get_number_of_fields("velocity_hat")):
@@ -1831,6 +1837,7 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
+            velocity_final.set_time_step(start_step + number_of_outer_steps)
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
@@ -1855,6 +1862,7 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
+            velocity_final.set_time_step(start_step + number_of_outer_steps)
             self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)

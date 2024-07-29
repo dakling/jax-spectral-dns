@@ -377,7 +377,9 @@ class VectorField(Generic[T]):
         return data
 
     @classmethod
-    def read_hdf(cls, filename: str, name: str, time_step: int) -> "jnp_array":
+    def read_hdf(
+        cls, filename: str, name: str, time_step: int
+    ) -> Tuple["jnp_array", int]:
         with h5py.File(filename, "r") as f:
             if time_step < 0:
                 time_step = int([name for name in f][-1]) + time_step + 1
@@ -390,7 +392,7 @@ class VectorField(Generic[T]):
                 + " found."
             )
             dset = grp.get(name)
-            return jnp.array(dset)
+            return (jnp.array(dset), time_step)
 
     @classmethod
     def FromFile(
@@ -407,15 +409,17 @@ class VectorField(Generic[T]):
             filename if filename[0] in "./" else PhysicalField.field_dir + filename
         )
         try:
-            field_array = cls.read_hdf(filename, name, time_step)
+            field_array, time_step = cls.read_hdf(filename, name, time_step)
         except Exception as e:
             print("unable to load hdf due to the following exception:")
             print(e)
             print("trying to interpret file as pickle instead")
             field_array = cls.read_pickle(filename, name)
-        return VectorField.FromData(
+        out: VectorField[PhysicalField] = VectorField.FromData(
             PhysicalField, domain, field_array, name, allow_projection
         )
+        out.set_time_step(max(0, time_step))
+        return out
 
     def project_onto_domain(
         self: VectorField[FourierField], domain: PhysicalDomain
@@ -726,11 +730,13 @@ class VectorField(Generic[T]):
     def hat(self: VectorField[PhysicalField]) -> VectorField[FourierField]:
         out = VectorField([f.hat() for f in self])
         out.set_name(out.get_name())
+        out.set_time_step(self.time_step)
         return out
 
     def no_hat(self: VectorField[FourierField]) -> VectorField[PhysicalField]:
         out = VectorField([f.no_hat() for f in self])
         out.set_name(out.get_name())
+        out.set_time_step(self.time_step)
         return out
 
     def plot(self, *other_fields: VectorField[PhysicalField]) -> None:

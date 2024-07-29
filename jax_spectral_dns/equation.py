@@ -175,10 +175,6 @@ class Equation:
     def get_field(self, name: str, index: int) -> "AnyField":
         try:
             out: "AnyField" = self.fields[name][index]
-            if index >= 0:
-                out.set_time_step(index)
-            else:
-                out.set_time_step(len(self.fields[name]) + index)
             return out
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
@@ -220,7 +216,6 @@ class Equation:
             else:
                 self.fields[name].append(field)
             self.fields[name][-1].name = name
-            self.fields[name][-1].set_time_step(len(self.fields[name]) - 1)
         except KeyError:
             raise KeyError("Expected field named " + name + " in " + self.name + ".")
 

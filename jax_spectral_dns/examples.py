@@ -2259,7 +2259,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
             vel.set_time_step(i + time_step)
             vel.set_name("velocity")
-            vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
+            # vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
+            vel.save_to_file("velocity_final_run")
         if i >= n_steps - 1:
             vel.set_time_step(i + time_step)
             vel.set_name("velocity")
@@ -2820,7 +2821,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
             vel.set_time_step(i)
             vel.set_name("velocity")
-            vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
+            # vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
+            vel.save_to_file("velocity_final_run")
 
         vel_base_hat = nse.get_initial_field("velocity_base_hat")
         vel_base = vel_base_hat.no_hat()
@@ -2863,10 +2865,10 @@ def run_ld_2021_dual(**params: Any) -> None:
         prod = []
         diss = []
         for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time
             vel_hat_ = nse.get_field("velocity_hat", j)
             vel_ = vel_hat_.no_hat()
             vel_energy_ = vel_.energy()
+            time_ = (vel_hat_.time_step / (n_steps - 1)) * end_time
             ts.append(time_)
             energy_t.append(vel_energy_)
             e_x_2d = vel_hat_[0].energy_2d(0)
