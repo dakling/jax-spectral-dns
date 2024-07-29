@@ -2818,20 +2818,21 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
-        if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
-            vel.set_time_step(i)
-            vel.set_name("velocity")
-            # vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
-            vel.save_to_file("velocity_final_run")
+        # if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+        #     vel.set_time_step(i)
+        #     vel.set_name("velocity")
+        #     # vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
+        #     vel.save_to_file("velocity_final_run")
 
         vel_base_hat = nse.get_initial_field("velocity_base_hat")
         vel_base = vel_base_hat.no_hat()
 
         vort = vel.curl()
-        vel.set_time_step(i)
+        # vel.set_time_step(i)
         vel.set_name("velocity")
-        vort.set_time_step(i)
+        # vort.set_time_step(i)
         vort.set_name("vorticity")
+        time_step = vel.get_time_step()
 
         vel[0].plot_3d(2)
         vel[1].plot_3d(2)
@@ -2891,7 +2892,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         ax.set_xlabel("$t h / u_\\tau$")
         ax.set_ylabel("$G$")
-        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
+        fig.savefig(
+            Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(time_step) + ".png"
+        )
         ax_2d_over_3d.plot(ts, energy_x_2d_arr, "k.")
         ax_2d_over_3d.plot(ts, energy_x_3d_arr, "b.")
         ax_2d_over_3d.plot(ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="E_2d")
@@ -2903,7 +2906,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         fig_2d_over_3d.savefig(
             Field.plotting_dir
             + "/plot_energy_2d_over_3d_t_"
-            + "{:06}".format(i)
+            + "{:06}".format(time_step)
             + ".png"
         )
         ax_pd.plot(prod_arr, -diss_arr, "k.")
@@ -2921,7 +2924,10 @@ def run_ld_2021_dual(**params: Any) -> None:
         ax_pd.set_xlabel("$P$")
         ax_pd.set_ylabel("$-D$")
         fig_pd.savefig(
-            Field.plotting_dir + "/plot_prod_diss_t_" + "{:06}".format(i) + ".png"
+            Field.plotting_dir
+            + "/plot_prod_diss_t_"
+            + "{:06}".format(time_step)
+            + ".png"
         )
 
     if init_file is None:
