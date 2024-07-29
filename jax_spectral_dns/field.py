@@ -126,7 +126,7 @@ class Field(ABC):
     def save_to_pickle_file(self, filename: str) -> None:
         """Save field to file filename using pickle."""
         field_array: "np_float_array" = np.array(self.data.tolist())
-        field_array.dump(self.field_dir + filename)
+        field_array.dump(filename)
 
     def save_to_hdf_file(self, filename: str) -> None:
         """Save field to file filename using hdf5."""
@@ -138,6 +138,9 @@ class Field(ABC):
 
     def save_to_file(self, filename: str) -> None:
         """Save field to file filename."""
+        filename = (
+            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+        )
         try:
             self.save_to_hdf_file(filename)
         except Exception as e:
@@ -676,7 +679,9 @@ class VectorField(Generic[T]):
         ... # dedalus case setup goes here...
         u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
         u.data = np.stack([u_array, v_array, w_array])"""
-        filename = self[0].field_dir + filename
+        filename = (
+            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+        )
         try:
             self.save_to_hdf_file(filename)
         except Exception as e:
