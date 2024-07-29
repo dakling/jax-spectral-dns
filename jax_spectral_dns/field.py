@@ -372,7 +372,7 @@ class VectorField(Generic[T]):
 
     @classmethod
     def read_pickle(cls, filename: str, _: str) -> "jnp_array":
-        field_array = np.load(Field.field_dir + filename, allow_pickle=True)
+        field_array = np.load(filename, allow_pickle=True)
         data = jnp.array(field_array.tolist())
         return data
 
@@ -1217,7 +1217,7 @@ class PhysicalField(Field):
 
     @classmethod
     def read_pickle(cls, filename: str, _: str) -> "jnp_array":
-        field_array = np.load(Field.field_dir + filename, allow_pickle=True)
+        field_array = np.load(filename, allow_pickle=True)
         data = jnp.array(field_array.tolist())
         return data
 
@@ -1241,6 +1241,9 @@ class PhysicalField(Field):
     ) -> PhysicalField:
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
+        filename = (
+            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+        )
         try:
             data = cls.read_hdf(filename, name, time_step)
         except Exception as e:
