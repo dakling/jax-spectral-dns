@@ -388,10 +388,17 @@ class VectorField(Generic[T]):
                 "time step "
                 + str(time_step)
                 + " not found, only "
-                + str([name for f in name])
+                + str([name for name in grp])
                 + " found."
             )
             dset = grp.get(name)
+            assert dset is not None, (
+                "dataset "
+                + name
+                + " not found, only "
+                + str([name for name in grp])
+                + " found."
+            )
             return (jnp.array(dset), time_step)
 
     @classmethod
@@ -1246,10 +1253,17 @@ class PhysicalField(Field):
                 "time step "
                 + str(time_step)
                 + " not found, only "
-                + str([name for f in name])
+                + str([name for name in f])
                 + " found."
             )
             dset = grp.get(name)
+            assert dset is not None, (
+                "dataset "
+                + name
+                + " not found, only "
+                + str([name for name in grp])
+                + " found."
+            )
             return jnp.array(dset)
 
     @classmethod
