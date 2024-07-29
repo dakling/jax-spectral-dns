@@ -1708,7 +1708,9 @@ class NavierStokesVelVort(Equation):
                     for i in self.all_dimensions()
                 ]
             )
-            vel_hat_new.set_time_step(self.get_latest_field("velocity_hat").time_step)
+            vel_hat_new.set_time_step(
+                self.get_latest_field("velocity_hat").get_time_step()
+            )
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_, dPdx_
 
@@ -1778,7 +1780,7 @@ class NavierStokesVelVort(Equation):
         self.number_of_outer_steps = number_of_outer_steps
         self.number_of_inner_steps = number_of_inner_steps
 
-        start_step = self.get_initial_field("velocity_hat").time_step
+        start_step = self.get_initial_field("velocity_hat").get_time_step()
 
         print_verb(
             "Dividing "
