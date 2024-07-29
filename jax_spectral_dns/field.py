@@ -402,8 +402,9 @@ class VectorField(Generic[T]):
         try:
             field_array = cls.read_hdf(filename, name, time_step)
         except Exception as e:
-            print("unable to save as hdf due to the following exception:")
+            print("unable to load hdf due to the following exception:")
             print(e)
+            print("trying to interpret file as pickle instead")
             field_array = cls.read_pickle(filename, name)
         return VectorField.FromData(
             PhysicalField, domain, field_array, name, allow_projection
@@ -621,7 +622,7 @@ class VectorField(Generic[T]):
         else:
             self.set_name(self.name)
         field_array = np.array(self.get_data().tolist())
-        field_array.dump(self[0].field_dir + filename)
+        field_array.dump(filename)
 
     def save_to_hdf_file(self, filename: str) -> None:
         """Save field to file filename using hdf5.
@@ -657,6 +658,7 @@ class VectorField(Generic[T]):
         ... # dedalus case setup goes here...
         u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
         u.data = np.stack([u_array, v_array, w_array])"""
+        filename = self[0].field_dir + filenam
         try:
             self.save_to_hdf_file(filename)
         except Exception as e:
@@ -1247,8 +1249,9 @@ class PhysicalField(Field):
         try:
             data = cls.read_hdf(filename, name, time_step)
         except Exception as e:
-            print("unable to save as hdf due to the following exception:")
+            print("unable to load hdf due to the following exception:")
             print(e)
+            print("trying to interpret file as pickle instead")
             data = cls.read_pickle(filename, name)
         data_matches_domain = data.shape == domain.get_shape_aliasing()
         if not allow_projection:
