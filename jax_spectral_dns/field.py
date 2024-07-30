@@ -996,7 +996,7 @@ class VectorField(Generic[T]):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
-                # del fig, ax
+                del fig, ax
         except Exception as e:
             print("plot_streamlines failed with the following exception:")
             print(e)
@@ -1046,7 +1046,7 @@ class VectorField(Generic[T]):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
-                # del fig, ax
+                del fig, ax
         except Exception as e:
             print("plot_vectors failed with the following exception:")
             print(e)
@@ -1595,7 +1595,7 @@ class PhysicalField(Field):
                         save()
                 else:
                     raise Exception("Not implemented yet")
-                # del fig, ax
+                del fig, ax
         except Exception as e:
             print("plot_center failed with the following exception:")
             print(e)
@@ -1757,7 +1757,7 @@ class PhysicalField(Field):
                         save()
                 else:
                     raise Exception("Not implemented yet")
-                # del fig, ax
+                del fig, ax
         except Exception as e:
             print("plot failed with the following exception:")
             print(e)
@@ -1850,7 +1850,7 @@ class PhysicalField(Field):
                     except FileNotFoundError:
                         Field.initialize(False)
                         save()
-                    # del fig, ax
+                    del fig, ax
         except Exception:
             for i in self.all_dimensions():
                 try:
@@ -1920,7 +1920,7 @@ class PhysicalField(Field):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
-                # del fig, ax
+                del fig, ax
 
         except Exception as e:
             print("plot_3d_single failed with the following exception:")
@@ -1991,7 +1991,7 @@ class PhysicalField(Field):
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
-            # del fig, ax_
+            del fig, ax_
         except Exception as e:
             print("FourierField.plot_wavenumbers failed with the following exception:")
             print(e)
@@ -2058,7 +2058,7 @@ class PhysicalField(Field):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
-                # del fig, ax
+                del fig, ax
         except Exception as e:
             print("plot_isolines failed with the following exception:")
             print(e)
@@ -2129,8 +2129,8 @@ class PhysicalField(Field):
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
-            p.close()
-            # p.deep_clean()
+            # p.close()
+            p.deep_clean()
             # del p
         except Exception as e:
             print("plot_isosurfaces failed with the following exception:")
@@ -2680,7 +2680,7 @@ class FourierField(Field):
                     except FileNotFoundError:
                         Field.initialize(False)
                         save()
-                    # del fig, ax
+                    del fig, ax
         except Exception as e:
             print("FourierField.plot_3d failed with the following exception:")
             print(e)
@@ -2746,7 +2746,7 @@ class FourierField(Field):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
-                # del fig, ax
+                del fig, ax
         except Exception as e:
             print("FourierField.plot_3d_single failed with the following exception:")
             print(e)
