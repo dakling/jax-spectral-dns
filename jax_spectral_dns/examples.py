@@ -2869,7 +2869,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             vel_hat_ = nse.get_field("velocity_hat", j)
             vel_ = vel_hat_.no_hat()
             vel_energy_ = vel_.energy()
-            time_ = (vel_hat_.time_step / (n_steps - 1)) * end_time
+            time_ = (vel_hat_.get_time_step() / (n_steps - 1)) * end_time
             ts.append(time_)
             energy_t.append(vel_energy_)
             e_x_2d = vel_hat_[0].energy_2d(0)
