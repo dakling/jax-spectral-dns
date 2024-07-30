@@ -9,6 +9,8 @@ from jax_spectral_dns.navier_stokes import (
 )
 
 NoneType = type(None)
+import os
+import h5py
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -661,6 +663,19 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             start_time = time.time()
             velocity_u_hat_history_, dPdx_history, _ = nse.solve_scan()
             iteration_duration = time.time() - start_time
+            if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+                print_verb("writing velocity trajectory to file...")
+
+                with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
+                    f.create_dataset(
+                        "velocity_trajectory",
+                        data=self.velocity_field_u_history,
+                        compression="gzip",
+                        compression_opts=9,
+                    )
+                print_verb("done writing velocity trajectory to file")
+            else:
+                print_verb("not writing velocity trajectory to file")
             try:
                 print_verb(
                     "forward calculation took", format_timespan(iteration_duration)
