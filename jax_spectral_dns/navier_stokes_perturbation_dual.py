@@ -667,9 +667,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 print_verb("writing velocity trajectory to file...")
 
-                with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
+                with h5py.File(Field.field_dir + "/trajectory", "w") as f:
                     f.create_dataset(
-                        "velocity_trajectory",
+                        "trajectory",
                         data=velocity_u_hat_history_,
                         compression="gzip",
                         compression_opts=9,
