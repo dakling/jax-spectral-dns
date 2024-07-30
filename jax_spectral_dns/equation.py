@@ -22,7 +22,7 @@ import numpy as np
 
 from pathlib import Path
 import os
-import h5py
+import h5py  # type: ignore
 
 try:
     import gi  # type: ignore

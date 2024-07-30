@@ -10,7 +10,7 @@ from jax_spectral_dns.navier_stokes import (
 
 NoneType = type(None)
 import os
-import h5py
+import h5py  # type: ignore
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -37,6 +37,7 @@ from jax_spectral_dns.navier_stokes import (
 )
 from jax_spectral_dns.domain import PhysicalDomain, FourierDomain
 from jax_spectral_dns.field import (
+    Field,
     PhysicalField,
     VectorField,
     FourierField,
