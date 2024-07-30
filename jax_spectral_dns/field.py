@@ -2130,7 +2130,7 @@ class PhysicalField(Field):
                 Field.initialize(False)
                 save()
             p.close()
-            p.deep_clean()
+            # p.deep_clean()
             # del p
         except Exception as e:
             print("plot_isosurfaces failed with the following exception:")
