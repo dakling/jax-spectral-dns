@@ -60,7 +60,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
         energy_t_arr = np.array(energy_t)
         energy_x_2d_arr = np.array(energy_x_2d)
         energy_x_3d_arr = np.array(energy_x_3d)
-        print(max(energy_t_arr))
+        print(max(energy_t_arr) / energy_t_arr[0])
 
         print("main post-processing loop")
         for i in range(n_steps):
@@ -85,7 +85,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             vel[2].plot_3d(0)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
-            # vel.plot_isosurfaces()
+            vel.plot_isosurfaces()
             vel.plot_wavenumbers(1)
             vel.magnitude().plot_wavenumbers(1)
 

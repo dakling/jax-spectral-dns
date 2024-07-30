@@ -391,7 +391,7 @@ class VectorField(Generic[T]):
                 "time step "
                 + str(time_step)
                 + " not found, only "
-                + str([name for name in grp])
+                + str([name for name in f])
                 + " found."
             )
             dset = grp.get(name)
@@ -1850,7 +1850,7 @@ class PhysicalField(Field):
                     except FileNotFoundError:
                         Field.initialize(False)
                         save()
-                del fig, ax
+                    del fig, ax
         except Exception:
             for i in self.all_dimensions():
                 try:
@@ -1991,7 +1991,7 @@ class PhysicalField(Field):
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
-            del fig, ax
+            del fig, ax_
         except Exception as e:
             print("FourierField.plot_wavenumbers failed with the following exception:")
             print(e)
@@ -2129,13 +2129,13 @@ class PhysicalField(Field):
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
+            p.close()
+            p.deep_clean()
+            del p
         except Exception as e:
             print("plot_isosurfaces failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
-        p.close()
-        p.deep_clean()
-        del p
 
     def hat(self) -> FourierField:
         out = FourierField.FromField(self)
