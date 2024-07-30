@@ -350,18 +350,18 @@ class Equation:
             trajectory, _, number_of_time_steps = self.solve_scan()
 
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
-                print_verb("writing velocity trajectory to file...")
+                print_verb("writing trajectory to file...")
 
-                with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
+                with h5py.File(Field.field_dir + "/trajectory", "w") as f:
                     f.create_dataset(
                         "velocity_trajectory",
                         data=trajectory,
                         compression="gzip",
                         compression_opts=9,
                     )
-                print_verb("done writing velocity trajectory to file")
+                print_verb("done writing trajectory to file")
             else:
-                print_verb("not writing velocity trajectory to file")
+                print_verb("not writing trajectory to file")
             duration = time.time() - start_time
             try:
                 print_verb(
