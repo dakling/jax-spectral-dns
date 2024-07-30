@@ -139,7 +139,9 @@ class Field(ABC):
     def save_to_file(self, filename: str) -> None:
         """Save field to file filename."""
         filename = (
-            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+            filename
+            if filename[0] in "./"
+            else PhysicalField.field_dir + "/" + filename
         )
         try:
             self.save_to_hdf_file(filename)
@@ -416,7 +418,9 @@ class VectorField(Generic[T]):
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
         filename = (
-            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+            filename
+            if filename[0] in "./"
+            else PhysicalField.field_dir + "/" + filename
         )
         try:
             field_array, time_step = cls.read_hdf(filename, name, time_step)
@@ -680,7 +684,9 @@ class VectorField(Generic[T]):
         u = dist.VectorField(coords, name='u', bases=(xbasis,ybasis,zbasis))
         u.data = np.stack([u_array, v_array, w_array])"""
         filename = (
-            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+            filename
+            if filename[0] in "./"
+            else PhysicalField.field_dir + "/" + filename
         )
         try:
             self.save_to_hdf_file(filename)
@@ -1285,7 +1291,9 @@ class PhysicalField(Field):
         """Construct new field depending on the independent variables described
         by domain by reading in a saved field from file filename."""
         filename = (
-            filename if filename[0] in "./" else PhysicalField.field_dir + filename
+            filename
+            if filename[0] in "./"
+            else PhysicalField.field_dir + "/" + filename
         )
         try:
             data = cls.read_hdf(filename, name, time_step)
