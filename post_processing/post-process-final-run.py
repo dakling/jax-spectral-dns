@@ -22,7 +22,6 @@ def get_domain(shape):
         shape,
         (True, False, True),
         scale_factors=(2 * np.pi, 1.0, np.pi),
-        physical_shape_passed=False,
     )
 
 
@@ -42,7 +41,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
         for j in range(n_steps):
             print("preparing, step", j, "of", n_steps)
             vel_hat_ = VectorField.FromData(
-                FourierField, domain, velocity_trajectory[j], name="velocity"
+                FourierField, domain, velocity_trajectory[j], name="velocity_hat"
             )
             vel_ = vel_hat_.no_hat()
             vel_.set_time_step(j + time_step_0)

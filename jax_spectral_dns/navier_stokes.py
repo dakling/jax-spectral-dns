@@ -1798,19 +1798,6 @@ class NavierStokesVelVort(Equation):
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
-            if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
-                print_verb("writing velocity trajectory to file...")
-
-                with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
-                    f.create_dataset(
-                        "velocity_trajectory",
-                        data=trajectory[0],
-                        compression="gzip",
-                        compression_opts=9,
-                    )
-                print_verb("done writing velocity trajectory to file")
-            else:
-                print_verb("not writing velocity trajectory to file")
             t = 0
             for u in trajectory[0]:
                 velocity = VectorField(
@@ -1838,24 +1825,24 @@ class NavierStokesVelVort(Equation):
                 self.get_initial_field("velocity_hat").get_data(),
                 axis=0,
             )
-            return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
-        elif self.write_entire_output:
-            u_final, trajectory = jax.lax.scan(
-                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
-            )
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 print_verb("writing velocity trajectory to file...")
 
                 with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
                     f.create_dataset(
                         "velocity_trajectory",
-                        data=trajectory[0],
+                        data=out,
                         compression="gzip",
                         compression_opts=9,
                     )
                 print_verb("done writing velocity trajectory to file")
             else:
                 print_verb("not writing velocity trajectory to file")
+            return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
+        elif self.write_entire_output:
+            u_final, trajectory = jax.lax.scan(
+                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
+            )
             velocity_final = VectorField(
                 [
                     FourierField(
@@ -1876,6 +1863,19 @@ class NavierStokesVelVort(Equation):
                 self.get_initial_field("velocity_hat").get_data(),
                 axis=0,
             )
+            if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+                print_verb("writing velocity trajectory to file...")
+
+                with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
+                    f.create_dataset(
+                        "velocity_trajectory",
+                        data=out,
+                        compression="gzip",
+                        compression_opts=9,
+                    )
+                print_verb("done writing velocity trajectory to file")
+            else:
+                print_verb("not writing velocity trajectory to file")
             return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
         else:
             u_final, _ = jax.lax.scan(
