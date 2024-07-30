@@ -739,7 +739,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 self.dPdx = 0.0
             # self.dPdx = self.dPdx_history[-2] # TODO
             print_verb("performing backward (adjoint) calculation...")
-            self.solve()
+            self.solve_scan()
 
     def get_gain(self) -> float:
         self.run_forward_calculation()
