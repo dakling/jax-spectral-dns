@@ -670,7 +670,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
                     f.create_dataset(
                         "velocity_trajectory",
-                        data=velocity_field_u_hat_history_,
+                        data=velocity_u_hat_history_,
                         compression="gzip",
                         compression_opts=9,
                     )
