@@ -30,7 +30,6 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
     with h5py.File(file, "r") as f:
         velocity_trajectory = f["velocity_trajectory"]
         n_steps = velocity_trajectory.shape[0]
-        print(velocity_trajectory.shape)
         domain = get_domain(velocity_trajectory.shape[2:])
 
         ts = []
@@ -58,6 +57,11 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             # prod.append(nse.get_production(j))
             # diss.append(nse.get_dissipation(j))
 
+        energy_t_arr = np.array(energy_t)
+        energy_x_2d_arr = np.array(energy_x_2d)
+        energy_x_3d_arr = np.array(energy_x_3d)
+        print(max(energy_t_arr))
+
         print("main post-processing loop")
         for i in range(n_steps):
             print("step", i, "of", n_steps)
@@ -81,7 +85,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             vel[2].plot_3d(0)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
-            vel.plot_isosurfaces()
+            # vel.plot_isosurfaces()
             vel.plot_wavenumbers(1)
             vel.magnitude().plot_wavenumbers(1)
 
@@ -95,9 +99,6 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             # ax_pd = fig_pd.subplots(1, 1)
             # assert type(ax_pd) is Axes
 
-            energy_t_arr = np.array(energy_t)
-            energy_x_2d_arr = np.array(energy_x_2d)
-            energy_x_3d_arr = np.array(energy_x_3d)
             # prod_arr = np.array(prod)
             # diss_arr = np.array(diss)
             ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")

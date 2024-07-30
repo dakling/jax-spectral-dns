@@ -7,15 +7,15 @@ import yaml
 from glob import glob
 import matplotlib.pyplot as plt
 
-# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
-# # STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
-# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
-# MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
+# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
+HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
+MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
 
-STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
-HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
+# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
+# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
 
-MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+# MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
 
 
 def get_gain(directory: str) -> Optional[float]:
