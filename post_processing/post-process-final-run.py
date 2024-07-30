@@ -51,7 +51,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             ts.append(time_)
             energy_t.append(vel_energy_)
             e_x_2d = vel_[0].hat().energy_2d(0)
-            e_x_3d = vel_[0].energy() - e_x_2d
+            e_x_3d = vel_.energy() - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
             # prod.append(nse.get_production(j))
@@ -118,10 +118,10 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             ax_2d_over_3d.plot(ts, energy_x_2d_arr, "k.")
             ax_2d_over_3d.plot(ts, energy_x_3d_arr, "b.")
             ax_2d_over_3d.plot(
-                ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="E_2d"
+                ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="$E_{x, 2d}$"
             )
             ax_2d_over_3d.plot(
-                ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="E_3d"
+                ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="$E_3d$"
             )
             ax_2d_over_3d.set_xlabel("$t h / u_\\tau$")
             ax_2d_over_3d.set_ylabel("$E$")

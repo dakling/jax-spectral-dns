@@ -130,8 +130,8 @@ class GradientDescentSolver(ABC):
         gain = self.value
         e_x_2d = v0_hat[0].energy_2d(0)
         e_z_2d = v0_hat[0].energy_2d(2)
-        e_x_3d = v0[0].energy() - e_x_2d
-        e_z_3d = v0[0].energy() - e_z_2d
+        e_x_3d = v0.energy() - e_x_2d
+        e_z_3d = v0.energy() - e_z_2d
         phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
         localisation = v0.get_localisation()
         localisation_x = (
@@ -224,8 +224,8 @@ class GradientDescentSolver(ABC):
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         assert type(ax) is Axes
-        ax.plot(phase_space_data[0], phase_space_data[2], "k.", label="E_2d (x)")
-        ax.plot(phase_space_data[0], phase_space_data[4], "b.", label="E_3d")
+        ax.plot(phase_space_data[0], phase_space_data[2], "k.", label="$E_{x, 2d}$")
+        ax.plot(phase_space_data[0], phase_space_data[4], "b.", label="$E_{3d}$")
         ax.set_xlabel("$i$")
         ax.set_ylabel("$E$")
         fig.legend()

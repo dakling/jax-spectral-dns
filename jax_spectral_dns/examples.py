@@ -2873,7 +2873,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             ts.append(time_)
             energy_t.append(vel_energy_)
             e_x_2d = vel_hat_[0].energy_2d(0)
-            e_x_3d = vel_[0].energy() - e_x_2d
+            e_x_3d = vel_.energy() - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
             prod.append(nse.get_production(j))
@@ -2897,8 +2897,12 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         ax_2d_over_3d.plot(ts, energy_x_2d_arr, "k.")
         ax_2d_over_3d.plot(ts, energy_x_3d_arr, "b.")
-        ax_2d_over_3d.plot(ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="E_2d")
-        ax_2d_over_3d.plot(ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="E_3d")
+        ax_2d_over_3d.plot(
+            ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="$E_{x, 2d}$"
+        )
+        ax_2d_over_3d.plot(
+            ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="$E_{3d}$"
+        )
         ax_2d_over_3d.set_xlabel("$t h / u_\\tau$")
         ax_2d_over_3d.set_ylabel("$E$")
         # ax_2d_over_3d.set_yscale("log")
