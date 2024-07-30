@@ -1863,19 +1863,19 @@ class NavierStokesVelVort(Equation):
                 self.get_initial_field("velocity_hat").get_data(),
                 axis=0,
             )
-            if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
-                print_verb("writing velocity trajectory to file...")
+            # if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+            #     print_verb("writing velocity trajectory to file...")
 
-                with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
-                    f.create_dataset(
-                        "velocity_trajectory",
-                        data=out,
-                        compression="gzip",
-                        compression_opts=9,
-                    )
-                print_verb("done writing velocity trajectory to file")
-            else:
-                print_verb("not writing velocity trajectory to file")
+            #     with h5py.File(Field.field_dir + "/velocity_trajectory", "w") as f:
+            #         f.create_dataset(
+            #             "velocity_trajectory",
+            #             data=out,
+            #             compression="gzip",
+            #             compression_opts=9,
+            #         )
+            #     print_verb("done writing velocity trajectory to file")
+            # else:
+            #     print_verb("not writing velocity trajectory to file")
             return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
         else:
             u_final, _ = jax.lax.scan(
