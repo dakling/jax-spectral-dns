@@ -2,6 +2,8 @@
 
 import os
 
+from jax_spectral_dns.equation import Equation
+
 os.environ["JAX_PLATFORMS"] = "cpu"
 
 import jax
@@ -26,6 +28,7 @@ def get_domain(shape):
 
 
 def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
+    Equation.initialize()
     with h5py.File(file, "r") as f:
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
@@ -35,6 +38,8 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
         energy_t = []
         energy_x_2d = []
         energy_x_3d = []
+        amplitude_t = []
+        amplitude_x_2d_t = []
         # prod = []
         # diss = []
         print("preparing")
@@ -53,6 +58,9 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             e_x_3d = vel_.energy() - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
+            amplitude_t.append(vel_.max() - vel_.min())
+            vel_2d_x = vel_hat_.field_2d(0).no_hat()
+            amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
             # prod.append(nse.get_production(j))
             # diss.append(nse.get_dissipation(j))
 
@@ -104,10 +112,22 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             ax.plot(
                 ts[: i + 1],
                 energy_t_arr[: i + 1] / energy_t_arr[0],
-                "bo",
+                "ko",
+                label="energy gain",
             )
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
+            ax2 = ax.twinx()
+            ax2.plot(ts, amplitude_t, "g.")
+            ax2.plot(
+                ts[: i + 1], amplitude_t[: i + 1], "go", label="perturbation amplitude"
+            )
+            ax2.plot(ts, amplitude_x_2d_t, "b.")
+            ax2.plot(
+                ts[: i + 1], amplitude_x_2d_t[: i + 1], "bo", label="streak amplitude"
+            )
+            ax2.set_ylabel("$A$")
+            fig.legend()
             fig.savefig(
                 Field.plotting_dir
                 + "/plot_energy_t_"

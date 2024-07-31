@@ -2865,6 +2865,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         energy_x_3d = []
         prod = []
         diss = []
+        amplitude_t = []
+        amplitude_x_2d_t = []
         for j in range(n_steps):
             vel_hat_ = nse.get_field("velocity_hat", j)
             vel_ = vel_hat_.no_hat()
@@ -2878,6 +2880,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             energy_x_3d.append(e_x_3d)
             prod.append(nse.get_production(j))
             diss.append(nse.get_dissipation(j))
+            amplitude_t.append(vel_.max() - vel_.min())
+            vel_2d_x = vel_hat_.field_2d(0).no_hat()
+            amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
 
         energy_t_arr = np.array(energy_t)
         energy_x_2d_arr = np.array(energy_x_2d)
@@ -2892,6 +2897,15 @@ def run_ld_2021_dual(**params: Any) -> None:
         )
         ax.set_xlabel("$t h / u_\\tau$")
         ax.set_ylabel("$G$")
+        ax2 = ax.twinx()
+        ax2.plot(ts, amplitude_t, "g.")
+        ax2.plot(
+            ts[: i + 1], amplitude_t[: i + 1], "go", label="perturbation amplitude"
+        )
+        ax2.plot(ts, amplitude_2d_x_t, "b.")
+        ax2.plot(ts[: i + 1], amplitude_2d_x_t[: i + 1], "bo", label="streak amplitude")
+        ax2.set_ylabel("$A$")
+        fig.legend()
         fig.savefig(
             Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(time_step) + ".png"
         )
