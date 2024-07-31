@@ -2137,6 +2137,7 @@ class PhysicalField(Field):
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
+            p.close()
             p.deep_clean()
             del p
         except Exception as e:

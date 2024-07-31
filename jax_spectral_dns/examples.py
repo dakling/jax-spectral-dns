@@ -2880,8 +2880,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             energy_x_3d.append(e_x_3d)
             prod.append(nse.get_production(j))
             diss.append(nse.get_dissipation(j))
-            amplitude_t.append(vel_.max() - vel_.min())
-            vel_2d_x = vel_hat_.field_2d(0).no_hat()
+            # amplitude_t.append(vel_.max() - vel_.min())
+            amplitude_t.append(vel_[0].max() - vel_[0].min())
+            vel_2d_x = vel_hat_[0].field_2d(0).no_hat()
             amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
 
         energy_t_arr = np.array(energy_t)
