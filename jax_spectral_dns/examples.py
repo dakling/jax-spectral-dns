@@ -2899,12 +2899,13 @@ def run_ld_2021_dual(**params: Any) -> None:
         ax.set_xlabel("$t h / u_\\tau$")
         ax.set_ylabel("$G$")
         ax2 = ax.twinx()
+        assert type(ax2) is Axes
         ax2.plot(ts, amplitude_t, "g.")
         ax2.plot(
             ts[: i + 1], amplitude_t[: i + 1], "go", label="perturbation amplitude"
         )
-        ax2.plot(ts, amplitude_2d_x_t, "b.")
-        ax2.plot(ts[: i + 1], amplitude_2d_x_t[: i + 1], "bo", label="streak amplitude")
+        ax2.plot(ts, amplitude_x_2d_t, "b.")
+        ax2.plot(ts[: i + 1], amplitude_x_2d_t[: i + 1], "bo", label="streak amplitude")
         ax2.set_ylabel("$A$")
         fig.legend()
         fig.savefig(

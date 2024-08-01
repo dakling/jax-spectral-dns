@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 
 from jax_spectral_dns.equation import Equation
 
@@ -40,11 +41,12 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
         energy_x_3d = []
         amplitude_t = []
         amplitude_x_2d_t = []
+        amplitude_3d_t = []
         # prod = []
         # diss = []
         print("preparing")
         for j in range(n_steps):
-            print("preparing, step", j, "of", n_steps)
+            print("preparing, step", j + 1, "of", n_steps)
             vel_hat_ = VectorField.FromData(
                 FourierField, domain, velocity_trajectory[j], name="velocity_hat"
             )
@@ -61,6 +63,11 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             amplitude_t.append(vel_[0].max() - vel_[0].min())
             vel_2d_x = vel_hat_[0].field_2d(0).no_hat()
             amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
+            vel_3d = vel_ - VectorField(
+                [vel_2d_x, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
+            )
+            # amplitude_3d_t.append(vel_3d.max() - vel_3d.min())
+            amplitude_3d_t.append(vel_3d[0].max() - vel_3d[0].min())
             # prod.append(nse.get_production(j))
             # diss.append(nse.get_dissipation(j))
 
@@ -71,7 +78,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
 
         print("main post-processing loop")
         for i in range(n_steps):
-            print("step", i, "of", n_steps)
+            print("step", i + 1, "of", n_steps)
             # time = (i / (n_steps - 1)) * end_time
             vel_hat = VectorField.FromData(
                 FourierField, domain, velocity_trajectory[i], name="velocity"
@@ -120,11 +127,21 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             ax2 = ax.twinx()
             ax2.plot(ts, amplitude_t, "g.")
             ax2.plot(
-                ts[: i + 1], amplitude_t[: i + 1], "go", label="perturbation amplitude"
+                ts[: i + 1],
+                amplitude_t[: i + 1],
+                "go",
+                label="total perturbation amplitude",
             )
             ax2.plot(ts, amplitude_x_2d_t, "b.")
             ax2.plot(
                 ts[: i + 1], amplitude_x_2d_t[: i + 1], "bo", label="streak amplitude"
+            )
+            ax2.plot(ts, amplitude_3d_t, "y.")
+            ax2.plot(
+                ts[: i + 1],
+                amplitude_3d_t[: i + 1],
+                "yo",
+                label="perturbation amplitude w/o streak",
             )
             ax2.set_ylabel("$A$")
             fig.legend()
@@ -140,7 +157,7 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
                 ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="$E_{x, 2d}$"
             )
             ax_2d_over_3d.plot(
-                ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="$E_3d$"
+                ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="$E_{3d}$"
             )
             ax_2d_over_3d.set_xlabel("$t h / u_\\tau$")
             ax_2d_over_3d.set_ylabel("$E$")
@@ -174,4 +191,4 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             # )
 
 
-post_process("fields/trajectory", 35.0, 0)
+post_process(sys.argv[1], float(sys.argv[2]), 0)
