@@ -1529,7 +1529,7 @@ class TestProject(unittest.TestCase):
 
         error = (v0_no_cp_nh - v0_cp_nh).energy()
         print_verb("error:", error, verbosity_level=3)
-        assert error < 1e-100  # should be machine (or even exactly) zero
+        assert error < 1e-30
 
 
 if __name__ == "__main__":

@@ -29,7 +29,6 @@ def get_domain(shape):
 
 
 def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
-    Equation.initialize()
     with h5py.File(file, "r") as f:
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
