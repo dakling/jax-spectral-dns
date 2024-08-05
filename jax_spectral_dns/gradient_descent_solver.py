@@ -119,13 +119,6 @@ class GradientDescentSolver(ABC):
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
 
-        grad = VectorField.FromData(
-            FourierField, v0_hat.get_physical_domain(), self.grad, name="grad_hat"
-        ).no_hat()
-        grad.set_name("grad")
-        grad.plot_3d(0)
-        grad.plot_3d(2)
-
         out_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR")
         v0.save_to_file("velocity_latest")
         if out_dir is not None:
