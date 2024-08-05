@@ -7,15 +7,49 @@ import yaml
 from glob import glob
 import matplotlib.pyplot as plt
 
-# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
-# # STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
-# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
-# # MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
+# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
+HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
+# MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+# 2024-08-01
+# (0.0, 34.6401854725554)
+# (1e-06, 34.577479425399396)
+# (1e-05, 43.509257916312855)
+# (3e-05, 52.2413247260102)
+# (4e-05, 50.2766892814127)
+# (5e-05, 48.00006739581085)
+# (8e-05, 44.5202176218265)
+# (0.001, 33.15916400858984)
+# 2024-08-05
+# (0.0, 34.6401854725554)
+# (1e-06, 34.577479425399396)
+# (1e-05, 43.54091517069387)
+# (3e-05, 52.26068596149378)
+# (4e-05, 50.2766892814127)
+# (5e-05, 48.00006739581085)
+# (8e-05, 45.895168460054556)
+# (0.001, 33.15916400858984)
 
-STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
-HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
+# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
+# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
 
 MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+
+# 2024-08-01
+# (0.0, 28.48115218398059)
+# (1e-06, 28.405411783533037)
+# (2e-05, 29.995533076581452)
+# (3e-05, 32.68451394680395)
+# (4e-05, 31.879287396863518)
+# (6e-05, 30.183736804193902)
+
+# 2024-08-05
+# (0.0, 28.481157213899742)
+# (1e-06, 28.407516647620756)
+# (2e-05, 29.995533076581452)
+# (3e-05, 32.913779920138595)
+# (4e-05, 31.879287396863518)
+# (6e-05, 30.84936547404671)
 
 
 def get_gain(directory: str) -> Optional[float]:
