@@ -1796,7 +1796,7 @@ class NavierStokesVelVort(Equation):
 
         if self.write_intermediate_output and not self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
-                step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
+                jax.checkpoint(step_fn), (u0, dPdx, 0), xs=None, length=number_of_outer_steps  # type: ignore
             )
             t = 0
             for u in trajectory[0]:
