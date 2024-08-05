@@ -12,19 +12,19 @@ import os
 import yaml
 from typing import Any
 
-os.environ["XLA_FLAGS"] = (
-    "--xla_gpu_enable_triton_softmax_fusion=true " "--xla_gpu_triton_gemm_any=True "
-)
-os.environ.update(
-    {
-        "NCCL_LL128_BUFFSIZE": "-2",
-        "NCCL_LL_BUFFSIZE": "-2",
-        "NCCL_PROTO": "SIMPLE,LL,LL128",
-    }
-)
-os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = (
-    "False"  # TODO does this help with memory? how much runtime does this cost?
-)
+# os.environ["XLA_FLAGS"] = (
+#     "--xla_gpu_enable_triton_softmax_fusion=true " "--xla_gpu_triton_gemm_any=True "
+# )
+# os.environ.update(
+#     {
+#         "NCCL_LL128_BUFFSIZE": "-2",
+#         "NCCL_LL_BUFFSIZE": "-2",
+#         "NCCL_PROTO": "SIMPLE,LL,LL128",
+#     }
+# )
+# os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = (
+#     "False"  # TODO does this help with memory? how much runtime does this cost?
+# )
 
 logging.getLogger("jax").setLevel(logging.WARNING)
 
