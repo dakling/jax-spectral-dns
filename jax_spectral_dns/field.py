@@ -799,11 +799,11 @@ class VectorField(Generic[T]):
             for f in self:
                 assert (
                     type(f) is PhysicalField
-                ), "plot_3d only implemented for PhysicalField."
+                ), "plot_isosurfaces only implemented for PhysicalField."
                 f.plot_isosurfaces(iso_val)
         except Exception as e:
             print(
-                "VectorField[PhysicalField].plot_3d failed with the following exception:"
+                "VectorField[PhysicalField].plot_isosurfaces failed with the following exception:"
             )
             print(e)
             print("ignoring this and carrying on.")
@@ -2601,139 +2601,70 @@ class FourierField(Field):
 
     def plot_3d(self, direction: Optional[int] = None) -> None:
         try:
-            if not self.activate_jit_:
-                if direction is not None:
-                    self.plot_3d_single(direction)
-                else:
-                    assert (
-                        self.physical_domain.number_of_dimensions == 3
-                    ), "Only 3D supported for this plotting method."
-                    try:
-                        fig = figure.Figure(layout="constrained")
-                    except Exception:
-                        fig = figure.Figure()
-                    base_len = 100
-                    grd = (base_len, base_len)
-                    lx = self.get_domain().get_shape()[0]
-                    ly = self.get_domain().get_shape()[1]
-                    lz = self.get_domain().get_shape()[2]
-                    rows_x = int(ly / (ly + lx) * base_len)
-                    cols_x = int(lz / (lz + ly) * base_len)
-                    rows_y = int(lx / (ly + lx) * base_len)
-                    cols_y = int(lz / (lz + ly) * base_len)
-                    rows_z = int(lx / (ly + lx) * base_len)
-                    cols_z = int(ly / (lz + ly) * base_len)
-                    ax = [
-                        fig.add_subplot(
-                            fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]
-                        ),
-                        fig.add_subplot(
-                            fig.add_gridspec(*grd)[
-                                rows_x : rows_x + rows_y, 0 : 0 + cols_y
-                            ]
-                        ),
-                        fig.add_subplot(
-                            fig.add_gridspec(*grd)[
-                                rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
-                            ]
-                        ),
-                    ]
-                    ims = []
-                    for dim in self.all_dimensions():
-                        N_c = (self.get_domain().get_shape()[dim] - 1) // 2
-                        other_dim = [i for i in self.all_dimensions() if i != dim]
-                        ims.append(
-                            ax[dim].imshow(
-                                np.fft.fftshift(
-                                    abs(self.data.take(indices=N_c, axis=dim))
-                                ),
-                                interpolation=None,
-                                extent=(
-                                    min(self.get_domain().grid[other_dim[0]]),
-                                    max(self.get_domain().grid[other_dim[0]]),
-                                    min(self.get_domain().grid[other_dim[1]]),
-                                    max(self.get_domain().grid[other_dim[1]]),
-                                ),
-                            )
-                        )
-                        ax[dim].set_xlabel("xyz"[other_dim[1]])
-                        ax[dim].set_ylabel("xyz"[other_dim[0]])
-                    # Find the min and max of all colors for use in setting the color scale.
-                    vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
-                    vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
-                    norm = colors.Normalize(vmin=vmin, vmax=vmax)
-                    for im in ims:
-                        im.set_norm(norm)
-                    fig.colorbar(ims[0], ax=ax, label=self.name)
-
-                    def save() -> None:
-                        fig.savefig(
-                            self.plotting_dir
-                            + "plot_3d_"
-                            + self.name
-                            + "_latest"
-                            + self.plotting_format
-                        )
-                        fig.savefig(
-                            self.plotting_dir
-                            + "plot_3d_"
-                            + self.name
-                            + "_t_"
-                            + "{:06}".format(self.time_step)
-                            + self.plotting_format
-                        )
-
-                    try:
-                        save()
-                    except FileNotFoundError:
-                        Field.initialize(False)
-                        save()
-                    del fig, ax
-        except Exception as e:
-            print("FourierField.plot_3d failed with the following exception:")
-            print(e)
-            print("ignoring this and carrying on.")
-
-    def plot_3d_single(self, dim: int) -> None:
-        try:
-            if not self.activate_jit_:
+            if direction is not None:
+                self.plot_3d_single(direction)
+            else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
                 ), "Only 3D supported for this plotting method."
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                assert type(ax) is Axes
+                try:
+                    fig = figure.Figure(layout="constrained")
+                except Exception:
+                    fig = figure.Figure()
+                base_len = 100
+                grd = (base_len, base_len)
+                lx = self.get_domain().get_shape()[0]
+                ly = self.get_domain().get_shape()[1]
+                lz = self.get_domain().get_shape()[2]
+                rows_x = int(ly / (ly + lx) * base_len)
+                cols_x = int(lz / (lz + ly) * base_len)
+                rows_y = int(lx / (ly + lx) * base_len)
+                cols_y = int(lz / (lz + ly) * base_len)
+                rows_z = int(lx / (ly + lx) * base_len)
+                cols_z = int(ly / (lz + ly) * base_len)
+                ax = [
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[0 : 0 + rows_x, 0 : 0 + cols_x]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[rows_x : rows_x + rows_y, 0 : 0 + cols_y]
+                    ),
+                    fig.add_subplot(
+                        fig.add_gridspec(*grd)[
+                            rows_x : rows_x + rows_z, cols_y : cols_y + cols_z
+                        ]
+                    ),
+                ]
                 ims = []
-                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
-                other_dim = [i for i in self.all_dimensions() if i != dim]
-                ims.append(
-                    ax.imshow(
-                        np.fft.fftshift(abs(self.data.take(indices=N_c, axis=dim).T)),
-                        interpolation=None,
-                        extent=(
-                            min(self.get_domain().grid[other_dim[0]]),
-                            max(self.get_domain().grid[other_dim[0]]),
-                            min(self.get_domain().grid[other_dim[1]]),
-                            max(self.get_domain().grid[other_dim[1]]),
-                        ),
+                for dim in self.all_dimensions():
+                    N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                    other_dim = [i for i in self.all_dimensions() if i != dim]
+                    ims.append(
+                        ax[dim].imshow(
+                            np.fft.fftshift(abs(self.data.take(indices=N_c, axis=dim))),
+                            interpolation=None,
+                            extent=(
+                                min(self.get_domain().grid[other_dim[0]]),
+                                max(self.get_domain().grid[other_dim[0]]),
+                                min(self.get_domain().grid[other_dim[1]]),
+                                max(self.get_domain().grid[other_dim[1]]),
+                            ),
+                        )
                     )
-                )
-                ax.set_xlabel("xyz"[other_dim[0]])
-                ax.set_ylabel("xyz"[other_dim[1]])
+                    ax[dim].set_xlabel("xyz"[other_dim[1]])
+                    ax[dim].set_ylabel("xyz"[other_dim[0]])
                 # Find the min and max of all colors for use in setting the color scale.
                 vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
                 vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
                 for im in ims:
                     im.set_norm(norm)
-                fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+                fig.colorbar(ims[0], ax=ax, label=self.name)
 
                 def save() -> None:
                     fig.savefig(
                         self.plotting_dir
                         + "plot_3d_"
-                        + "xyz"[dim]
-                        + "_"
                         + self.name
                         + "_latest"
                         + self.plotting_format
@@ -2741,8 +2672,6 @@ class FourierField(Field):
                     fig.savefig(
                         self.plotting_dir
                         + "plot_3d_"
-                        + "xyz"[dim]
-                        + "_"
                         + self.name
                         + "_t_"
                         + "{:06}".format(self.time_step)
@@ -2755,6 +2684,71 @@ class FourierField(Field):
                     Field.initialize(False)
                     save()
                 del fig, ax
+        except Exception as e:
+            print("FourierField.plot_3d failed with the following exception:")
+            print(e)
+            print("ignoring this and carrying on.")
+
+    def plot_3d_single(self, dim: int) -> None:
+        try:
+            assert (
+                self.physical_domain.number_of_dimensions == 3
+            ), "Only 3D supported for this plotting method."
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
+            ims = []
+            N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+            other_dim = [i for i in self.all_dimensions() if i != dim]
+            ims.append(
+                ax.imshow(
+                    np.fft.fftshift(abs(self.data.take(indices=N_c, axis=dim).T)),
+                    interpolation=None,
+                    extent=(
+                        min(self.get_domain().grid[other_dim[0]]),
+                        max(self.get_domain().grid[other_dim[0]]),
+                        min(self.get_domain().grid[other_dim[1]]),
+                        max(self.get_domain().grid[other_dim[1]]),
+                    ),
+                )
+            )
+            ax.set_xlabel("xyz"[other_dim[0]])
+            ax.set_ylabel("xyz"[other_dim[1]])
+            # Find the min and max of all colors for use in setting the color scale.
+            vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+            vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
+            norm = colors.Normalize(vmin=vmin, vmax=vmax)
+            for im in ims:
+                im.set_norm(norm)
+            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+
+            def save() -> None:
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "xyz"[dim]
+                    + "_"
+                    + self.name
+                    + "_latest"
+                    + self.plotting_format
+                )
+                fig.savefig(
+                    self.plotting_dir
+                    + "plot_3d_"
+                    + "xyz"[dim]
+                    + "_"
+                    + self.name
+                    + "_t_"
+                    + "{:06}".format(self.time_step)
+                    + self.plotting_format
+                )
+
+            try:
+                save()
+            except FileNotFoundError:
+                Field.initialize(False)
+                save()
+            del fig, ax
         except Exception as e:
             print("FourierField.plot_3d_single failed with the following exception:")
             print(e)
