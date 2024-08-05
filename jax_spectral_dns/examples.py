@@ -2586,8 +2586,8 @@ def run_ld_2021_dual(**params: Any) -> None:
     Nx = params.get("Nx", 1)
     Ny = params.get("Ny", 1)
     Nz = params.get("Nz", 1)
-    Lx = params.get("Lx", 2.0 * np.pi)
-    Lz = params.get("Lz", 1.0 * np.pi)
+    Lx_over_pi = params.get("Lx", 2.0)
+    Lz_over_pi = params.get("Lz", 1.0)
     number_of_steps = params.get("number_of_steps", -1)
     aliasing = 3 / 2
     e_0_over_E_0 = params.get("e_0", 1.0e-1)
@@ -2619,7 +2619,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(Lx, 1.0, Lz),
+        scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
