@@ -121,7 +121,7 @@ class GradientDescentSolver(ABC):
 
         grad = VectorField.FromData(
             FourierField, v0_hat.get_physical_domain(), self.grad, name="grad"
-        )
+        ).no_hat()
         grad.plot_3d(0)
         grad.plot_3d(2)
 
