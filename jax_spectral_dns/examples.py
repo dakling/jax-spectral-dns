@@ -2290,12 +2290,16 @@ def run_ld_2021(**params: Any) -> None:
     Nx: int = params.get("Nx", 28)
     Ny: int = params.get("Ny", 129)
     Nz: int = params.get("Nz", 24)
+    Lx_over_pi = params.get("Lx", 1.0)
+    Lz_over_pi = params.get("Lz", 0.5)
     number_of_steps: int = params.get("number_of_steps", 10)
-    min_number_of_optax_steps: int = params.get("min_number_of_optax_steps", -1)
+    min_number_of_optax_steps: int = params.get(
+        "min_number_of_optax_steps", number_of_steps
+    )
     init_file: Optional[str] = params.get("init_file", None)
     assert turb >= 0.0 and turb <= 1.0, "turbulence parameter must be between 0 and 1."
     aliasing = 3 / 2
-    e_0 = params.get("e_0", 1.0e-0)
+    e_0 = params.get("e_0", 1.0e-6)
 
     Equation.initialize()
 
@@ -2305,7 +2309,7 @@ def run_ld_2021(**params: Any) -> None:
     domain = PhysicalDomain.create(
         (Nx, Ny, Nz),
         (True, False, True),
-        scale_factors=(2.0 * np.pi, 1.0, 1.0 * np.pi),
+        scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
         aliasing=aliasing,
         dealias_nonperiodic=False,
     )
@@ -2545,7 +2549,7 @@ def run_ld_2021(**params: Any) -> None:
 
     optimiser = OptimiserFourier(
         domain,
-        coarse_domain,
+        domain,
         run_case,
         run_input_initial,
         minimise=False,
