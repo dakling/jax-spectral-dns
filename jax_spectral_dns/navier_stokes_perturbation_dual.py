@@ -690,6 +690,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
         )
         self.forward_equation = nse  # not sure if this is necessary
+        jax.clear_caches()  # type: ignore
 
     def run_forward_calculation_subrange(
         self, outer_timestep: int
@@ -722,6 +723,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
         velocity_u_hat_history, current_dPdx_history, _ = nse.solve_scan()
         current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history)
+        jax.clear_caches()  # type: ignore
         return current_velocity_field_u_history, current_dPdx_history
 
     def run_backward_calculation(self) -> None:

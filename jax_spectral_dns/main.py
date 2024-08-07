@@ -23,7 +23,7 @@ from typing import Any
 #     }
 # )
 # os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = (
-#     "False"  # TODO does this help with memory? how much runtime does this cost?
+#     "false"  # TODO does this help with memory? how much runtime does this cost?
 # )
 
 logging.getLogger("jax").setLevel(logging.WARNING)
