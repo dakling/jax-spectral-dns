@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+import gc
 
 from jax_spectral_dns.navier_stokes import (
     get_div_vel_1_vel_2,
@@ -509,6 +510,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     def solve_scan(
         self,
     ) -> Tuple[Union["jnp_array", VectorField[FourierField]], List["jsd_float"], int]:
+        jax.clear_caches()  # type: ignore
+        gc.collect()
         if not self.checkpointing:
             return super().solve_scan()
         else:
@@ -546,6 +549,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 Tuple["jnp_array", "jsd_float", int],
                 Tuple["jnp_array", "jsd_float", int],
             ]:
+                jax.clear_caches()  # type: ignore
+                gc.collect()
                 timestep = u0[2]
                 outer_start_step = timestep // self.number_of_inner_steps
                 self.current_u_history_start_step = outer_start_step
@@ -691,6 +696,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         )
         self.forward_equation = nse  # not sure if this is necessary
         jax.clear_caches()  # type: ignore
+        gc.collect()
 
     def run_forward_calculation_subrange(
         self, outer_timestep: int
@@ -724,9 +730,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         velocity_u_hat_history, current_dPdx_history, _ = nse.solve_scan()
         current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history)
         jax.clear_caches()  # type: ignore
+        gc.collect()
         return current_velocity_field_u_history, current_dPdx_history
 
     def run_backward_calculation(self) -> None:
+        jax.clear_caches()  # type: ignore
+        gc.collect()
         if not self.is_backward_calculation_done():
             self.run_forward_calculation()
             self.before_time_step_fn = None
