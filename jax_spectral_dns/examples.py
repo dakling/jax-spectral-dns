@@ -2726,19 +2726,15 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
             domain, avg_vel_coeffs
         )
-        vel_base_lam = VectorField(
-            [
-                PhysicalField.FromFunc(
-                    domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
-                ),
-                PhysicalField.FromFunc(
-                    domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
-                ),
-                PhysicalField.FromFunc(
-                    domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
-                ),
-            ]
-        )
+    vel_base_lam = VectorField(
+        [
+            PhysicalField.FromFunc(
+                domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
+            ),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
+    )
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
     vel_base = (
