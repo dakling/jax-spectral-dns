@@ -7,9 +7,9 @@ import yaml
 from glob import glob
 import matplotlib.pyplot as plt
 
-STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
-# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
-HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
+# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
+# # STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
+# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
 # MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
 # 2024-08-01
 # (0.0, 34.6401854725554)
@@ -30,8 +30,18 @@ HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
 # (8e-05, 45.895168460054556)
 # (0.001, 33.15916400858984)
 
-# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
-# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
+# 2024-08-07
+# (0.0, 34.6401854725554)
+# (1e-06, 34.577479425399396)
+# (1e-05, 43.557625220217204)
+# (2e-05, 49.13509842383157)
+# (3e-05, 52.261768427998845)
+# (4e-05, 50.2766892814127)
+# (5e-05, 48.87710590519782)
+# (8e-05, 46.366976503802654)
+
+STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
+HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
 
 MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
 
@@ -50,6 +60,15 @@ MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to n
 # (3e-05, 32.913779920138595)
 # (4e-05, 31.879287396863518)
 # (6e-05, 30.84936547404671)
+
+# 2024-08-05
+# (0.0, 28.481157213899742)
+# (1e-06, 28.407516647620756)
+# (1e-05, 28.51270349305011)
+# (2e-05, 29.995533076581452)
+# (3e-05, 33.00339897790289)
+# (4e-05, 31.879287396863518)
+# (6e-05, 31.470728860893175)
 
 
 def get_gain(directory: str) -> Optional[float]:

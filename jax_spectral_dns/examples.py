@@ -2609,6 +2609,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     min_step_size = params.get("min_step_size", 1.0e-4)
     max_step_size = params.get("max_step_size", 1.0e-1)
 
+    full_channel_mean = params.get("full_channel_mean", False)
+    # full_channel_reynolds_stresses = params.get("full_channel_reynolds_stresses", False) # TODO
+
     laminar_correction_modes = Enum(
         "laminar_correction_modes", ["NoCorrection", "MaxValue", "FlowRate", "Energy"]
     )
@@ -2665,7 +2668,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         inv_mat = np.linalg.inv(mat)
         return cast(float, -(inv_mat @ data)[-1])
 
-    def get_vel_field(
+    def get_vel_field_minimal_channel(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
     ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
         Ny = domain.number_of_cells(1)
@@ -2714,21 +2717,28 @@ def run_ld_2021_dual(**params: Any) -> None:
         flow_rate = get_flow_rate(domain, u_y_slice)
         return VectorField([u, v, w]), u_y_slice, data_fn(0.0), flow_rate
 
-    # data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-    # vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, data)
-    vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field(domain, avg_vel_coeffs)
-    vel_base_lam = VectorField(
-        [
-            PhysicalField.FromFunc(
-                domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
-            ),
-            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-        ]
-    )
-    # vel_base_turb.set_name("velocity_mean_moser")
-    # vel_base_turb_vilda.set_name("velocity_mean_vilda")
-    # vel_base_turb[0].plot_center(1, vel_base_turb_vilda[0])
+    if full_channel_mean:
+        data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+        vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_full_channel(
+            domain, data
+        )
+    else:
+        vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
+            domain, avg_vel_coeffs
+        )
+        vel_base_lam = VectorField(
+            [
+                PhysicalField.FromFunc(
+                    domain, lambda X: Re_tau / 2 * (1 - X[1] ** 2) + 0 * X[2]
+                ),
+                PhysicalField.FromFunc(
+                    domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
+                ),
+                PhysicalField.FromFunc(
+                    domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
+                ),
+            ]
+        )
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
     vel_base = (
@@ -2783,7 +2793,10 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=domain.scale_factors,
             aliasing=1,
         )
-        _, U_base, _, _ = get_vel_field(lsc_domain, avg_vel_coeffs)
+        if full_channel_mean:
+            _, U_base, _, _ = get_vel_field_full_channel(lsc_domain, data)
+        else:
+            _, U_base, _, _ = get_vel_field_minimal_channel(lsc_domain, avg_vel_coeffs)
         vel_base_y_slice = (
             turb * U_base
             + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
