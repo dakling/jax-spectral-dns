@@ -186,7 +186,6 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     div_vel_new_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_new)
     div_vel_base_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_base_hat, vel_new)
     div_vel_new_vel_base = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_base)
-    div_vel_new_vel_base = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_base)
     div_vel_vel = (
         jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * div_vel_new_vel_new
         + div_vel_base_vel_new
