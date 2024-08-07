@@ -2590,8 +2590,8 @@ def run_ld_2021_dual(**params: Any) -> None:
     Nx = params.get("Nx", 1)
     Ny = params.get("Ny", 1)
     Nz = params.get("Nz", 1)
-    Lx_over_pi = params.get("Lx", 2.0)
-    Lz_over_pi = params.get("Lz", 1.0)
+    Lx_over_pi = params.get("Lx_over_pi", 2.0)
+    Lz_over_pi = params.get("Lz_over_pi", 1.0)
     number_of_steps = params.get("number_of_steps", -1)
     aliasing = 3 / 2
     e_0_over_E_0 = params.get("e_0", 1.0e-1)
@@ -2694,10 +2694,12 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     def get_vel_field_full_channel(
         domain: PhysicalDomain, data: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
-        def data_fn(y: float) -> float:
+    ) -> Tuple[
+        VectorField[PhysicalField], "np_jnp_array", "float", "float", PhysicalField
+    ]:
+        def data_fn(y: float, index: int) -> float:
             y_data_s = data[0]
-            u_mean = data[2]
+            u_mean = data[index]
             y_data = y + 1.0  # shift
             if y_data > 1.0:
                 y_data = 2.0 - y_data  # symmetry
@@ -2708,18 +2710,24 @@ def run_ld_2021_dual(**params: Any) -> None:
             y_1 = y_data_s[y_sign_change_index + 1]
             u_0 = u_mean[y_sign_change_index]
             u_1 = u_mean[y_sign_change_index + 1]
-            return cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
+            u = cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
+            return u
 
-        u = PhysicalField.FromFunc(domain, func=lambda X: np.vectorize(data_fn)(X[1]))
+        u = PhysicalField.FromFunc(
+            domain, func=lambda X: np.vectorize(lambda y: data_fn(y, 2))(X[1])
+        )
         v = PhysicalField.Zeros(domain)
         w = PhysicalField.Zeros(domain)
-        u_y_slice = np.array(list(map(data_fn, domain.grid[1])))
+        uv = PhysicalField.FromFunc(
+            domain, func=lambda X: np.vectorize(lambda y: data_fn(y, 10))(X[1])
+        )
+        u_y_slice = np.array(list(map(lambda y: data_fn(y, 2), domain.grid[1])))
         flow_rate = get_flow_rate(domain, u_y_slice)
-        return VectorField([u, v, w]), u_y_slice, data_fn(0.0), flow_rate
+        return VectorField([u, v, w]), u_y_slice, data_fn(0.0, 2), flow_rate, uv
 
     if full_channel_mean:
         data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-        vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_full_channel(
+        vel_base_turb, _, max_turb, flow_rate_turb, _ = get_vel_field_full_channel(
             domain, data
         )
     else:
@@ -2790,7 +2798,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             aliasing=1,
         )
         if full_channel_mean:
-            _, U_base, _, _ = get_vel_field_full_channel(lsc_domain, data)
+            _, U_base, _, _, _ = get_vel_field_full_channel(lsc_domain, data)
         else:
             _, U_base, _, _ = get_vel_field_minimal_channel(lsc_domain, avg_vel_coeffs)
         vel_base_y_slice = (
