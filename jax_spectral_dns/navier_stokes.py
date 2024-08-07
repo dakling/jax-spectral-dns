@@ -1122,7 +1122,7 @@ class NavierStokesVelVort(Equation):
                     fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
                 state_slice = jnp.concatenate(fields_2d).T
                 kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
-                out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
+                out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice, batch_size=2)  # type: ignore[no-untyped-call]
                 # out: "jnp_array" = jax.vmap(inner_map(kx))(kz_state_slice)
                 return out
 
@@ -1523,7 +1523,7 @@ class NavierStokesVelVort(Equation):
                         fields_2d[i] = jnp.reshape(fields_2d[i], (Nz, Ny)).T
                     state_slice = jnp.concatenate(fields_2d).T
                     kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
-                    out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice)  # type: ignore[no-untyped-call]
+                    out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice, batch_size=2)  # type: ignore[no-untyped-call]
                     # out = jax.vmap(inner_map(kx))(kz_state_slice)
                     return out
 
@@ -1582,7 +1582,7 @@ class NavierStokesVelVort(Equation):
                 axis=1,
             )
 
-            out = jax.lax.map(outer_map(kz_arr), kx_state)  # type: ignore[no-untyped-call]
+            out = jax.lax.map(outer_map(kz_arr), kx_state, batch_size=2)  # type: ignore[no-untyped-call]
             # out = jax.vmap(outer_map(kz_arr))(kx_state)
             # return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
             out_ = jnp.moveaxis(out, 2, 0)
