@@ -2617,7 +2617,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     )
 
     laminar_correction_mode = laminar_correction_modes[
-        params.get("laminar_correction_mode", "MaxValue")
+        params.get("laminar_correction_mode", "NoCorrection")
     ]
 
     if start_iteration == 0:
