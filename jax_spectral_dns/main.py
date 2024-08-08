@@ -79,8 +79,8 @@ def print_failure() -> None:
     print("")
 
 
-def get_args_from_yaml_file() -> Any:
-    with open("simulation_settings.yml", "r") as file:
+def get_args_from_yaml_file(fname: str = "simulation_settings.yml") -> Any:
+    with open(fname, "r") as file:
         args = yaml.safe_load(file)
     return args
 

@@ -4,6 +4,7 @@ import os
 import sys
 
 from jax_spectral_dns.equation import Equation
+from jax_spectral_dns.main import get_args_from_yaml_file
 
 os.environ["JAX_PLATFORMS"] = "cpu"
 
@@ -20,19 +21,25 @@ from jax_spectral_dns.field import Field, VectorField, PhysicalField, FourierFie
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 
-def get_domain(shape):
+def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
     return PhysicalDomain.create(
         shape,
         (True, False, True),
-        scale_factors=(2 * np.pi, 1.0, np.pi),
+        scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
     )
 
 
-def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
+def post_process(
+    file: str,
+    end_time: float,
+    Lx_over_pi: float,
+    Lz_over_pi: float,
+    time_step_0: int = 0,
+) -> None:
     with h5py.File(file, "r") as f:
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
-        domain = get_domain(velocity_trajectory.shape[2:])
+        domain = get_domain(velocity_trajectory.shape[2:], Lx_over_pi, Lz_over_pi)
 
         ts = []
         energy_t = []
@@ -190,4 +197,15 @@ def post_process(file: str, end_time: float, time_step_0: int = 0) -> None:
             # )
 
 
-post_process(sys.argv[1], float(sys.argv[2]), 0)
+STORE_PREFIX = "/store/DAMTP/dsk34"
+HOME_PREFIX = "/home/dsk34/jax-optim/run"
+STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
+HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
+args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+post_process(
+    sys.argv[1],
+    args.get("end_time", 0.7),
+    args.get("Lx_over_pi", 2.0),
+    args.get("Lz_over_pi", 1.0),
+    0,
+)
