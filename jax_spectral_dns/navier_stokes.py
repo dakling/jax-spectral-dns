@@ -1124,7 +1124,9 @@ class NavierStokesVelVort(Equation):
                 kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
                 N = kz_state_slice.shape[0]
                 batch_size = N // 1
-                out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice, batch_size=batch_size)  # type: ignore[no-untyped-call]
+                out: "jnp_array" = jax.lax.map(
+                    inner_map(kx), kz_state_slice, batch_size=batch_size
+                )
                 # out: "jnp_array" = jax.vmap(inner_map(kx))(kz_state_slice)
                 return out
 
@@ -1152,7 +1154,9 @@ class NavierStokesVelVort(Equation):
         )
         N = kx_state.shape[0]
         batch_size = N // 1
-        out: "jnp_array" = jax.lax.map(outer_map(kz_arr), kx_state, batch_size=batch_size)  # type: ignore
+        out: "jnp_array" = jax.lax.map(
+            outer_map(kz_arr), kx_state, batch_size=batch_size
+        )
         # out = jax.vmap(outer_map(kz_arr))(kx_state)
         u_v_w = [jnp.moveaxis(v, 1, 2) for v in out]
         return jnp.array([u_v_w[0], u_v_w[1], u_v_w[2]])
@@ -1530,7 +1534,9 @@ class NavierStokesVelVort(Equation):
                     kz_state_slice = jnp.concatenate([kzs_.T, state_slice], axis=1)
                     N = kz_state_slice.shape[0]
                     batch_size = N // 1
-                    out: "jnp_array" = jax.lax.map(inner_map(kx), kz_state_slice, batch_size=batch_size)  # type: ignore[no-untyped-call]
+                    out: "jnp_array" = jax.lax.map(
+                        inner_map(kx), kz_state_slice, batch_size=batch_size
+                    )
                     # out = jax.vmap(inner_map(kx))(kz_state_slice)
                     return out
 
@@ -1591,7 +1597,7 @@ class NavierStokesVelVort(Equation):
 
             N = kx_state.shape[0]
             batch_size = N // 1
-            out = jax.lax.map(outer_map(kz_arr), kx_state, batch_size=batch_size)  # type: ignore[no-untyped-call]
+            out = jax.lax.map(outer_map(kz_arr), kx_state, batch_size=batch_size)
             # out = jax.vmap(outer_map(kz_arr))(kx_state)
             # return jnp.array([jnp.moveaxis(v, 1, 2) for v in out])
             out_ = jnp.moveaxis(out, 2, 0)

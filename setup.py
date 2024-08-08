@@ -11,7 +11,7 @@ setup(
     package_data={"jax_spectral_dns": ["py.typed"]},
     packages=["jax_spectral_dns"],
     install_requires=[
-        "jax",
+        "jax>=0.4.31",
         "numpy<2",  # TODO change this at some point
         "scipy",
         "orthax",
