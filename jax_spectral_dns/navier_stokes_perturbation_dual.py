@@ -520,30 +520,24 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.number_of_outer_steps = nse.number_of_outer_steps
             self.number_of_inner_steps = nse.number_of_inner_steps
 
-            def get_inner_step_fn(
-                current_velocity_field_u_history: "jnp_array",
-                current_dPdx_history: List["jsd_float"],
-            ) -> Callable[
-                [Tuple["jnp_array", "jsd_float", int], Any],
-                Tuple[Tuple["jnp_array", "jsd_float", int], None],
-            ]:
-                def inner_step_fn(
-                    u0: Tuple["jnp_array", "jsd_float", int], _: Any
-                ) -> Tuple[Tuple["jnp_array", "jsd_float", int], None]:
-                    u0_, _, time_step = u0
-                    self.current_velocity_field_u_history = (
-                        current_velocity_field_u_history
-                    )
-                    self.current_dPdx_history = current_dPdx_history
-                    assert self.current_dPdx_history is not None
-                    dPdx = -self.get_dPdx(time_step + 1)
-                    out = self.perform_time_step(u0_, cast(float, dPdx), time_step)
-                    self.current_velocity_field_u_history = None
-                    self.current_dPdx_history = None
+            # def get_inner_step_fn(
+            #     current_velocity_field_u_history: "jnp_array",
+            #     current_dPdx_history: List["jsd_float"],
+            # ) -> Callable[
+            #     [Tuple["jnp_array", "jsd_float", int], Any],
+            #     Tuple[Tuple["jnp_array", "jsd_float", int], None],
+            # ]:
+            def inner_step_fn(
+                u0: Tuple["jnp_array", "jsd_float", int], _: Any
+            ) -> Tuple[Tuple["jnp_array", "jsd_float", int], None]:
+                u0_, _, time_step = u0
+                assert self.current_dPdx_history is not None
+                dPdx = -self.get_dPdx(time_step + 1)
+                out = self.perform_time_step(u0_, cast(float, dPdx), time_step)
 
-                    return ((out[0], out[1], time_step + 1), None)
+                return ((out[0], out[1], time_step + 1), None)
 
-                return inner_step_fn
+                # return inner_step_fn
 
             def step_fn(u0: Tuple["jnp_array", "jsd_float", int], _: Any) -> Tuple[
                 Tuple["jnp_array", "jsd_float", int],
@@ -557,13 +551,21 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 current_velocity_field_u_history, dPdx_history = (
                     self.run_forward_calculation_subrange(outer_start_step)
                 )
+                self.current_velocity_field_u_history = current_velocity_field_u_history
+                self.current_dPdx_history = dPdx_history
+                # inner_step_fn = get_inner_step_fn(
+                #     current_velocity_field_u_history, dPdx_history
+                # )
                 out, _ = jax.lax.scan(
-                    jax.checkpoint(get_inner_step_fn(current_velocity_field_u_history, dPdx_history)),  # type: ignore[attr-defined]
+                    jax.checkpoint(inner_step_fn),  # type: ignore[attr-defined]
                     u0,
                     xs=None,
                     length=self.number_of_inner_steps,
+                    # unroll=True,
                     # inner_step_fn, u0, xs=None, length=number_of_inner_steps
                 )
+                self.current_velocity_field_u_history = None
+                self.current_dPdx_history = None
                 return out, out
 
             u0 = self.get_initial_field("velocity_hat").get_data()
