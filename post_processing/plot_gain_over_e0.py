@@ -7,10 +7,11 @@ import yaml
 from glob import glob
 import matplotlib.pyplot as plt
 
-# STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/ld_2021_e0_study/"
-# # STORE_DIR_BASE = "/home/klingenberg/mnt/maths_data/ld_2021_e0_study/"
-# HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/ld_2021_e0_study/"
-# MIN_ITER = 30  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/"
+HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/"
+
+MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
+
 # 2024-08-01
 # (0.0, 34.6401854725554)
 # (1e-06, 34.577479425399396)
@@ -40,11 +41,6 @@ import matplotlib.pyplot as plt
 # (5e-05, 48.87710590519782)
 # (8e-05, 46.366976503802654)
 
-STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/two_t_e_0_study/"
-HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/two_t_e_0_study/"
-
-MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to not be converged and is ignored
-
 # 2024-08-01
 # (0.0, 28.48115218398059)
 # (1e-06, 28.405411783533037)
@@ -71,8 +67,8 @@ MIN_ITER = 0  # if a case ran fewer than MIN_ITER iterations, it is assumed to n
 # (6e-05, 31.470728860893175)
 
 
-def get_gain(directory: str) -> Optional[float]:
-    phase_space_data_name = STORE_DIR_BASE + directory + "/plots/phase_space_data.txt"
+def get_gain(base_path, directory: str) -> Optional[float]:
+    phase_space_data_name = base_path + "/" + directory + "/plots/phase_space_data.txt"
     phase_space_data = np.atleast_2d(
         np.genfromtxt(
             phase_space_data_name,
@@ -85,21 +81,23 @@ def get_gain(directory: str) -> Optional[float]:
         return None
 
 
-def get_e0(directory: str) -> float:
-    fname = HOME_DIR_BASE + directory + "/simulation_settings.yml"
+def get_e0(base_path: str, directory: str) -> float:
+    fname = base_path + "/" + directory + "/simulation_settings.yml"
     with open(fname, "r") as file:
         args = yaml.safe_load(file)
     return args["e_0"]
 
 
-def collect_gain_e0() -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    dirs = glob("[0-9]eminus[0-9]", root_dir=HOME_DIR_BASE)
+def collect_gain_e0(
+    home_path: str, store_path: str
+) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
     e_0s = []
     gains = []
     for dir in dirs:
         try:
-            e_0 = get_e0(dir)
-            gain = get_gain(dir)
+            e_0 = get_e0(home_path, dir)
+            gain = get_gain(store_path, dir)
         except Exception as e:
             e_0 = None
             gain = None
@@ -107,23 +105,27 @@ def collect_gain_e0() -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]
             e_0s.append(e_0)
             gains.append(gain)
     e_0s.append(0.0)
-    gains.append(get_gain("linear"))
+    gains.append(get_gain(store_path, "linear"))
     e_0s, gains = (list(x) for x in zip(*sorted(zip(e_0s, gains))))
-    return np.array(e_0s), np.array(gains)
+    relative_gains = np.array(gains) / gains[0]
+    return np.array(e_0s), np.array(gains), relative_gains
 
 
-def plot() -> None:
-    e_0, gain = collect_gain_e0()
+def plot_single(fig, ax, ax_, base_path: str, name: str, rel: bool = False) -> None:
+    store_dir_base = STORE_DIR_BASE + "/" + base_path
+    home_dir_base = HOME_DIR_BASE + "/" + base_path
+    e_0, gain, relative_gain = collect_gain_e0(home_dir_base, store_dir_base)
+    gain = relative_gain if rel else gain
     for e_0_gain in list(zip(e_0, gain)):
         print(e_0_gain)
-    fig, (ax_, ax) = plt.subplots(
-        1, 2, sharey=True, gridspec_kw={"width_ratios": [1, 8]}
-    )
-    fig.subplots_adjust(wspace=0.05)  # adjust space between Axes
+    # ax.plot(e_0, gain, "k--")
+    # ax.plot(e_0, gain, "bo", label=name)
+    # ax_.plot(e_0, gain, "k--")
+    # ax_.plot(e_0, gain, "bo")
     ax.plot(e_0, gain, "k--")
-    ax.plot(e_0, gain, "bo")
+    ax.plot(e_0, gain, "o", label=name)
     ax_.plot(e_0, gain, "k--")
-    ax_.plot(e_0, gain, "bo")
+    ax_.plot(e_0, gain, "o")
     ax.set_xscale("log")
     ax.set_xlim(left=min(e_0[1:]) * 1e-1)
     ax_.set_xlim([-1e-20, 1e-20])
@@ -149,7 +151,38 @@ def plot() -> None:
     )
     ax_.plot([1, 1], [0, 1], transform=ax_.transAxes, **kwargs)
     ax.plot([0, 0], [1, 0], transform=ax.transAxes, **kwargs)
+
+
+def plot(dirs, names):
+    fig, (ax_, ax) = plt.subplots(
+        1, 2, sharey=True, gridspec_kw={"width_ratios": [1, 8]}
+    )
+    fig.subplots_adjust(wspace=0.05)  # adjust space between Axes
+    for base_dir, name in zip(dirs, names):
+        plot_single(fig, ax, ax_, base_dir, name)
+    fig.legend()
     fig.savefig("gain_over_e0.png")
+    fig2, (ax_2, ax2) = plt.subplots(
+        1, 2, sharey=True, gridspec_kw={"width_ratios": [1, 8]}
+    )
+    fig2.subplots_adjust(wspace=0.05)  # adjust space between Axes
+    for base_dir, name in zip(dirs, names):
+        plot_single(fig2, ax2, ax_2, base_dir, name, rel=True)
+    fig2.legend()
+    fig2.savefig("relative_gain_over_e0.png")
 
 
-plot()
+plot(
+    [
+        "two_t_e_0_study",
+        "smaller_channel_two_t_e_0_study",
+        "full_channel_mean_only_two_t_e_0_study",
+        "laminar_base_two_t_e_0_study",
+    ],
+    [
+        "long channel",
+        "short channel",
+        "full mean",
+        "laminar base",
+    ],
+)

@@ -202,6 +202,10 @@ HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
 args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
+assert (
+    len(sys.argv) <= 2
+), "there is no need to provide further arguments as these are inferred automatically from simulation_settings.yml"
 post_process(
     sys.argv[1],
     args.get("end_time", 0.7),
