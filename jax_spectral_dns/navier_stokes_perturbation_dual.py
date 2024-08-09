@@ -421,7 +421,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             dt=-dt,
             end_time=-end_time,
             velocity_base_hat=nse.get_latest_field("velocity_base_hat"),
-            reynolds_stress_ijj_hat=nse.get_latest_field("reynolds_stress_ijj_hat"),
+            reynolds_stress_ijj_hat=nse.get_latest_field("reynolds_stress_ijj_hat")
+            * (-1),  # TODO
             constant_mass_flux=nse.constant_mass_flux,
             **params,
         )
