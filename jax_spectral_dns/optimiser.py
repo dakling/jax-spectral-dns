@@ -271,7 +271,10 @@ class Optimiser(ABC, Generic[I]):
         self.post_process_iteration()
 
         self.parameters, self.state = solver.update(self.parameters, self.state)
-        inverse_value = self.state.value
+        try:
+            inverse_value = self.state.value
+        except Exception:
+            inverse_value = 0.0
         new_value = self.inv_fn(inverse_value)
         self.old_value = self.value
         self.value = new_value
