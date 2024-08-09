@@ -218,7 +218,7 @@ class Optimiser(ABC, Generic[I]):
         # opt = optax.adagrad(learning_rate=learning_rate_)  # minimizer
         # opt = optax.adabelief(learning_rate=learning_rate_)  # minimizer
         # opt = optax.sgd(learning_rate=learning_rate_)  # minimizer
-        opt = optax.lbgfs(memory_size=1, learning_rate=learning_rate_)  # minimizer
+        opt = optax.lbfgs(memory_size=1, learning_rate=learning_rate_)  # minimizer
         solver = jaxopt.OptaxSolver(
             opt=opt, fun=self.value_and_grad_fn, value_and_grad=True, jit=True
         )
