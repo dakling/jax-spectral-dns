@@ -390,7 +390,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         except KeyError:
             re_ijj_hat = VectorField(
                 [
-                    PhysicalField.Zeros(self.get_physical_domain()).no_hat()
+                    PhysicalField.Zeros(self.get_physical_domain()).hat()
                     for _ in range(3)
                 ]
             ).get_data()
