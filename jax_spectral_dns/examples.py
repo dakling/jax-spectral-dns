@@ -2697,12 +2697,15 @@ def run_ld_2021_dual(**params: Any) -> None:
     ) -> Tuple[
         VectorField[PhysicalField], "np_jnp_array", "float", "float", PhysicalField
     ]:
-        def data_fn(y: float, index: int) -> float:
+        def data_fn(y: float, index: int, symm_factor: float = 1.0) -> float:
             y_data_s = data[0]
             u_mean = data[index]
             y_data = y + 1.0  # shift
             if y_data > 1.0:
                 y_data = 2.0 - y_data  # symmetry
+                fact = symm_factor
+            else:
+                fact = 1.0
             y_sign_change_index = np.argmax(
                 (np.diff(np.sign(y_data_s - y_data)) != 0) * 1
             )
@@ -2711,17 +2714,17 @@ def run_ld_2021_dual(**params: Any) -> None:
             u_0 = u_mean[y_sign_change_index]
             u_1 = u_mean[y_sign_change_index + 1]
             u = cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
-            return u
+            return u * fact
 
         u = PhysicalField.FromFunc(
-            domain, func=lambda X: np.vectorize(lambda y: data_fn(y, 2))(X[1])
+            domain, func=lambda X: np.vectorize(lambda y: data_fn(y, 2, 1.0))(X[1])
         )
         v = PhysicalField.Zeros(domain)
         w = PhysicalField.Zeros(domain)
         uv = PhysicalField.FromFunc(
-            domain, func=lambda X: np.vectorize(lambda y: data_fn(y, 10))(X[1])
+            domain, func=lambda X: np.vectorize(lambda y: data_fn(y, 10, -1.0))(X[1])
         )
-        u_y_slice = np.array(list(map(lambda y: data_fn(y, 2), domain.grid[1])))
+        u_y_slice = np.array(list(map(lambda y: data_fn(y, 2, 1.0), domain.grid[1])))
         flow_rate = get_flow_rate(domain, u_y_slice)
         return VectorField([u, v, w]), u_y_slice, data_fn(0.0, 2), flow_rate, uv
 
@@ -2753,6 +2756,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         [re_xy_y, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
     )
     re_ij_j_hat = re_ij_j.hat()
+
+    re_ij_j_hat.set_name("reynolds_stress_ijj_hat")
 
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
