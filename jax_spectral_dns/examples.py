@@ -2610,7 +2610,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     max_step_size = params.get("max_step_size", 1.0e-1)
 
     full_channel_mean = params.get("full_channel_mean", False)
-    # full_channel_reynolds_stresses = params.get("full_channel_reynolds_stresses", False) # TODO
+    full_channel_reynolds_stresses = params.get("full_channel_reynolds_stresses", False)
 
     laminar_correction_modes = Enum(
         "laminar_correction_modes", ["NoCorrection", "MaxValue", "FlowRate", "Energy"]
@@ -2727,13 +2727,14 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     if full_channel_mean:
         data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-        vel_base_turb, _, max_turb, flow_rate_turb, _ = get_vel_field_full_channel(
+        vel_base_turb, _, max_turb, flow_rate_turb, uv = get_vel_field_full_channel(
             domain, data
         )
     else:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
             domain, avg_vel_coeffs
         )
+        uv = None
     vel_base_lam = VectorField(
         [
             PhysicalField.FromFunc(
@@ -2743,6 +2744,16 @@ def run_ld_2021_dual(**params: Any) -> None:
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
+    if full_channel_reynolds_stresses:
+        assert uv is not None
+        re_xy_y = uv.diff(1)
+    else:
+        re_xy_y = PhysicalField.Zeros(domain)
+    re_ij_j = VectorField(
+        [re_xy_y, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
+    )
+    re_ij_j_hat = re_ij_j.hat()
+
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
     vel_base = (
@@ -2998,6 +3009,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         dt=dt,
         end_time=end_time__,
         velocity_base_hat=vel_base.hat(),
+        reynolds_stress_ijj_hat=re_ij_j_hat,
         constant_mass_flux=constant_mass_flux,
     )
     nse.set_linearize(linearise)

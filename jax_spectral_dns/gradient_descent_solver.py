@@ -122,7 +122,7 @@ class GradientDescentSolver(ABC):
         write_all = os.environ.get("JAX_SPECTRAL_DNS_WRITE_FIELDS", False)
         out_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR")
         v0.save_to_file("velocity_latest")
-        if write_all:
+        if write_all and out_dir is not None:
             fname = "velocity_latest_" + str(self.i)
             copyfile(Field.field_dir + "/velocity_latest", out_dir + "/" + fname)
 
