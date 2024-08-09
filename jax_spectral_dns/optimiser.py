@@ -225,14 +225,15 @@ class Optimiser(ABC, Generic[I]):
         return solver
 
     def get_jaxopt_solver(self) -> jaxopt.LBFGS:
-        solver = jaxopt.LBFGS(
+        # solver = jaxopt.LBFGS(
+        solver = jaxopt.ScipyMinimize(
             self.value_and_grad_fn,
             value_and_grad=True,
-            implicit_diff=True,
+            # implicit_diff=True,
             jit=True,
-            linesearch="zoom",
-            linesearch_init="current",
-            maxls=15,
+            # linesearch="zoom",
+            # linesearch_init="current",
+            # maxls=15,
         )
         return solver
 
