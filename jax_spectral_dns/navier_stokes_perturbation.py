@@ -362,12 +362,10 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             velocity_base_hat.set_name("velocity_base_hat")
         self.add_field("velocity_base_hat", velocity_base_hat)
 
-        reynolds_stress_tensor_ijj_hat = params.get("reynolds_stress_tensor_ijj_hat")
+        reynolds_stress_tensor_ijj_hat = params.get("reynolds_stress_ijj_hat")
         if reynolds_stress_tensor_ijj_hat:
-            reynolds_stress_tensor_ijj_hat.set_name("reynolds_stress_tensor_ijj_hat")
-            self.add_field(
-                "reynolds_stress_tensor_ijj_hat", reynolds_stress_tensor_ijj_hat
-            )
+            reynolds_stress_tensor_ijj_hat.set_name("reynolds_stress_ijj_hat")
+            self.add_field("reynolds_stress_ijj_hat", reynolds_stress_tensor_ijj_hat)
 
         self.linearize: bool = params.get("linearize", False)
         self.set_linearize(self.linearize)
@@ -444,7 +442,10 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             re_ijj_hat = self.get_latest_field("reynolds_stress_ijj_hat").get_data()
         except KeyError:
             re_ijj_hat = VectorField(
-                [FourierField.Zeros(self.get_physical_domain()) for _ in range(3)]
+                [
+                    PhysicalField.Zeros(self.get_physical_domain()).hat()
+                    for _ in range(3)
+                ]
             ).get_data()
         # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
         self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
