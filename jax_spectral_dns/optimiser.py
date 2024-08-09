@@ -226,7 +226,8 @@ class Optimiser(ABC, Generic[I]):
 
     def get_jaxopt_solver(self) -> jaxopt.LBFGS:
         # solver = jaxopt.LBFGS(
-        solver = jaxopt.ScipyMinimize(
+        # solver = jaxopt.ScipyMinimize(
+        solver = jaxopt.GradientDescent(
             self.value_and_grad_fn,
             value_and_grad=True,
             # implicit_diff=True,
