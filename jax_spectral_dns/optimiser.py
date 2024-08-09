@@ -152,8 +152,12 @@ class Optimiser(ABC, Generic[I]):
                 self.solver_switched = True
                 print_verb("Using jaxopt solver")
             self.state = self.solver.init_state(self.parameters)
-            self.value = self.inv_fn(self.state.value)
-            print_verb(self.objective_fn_name + ":", self.value)
+            # print(dir(self.state))
+            try:
+                self.value = self.inv_fn(self.state.value)
+                print_verb(self.objective_fn_name + ":", self.value)
+            except Exception:
+                self.value = 0.0
 
     def parameters_to_run_input_(self, parameters: "parameter_type") -> I:
         if self.parameters_to_run_input_fn == None:
@@ -224,17 +228,18 @@ class Optimiser(ABC, Generic[I]):
         )
         return solver
 
-    def get_jaxopt_solver(self) -> jaxopt.LBFGS:
+    def get_jaxopt_solver(self) -> jaxopt.GradientDescent:
         # solver = jaxopt.LBFGS(
         # solver = jaxopt.ScipyMinimize(
-        solver = jaxopt.GradientDescent(
+        # solver = jaxopt.GradientDescent(
+        solver = jaxopt.NonlinearCG(
             self.value_and_grad_fn,
             value_and_grad=True,
-            # implicit_diff=True,
+            implicit_diff=True,
             jit=True,
             # linesearch="zoom",
             # linesearch_init="current",
-            # maxls=15,
+            maxls=2,
         )
         return solver
 
