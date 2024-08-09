@@ -2302,6 +2302,11 @@ class FourierField(Field):
     ) -> FourierField:
         return cls.FromRandom(domain, seed, energy_norm, name).filter()
 
+    @classmethod
+    def Zeros(cls, domain: PhysicalDomain, name: str = "field") -> Self:
+        data: "jnp_array" = jnp.zeros(domain.get_shape())
+        return cls(domain, data, name)
+
     def get_domain(self) -> FourierDomain:
         return self.fourier_domain
 

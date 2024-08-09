@@ -389,10 +389,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             re_ijj_hat = self.get_latest_field("reynolds_stress_ijj_hat").get_data()
         except KeyError:
             re_ijj_hat = VectorField(
-                [
-                    PhysicalField.Zeros(self.get_physical_domain()).hat()
-                    for _ in range(3)
-                ]
+                [FourierField.Zeros(self.get_physical_domain()) for _ in range(3)]
             ).get_data()
         # self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual_rotational(
         self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
