@@ -429,6 +429,8 @@ class NavierStokesVelVort(Equation):
         print_verb(
             "continuity error of initial condition:", cont_error, verbosity_level=2
         )
+        self.source_x_00 = None
+        self.source_z_00 = None
 
     @classmethod
     def FromDomain(cls, domain: PhysicalDomain, **params: Any) -> Self:
@@ -1414,6 +1416,18 @@ class NavierStokesVelVort(Equation):
                         ** 0.5
                     )
 
+                    if type(self.source_x_00) is NoneType:
+                        source_x_00 = jnp.zeros_like(conv_ns_hat_sw_0_00)
+                    else:
+                        assert self.source_x_00 is not None
+                        source_x_00 = self.source_x_00
+
+                    if type(self.source_z_00) is NoneType:
+                        source_z_00 = jnp.zeros_like(conv_ns_hat_sw_2_00)
+                    else:
+                        assert self.source_z_00 is not None
+                        source_z_00 = self.source_z_00
+
                     N_00_new = jnp.block(
                         [
                             -conv_ns_hat_sw_0_00,
@@ -1421,8 +1435,8 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
-                            0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
+                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00) + source_x_00,
+                            0 * jnp.zeros_like(conv_ns_hat_sw_2_00) + source_z_00,
                         ]
                     )
 
@@ -1433,8 +1447,8 @@ class NavierStokesVelVort(Equation):
                         ]
                     ) + jnp.block(
                         [
-                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00),
-                            0 * jnp.zeros_like(conv_ns_hat_sw_2_00),
+                            -dpdx * jnp.ones_like(conv_ns_hat_sw_0_00) + source_x_00,
+                            0 * jnp.zeros_like(conv_ns_hat_sw_2_00) + source_z_00,
                         ]
                     )
                     dpdx = None

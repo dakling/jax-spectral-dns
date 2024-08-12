@@ -520,6 +520,18 @@ class VectorField(Generic[T]):
     def min(self) -> float:
         return min([f.min() for f in self])
 
+    def laplacian(self: VectorField[T]) -> VectorField[T]:
+        out = []
+        for f in self:
+            out_ = f.diff(0, 2)
+            for dim in self.all_dimensions()[1:]:
+                out_ += f.diff(dim, 2)
+            out.append(out_)
+        out_field = VectorField(out)
+        out_field.name = "lap_" + self.get_name()
+        out_field.time_step = self.get_time_step()
+        return out_field
+
     def get_physical_domain(self) -> PhysicalDomain:
         f = self[0]
         if type(f) is PhysicalField:

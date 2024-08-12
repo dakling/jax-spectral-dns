@@ -116,7 +116,6 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    re_ijj_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
     vel_new = jnp.array(
@@ -132,17 +131,14 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
         ]
     )
 
-    hel_new_hat = (
-        get_helicity_perturbation_convection(
-            physical_domain,
-            fourier_domain,
-            vel_hat_new,
-            vel_base_hat,
-            vel_new,
-            vel_base,
-            linearize,
-        )
-        + re_ijj_hat
+    hel_new_hat = get_helicity_perturbation_convection(
+        physical_domain,
+        fourier_domain,
+        vel_hat_new,
+        vel_base_hat,
+        vel_new,
+        vel_base,
+        linearize,
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
@@ -152,7 +148,6 @@ def update_nonlinear_terms_high_performance_perturbation_diffusion(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    re_ijj_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
     hel_new_hat = get_helicity_perturbation_diffusion(
@@ -167,7 +162,6 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    re_ijj_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
@@ -214,7 +208,6 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             linearize,
         )
         + 0.5 * div_vel_new_vel_new_hat
-        + re_ijj_hat
     )
 
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
@@ -226,7 +219,6 @@ def update_nonlinear_terms_high_performance_perturbation_rotational(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    re_ijj_hat: "jnp_array",
     linearize: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
@@ -316,7 +308,6 @@ def update_nonlinear_terms_high_performance_perturbation_rotational(
         jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_hat
         + hel_new_a_hat
         + hel_new_b_hat
-        + re_ijj_hat
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
@@ -362,10 +353,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             velocity_base_hat.set_name("velocity_base_hat")
         self.add_field("velocity_base_hat", velocity_base_hat)
 
-        reynolds_stress_tensor_ijj_hat = params.get("reynolds_stress_ijj_hat")
-        if reynolds_stress_tensor_ijj_hat:
-            reynolds_stress_tensor_ijj_hat.set_name("reynolds_stress_ijj_hat")
-            self.add_field("reynolds_stress_ijj_hat", reynolds_stress_tensor_ijj_hat)
+        # reynolds_stress_tensor_ijj_hat = 1 / self.get_Re_tau() * velocity_base_hat.laplacian()
+        # self.add_field("reynolds_stress_ijj_hat", reynolds_stress_tensor_ijj_hat)
 
         self.linearize: bool = params.get("linearize", False)
         self.set_linearize(self.linearize)
@@ -383,7 +372,13 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         else:
             print_verb("enforcing constant pressure gradient")
             self.flow_rate = self.get_flow_rate()
-            self.dPdx = 0.0
+            self.dPdx = -1.0 + 0.0
+            self.source_x_00 = (
+                1
+                / self.get_Re_tau()
+                * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
+            )
+            self.source_z_00 = None
 
     def update_pressure_gradient(
         self,
@@ -438,12 +433,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
-        try:
-            re_ijj_hat = self.get_latest_field("reynolds_stress_ijj_hat").get_data()
-        except KeyError:
-            re_ijj_hat = VectorField(
-                [FourierField.Zeros(self.get_physical_domain()) for _ in range(3)]
-            ).get_data()
         # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
         self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             self.get_physical_domain(),
@@ -456,7 +445,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                     velocity_base_hat[2].data,
                 ]
             ),
-            re_ijj_hat,
             linearize=self.linearize,
         )
 
