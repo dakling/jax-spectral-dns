@@ -379,7 +379,7 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
         self.parameters_to_file()
         i = self.current_iteration
-        fig = Figure.figure()
+        fig = figure.Figure()
         ax = fig.subplots(1, 1)
         ax.plot(
             self.calculation_domain.grid[1], self.parameters[1][0, :, 0], label="vel_y"
