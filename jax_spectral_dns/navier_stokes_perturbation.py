@@ -436,8 +436,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             else:
                 self.dPdx = 0.0
                 self.source_x_00 = None
-                print("hello")
-                print(self.dPdx)
             self.source_z_00 = None
         # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
         self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
