@@ -359,33 +359,6 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         self.linearise: bool = params.get("linearise", False)
         self.set_linearise(self.linearise)
 
-        if self.constant_mass_flux:
-            print_verb("enforcing constant mass flux")
-            self.flow_rate = 0.0
-            self.dPdx = 0.0
-            current_flow_rate = self.get_flow_rate()
-            print_verb("mass flux before correction:", current_flow_rate)
-            v0_corr = self.update_velocity_field(self.get_initial_field("velocity_hat"))
-            self.set_initial_field("velocity_hat", v0_corr)
-            print_verb("correcting initial condition to have zero mass flux")
-            print_verb("mass flux after correction:", self.get_flow_rate())
-        else:
-            print_verb("enforcing constant pressure gradient")
-            self.flow_rate = self.get_flow_rate()
-            if not self.linearise:
-                self.dPdx = -1.0 + 0.0
-                self.source_x_00 = (
-                    1
-                    / self.get_Re_tau()
-                    * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
-                )
-            else:
-                self.dPdx = 0.0
-                self.source_x_00 = None
-                print("hello")
-                print(self.dPdx)
-            self.source_z_00 = None
-
     def update_pressure_gradient(
         self,
         vel_new_field_hat: Optional["jnp_array"] = None,
@@ -440,19 +413,32 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             "velocity_base_hat"
         )
 
-        if not self.linearise:
-            self.dPdx = -1.0 + 0.0
-            self.source_x_00 = (
-                1
-                / self.get_Re_tau()
-                * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
-            )
-        else:
+        if self.constant_mass_flux:
+            print_verb("enforcing constant mass flux")
+            self.flow_rate = 0.0
             self.dPdx = 0.0
-            self.source_x_00 = None
-            print("hello")
-            print(self.dPdx)
-        self.source_z_00 = None
+            current_flow_rate = self.get_flow_rate()
+            print_verb("mass flux before correction:", current_flow_rate)
+            v0_corr = self.update_velocity_field(self.get_initial_field("velocity_hat"))
+            self.set_initial_field("velocity_hat", v0_corr)
+            print_verb("correcting initial condition to have zero mass flux")
+            print_verb("mass flux after correction:", self.get_flow_rate())
+        else:
+            print_verb("enforcing constant pressure gradient")
+            self.flow_rate = self.get_flow_rate()
+            if not self.linearise:
+                self.dPdx = -1.0 + 0.0
+                self.source_x_00 = (
+                    1
+                    / self.get_Re_tau()
+                    * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
+                )
+            else:
+                self.dPdx = 0.0
+                self.source_x_00 = None
+                print("hello")
+                print(self.dPdx)
+            self.source_z_00 = None
         # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
         self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             self.get_physical_domain(),
