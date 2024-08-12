@@ -661,7 +661,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
     Ny = params.get("Ny", 96)
     Nz = params.get("Nz", 2)
     eps = params.get("eps", 1e-0)
-    linearize = params.get("linearize", True)
+    linearise = params.get("linearise", True)
     plot = params.get("plot", True)
     save = params.get("save", True)
     v0: Optional["jnp_array"] = params.get("v0", None)
@@ -704,7 +704,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
             constant_mass_flux=constant_mass_flux,
         )
 
-    nse.set_linearize(linearize)
+    nse.set_linearise(linearise)
     # nse.initialize()
 
     if type(v0) == NoneType:
@@ -1088,7 +1088,7 @@ def run_jimenez_1990(**params: Any) -> None:
         scale_factors=(2 * jnp.pi / alpha, 1.0, 0.1),
     )
 
-    nse.set_linearize(False)
+    nse.set_linearise(False)
 
     if start_time == 0:
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
@@ -1324,7 +1324,7 @@ def run_transient_growth(
     Nx: int = params.get("Nx", 4)
     Ny: int = params.get("Ny", 50)
     Nz: int = params.get("Nz", 4)
-    linearize: bool = params.get("linearize", True)
+    linearise: bool = params.get("linearise", True)
     plot: bool = params.get("plot", True)
     number_of_modes = params.get("number_of_modes", 60)
 
@@ -1348,7 +1348,7 @@ def run_transient_growth(
     )
     # nse.initialize()
 
-    nse.set_linearize(linearize)
+    nse.set_linearise(linearise)
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
 
@@ -1636,8 +1636,8 @@ def run_optimisation_transient_growth(**params: Any) -> None:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
         nse.end_time = end_time
 
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
+        # nse.set_linearise(False)
+        nse.set_linearise(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         nse.activate_jit()
@@ -1765,8 +1765,8 @@ def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
         nse = NavierStokesVelVortPerturbation.FromVelocityField(U_norm, dt=dt, Re=Re)
         nse.end_time = end_time
 
-        # nse.set_linearize(False)
-        nse.set_linearize(True)
+        # nse.set_linearise(False)
+        nse.set_linearise(True)
 
         vel_0 = nse.get_initial_field("velocity_hat").no_hat()
         nse.activate_jit()
@@ -1943,8 +1943,8 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     nse = NavierStokesVelVortPerturbation(
         v0_hat, Re=Re, dt=dt, end_time=end_time, constant_mass_flux=False
     )
-    # nse.set_linearize(True)
-    nse.set_linearize(False)
+    # nse.set_linearise(True)
+    nse.set_linearise(False)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,
         checkpointing=False,
@@ -3017,7 +3017,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         reynolds_stress_ijj_hat=re_ij_j_hat,
         constant_mass_flux=constant_mass_flux,
     )
-    nse.set_linearize(linearise)
+    nse.set_linearise(linearise)
     nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse
@@ -3186,7 +3186,7 @@ def run_optimisation_farano_2015(**params: Any) -> None:
         end_time=end_time_,
         velocity_base_hat=vel_base.hat(),
     )
-    nse.set_linearize(linearise)
+    nse.set_linearise(linearise)
     nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse

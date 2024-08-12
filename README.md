@@ -108,7 +108,7 @@ This test checks the growth rates of the optimal transient growth initial
 condition according to linear stability analysis for $\text{Re}=600$ and $T=2$ as well as
 for $\text{Re}=3000$ and $T=15$. In both cases, $\alpha=1$ and $\beta=0$.
 In both cases, the growth rates of
-the DNS (using a linearized operator) match very closely with the expected results.
+the DNS (using a linearised operator) match very closely with the expected results.
 
 This image shows a time study, where simulations with optimal initial conditions
 for different time horizons are run and compared with the data taken from Reddy

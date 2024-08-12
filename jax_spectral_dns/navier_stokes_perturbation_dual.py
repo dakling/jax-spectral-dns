@@ -95,11 +95,11 @@ def update_nonlinear_terms_high_performance_perturbation_dual_convection(
     vel_u_base_hat: "jnp_array",  # U
     vel_small_u_hat: "jnp_array",  # u
     re_ijj_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vel_u_hat = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
         + vel_u_base_hat
     )
     vel_v_new = jnp.array(
@@ -140,10 +140,10 @@ def get_helicity_perturbation_dual_diffusion(
     vel_v_hat_new: "jnp_array",  # v
     vel_u_base_hat: "jnp_array",  # U
     vel_small_u_hat: "jnp_array",  # u
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> "jnp_array":
     vel_u_hat = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
         + vel_u_base_hat
     )
     vel_v_new = jnp.array(
@@ -191,7 +191,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual_diffusion(
     vel_u_base_hat: "jnp_array",  # U
     vel_small_u_hat: "jnp_array",  # u
     re_ijj_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     hel_new_hat = (
@@ -201,7 +201,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual_diffusion(
             vel_v_hat_new,  # v
             vel_u_base_hat,  # U
             vel_small_u_hat,  # u
-            linearize,
+            linearise,
         )
         + re_ijj_hat
     )
@@ -216,7 +216,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
     vel_u_base_hat: "jnp_array",  # U
     vel_small_u_hat: "jnp_array",  # u
     re_ijj_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
     vel_v_new = jnp.array(
         [
@@ -225,7 +225,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
         ]
     )
     vel_u_hat = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
         + vel_u_base_hat
     )
     vel_u = jnp.array(
@@ -269,11 +269,11 @@ def update_nonlinear_terms_high_performance_perturbation_dual_rotational(
     vel_u_base_hat: "jnp_array",  # U
     vel_small_u_hat: "jnp_array",  # u
     re_ijj_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vel_u_hat = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * vel_small_u_hat
         + vel_u_base_hat
     )
     vel_v_new = jnp.array(
@@ -380,8 +380,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             print_verb("not using checkpointing")
         self.forward_equation.activate_jit()
 
-    def set_linearize(self, lin: bool) -> None:
-        self.linearize = lin
+    def set_linearise(self, lin: bool) -> None:
+        self.linearise = lin
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
@@ -399,7 +399,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             velocity_base_hat.get_data(),
             self.get_velocity_u_hat(t),
             re_ijj_hat,
-            linearize=self.linearize,
+            linearise=self.linearise,
         )
 
     @classmethod
@@ -434,7 +434,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             constant_mass_flux=nse.constant_mass_flux,
             **params,
         )
-        nse_dual.set_linearize(nse.linearize)
+        nse_dual.set_linearise(nse.linearise)
         return nse_dual
 
     def get_velocity_u_hat(self, timestep: int) -> "jnp_array":

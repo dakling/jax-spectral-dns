@@ -47,7 +47,7 @@ def get_helicity_perturbation_convection(
     vel_base_hat: "jnp_array",
     vel_new: "jnp_array",
     vel_base: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> "jnp_array":
     vel_new_nabla_vel_new = get_vel_1_nabla_vel_2(fourier_domain, vel_new, vel_hat_new)
     vel_new_nabla_vel_base = get_vel_1_nabla_vel_2(
@@ -57,7 +57,7 @@ def get_helicity_perturbation_convection(
         fourier_domain, vel_base, vel_hat_new
     )
     hel_new = -(
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * vel_new_nabla_vel_new
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * vel_new_nabla_vel_new
         + vel_base_nabla_vel_new
         + vel_new_nabla_vel_base
     )
@@ -76,7 +76,7 @@ def get_helicity_perturbation_diffusion(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> "jnp_array":
     vel_new = jnp.array(
         [
@@ -104,7 +104,7 @@ def get_helicity_perturbation_diffusion(
         physical_domain, fourier_domain, vel_new, vel_base, vel_hat_new
     )
     hel_new_hat = -(
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * nabla_vel_new_vel_new
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * nabla_vel_new_vel_new
         + nabla_vel_base_vel_new
         + nabla_vel_new_vel_base
     )
@@ -116,7 +116,7 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
     vel_new = jnp.array(
         [
@@ -138,7 +138,7 @@ def update_nonlinear_terms_high_performance_perturbation_convection(
         vel_base_hat,
         vel_new,
         vel_base,
-        linearize,
+        linearise,
     )
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
 
@@ -148,10 +148,10 @@ def update_nonlinear_terms_high_performance_perturbation_diffusion(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
     hel_new_hat = get_helicity_perturbation_diffusion(
-        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearize
+        physical_domain, fourier_domain, vel_hat_new, vel_base_hat, linearise
     )
 
     return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
@@ -162,7 +162,7 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vel_new = jnp.array(
@@ -187,7 +187,7 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     div_vel_base_vel_new = get_div_vel_1_vel_2(fourier_domain, vel_base_hat, vel_new)
     div_vel_new_vel_base = get_div_vel_1_vel_2(fourier_domain, vel_hat_new, vel_base)
     div_vel_vel = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * div_vel_new_vel_new
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * div_vel_new_vel_new
         + div_vel_base_vel_new
         + div_vel_new_vel_base
     )
@@ -205,7 +205,7 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             vel_base_hat,
             vel_new,
             vel_base,
-            linearize,
+            linearise,
         )
         + 0.5 * div_vel_new_vel_new_hat
     )
@@ -219,7 +219,7 @@ def update_nonlinear_terms_high_performance_perturbation_rotational(
     fourier_domain: FourierDomain,
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
-    linearize: bool = False,
+    linearise: bool = False,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vort_hat_new = fourier_domain.curl(vel_hat_new)
@@ -303,9 +303,9 @@ def update_nonlinear_terms_high_performance_perturbation_rotational(
     )
     hel_new_b_hat = vel_vort_new_b_hat - 1 / 2 * jnp.array(vel_new_sq_b_hat_nabla)
 
-    # hel_new = (0.0 if linearize else 1.0) * hel_new_ + hel_new_a + hel_new_b
+    # hel_new = (0.0 if linearise else 1.0) * hel_new_ + hel_new_a + hel_new_b
     hel_new_hat = (
-        jax.lax.cond(linearize, lambda: 0.0, lambda: 1.0) * hel_new_hat
+        jax.lax.cond(linearise, lambda: 0.0, lambda: 1.0) * hel_new_hat
         + hel_new_a_hat
         + hel_new_b_hat
     )
@@ -356,8 +356,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         # reynolds_stress_tensor_ijj_hat = 1 / self.get_Re_tau() * velocity_base_hat.laplacian()
         # self.add_field("reynolds_stress_ijj_hat", reynolds_stress_tensor_ijj_hat)
 
-        self.linearize: bool = params.get("linearize", False)
-        self.set_linearize(self.linearize)
+        self.linearise: bool = params.get("linearise", False)
+        self.set_linearise(self.linearise)
 
         if self.constant_mass_flux:
             print_verb("enforcing constant mass flux")
@@ -372,7 +372,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         else:
             print_verb("enforcing constant pressure gradient")
             self.flow_rate = self.get_flow_rate()
-            if not self.linearize:
+            if not self.linearise:
                 self.dPdx = -1.0 + 0.0
                 self.source_x_00 = (
                     1
@@ -382,6 +382,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             else:
                 self.dPdx = 0.0
                 self.source_x_00 = None
+                print("hello")
+                print(self.dPdx)
             self.source_z_00 = None
 
     def update_pressure_gradient(
@@ -432,11 +434,25 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             )
         return cast(float, dPdx_)
 
-    def set_linearize(self, lin: bool) -> None:
-        self.linearize = lin
+    def set_linearise(self, lin: bool) -> None:
+        self.linearise = lin
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
+
+        if not self.linearise:
+            self.dPdx = -1.0 + 0.0
+            self.source_x_00 = (
+                1
+                / self.get_Re_tau()
+                * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
+            )
+        else:
+            self.dPdx = 0.0
+            self.source_x_00 = None
+            print("hello")
+            print(self.dPdx)
+        self.source_z_00 = None
         # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
         self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             self.get_physical_domain(),
@@ -449,7 +465,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                     velocity_base_hat[2].data,
                 ]
             ),
-            linearize=self.linearize,
+            linearise=self.linearise,
         )
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
