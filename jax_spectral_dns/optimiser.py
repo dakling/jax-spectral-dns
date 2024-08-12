@@ -19,7 +19,7 @@ import jax.numpy as jnp
 import pickle
 
 import matplotlib
-from matplotlib.figure import Figure
+from matplotlib import figure
 
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
