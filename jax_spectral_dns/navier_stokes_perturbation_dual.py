@@ -392,6 +392,31 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 [FourierField.Zeros(self.get_physical_domain()) for _ in range(3)]
             ).get_data()
         # self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual_rotational(
+        if self.constant_mass_flux:
+            print_verb("enforcing constant mass flux")
+            self.flow_rate = 0.0
+            self.dPdx = 0.0
+            current_flow_rate = self.get_flow_rate()
+            print_verb("mass flux before correction:", current_flow_rate)
+            v0_corr = self.update_velocity_field(self.get_initial_field("velocity_hat"))
+            self.set_initial_field("velocity_hat", v0_corr)
+            print_verb("correcting initial condition to have zero mass flux")
+            print_verb("mass flux after correction:", self.get_flow_rate())
+        else:
+            print_verb("enforcing constant pressure gradient")
+            self.flow_rate = self.get_flow_rate()
+            if not self.linearise:
+                self.dPdx = -(-1.0 + 0.0)
+                self.source_x_00 = (
+                    -1
+                    / self.get_Re_tau()
+                    * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
+                )
+            else:
+                self.dPdx = 0.0
+                self.source_x_00 = None
+            # self.dPdx = 0.0
+            # self.source_x_00 = None
         self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
             self.get_physical_domain(),
             self.get_domain(),
