@@ -372,12 +372,16 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         else:
             print_verb("enforcing constant pressure gradient")
             self.flow_rate = self.get_flow_rate()
-            self.dPdx = -1.0 + 0.0
-            self.source_x_00 = (
-                1
-                / self.get_Re_tau()
-                * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
-            )
+            if not self.linearize:
+                self.dPdx = -1.0 + 0.0
+                self.source_x_00 = (
+                    1
+                    / self.get_Re_tau()
+                    * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
+                )
+            else:
+                self.dPdx = 0.0
+                self.source_x_00 = None
             self.source_z_00 = None
 
     def update_pressure_gradient(
