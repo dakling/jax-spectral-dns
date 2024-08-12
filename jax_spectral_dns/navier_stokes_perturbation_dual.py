@@ -405,18 +405,18 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             print_verb("enforcing constant pressure gradient")
             self.flow_rate = self.get_flow_rate()
-            if not self.linearise:
-                self.dPdx = -(-1.0 + 0.0)
-                self.source_x_00 = (
-                    -1
-                    / self.get_Re_tau()
-                    * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
-                )
-            else:
-                self.dPdx = 0.0
-                self.source_x_00 = None
-            # self.dPdx = 0.0
-            # self.source_x_00 = None
+            # if not self.linearise:
+            #     self.dPdx = -(-1.0 + 0.0)
+            #     self.source_x_00 = (
+            #         -1
+            #         / self.get_Re_tau()
+            #         * velocity_base_hat[0].laplacian().get_data()[0, :, 0]
+            #     )
+            # else:
+            #     self.dPdx = 0.0
+            #     self.source_x_00 = None
+            self.dPdx = 0.0
+            self.source_x_00 = None
         self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
             self.get_physical_domain(),
             self.get_domain(),
