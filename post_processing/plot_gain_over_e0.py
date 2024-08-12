@@ -112,39 +112,42 @@ def collect_gain_e0(
 
 
 def plot_single(fig, ax, ax_, base_path: str, name: str, rel: bool = False) -> None:
-    store_dir_base = STORE_DIR_BASE + "/" + base_path
-    home_dir_base = HOME_DIR_BASE + "/" + base_path
-    e_0, gain_, relative_gain = collect_gain_e0(home_dir_base, store_dir_base)
-    gain = relative_gain if rel else gain_
-    for e_0_gain in list(zip(e_0, gain)):
-        print(e_0_gain)
-    ax.plot(e_0, gain, "k--")
-    ax.plot(e_0, gain, "o", label=name)
-    ax_.plot(e_0, gain, "k--")
-    ax_.plot(e_0, gain, "o")
-    ax.set_xscale("log")
-    ax.set_xlim(left=min(e_0[1:]) * 1e-1)
-    ax_.set_xlim([-1e-20, 1e-20])
-    ax_.get_xaxis().set_ticks([0.0])
-    ax.set_xlabel("$e_0 / E_0$")
-    ax_.set_ylabel("$G_\\text{opt}$")
-    # hide the spines between ax and ax2
-    ax_.spines.right.set_visible(False)
-    ax.spines.left.set_visible(False)
-    ax_.yaxis.tick_left()
-    ax.yaxis.tick_right()
-    d = 0.5  # proportion of vertical to horizontal extent of the slanted line
-    kwargs = dict(
-        marker=[(-d, -1), (d, 1)],
-        markersize=12,
-        linestyle="None",
-        color="k",
-        mec="k",
-        mew=1,
-        clip_on=False,
-    )
-    ax_.plot([1, 1], [0, 1], transform=ax_.transAxes, **kwargs)
-    ax.plot([0, 0], [1, 0], transform=ax.transAxes, **kwargs)
+    try:
+        store_dir_base = STORE_DIR_BASE + "/" + base_path
+        home_dir_base = HOME_DIR_BASE + "/" + base_path
+        e_0, gain_, relative_gain = collect_gain_e0(home_dir_base, store_dir_base)
+        gain = relative_gain if rel else gain_
+        for e_0_gain in list(zip(e_0, gain)):
+            print(e_0_gain)
+        ax.plot(e_0, gain, "k--")
+        ax.plot(e_0, gain, "o", label=name)
+        ax_.plot(e_0, gain, "k--")
+        ax_.plot(e_0, gain, "o")
+        ax.set_xscale("log")
+        ax.set_xlim(left=min(e_0[1:]) * 1e-1)
+        ax_.set_xlim([-1e-20, 1e-20])
+        ax_.get_xaxis().set_ticks([0.0])
+        ax.set_xlabel("$e_0 / E_0$")
+        ax_.set_ylabel("$G_\\text{opt}$")
+        # hide the spines between ax and ax2
+        ax_.spines.right.set_visible(False)
+        ax.spines.left.set_visible(False)
+        ax_.yaxis.tick_left()
+        ax.yaxis.tick_right()
+        d = 0.5  # proportion of vertical to horizontal extent of the slanted line
+        kwargs = dict(
+            marker=[(-d, -1), (d, 1)],
+            markersize=12,
+            linestyle="None",
+            color="k",
+            mec="k",
+            mew=1,
+            clip_on=False,
+        )
+        ax_.plot([1, 1], [0, 1], transform=ax_.transAxes, **kwargs)
+        ax.plot([0, 0], [1, 0], transform=ax.transAxes, **kwargs)
+    except Exception:
+        pass
 
 
 def plot(dirs_and_names):
@@ -164,6 +167,7 @@ plot(
         ("two_t_e_0_study", "long channel"),
         ("smaller_channel_two_t_e_0_study", "short channel"),
         ("full_channel_mean_only_two_t_e_0_study", "full mean"),
+        ("full_channel_mean_re__two_t_e_0_study", "full mean + Reynolds stresses"),
         ("laminar_base_two_t_e_0_study", "laminar base"),
     ]
 )

@@ -18,6 +18,9 @@ import jax
 import jax.numpy as jnp
 import pickle
 
+import matplotlib
+from matplotlib.figure import Figure
+
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
@@ -235,11 +238,12 @@ class Optimiser(ABC, Generic[I]):
         solver = jaxopt.NonlinearCG(
             self.value_and_grad_fn,
             value_and_grad=True,
-            implicit_diff=True,
+            implicit_diff=False,
             jit=True,
-            # linesearch="zoom",
-            # linesearch_init="current",
-            maxls=2,
+            linesearch="zoom",
+            linesearch_init="current",
+            maxls=3,
+            unroll=False,
         )
         return solver
 
@@ -375,6 +379,16 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
         self.parameters_to_file()
         i = self.current_iteration
+        fig = Figure.figure()
+        ax = fig.subplots(1, 1)
+        ax.plot(
+            self.calculation_domain.grid[1], self.parameters[1][0, :, 0], label="vel_y"
+        )
+        ax.plot(
+            self.calculation_domain.grid[1], self.parameters[0][0, :, 0], label="vort_y"
+        )
+        fig.legend()
+        fig.savefig(Field.plotting_dir + "/plot_00.png")
         U_hat = self.parameters_to_run_input_(self.parameters)
         U = U_hat.no_hat()
         U.update_boundary_conditions()
@@ -384,7 +398,9 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         cont_error = v0_div.energy() / v0_new.energy()
         print_verb("cont_error", cont_error)
         if cont_error > 1e-1:
-            v0_div.plot_3d()
+            v0_div.plot_3d(0)
+            v0_div.plot_3d(1)
+            v0_div.plot_3d(2)
 
         v0_new.set_name("vel_0")
         v0_new.set_time_step(i + 1)

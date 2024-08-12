@@ -1050,7 +1050,7 @@ class NavierStokesVelVort(Equation):
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
                 (
                     NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
-                        physical_domain, vel_y[0, :, 0]
+                        physical_domain, vel_y[0, :, 0], 3 * Ny // 2
                     )
                     * (1 + 0j)
                 ).astype(jnp.complex128),
@@ -1066,7 +1066,7 @@ class NavierStokesVelVort(Equation):
             j_kz = 1j * kz_
             minus_kx_kz_sq = -(kx_**2 + kz_**2)
             vel_y__ = NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
-                physical_domain, vel_y_
+                physical_domain, vel_y_, 3 * Ny // 2
             )
             vel_1_y_ = domain.diff_fourier_field_slice(vel_y__, 1, 1)
             vel_x_ = (-j_kx * vel_1_y_ + j_kz * vort_) / minus_kx_kz_sq
