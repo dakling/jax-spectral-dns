@@ -265,7 +265,7 @@ class Field(ABC):
         out.time_step = self.time_step
         return out
 
-    def plot_3d(self, _: Optional[int] = None) -> None:
+    def plot_3d(self, _: Optional[int] = None, coord: Optional[float] = None) -> None:
         raise NotImplementedError()
 
 
@@ -785,10 +785,12 @@ class VectorField(Generic[T]):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot_3d(self, direction: Optional[int] = None) -> None:
+    def plot_3d(
+        self, direction: Optional[int] = None, coord: Optional[float] = None
+    ) -> None:
         try:
             for f in self:
-                f.plot_3d(direction)
+                f.plot_3d(direction, coord)
         except Exception as e:
             print("VectorField.plot_3d failed with the following exception:")
             print(e)
@@ -1772,10 +1774,12 @@ class PhysicalField(Field):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot_3d(self, direction: Optional[int] = None) -> None:
+    def plot_3d(
+        self, direction: Optional[int] = None, coord: Optional[float] = None
+    ) -> None:
         try:
             if direction is not None:
-                self.plot_3d_single(direction)
+                self.plot_3d_single(direction, coord)
             else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
@@ -1810,7 +1814,17 @@ class PhysicalField(Field):
                 ]
                 ims = []
                 for dim in self.all_dimensions():
-                    N_c = self.physical_domain.number_of_cells(dim) // 2
+                    if coord is None:
+                        N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                    else:
+                        N_c = int(
+                            (self.get_domain().get_shape()[dim] - 1)
+                            * (coord - self.get_domain().grid[dim][0])
+                            / (
+                                self.get_domain().grid[dim][-1]
+                                - self.get_domain().grid[dim][0]
+                            )
+                        )
                     other_dim = [i for i in self.all_dimensions() if i != dim]
                     ims.append(
                         ax[dim].imshow(
@@ -1866,7 +1880,7 @@ class PhysicalField(Field):
                     print(e)
                     print("ignoring this and carrying on.")
 
-    def plot_3d_single(self, dim: int) -> None:
+    def plot_3d_single(self, dim: int, coord: Optional[float] = None) -> None:
         try:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -1875,7 +1889,14 @@ class PhysicalField(Field):
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
             ims = []
-            N_c = self.physical_domain.number_of_cells(dim) // 2
+            if coord is None:
+                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+            else:
+                N_c = int(
+                    (self.get_domain().get_shape()[dim] - 1)
+                    * (coord - self.get_domain().grid[dim][0])
+                    / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
+                )
             other_dim = [i for i in self.all_dimensions() if i != dim]
             ims.append(
                 ax.imshow(
