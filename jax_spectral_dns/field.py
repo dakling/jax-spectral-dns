@@ -2600,10 +2600,12 @@ class FourierField(Field):
             self.physical_domain, out_field, name=self.name + "_reconstr"
         )
 
-    def plot_3d(self, direction: Optional[int] = None) -> None:
+    def plot_3d(
+        self, direction: Optional[int] = None, coord: Optional[float] = None
+    ) -> None:
         try:
             if direction is not None:
-                self.plot_3d_single(direction)
+                self.plot_3d_single(direction, coord)
             else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
@@ -2638,7 +2640,17 @@ class FourierField(Field):
                 ]
                 ims = []
                 for dim in self.all_dimensions():
-                    N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                    if coord is None:
+                        N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                    else:
+                        N_c = int(
+                            (self.get_domain().get_shape()[dim] - 1)
+                            * (coord - self.get_domain().grid[dim][0])
+                            / (
+                                self.get_domain().grid[dim][-1]
+                                - self.get_domain().grid[dim][0]
+                            )
+                        )
                     other_dim = [i for i in self.all_dimensions() if i != dim]
                     ims.append(
                         ax[dim].imshow(
@@ -2690,7 +2702,7 @@ class FourierField(Field):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot_3d_single(self, dim: int) -> None:
+    def plot_3d_single(self, dim: int, coord: Optional[float]) -> None:
         try:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -2699,7 +2711,14 @@ class FourierField(Field):
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
             ims = []
-            N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+            if coord is None:
+                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+            else:
+                N_c = int(
+                    (self.get_domain().get_shape()[dim] - 1)
+                    * (coord - self.get_domain().grid[dim][0])
+                    / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
+                )
             other_dim = [i for i in self.all_dimensions() if i != dim]
             ims.append(
                 ax.imshow(
