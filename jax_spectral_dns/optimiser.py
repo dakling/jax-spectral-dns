@@ -229,9 +229,6 @@ class Optimiser(ABC, Generic[I]):
         return solver
 
     def get_jaxopt_solver(self) -> jaxopt.GradientDescent:
-        # solver = jaxopt.LBFGS(
-        # solver = jaxopt.ScipyMinimize(
-        # solver = jaxopt.GradientDescent(
         solver = jaxopt.NonlinearCG(
             self.value_and_grad_fn,
             value_and_grad=True,
@@ -239,7 +236,7 @@ class Optimiser(ABC, Generic[I]):
             jit=True,
             linesearch="zoom",
             linesearch_init="current",
-            maxls=3,
+            maxls=15,
             unroll=False,
         )
         return solver

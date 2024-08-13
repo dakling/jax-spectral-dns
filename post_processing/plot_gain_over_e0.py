@@ -111,11 +111,14 @@ def collect_gain_e0(
     return np.array(e_0s), np.array(gains), relative_gains
 
 
-def plot_single(fig, ax, ax_, base_path: str, name: str, rel: bool = False) -> None:
+def plot_single(
+    fig, ax, ax_, base_path: str, name: str, e_base: float = 1.0, rel: bool = False
+) -> None:
     try:
         store_dir_base = STORE_DIR_BASE + "/" + base_path
         home_dir_base = HOME_DIR_BASE + "/" + base_path
-        e_0, gain_, relative_gain = collect_gain_e0(home_dir_base, store_dir_base)
+        e_0_, gain_, relative_gain = collect_gain_e0(home_dir_base, store_dir_base)
+        e_0 = e_0_ / e_base
         gain = relative_gain if rel else gain_
         for e_0_gain in list(zip(e_0, gain)):
             print(e_0_gain)
@@ -156,17 +159,19 @@ def plot(dirs_and_names):
             1, 2, sharey=True, gridspec_kw={"width_ratios": [1, 8]}
         )
         fig.subplots_adjust(wspace=0.05)  # adjust space between Axes
-        for base_dir, name in dirs_and_names:
-            plot_single(fig, ax, ax_, base_dir, name, rel=rel)
+        for base_dir, name, e_base in dirs_and_names:
+            plot_single(fig, ax, ax_, base_dir, name, e_base, rel=rel)
         fig.legend()
         fig.savefig(("relative_" if rel else "") + "gain_over_e0.png")
 
 
+e_base_turb = 1.0
+e_base_lam = 2160.0 / 122.756
 plot(
     [
-        # ("laminar_base_two_t_e_0_study", "laminar base"),
-        ("two_t_e_0_study", "long channel"),
-        ("smaller_channel_two_t_e_0_study", "short channel"),
-        ("full_channel_mean_only_two_t_e_0_study", "full mean"),
+        ("laminar_base_two_t_e_0_study", "laminar base", e_base_lam),
+        ("two_t_e_0_study", "long channel", e_base_turb),
+        ("smaller_channel_two_t_e_0_study", "short channel", e_base_turb),
+        ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
     ]
 )
