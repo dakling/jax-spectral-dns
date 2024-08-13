@@ -7,7 +7,11 @@ from functools import partial
 import math
 import jax
 import jax.numpy as jnp
-from orthax import chebyshev  # type: ignore
+
+try:
+    from orthax import chebyshev  # type: ignore
+except Exception:
+    print("failed to load orthax.chebyshev module, some functionality won't work.")
 import numpy as np
 import scipy as sc  # type: ignore
 import dataclasses
