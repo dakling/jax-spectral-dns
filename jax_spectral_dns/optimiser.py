@@ -25,6 +25,7 @@ from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
+from jax_spectral_dns.navier_stokes import NavierStokesVelVort
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 # from jax.sharding import Mesh
@@ -384,6 +385,15 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         ax.plot(
             self.calculation_domain.grid[1], self.parameters[1][0, :, 0], label="vel_y"
         )
+        physical_domain = self.calculation_domain
+        ax.plot(
+            self.calculation_domain.grid[1],
+            NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
+                physical_domain,
+                self.parameters[1][0, :, 0],
+            ),
+            label="vel_y_smooth",
+        )
         ax.plot(
             self.calculation_domain.grid[1], self.parameters[0][0, :, 0], label="vort_y"
         )
@@ -396,7 +406,13 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
         v0_div = v0_new.div()
         cont_error = v0_div.energy() / v0_new.energy()
+        cont_error_xz = (
+            v0_new[0].diff(0) + v0_new[2].diff(2)
+        ).energy() / v0_new.energy()
+        cont_error_y = (v0_new[1].diff(1)).energy() / v0_new.energy()
         print_verb("cont_error", cont_error)
+        print_verb("cont_error_y", cont_error_y)
+        print_verb("cont_error_xz", cont_error_xz)
         if cont_error > 1e-1:
             v0_div.plot_3d(0)
             v0_div.plot_3d(1)
