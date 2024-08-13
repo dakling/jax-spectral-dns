@@ -164,10 +164,9 @@ def plot(dirs_and_names):
 
 plot(
     [
+        # ("laminar_base_two_t_e_0_study", "laminar base"),
         ("two_t_e_0_study", "long channel"),
         ("smaller_channel_two_t_e_0_study", "short channel"),
         ("full_channel_mean_only_two_t_e_0_study", "full mean"),
-        ("full_channel_mean_re__two_t_e_0_study", "full mean + Reynolds stresses"),
-        ("laminar_base_two_t_e_0_study", "laminar base"),
     ]
 )

@@ -351,7 +351,7 @@ class Equation:
 
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 try:
-                    print_verb("writing trajectory to file...")
+                    print_verb("writing trajectory to file...", verbosity_level=2)
 
                     with h5py.File(Field.field_dir + "/trajectory", "w") as f:
                         f.create_dataset(
@@ -360,11 +360,11 @@ class Equation:
                             compression="gzip",
                             compression_opts=9,
                         )
-                    print_verb("done writing trajectory to file")
+                    print_verb("done writing trajectory to file", verbosity_level=2)
                 except Exception:
-                    print_verb("writing trajectory to file failed")
+                    print_verb("writing trajectory to file failed", verbosity_level=2)
             else:
-                print_verb("not writing trajectory to file")
+                print_verb("not writing trajectory to file", verbosity_level=2)
 
             duration = time.time() - start_time
             try:

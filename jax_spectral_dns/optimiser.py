@@ -18,14 +18,10 @@ import jax
 import jax.numpy as jnp
 import pickle
 
-import matplotlib
-from matplotlib import figure
-
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.equation import print_verb
 from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
-from jax_spectral_dns.navier_stokes import NavierStokesVelVort
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 # from jax.sharding import Mesh
@@ -380,25 +376,6 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
 
         self.parameters_to_file()
         i = self.current_iteration
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        ax.plot(
-            self.calculation_domain.grid[1], self.parameters[1][0, :, 0], label="vel_y"
-        )
-        physical_domain = self.calculation_domain
-        ax.plot(
-            self.calculation_domain.grid[1],
-            NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
-                physical_domain,
-                self.parameters[1][0, :, 0],
-            ),
-            label="vel_y_smooth",
-        )
-        ax.plot(
-            self.calculation_domain.grid[1], self.parameters[0][0, :, 0], label="vort_y"
-        )
-        fig.legend()
-        fig.savefig(Field.plotting_dir + "/plot_00.png")
         U_hat = self.parameters_to_run_input_(self.parameters)
         U = U_hat.no_hat()
         U.update_boundary_conditions()
@@ -411,8 +388,8 @@ class OptimiserFourier(Optimiser[VectorField[FourierField]]):
         ).energy() / v0_new.energy()
         cont_error_y = (v0_new[1].diff(1)).energy() / v0_new.energy()
         print_verb("cont_error", cont_error)
-        print_verb("cont_error_y", cont_error_y)
-        print_verb("cont_error_xz", cont_error_xz)
+        print_verb("cont_error_y", cont_error_y, verbosity_level=2)
+        print_verb("cont_error_xz", cont_error_xz, verbosity_level=2)
         if cont_error > 1e-1:
             v0_div.plot_3d(0)
             v0_div.plot_3d(1)

@@ -414,17 +414,23 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         )
 
         if self.constant_mass_flux:
-            print_verb("enforcing constant mass flux")
+            print_verb("enforcing constant mass flux", verbosity_level=2)
             self.flow_rate = 0.0
             self.dPdx = 0.0
             current_flow_rate = self.get_flow_rate()
-            print_verb("mass flux before correction:", current_flow_rate)
+            print_verb(
+                "mass flux before correction:", current_flow_rate, verbosity_level=2
+            )
             v0_corr = self.update_velocity_field(self.get_initial_field("velocity_hat"))
             self.set_initial_field("velocity_hat", v0_corr)
-            print_verb("correcting initial condition to have zero mass flux")
-            print_verb("mass flux after correction:", self.get_flow_rate())
+            print_verb(
+                "correcting initial condition to have zero mass flux", verbosity_level=2
+            )
+            print_verb(
+                "mass flux after correction:", self.get_flow_rate(), verbosity_level=2
+            )
         else:
-            print_verb("enforcing constant pressure gradient")
+            print_verb("enforcing constant pressure gradient", verbosity_level=2)
             self.flow_rate = self.get_flow_rate()
             # if not self.linearise:
             #     self.dPdx = -1.0 + 0.0
