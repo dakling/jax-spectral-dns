@@ -169,13 +169,14 @@ e_base_turb = 1.0
 e_base_lam = 2160.0 / 122.756
 plot(
     [
-        ("laminar_base_two_t_e_0_study", "laminar base", e_base_lam),
-        ("two_t_e_0_study", "minimal channel mean (long channel)", e_base_turb),
+        # ("laminar_base_two_t_e_0_study", "laminar base", e_base_lam),
+        # ("two_t_e_0_study", "minimal channel mean (long channel)", e_base_turb),
         (
             "smaller_channel_two_t_e_0_study",
-            "minimal channel mean (short channel)",
+            # "minimal channel mean (short channel)",
+            "minimal channel mean",
             e_base_turb,
         ),
-        ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
+        # ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
     ]
 )
