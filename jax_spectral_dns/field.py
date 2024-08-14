@@ -2006,7 +2006,7 @@ class PhysicalField(Field):
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
-            fig.colorbar(ims[0], ax=ax_, label=self.name, orientation="vertical")
+            fig.colorbar(ims[0], ax=ax_, label=name, orientation="vertical")
 
             def save() -> None:
                 fig.savefig(
