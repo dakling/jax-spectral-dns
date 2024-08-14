@@ -63,7 +63,7 @@ def post_process(
             ts.append(time_)
             energy_t.append(vel_energy_)
             e_x_2d = vel_[0].hat().energy_2d(0)
-            e_x_3d = vel_.energy() - e_x_2d
+            e_x_3d = vel_energy_ - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
             amplitude_t.append(vel_[0].max() - vel_[0].min())
@@ -120,9 +120,9 @@ def post_process(
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
-            fig_2d_over_3d = figure.Figure()
-            ax_2d_over_3d = fig_2d_over_3d.subplots(1, 1)
-            assert type(ax_2d_over_3d) is Axes
+            fig_amplitudes = figure.Figure()
+            ax_amplitudes = fig_amplitudes.subplots(1, 1)
+            assert type(ax_amplitudes) is Axes
             # fig_pd = figure.Figure()
             # ax_pd = fig_pd.subplots(1, 1)
             # assert type(ax_pd) is Axes
@@ -134,30 +134,24 @@ def post_process(
                 ts[: i + 1],
                 energy_t_arr[: i + 1] / energy_t_arr[0],
                 "ko",
-                label="energy gain",
+                label="G",
             )
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
-            ax2 = ax.twinx()
-            ax2.plot(ts, amplitude_t, "g.")
-            ax2.plot(
+            ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
+            ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
+            ax.plot(
                 ts[: i + 1],
-                amplitude_t[: i + 1],
+                energy_x_2d_arr[: i + 1] / energy_t_arr[0],
+                "bo",
+                label="$G_{x, 2d}$",
+            )
+            ax.plot(
+                ts[: i + 1],
+                energy_x_3d_arr[: i + 1] / energy_t_arr[0],
                 "go",
-                label="total perturbation amplitude",
+                label="$G_{3d}$",
             )
-            ax2.plot(ts, amplitude_x_2d_t, "b.")
-            ax2.plot(
-                ts[: i + 1], amplitude_x_2d_t[: i + 1], "bo", label="streak amplitude"
-            )
-            ax2.plot(ts, amplitude_3d_t, "y.")
-            ax2.plot(
-                ts[: i + 1],
-                amplitude_3d_t[: i + 1],
-                "yo",
-                label="perturbation amplitude w/o streak",
-            )
-            ax2.set_ylabel("$A$")
             fig.legend()
             fig.savefig(
                 Field.plotting_dir
@@ -165,21 +159,34 @@ def post_process(
                 + "{:06}".format(time_step)
                 + ".png"
             )
-            ax_2d_over_3d.plot(ts, energy_x_2d_arr, "k.")
-            ax_2d_over_3d.plot(ts, energy_x_3d_arr, "b.")
-            ax_2d_over_3d.plot(
-                ts[: i + 1], energy_x_2d_arr[: i + 1], "ko", label="$E_{x, 2d}$"
-            )
-            ax_2d_over_3d.plot(
-                ts[: i + 1], energy_x_3d_arr[: i + 1], "bo", label="$E_{3d}$"
-            )
-            ax_2d_over_3d.set_xlabel("$t h / u_\\tau$")
-            ax_2d_over_3d.set_ylabel("$E$")
             # ax_2d_over_3d.set_yscale("log")
-            fig_2d_over_3d.legend()
-            fig_2d_over_3d.savefig(
+            ax_amplitudes.plot(ts, amplitude_t, "k.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_t[: i + 1],
+                "ko",
+                label="total perturbation x-velocity amplitude",
+            )
+            ax_amplitudes.plot(ts, amplitude_x_2d_t, "b.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_x_2d_t[: i + 1],
+                "bo",
+                label="streak amplitude (x-velocity)",
+            )
+            ax_amplitudes.plot(ts, amplitude_3d_t, "g.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_3d_t[: i + 1],
+                "go",
+                label="perturbation amplitude w/o streak (x-velocity)",
+            )
+            ax_amplitudes.set_xlabel("$t h / u_\\tau$")
+            ax_amplitudes.set_ylabel("$A$")
+            fig_amplitudes.legend()
+            fig_amplitudes.savefig(
                 Field.plotting_dir
-                + "/plot_energy_2d_over_3d_t_"
+                + "/plot_amplitudes_t_"
                 + "{:06}".format(time_step)
                 + ".png"
             )
