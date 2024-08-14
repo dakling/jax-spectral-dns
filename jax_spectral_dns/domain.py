@@ -11,7 +11,7 @@ import jax.numpy as jnp
 try:
     from orthax import chebyshev  # type: ignore
 except Exception:
-    print("failed to load orthax.chebyshev module, some functionality won't work.")
+    print("failed to load orthax.chebyshev module, some features won't be available.")
 import numpy as np
 import scipy as sc  # type: ignore
 import dataclasses

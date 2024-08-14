@@ -1814,11 +1814,12 @@ class PhysicalField(Field):
                 ]
                 ims = []
                 for dim in self.all_dimensions():
+                    data_shape = self.data.shape
                     if coord is None:
-                        N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                        N_c = (data_shape[dim] - 1) // 2
                     else:
                         N_c = int(
-                            (self.get_domain().get_shape()[dim] - 1)
+                            (data_shape[dim] - 1)
                             * (coord - self.get_domain().grid[dim][0])
                             / (
                                 self.get_domain().grid[dim][-1]
@@ -1889,11 +1890,12 @@ class PhysicalField(Field):
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
             ims = []
+            data_shape = self.data.shape
             if coord is None:
-                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                N_c = (data_shape[dim] - 1) // 2
             else:
                 N_c = int(
-                    (self.get_domain().get_shape()[dim] - 1)
+                    data_shape[dim]
                     * (coord - self.get_domain().grid[dim][0])
                     / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
                 )
@@ -2661,11 +2663,12 @@ class FourierField(Field):
                 ]
                 ims = []
                 for dim in self.all_dimensions():
+                    data_shape = self.data.shape
                     if coord is None:
-                        N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                        N_c = (data_shape[dim] - 1) // 2
                     else:
                         N_c = int(
-                            (self.get_domain().get_shape()[dim] - 1)
+                            (data_shape[dim] - 1)
                             * (coord - self.get_domain().grid[dim][0])
                             / (
                                 self.get_domain().grid[dim][-1]
@@ -2732,11 +2735,12 @@ class FourierField(Field):
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
             ims = []
+            data_shape = self.data.shape
             if coord is None:
-                N_c = (self.get_domain().get_shape()[dim] - 1) // 2
+                N_c = (data_shape[dim] - 1) // 2
             else:
                 N_c = int(
-                    (self.get_domain().get_shape()[dim] - 1)
+                    (data_shape[dim] - 1)
                     * (coord - self.get_domain().grid[dim][0])
                     / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
                 )

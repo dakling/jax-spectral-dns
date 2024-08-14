@@ -97,12 +97,20 @@ def post_process(
             vort.set_name("vorticity")
             time_step = vel.get_time_step()
 
-            vel[0].plot_3d(2)
-            vel[1].plot_3d(2)
-            vel[2].plot_3d(2)
-            vel[0].plot_3d(0)
-            vel[1].plot_3d(0)
-            vel[2].plot_3d(0)
+            if i == 0:
+                vel_shape = vel[0].get_data().shape
+                max_inds = np.unravel_index(
+                    vel[0].get_data().argmax(axis=None), vel_shape
+                )
+                Nx, _, Nz = vel_shape
+                x_max = max_inds[0] / Nx * domain.grid[0][-1]
+                z_max = max_inds[2] / Nz * domain.grid[2][-1]
+            vel[0].plot_3d(2, z_max)
+            vel[1].plot_3d(2, z_max)
+            vel[2].plot_3d(2, z_max)
+            vel[0].plot_3d(0, x_max)
+            vel[1].plot_3d(0, x_max)
+            vel[2].plot_3d(0, x_max)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
             vel.plot_isosurfaces()
