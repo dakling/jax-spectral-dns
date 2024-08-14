@@ -1817,6 +1817,14 @@ class PhysicalField(Field):
                     data_shape = self.data.shape
                     if coord is None:
                         N_c = (data_shape[dim] - 1) // 2
+                        coord = (
+                            N_c
+                            / data_shape[dim]
+                            * (
+                                self.get_domain().grid[dim][-1]
+                                - self.get_domain().grid[dim][0]
+                            )
+                        )
                     else:
                         N_c = int(
                             (data_shape[dim] - 1)
@@ -1848,6 +1856,7 @@ class PhysicalField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 fig.colorbar(ims[0], ax=ax, label=self.name)
+                ax[dim].set_title("xyz"[dim] + " = " + str(coord))
 
                 def save() -> None:
                     fig.savefig(
@@ -1893,6 +1902,11 @@ class PhysicalField(Field):
             data_shape = self.data.shape
             if coord is None:
                 N_c = (data_shape[dim] - 1) // 2
+                coord = (
+                    N_c
+                    / data_shape[dim]
+                    * (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
+                )
             else:
                 N_c = int(
                     data_shape[dim]
@@ -1921,6 +1935,7 @@ class PhysicalField(Field):
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+            ax.set_title("xyz"[dim] + " = " + str(coord))
 
             def save() -> None:
                 fig.savefig(
@@ -2666,6 +2681,14 @@ class FourierField(Field):
                     data_shape = self.data.shape
                     if coord is None:
                         N_c = (data_shape[dim] - 1) // 2
+                        coord = (
+                            N_c
+                            / data_shape[dim]
+                            * (
+                                self.get_domain().grid[dim][-1]
+                                - self.get_domain().grid[dim][0]
+                            )
+                        )
                     else:
                         N_c = int(
                             (data_shape[dim] - 1)
@@ -2697,6 +2720,7 @@ class FourierField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 fig.colorbar(ims[0], ax=ax, label=self.name)
+                ax[dim].set_title("xyz"[dim] + " = " + str(coord))
 
                 def save() -> None:
                     fig.savefig(
@@ -2738,6 +2762,11 @@ class FourierField(Field):
             data_shape = self.data.shape
             if coord is None:
                 N_c = (data_shape[dim] - 1) // 2
+                coord = (
+                    N_c
+                    / data_shape[dim]
+                    * (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
+                )
             else:
                 N_c = int(
                     (data_shape[dim] - 1)
@@ -2766,6 +2795,7 @@ class FourierField(Field):
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+            ax.set_title("xyz"[dim] + " = " + str(coord))
 
             def save() -> None:
                 fig.savefig(
