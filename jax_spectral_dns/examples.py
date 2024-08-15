@@ -2889,7 +2889,6 @@ def run_ld_2021_dual(**params: Any) -> None:
         step_size=initial_step_size,
         max_step_size=max_step_size,
         min_step_size=min_step_size,
-        post_process_function=post_process,
         start_iteration=start_iteration,
     )
     optimiser.optimise()
