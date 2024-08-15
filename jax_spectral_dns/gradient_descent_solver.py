@@ -308,10 +308,10 @@ class GradientDescentSolver(ABC):
                 data = np.genfromtxt(phase_space_data_name, delimiter=",").T
                 self.i = int(data[0][-1]) + 1
         except FileNotFoundError:
-            raise Exception(
+            print_verb(
                 "file",
                 phase_space_data_name,
-                "not found, unable to last iteration step.",
+                "not found, unable to determine last iteration step.",
             )
 
 

@@ -131,7 +131,9 @@ def plot_single(
         ax_.set_xlim([-1e-20, 1e-20])
         ax_.get_xaxis().set_ticks([0.0])
         ax.set_xlabel("$e_0 / E_0$")
-        ax_.set_ylabel("$G_\\text{opt}$")
+        ax_.set_ylabel(
+            "$G_\\text{opt} / G_\\text{opt, lin}$" if relative else "$G_\\text{opt}$"
+        )
         # hide the spines between ax and ax2
         ax_.spines.right.set_visible(False)
         ax.spines.left.set_visible(False)

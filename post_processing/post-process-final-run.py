@@ -62,12 +62,15 @@ def post_process(
             time_ = (vel_.get_time_step() / (n_steps - 1)) * end_time
             ts.append(time_)
             energy_t.append(vel_energy_)
-            e_x_2d = vel_[0].hat().energy_2d(0)
+            # e_x_2d = vel_[0].hat().energy_2d(0)
+            e_x_2d = vel_.hat().energy_2d(0)
             e_x_3d = vel_energy_ - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
             amplitude_t.append(vel_[0].max() - vel_[0].min())
             vel_2d_x = vel_hat_[0].field_2d(0).no_hat()
+            vel_2d_x.set_name("velocity_x_2d")
+            vel_2d_x.plot_3d(0)
             amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
             vel_3d = vel_ - VectorField(
                 [vel_2d_x, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
