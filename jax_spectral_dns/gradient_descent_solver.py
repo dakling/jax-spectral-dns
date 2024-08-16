@@ -599,7 +599,6 @@ class OptimiserWrapper(GradientDescentSolver):
             nse = NavierStokesVelVortPerturbation(
                 v0_hat_, Re_tau=Re_tau, dt=dt, end_time=end_time
             )
-            nse.set_linearise(False)
             nse_dual = (
                 NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
                     nse

@@ -379,9 +379,24 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             print_verb("not using checkpointing")
         self.forward_equation.activate_jit()
+        self.linearise_switch: Optional[float] = params.get("linearise_switch")
 
-    def set_linearise(self, lin: bool) -> None:
-        self.linearise = lin
+        linearise: bool = params.get("linearise", False)
+        if self.linearise_switch is not None:
+            assert (
+                params.get("linearise") is None
+            ), "need to either pass linearise or linearise_switch."
+            lin_switch = self.linearise_switch
+            number_of_time_steps = len(jnp.arange(0, self.end_time, self.get_dt()))
+            self.linearise: Callable[[int], bool] = (
+                lambda t: t >= number_of_time_steps * (1.0 - lin_switch)
+            )
+        else:
+            self.linearise = lambda _: linearise
+        self.set_linearise()
+
+    def set_linearise(self) -> None:
+        # self.linearise = lin
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
@@ -424,7 +439,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             velocity_base_hat.get_data(),
             self.get_velocity_u_hat(t),
             re_ijj_hat,
-            linearise=self.linearise,
+            linearise=self.linearise(t),
         )
 
     @classmethod
@@ -457,9 +472,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             velocity_base_hat=nse.get_latest_field("velocity_base_hat"),
             # reynolds_stress_ijj_hat=reynolds_stress_ijj_hat, # see farano 2017
             constant_mass_flux=nse.constant_mass_flux,
+            linearise=nse.linearise(0) if nse.linearise_switch is None else None,
+            linearise_switch=nse.linearise_switch,
             **params,
         )
-        nse_dual.set_linearise(nse.linearise)
+        nse_dual.set_linearise()
         return nse_dual
 
     def get_velocity_u_hat(self, timestep: int) -> "jnp_array":

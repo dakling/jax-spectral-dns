@@ -8,7 +8,7 @@ import numpy as np
 from functools import partial
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
-from typing import TYPE_CHECKING, Any, Tuple, cast, Optional
+from typing import TYPE_CHECKING, Any, Callable, Tuple, cast, Optional
 
 # from importlib import reload
 import sys
@@ -356,8 +356,22 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         # reynolds_stress_tensor_ijj_hat = 1 / self.get_Re_tau() * velocity_base_hat.laplacian()
         # self.add_field("reynolds_stress_ijj_hat", reynolds_stress_tensor_ijj_hat)
 
-        self.linearise: bool = params.get("linearise", False)
-        self.set_linearise(self.linearise)
+        linearise: bool = params.get("linearise", False)
+
+        self.linearise_switch: Optional[float] = params.get("linearise_switch")
+
+        if self.linearise_switch is not None:
+            assert (
+                params.get("linearise") is None
+            ), "need to either pass linearise or linearise_switch."
+            lin_switch = self.linearise_switch
+            number_of_time_steps = len(jnp.arange(0, self.end_time, self.get_dt()))
+            self.linearise: Callable[[int], bool] = (
+                lambda t: t < number_of_time_steps * lin_switch
+            )
+        else:
+            self.linearise = lambda _: linearise
+        self.set_linearise()
 
     def update_pressure_gradient(
         self,
@@ -407,8 +421,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             )
         return cast(float, dPdx_)
 
-    def set_linearise(self, lin: bool) -> None:
-        self.linearise = lin
+    def set_linearise(self) -> None:
+        # self.linearise = lin
         velocity_base_hat: VectorField[FourierField] = self.get_latest_field(
             "velocity_base_hat"
         )
@@ -446,7 +460,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             self.source_x_00 = None
             self.source_z_00 = None
         # self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_rotational(
-        self.nonlinear_update_fn = lambda vel, _: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
+        self.nonlinear_update_fn = lambda vel, t: update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
             self.get_physical_domain(),
             self.get_domain(),
             vel,
@@ -457,7 +471,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                     velocity_base_hat[2].data,
                 ]
             ),
-            linearise=self.linearise,
+            linearise=self.linearise(t),
         )
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
