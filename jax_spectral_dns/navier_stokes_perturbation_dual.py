@@ -389,7 +389,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             lin_switch = self.linearise_switch
             number_of_time_steps = len(jnp.arange(0, self.end_time, self.get_dt()))
             self.linearise: Callable[[int], bool] = (
-                lambda t: t >= number_of_time_steps * (1.0 - lin_switch)
+                lambda t: t + 1 >= number_of_time_steps * (1.0 - lin_switch)
             )
         else:
             self.linearise = lambda _: linearise
