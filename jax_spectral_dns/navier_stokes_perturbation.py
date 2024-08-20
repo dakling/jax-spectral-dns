@@ -215,20 +215,23 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
         helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
     )
     comb_corr_hat = physical_domain.field_hat(
-        physical_domain.diff(vel_base[0], 1)
-        * fourier_domain.field_no_hat(
-            fourier_domain.diff(
-                vel_hat_new[1],
-                2,
-            )
-        )
+        physical_domain.diff(vel_base[0], 1) * vel_new[1]
     )
     h_g_hat_new_comb = jax.lax.cond(
-        combination, lambda: h_g_hat_new, lambda: h_g_hat_new + comb_corr_hat
+        combination,
+        lambda: h_g_hat_new,
+        lambda: h_g_hat_new + fourier_domain.diff(comb_corr_hat, 2),
     )
-    # TODO also correct conv_ns_hat_new?
+    conv_ns_hat_new_comb = jax.lax.cond(
+        combination,
+        lambda: conv_ns_hat_new,
+        lambda: conv_ns_hat_new
+        + jnp.block(
+            [comb_corr_hat, jnp.zeros(comb_corr_hat), jnp.zeros(comb_corr_hat)]
+        ),
+    )
 
-    return (h_v_hat_new, h_g_hat_new_comb, vort_hat_new, conv_ns_hat_new)
+    return (h_v_hat_new, h_g_hat_new_comb, vort_hat_new, conv_ns_hat_new_comb)
 
 
 # @partial(jax.jit, static_argnums=(0, 1))
