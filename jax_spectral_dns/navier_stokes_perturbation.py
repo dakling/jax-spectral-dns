@@ -223,7 +223,8 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
         lambda: h_g_hat_new + fourier_domain.diff(comb_corr_hat, 2),
     )
     conv_ns_hat_new_comb = jax.lax.cond(
-        combination,
+        # combination,
+        True,  # TODO
         lambda: conv_ns_hat_new,
         lambda: conv_ns_hat_new
         - jnp.stack(

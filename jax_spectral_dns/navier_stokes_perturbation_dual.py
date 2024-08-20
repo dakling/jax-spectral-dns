@@ -276,7 +276,8 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
     )
 
     conv_ns_hat_new_comb = jax.lax.cond(
-        combination,
+        # combination,
+        True,  # TODO
         lambda: conv_ns_hat_new,
         lambda: conv_ns_hat_new
         - jnp.stack(
