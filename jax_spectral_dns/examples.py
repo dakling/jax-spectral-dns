@@ -1831,6 +1831,21 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     beta = params.get("beta", 0.0)
     e_0 = params.get("e_0", 1e-10)
 
+    linearise = params.get("linearise")  # whether to linearise the equations
+    linearise_switch = params.get(
+        "linearise_switch"
+    )  # when to switch on the nonlinear term (from 0 to 1)
+    if linearise_switch is None and linearise is None:
+        linearise = False
+    combination = params.get(
+        "combination"
+    )  # whether to include the combination term (setting to False disables transient growth)
+    combination_switch = params.get(
+        "combination_switch"
+    )  # when to switch on the combination term (from 0 to 1)
+    if combination_switch is None and combination is None:
+        combination = True
+
     Equation.initialize()
     dt = params.get("dt", 1e-3)
     # end_time = dt * 1
@@ -1942,7 +1957,10 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
         dt=dt,
         end_time=end_time,
         constant_mass_flux=False,
-        linearise=False,
+        linearise=linearise,
+        linearise_switch=linearise_switch,
+        combination=combination,
+        combination_switch=combination_switch,
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,
@@ -2597,16 +2615,20 @@ def run_ld_2021_dual(**params: Any) -> None:
     max_cfl = params.get("max_cfl", 0.7)
     end_time = params.get("end_time", 0.35)
     start_iteration = params.get("start_iteration", 0)
-    linearise = params.get("linearise")  # wheth to linearise the equations
+    linearise = params.get("linearise")  # whether to linearise the equations
     linearise_switch = params.get(
         "linearise_switch"
     )  # when to switch on the nonlinear term (from 0 to 1)
+    if linearise_switch is None and linearise is None:
+        linearise = False
     combination = params.get(
         "combination"
-    )  # whethet to include the combination term (setting to False disables transient growth)
+    )  # whether to include the combination term (setting to False disables transient growth)
     combination_switch = params.get(
         "combination_switch"
     )  # when to switch on the combination term (from 0 to 1)
+    if combination_switch is None and combination is None:
+        combination = True
     init_file = params.get("init_file")
     constant_mass_flux = params.get("constant_mass_flux", False)
 

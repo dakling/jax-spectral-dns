@@ -268,7 +268,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
         physical_domain.diff(fourier_domain.field_no_hat(vel_u_base_hat[0]), 1)
         * fourier_domain.field_no_hat(
             fourier_domain.diff(
-                vel_v_hat_new[1],
+                vel_v_hat_new[0],
                 2,
             )
         )
