@@ -62,7 +62,6 @@ def helicity_to_nonlinear_terms(
     h_g_hat_new = fourier_domain.diff(hel_new_hat[0], 2) - fourier_domain.diff(
         hel_new_hat[2], 0
     )
-
     conv_ns_hat_new = -hel_new_hat
     vort_hat_new = fourier_domain.curl(vel_hat_new)
 

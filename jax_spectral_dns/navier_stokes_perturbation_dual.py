@@ -217,6 +217,7 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
     vel_small_u_hat: "jnp_array",  # u
     re_ijj_hat: "jnp_array",
     linearise: bool = False,
+    combination: "bool" = True,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
     vel_v_new = jnp.array(
         [
@@ -259,7 +260,26 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
         + 0.5 * div_vel_vel_hat
         + re_ijj_hat
     )
-    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
+
+    h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new = (
+        helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
+    )
+    comb_corr_hat = physical_domain.field_hat(
+        physical_domain.diff(fourier_domain.field_no_hat(vel_u_base_hat[0]), 1)
+        * fourier_domain.field_no_hat(
+            fourier_domain.diff(
+                vel_v_hat_new[1],
+                2,
+            )
+        )
+    )
+    h_g_hat_new_comb = jax.lax.cond(
+        combination, lambda: h_g_hat_new, lambda: h_g_hat_new + comb_corr_hat
+    )
+    # TODO is this correction correct?
+    # TODO also correct conv_ns_hat_new?
+
+    return (h_v_hat_new, h_g_hat_new_comb, vort_hat_new, conv_ns_hat_new)
 
 
 def update_nonlinear_terms_high_performance_perturbation_dual_rotational(
@@ -393,6 +413,22 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             )
         else:
             self.linearise = lambda _: linearise
+
+        combination: bool = params.get("combination", True)
+
+        self.combination_switch: Optional[float] = params.get("combination_switch")
+
+        if self.combination_switch is not None:
+            assert (
+                params.get("combination") is None
+            ), "need to either pass combination or combination_switch."
+            combination_switch = self.combination_switch
+            number_of_time_steps = len(jnp.arange(0, self.end_time, self.get_dt()))
+            self.combination: Callable[[int], bool] = lambda t: not (
+                t + 1 >= number_of_time_steps * combination_switch
+            )
+        else:
+            self.combination = lambda _: combination
         self.set_linearise()
 
     def set_linearise(self) -> None:
@@ -440,6 +476,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.get_velocity_u_hat(t),
             re_ijj_hat,
             linearise=self.linearise(t),
+            combination=self.combination(t),
         )
 
     @classmethod
@@ -474,6 +511,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             constant_mass_flux=nse.constant_mass_flux,
             linearise=nse.linearise(0) if nse.linearise_switch is None else None,
             linearise_switch=nse.linearise_switch,
+            combination=nse.combination(0) if nse.combination_switch is None else None,
+            combination_switch=nse.combination_switch,
             **params,
         )
         nse_dual.set_linearise()

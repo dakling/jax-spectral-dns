@@ -2597,8 +2597,16 @@ def run_ld_2021_dual(**params: Any) -> None:
     max_cfl = params.get("max_cfl", 0.7)
     end_time = params.get("end_time", 0.35)
     start_iteration = params.get("start_iteration", 0)
-    linearise = params.get("linearise")
-    linearise_switch = params.get("linearise_switch")
+    linearise = params.get("linearise")  # wheth to linearise the equations
+    linearise_switch = params.get(
+        "linearise_switch"
+    )  # when to switch on the nonlinear term (from 0 to 1)
+    combination = params.get(
+        "combination"
+    )  # whethet to include the combination term (setting to False disables transient growth)
+    combination_switch = params.get(
+        "combination_switch"
+    )  # when to switch on the combination term (from 0 to 1)
     init_file = params.get("init_file")
     constant_mass_flux = params.get("constant_mass_flux", False)
 
@@ -2880,6 +2888,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         constant_mass_flux=constant_mass_flux,
         linearise=linearise,
         linearise_switch=linearise_switch,
+        combination=combination,
+        combination_switch=combination_switch,
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse

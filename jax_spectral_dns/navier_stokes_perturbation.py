@@ -163,6 +163,7 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
     linearise: bool = False,
+    combination: "bool" = True,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vel_new = jnp.array(
@@ -210,7 +211,24 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
         + 0.5 * div_vel_new_vel_new_hat
     )
 
-    return helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+    h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new = (
+        helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_hat_new)
+    )
+    comb_corr_hat = physical_domain.field_hat(
+        physical_domain.diff(vel_base[0], 1)
+        * fourier_domain.field_no_hat(
+            fourier_domain.diff(
+                vel_hat_new[1],
+                2,
+            )
+        )
+    )
+    h_g_hat_new_comb = jax.lax.cond(
+        combination, lambda: h_g_hat_new, lambda: h_g_hat_new + comb_corr_hat
+    )
+    # TODO also correct conv_ns_hat_new?
+
+    return (h_v_hat_new, h_g_hat_new_comb, vort_hat_new, conv_ns_hat_new)
 
 
 # @partial(jax.jit, static_argnums=(0, 1))
@@ -371,6 +389,22 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             )
         else:
             self.linearise = lambda _: linearise
+
+        combination: bool = params.get("combination", True)
+
+        self.combination_switch: Optional[float] = params.get("combination_switch")
+
+        if self.combination_switch is not None:
+            assert (
+                params.get("combination") is None
+            ), "need to either pass combination or combination_switch."
+            combination_switch = self.combination_switch
+            number_of_time_steps = len(jnp.arange(0, self.end_time, self.get_dt()))
+            self.combination: Callable[[int], bool] = lambda t: not (
+                t < number_of_time_steps * combination_switch
+            )
+        else:
+            self.combination = lambda _: combination
         self.set_linearise()
 
     def update_pressure_gradient(
@@ -472,6 +506,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                 ]
             ),
             linearise=self.linearise(t),
+            combination=self.combination(t),
         )
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
