@@ -227,7 +227,11 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
         lambda: conv_ns_hat_new,
         lambda: conv_ns_hat_new
         + jnp.block(
-            [comb_corr_hat, jnp.zeros(comb_corr_hat), jnp.zeros(comb_corr_hat)]
+            [
+                comb_corr_hat,
+                jnp.zeros_like(comb_corr_hat),
+                jnp.zeros_like(comb_corr_hat),
+            ]
         ),
     )
 
