@@ -264,22 +264,20 @@ def update_nonlinear_terms_high_performance_perturbation_dual_skew_symmetric(
     h_v_hat_new, h_g_hat_new, vort_hat_new, conv_ns_hat_new = (
         helicity_to_nonlinear_terms(fourier_domain, hel_new_hat, vel_v_hat_new)
     )
-    comb_corr_hat = physical_domain.field_hat(
+    comb_corr_h1_hat = physical_domain.field_hat(
         physical_domain.diff(fourier_domain.field_no_hat(vel_u_base_hat[0]), 1)
-        * fourier_domain.field_no_hat(
-            fourier_domain.diff(
-                vel_v_hat_new[0],
-                2,
-            )
-        )
+        * vel_v_new[0]
     )
-    h_g_hat_new_comb = jax.lax.cond(
-        combination, lambda: h_g_hat_new, lambda: h_g_hat_new + comb_corr_hat
+    comb_corr_hat = fourier_domain.diff(comb_corr_h1_hat, 0, 2) + fourier_domain.diff(
+        comb_corr_h1_hat, 2, 2
+    )
+    h_v_hat_new_comb = jax.lax.cond(
+        combination, lambda: h_v_hat_new, lambda: h_v_hat_new + comb_corr_hat
     )
     # TODO is this correction correct?
     # TODO also correct conv_ns_hat_new?
 
-    return (h_v_hat_new, h_g_hat_new_comb, vort_hat_new, conv_ns_hat_new)
+    return (h_v_hat_new_comb, h_g_hat_new, vort_hat_new, conv_ns_hat_new)
 
 
 def update_nonlinear_terms_high_performance_perturbation_dual_rotational(
