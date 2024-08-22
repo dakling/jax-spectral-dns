@@ -94,6 +94,23 @@ def post_process(
             amplitude_z_2d_t.append(vel_2d_z.max() - vel_2d_z.min())
             amplitude_z_2d_t_1.append(vel_2d_z_1.max() - vel_2d_z_1.min())
             amplitude_z_2d_t_2.append(vel_2d_z_2.max() - vel_2d_z_2.min())
+            Nx = domain.get_shape()[0]
+            Nz = domain.get_shape()[2]
+            amplitudes_2d_kx = []
+            for kx in range((Nx - 1) // 2 + 1):
+                vel_2d_kx = vel_hat_[0].field_2d(0, kx).no_hat()
+                amplitudes_2d_kx.append(vel_2d_kx.max() - vel_2d_kx.min())
+            amplitudes_2d_kz = []
+            for kz in range((Nz - 1) // 2 + 1):
+                vel_2d_kz = vel_hat_[0].field_2d(2, kz).no_hat()
+                amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
+            fig = figure.Figure()
+            ax = fig.subplots(2, 1)
+            ax[0].plot(amplitudes_2d_kx, "k.")
+            ax[1].plot(amplitudes_2d_kz, "k.")
+            fig.savefig(
+                "plots/plot_amplitudes_over_wns_t_" + "{:06}".format(j) + ".png"
+            )
             vel_3d = vel_ - VectorField(
                 [vel_2d_x, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
             )
@@ -280,8 +297,7 @@ STORE_PREFIX = "/store/DAMTP/dsk34"
 HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
-# args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
-args = {}
+args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
 assert (
     len(sys.argv) <= 2
