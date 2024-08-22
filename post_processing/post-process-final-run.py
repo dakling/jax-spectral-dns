@@ -45,8 +45,15 @@ def post_process(
         energy_t = []
         energy_x_2d = []
         energy_x_3d = []
+        energy_x_2d_1 = []
+        energy_x_2d_2 = []
         amplitude_t = []
         amplitude_x_2d_t = []
+        amplitude_x_2d_t_1 = []
+        amplitude_x_2d_t_2 = []
+        amplitude_z_2d_t = []
+        amplitude_z_2d_t_1 = []
+        amplitude_z_2d_t_2 = []
         amplitude_3d_t = []
         # prod = []
         # diss = []
@@ -69,9 +76,24 @@ def post_process(
             energy_x_3d.append(e_x_3d)
             amplitude_t.append(vel_[0].max() - vel_[0].min())
             vel_2d_x = vel_hat_[0].field_2d(0).no_hat()
+            vel_2d_x_1 = vel_hat_[0].field_2d(0, 1).no_hat()
+            vel_2d_x_2 = vel_hat_[0].field_2d(0, 2).no_hat()
+            vel_2d_z = vel_hat_[0].field_2d(2).no_hat()
+            vel_2d_z_1 = vel_hat_[0].field_2d(2, 1).no_hat()
+            vel_2d_z_2 = vel_hat_[0].field_2d(2, 2).no_hat()
+            e_x_2d_1 = vel_2d_x_1.energy()
+            e_x_2d_2 = vel_2d_x_2.energy()
+            energy_x_2d_1.append(e_x_2d_1)
+            energy_x_2d_2.append(e_x_2d_2)
             vel_2d_x.set_name("velocity_x_2d")
             vel_2d_x.plot_3d(0)
+            vel_2d_x.plot_3d(2)
             amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
+            amplitude_x_2d_t_1.append(vel_2d_x_1.max() - vel_2d_x_1.min())
+            amplitude_x_2d_t_2.append(vel_2d_x_2.max() - vel_2d_x_2.min())
+            amplitude_z_2d_t.append(vel_2d_z.max() - vel_2d_z.min())
+            amplitude_z_2d_t_1.append(vel_2d_z_1.max() - vel_2d_z_1.min())
+            amplitude_z_2d_t_2.append(vel_2d_z_2.max() - vel_2d_z_2.min())
             vel_3d = vel_ - VectorField(
                 [vel_2d_x, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
             )
@@ -82,6 +104,8 @@ def post_process(
 
         energy_t_arr = np.array(energy_t)
         energy_x_2d_arr = np.array(energy_x_2d)
+        energy_x_2d_1_arr = np.array(energy_x_2d_1)
+        energy_x_2d_2_arr = np.array(energy_x_2d_2)
         energy_x_3d_arr = np.array(energy_x_3d)
         print(max(energy_t_arr) / energy_t_arr[0])
 
@@ -142,6 +166,8 @@ def post_process(
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
             ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
+            ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
+            ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
             ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
             ax.plot(
                 ts[: i + 1],
@@ -175,7 +201,42 @@ def post_process(
                 ts[: i + 1],
                 amplitude_x_2d_t[: i + 1],
                 "bo",
-                label="streak amplitude (x-velocity)",
+                label="streak (kx = 0) amplitude (x-velocity)",
+            )
+            ax_amplitudes.plot(ts, amplitude_x_2d_t_1, "y.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_x_2d_t_1[: i + 1],
+                "yo",
+                label="amplitude (kx = 1) (x-velocity)",
+            )
+            ax_amplitudes.plot(ts, amplitude_x_2d_t_2, "r.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_x_2d_t_2[: i + 1],
+                "ro",
+                label="amplitude (kx = 2) (x-velocity)",
+            )
+            ax_amplitudes.plot(ts, amplitude_z_2d_t, "m.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_z_2d_t[: i + 1],
+                "mo",
+                label="kz = 0 amplitude (x-velocity)",
+            )
+            ax_amplitudes.plot(ts, amplitude_z_2d_t_1, "c.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_z_2d_t_1[: i + 1],
+                "co",
+                label="amplitude (kz = 1) (x-velocity)",
+            )
+            ax_amplitudes.plot(ts, amplitude_z_2d_t_2, "k.")
+            ax_amplitudes.plot(
+                ts[: i + 1],
+                amplitude_z_2d_t_2[: i + 1],
+                "ko",
+                label="amplitude (kz = 2) (x-velocity)",
             )
             ax_amplitudes.plot(ts, amplitude_3d_t, "g.")
             ax_amplitudes.plot(
@@ -219,7 +280,8 @@ STORE_PREFIX = "/store/DAMTP/dsk34"
 HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
-args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+# args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+args = {}
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
 assert (
     len(sys.argv) <= 2

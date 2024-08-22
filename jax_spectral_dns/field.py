@@ -2448,16 +2448,20 @@ class FourierField(Field):
         out.data = out.physical_domain.field_hat(field.data)
         return out
 
-    def field_2d(self, direction: int) -> FourierField:
+    def field_2d(self, direction: int, wavenumber: int = 0) -> FourierField:
         N = self.data.shape[direction]
         u_hat_const_data_0 = jnp.take(
-            self.data, indices=jnp.arange(0, 1), axis=direction
+            self.data, indices=jnp.arange(wavenumber, wavenumber + 1), axis=direction
         )
-        u_hat_const_data_rest = jnp.zeros_like(
-            jnp.take(self.data, indices=jnp.arange(1, N), axis=direction)
+        u_hat_const_data_pre = jnp.zeros_like(
+            jnp.take(self.data, indices=jnp.arange(0, wavenumber), axis=direction)
+        )
+        u_hat_const_data_post = jnp.zeros_like(
+            jnp.take(self.data, indices=jnp.arange(wavenumber + 1, N), axis=direction)
         )
         u_hat_const_data = jnp.concatenate(
-            [u_hat_const_data_0, u_hat_const_data_rest], axis=direction
+            [u_hat_const_data_pre, u_hat_const_data_0, u_hat_const_data_post],
+            axis=direction,
         )
         return FourierField(self.get_physical_domain(), u_hat_const_data)
 
