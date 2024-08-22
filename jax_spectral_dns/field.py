@@ -2459,7 +2459,9 @@ class FourierField(Field):
                 jnp.take(self.data, indices=jnp.arange(0, wn), axis=direction)
             )
             u_hat_const_data_post = jnp.zeros_like(
-                jnp.take(self.data, indices=jnp.arange(wn + 1, N), axis=direction)
+                jnp.take(
+                    self.data, indices=jnp.arange(min(wn + 1, N), N), axis=direction
+                )
             )
             u_hat_const_data = jnp.concatenate(
                 [u_hat_const_data_pre, u_hat_const_data_0, u_hat_const_data_post],
