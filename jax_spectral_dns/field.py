@@ -2459,9 +2459,7 @@ class FourierField(Field):
                 jnp.take(self.data, indices=jnp.arange(0, wn), axis=direction)
             )
             u_hat_const_data_post = jnp.zeros_like(
-                jnp.take(
-                    self.data, indices=jnp.arange(min(wn + 1, N), N), axis=direction
-                )
+                jnp.take(self.data, indices=jnp.arange(wn + 1, N), axis=direction)
             )
             u_hat_const_data = jnp.concatenate(
                 [u_hat_const_data_pre, u_hat_const_data_0, u_hat_const_data_post],
@@ -2472,7 +2470,7 @@ class FourierField(Field):
         if wavenumber == 0:
             u_hat_const_data = get_data(wavenumber)
         else:
-            u_hat_const_data = get_data(wavenumber) + get_data(N - wavenumber + 1)
+            u_hat_const_data = get_data(wavenumber) + get_data(N - wavenumber)
         return FourierField(self.get_physical_domain(), u_hat_const_data)
 
     def energy_2d(self, direction: int) -> float:
