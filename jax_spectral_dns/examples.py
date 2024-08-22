@@ -1837,14 +1837,14 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
     )  # when to switch on the nonlinear term (from 0 to 1)
     if linearise_switch is None and linearise is None:
         linearise = False
-    combination = params.get(
-        "combination"
-    )  # whether to include the combination term (setting to False disables transient growth)
-    combination_switch = params.get(
-        "combination_switch"
-    )  # when to switch on the combination term (from 0 to 1)
-    if combination_switch is None and combination is None:
-        combination = True
+    coupling_term = params.get(
+        "coupling_term"
+    )  # whether to include the coupling_term term (setting to False disables transient growth)
+    coupling_term_switch = params.get(
+        "coupling_term_switch"
+    )  # when to switch on the coupling_term term (from 0 to 1)
+    if coupling_term_switch is None and coupling_term is None:
+        coupling_term = True
 
     Equation.initialize()
     dt = params.get("dt", 1e-3)
@@ -1959,8 +1959,8 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
         constant_mass_flux=False,
         linearise=linearise,
         linearise_switch=linearise_switch,
-        combination=combination,
-        combination_switch=combination_switch,
+        coupling_term=coupling_term,
+        coupling_term_switch=coupling_term_switch,
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,
@@ -2621,14 +2621,14 @@ def run_ld_2021_dual(**params: Any) -> None:
     )  # when to switch on the nonlinear term (from 0 to 1)
     if linearise_switch is None and linearise is None:
         linearise = False
-    combination = params.get(
-        "combination"
-    )  # whether to include the combination term (setting to False disables transient growth)
-    combination_switch = params.get(
-        "combination_switch"
-    )  # when to switch on the combination term (from 0 to 1)
-    if combination_switch is None and combination is None:
-        combination = True
+    coupling_term = params.get(
+        "coupling_term"
+    )  # whether to include the coupling_term term (setting to False disables transient growth)
+    coupling_term_switch = params.get(
+        "coupling_term_switch"
+    )  # when to switch on the coupling_term term (from 0 to 1)
+    if coupling_term_switch is None and coupling_term is None:
+        coupling_term = True
     init_file = params.get("init_file")
     constant_mass_flux = params.get("constant_mass_flux", False)
 
@@ -2910,8 +2910,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         constant_mass_flux=constant_mass_flux,
         linearise=linearise,
         linearise_switch=linearise_switch,
-        combination=combination,
-        combination_switch=combination_switch,
+        coupling_term=coupling_term,
+        coupling_term_switch=coupling_term_switch,
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse

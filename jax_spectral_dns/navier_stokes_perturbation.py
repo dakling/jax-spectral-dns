@@ -163,7 +163,7 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
     vel_hat_new: "jnp_array",
     vel_base_hat: "jnp_array",
     linearise: bool = False,
-    combination: "bool" = True,
+    coupling_term: "bool" = True,
 ) -> Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"]:
 
     vel_new = jnp.array(
@@ -218,12 +218,12 @@ def update_nonlinear_terms_high_performance_perturbation_skew_symmetric(
         physical_domain.diff(vel_base[0], 1) * vel_new[1]
     )
     h_g_hat_new_comb = jax.lax.cond(
-        combination,
+        coupling_term,
         lambda: h_g_hat_new,
         lambda: h_g_hat_new + fourier_domain.diff(comb_corr_hat, 2),
     )
     conv_ns_hat_new_comb = jax.lax.cond(
-        # combination,
+        # coupling_term,
         True,  # TODO
         lambda: conv_ns_hat_new,
         lambda: conv_ns_hat_new
@@ -398,21 +398,21 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
         else:
             self.linearise = lambda _: linearise
 
-        combination: bool = params.get("combination", True)
+        coupling_term: bool = params.get("coupling_term", True)
 
-        self.combination_switch: Optional[float] = params.get("combination_switch")
+        self.coupling_term_switch: Optional[float] = params.get("coupling_term_switch")
 
-        if self.combination_switch is not None:
+        if self.coupling_term_switch is not None:
             assert (
-                params.get("combination") is None
-            ), "need to either pass combination or combination_switch."
-            combination_switch = self.combination_switch
+                params.get("coupling_term") is None
+            ), "need to either pass coupling_term or coupling_term_switch."
+            coupling_term_switch = self.coupling_term_switch
             number_of_time_steps = len(jnp.arange(0, self.end_time, self.get_dt()))
-            self.combination: Callable[[int], bool] = lambda t: not (
-                t < number_of_time_steps * combination_switch
+            self.coupling_term: Callable[[int], bool] = lambda t: not (
+                t < number_of_time_steps * coupling_term_switch
             )
         else:
-            self.combination = lambda _: combination
+            self.coupling_term = lambda _: coupling_term
         self.set_linearise()
 
     def update_pressure_gradient(
@@ -514,7 +514,7 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
                 ]
             ),
             linearise=self.linearise(t),
-            combination=self.combination(t),
+            coupling_term=self.coupling_term(t),
         )
 
     def get_cfl(self, i: int = -1) -> "jnp_array":
