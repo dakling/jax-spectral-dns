@@ -256,28 +256,28 @@ def post_process(
                 ts[: i + 1],
                 amplitude_x_2d_t_2[: i + 1],
                 "ro",
-                label="amplitude (kx = 2) (x-velocity)",
+                label="amplitude (kx = 2)",
             )
             ax_amplitudes.plot(ts, amplitude_z_2d_t, "m.")
             ax_amplitudes.plot(
                 ts[: i + 1],
                 amplitude_z_2d_t[: i + 1],
                 "mo",
-                label="kz = 0 amplitude (x-velocity)",
+                label="kz = 0 amplitude",
             )
             ax_amplitudes.plot(ts, amplitude_z_2d_t_1, "c.")
             ax_amplitudes.plot(
                 ts[: i + 1],
                 amplitude_z_2d_t_1[: i + 1],
                 "co",
-                label="amplitude (kz = 1) (x-velocity)",
+                label="amplitude (kz = 1)",
             )
             ax_amplitudes.plot(ts, amplitude_z_2d_t_2, "k.")
             ax_amplitudes.plot(
                 ts[: i + 1],
                 amplitude_z_2d_t_2[: i + 1],
                 "ko",
-                label="amplitude (kz = 2) (x-velocity)",
+                label="amplitude (kz = 2)",
             )
             ax_amplitudes.plot(ts, amplitude_3d_t, "g.")
             ax_amplitudes.plot(
@@ -301,28 +301,28 @@ def post_process(
             fig_kz = figure.Figure()
             ax_kz = fig_kz.subplots(1, 1)
             ax_kx.set_xlabel("$t h / u_\\tau$")
-            ax_kx.set_ylabel("Amplitude $\tilde{u}_x$")
+            ax_kx.set_ylabel("$\\tilde{u}_x$ ampl.")
             ax_kz.set_xlabel("$t h / u_\\tau$")
-            ax_kz.set_ylabel("Amplitude $\tilde{u}_x$")
-            ax_kx.plot(amplitude_t, "k.", label="full")
+            ax_kz.set_ylabel("$\\tilde{u}_x$ ampl.")
+            ax_kx.plot(amplitude_t, "k.")
             ax_kx.plot(amplitude_t[: i + 1], "ko", label="full")
-            ax_kz.plot(amplitude_t, "k.", label="full")
+            ax_kz.plot(amplitude_t, "k.")
             ax_kz.plot(amplitude_t[: i + 1], "ko", label="full")
-            for kx in range((Nx - 1) // 2 + 1)[:10]:
+            for kx in range((Nx - 1) // 2 + 1)[0:14:2]:
                 dots = ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], ".")
                 ax_kx.plot(
                     amplitudes_2d_kxs_arr[: i + 1, kx],
                     "o",
                     color=dots[0].get_color(),
-                    label="kx = " + str(kx),
+                    label="$k_x = " + str(kx) + "$",
                 )
-            for kz in range((Nz - 1) // 2 + 1)[:10]:
+            for kz in range((Nz - 1) // 2 + 1)[0:10]:
                 dots = ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], ".")
                 ax_kz.plot(
                     amplitudes_2d_kzs_arr[: i + 1, kz],
                     "o",
                     color=dots[0].get_color(),
-                    label="kz = " + str(kz),
+                    label="$k_z = " + str(kz) + "$",
                 )
             fig_kx.legend()
             fig_kx.savefig(
