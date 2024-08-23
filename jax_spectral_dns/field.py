@@ -1775,11 +1775,14 @@ class PhysicalField(Field):
             print("ignoring this and carrying on.")
 
     def plot_3d(
-        self, direction: Optional[int] = None, coord: Optional[float] = None
+        self,
+        direction: Optional[int] = None,
+        coord: Optional[float] = None,
+        rotate: bool = False,
     ) -> None:
         try:
             if direction is not None:
-                self.plot_3d_single(direction, coord)
+                self.plot_3d_single(direction, coord, rotate)
             else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
@@ -1886,13 +1889,15 @@ class PhysicalField(Field):
         except Exception:
             for i in self.all_dimensions():
                 try:
-                    self.plot_3d_single(i)
+                    self.plot_3d_single(i, rotate)
                 except Exception as e:
                     print("plot_3d failed with the following exception:")
                     print(e)
                     print("ignoring this and carrying on.")
 
-    def plot_3d_single(self, dim: int, coord: Optional[float] = None) -> None:
+    def plot_3d_single(
+        self, dim: int, coord: Optional[float] = None, rotate: bool = False
+    ) -> None:
         try:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -1915,10 +1920,14 @@ class PhysicalField(Field):
                     * (coord - self.get_domain().grid[dim][0])
                     / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
                 )
+            data = self.data.take(indices=N_c, axis=dim).T
             other_dim = [i for i in self.all_dimensions() if i != dim]
+            if rotate:
+                other_dim.reverse()
+                data = data.T
             ims.append(
                 ax.imshow(
-                    self.data.take(indices=N_c, axis=dim).T,
+                    data,
                     interpolation=None,
                     extent=(
                         self.physical_domain.grid[other_dim[0]][0],
@@ -2653,11 +2662,14 @@ class FourierField(Field):
         )
 
     def plot_3d(
-        self, direction: Optional[int] = None, coord: Optional[float] = None
+        self,
+        direction: Optional[int] = None,
+        coord: Optional[float] = None,
+        rotate: bool = False,
     ) -> None:
         try:
             if direction is not None:
-                self.plot_3d_single(direction, coord)
+                self.plot_3d_single(direction, coord, rotate)
             else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
@@ -2766,7 +2778,9 @@ class FourierField(Field):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot_3d_single(self, dim: int, coord: Optional[float]) -> None:
+    def plot_3d_single(
+        self, dim: int, coord: Optional[float], rotate: bool = False
+    ) -> None:
         try:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -2789,10 +2803,14 @@ class FourierField(Field):
                     * (coord - self.get_domain().grid[dim][0])
                     / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
                 )
+            data = self.data.take(indices=N_c, axis=dim).T
             other_dim = [i for i in self.all_dimensions() if i != dim]
+            if rotate:
+                other_dim.reverse()
+                data = data.T
             ims.append(
                 ax.imshow(
-                    np.fft.fftshift(abs(self.data.take(indices=N_c, axis=dim).T)),
+                    np.fft.fftshift(abs(data)),
                     interpolation=None,
                     extent=(
                         min(self.get_domain().grid[other_dim[0]]),
