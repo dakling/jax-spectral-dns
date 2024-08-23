@@ -25,6 +25,9 @@ from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPertu
 # matplotlib.rcParams['axes.color_cycle'] = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink', 'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise', 'darkgreen', 'tan', 'salmon', 'gold']
 font_size = 18
 matplotlib.rcParams.update({"font.size": font_size})
+pv.global_theme.font.size = font_size
+pv.global_theme.font.title_size = font_size
+pv.global_theme.font.label_size = font_size
 
 
 def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
@@ -118,8 +121,10 @@ def post_process(
             ax = fig.subplots(2, 1)
             ax[0].plot(amplitudes_2d_kx, "k.")
             ax[1].plot(amplitudes_2d_kz, "k.")
+            fig.tight_layout()
             fig.savefig(
-                "plots/plot_amplitudes_over_wns_t_" + "{:06}".format(j) + ".png"
+                "plots/plot_amplitudes_over_wns_t_" + "{:06}".format(j) + ".png",
+                bbox_inches="tight",
             )
             vel_3d = vel_ - VectorField(
                 [vel_2d_x, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
@@ -150,10 +155,12 @@ def post_process(
             ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], label="kz = " + str(kz))
         # fig_kx.legend()
         ax_kx.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        fig_kx.savefig("plots/plot_amplitudes_kx" + ".png")
+        fig_kx.tight_layout()
+        fig_kx.savefig("plots/plot_amplitudes_kx" + ".png", bbox_inches="tight")
         # fig_kz.legend()
         ax_kz.legend(loc="center left", bbox_to_anchor=(1, 0.5))
-        fig_kz.savefig("plots/plot_amplitudes_kz" + ".png")
+        fig_kz.tight_layout()
+        fig_kz.savefig("plots/plot_amplitudes_kz" + ".png", bbox_inches="tight")
 
         print("main post-processing loop")
         for i in range(n_steps):
@@ -178,15 +185,17 @@ def post_process(
                 Nx, _, Nz = vel_shape
                 x_max = max_inds[0] / Nx * domain.grid[0][-1]
                 z_max = max_inds[2] / Nz * domain.grid[2][-1]
-            vel[0].plot_3d(2, z_max)
+            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$")
             vel[1].plot_3d(2, z_max)
             vel[2].plot_3d(2, z_max)
-            vel[0].plot_3d(0, x_max, rotate=True)
+            vel[0].plot_3d(0, x_max, rotate=True, name="$\\tilde{u}_x$")
             vel[1].plot_3d(0, x_max, rotate=True)
             vel[2].plot_3d(0, x_max, rotate=True)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
-            vel.plot_isosurfaces()
+            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$")
+            vel[1].plot_isosurfaces()
+            vel[2].plot_isosurfaces()
             vel.plot_wavenumbers(1)
             vel.magnitude().plot_wavenumbers(1)
 
@@ -227,12 +236,14 @@ def post_process(
                 "go",
                 label="$G_{3d}$",
             )
-            fig.legend()
+            ax.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
+            ax.set_box_aspect(1)
             fig.savefig(
                 Field.plotting_dir
                 + "/plot_energy_t_"
                 + "{:06}".format(time_step)
-                + ".png"
+                + ".png",
+                bbox_inches="tight",
             )
             # ax_2d_over_3d.set_yscale("log")
             ax_amplitudes.plot(ts, amplitude_t, "k.")
@@ -294,11 +305,13 @@ def post_process(
             ax_amplitudes.set_xlabel("$t h / u_\\tau$")
             ax_amplitudes.set_ylabel("$A$")
             fig_amplitudes.legend()
+            fig_amplitudes.tight_layout()
             fig_amplitudes.savefig(
                 Field.plotting_dir
                 + "/plot_amplitudes_t_"
                 + "{:06}".format(time_step)
-                + ".png"
+                + ".png",
+                bbox_inches="tight",
             )
 
             fig_kx = figure.Figure()
@@ -309,34 +322,40 @@ def post_process(
             ax_kx.set_ylabel("$\\tilde{u}_x$ ampl.")
             ax_kz.set_xlabel("$t h / u_\\tau$")
             ax_kz.set_ylabel("$\\tilde{u}_x$ ampl.")
-            ax_kx.plot(amplitude_t, "k.")
-            ax_kx.plot(amplitude_t[: i + 1], "ko", label="full")
-            ax_kz.plot(amplitude_t, "k.")
-            ax_kz.plot(amplitude_t[: i + 1], "ko", label="full")
+            ax_kx.plot(ts, amplitude_t, "k.")
+            ax_kx.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
+            ax_kz.plot(ts, amplitude_t, "k.")
+            ax_kz.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
             # for kx in range((Nx - 1) // 2 + 1)[0:14:2]:
             for kx in range((Nx - 1) // 2 + 1)[0:10]:
-                dots = ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], ".")
+                dots = ax_kx.plot(ts, amplitudes_2d_kxs_arr[:, kx], ".")
                 ax_kx.plot(
+                    ts[: i + 1],
                     amplitudes_2d_kxs_arr[: i + 1, kx],
                     "o",
                     color=dots[0].get_color(),
                     label="$k_x = " + str(kx) + "$",
                 )
             for kz in range((Nz - 1) // 2 + 1)[0:10]:
-                dots = ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], ".")
+                dots = ax_kz.plot(ts, amplitudes_2d_kzs_arr[:, kz], ".")
                 ax_kz.plot(
+                    ts[: i + 1],
                     amplitudes_2d_kzs_arr[: i + 1, kz],
                     "o",
                     color=dots[0].get_color(),
                     label="$k_z = " + str(kz) + "$",
                 )
             ax_kx.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
+            ax_kx.set_box_aspect(1)
             fig_kx.savefig(
-                "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step) + ".png"
+                "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step) + ".png",
+                bbox_inches="tight",
             )
             ax_kz.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
+            ax_kz.set_box_aspect(1)
             fig_kz.savefig(
-                "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step) + ".png"
+                "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step) + ".png",
+                bbox_inches="tight",
             )
             # ax_pd.plot(prod_arr, -diss_arr, "k.")
             # ax_pd.plot(

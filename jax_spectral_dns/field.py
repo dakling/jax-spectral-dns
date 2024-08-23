@@ -266,7 +266,13 @@ class Field(ABC):
         out.time_step = self.time_step
         return out
 
-    def plot_3d(self, _: Optional[int] = None, coord: Optional[float] = None) -> None:
+    def plot_3d(
+        self,
+        direction: Optional[int] = None,
+        coord: Optional[float] = None,
+        rotate: bool = False,
+        **params: Any,
+    ) -> None:
         raise NotImplementedError()
 
 
@@ -787,11 +793,15 @@ class VectorField(Generic[T]):
             print("ignoring this and carrying on.")
 
     def plot_3d(
-        self, direction: Optional[int] = None, coord: Optional[float] = None
+        self,
+        direction: Optional[int] = None,
+        coord: Optional[float] = None,
+        rotate: bool = False,
+        **params: Any,
     ) -> None:
         try:
             for f in self:
-                f.plot_3d(direction, coord)
+                f.plot_3d(direction, coord, rotate, **params)
         except Exception as e:
             print("VectorField.plot_3d failed with the following exception:")
             print(e)
@@ -1780,10 +1790,11 @@ class PhysicalField(Field):
         direction: Optional[int] = None,
         coord: Optional[float] = None,
         rotate: bool = False,
+        **params: Any,
     ) -> None:
         try:
             if direction is not None:
-                self.plot_3d_single(direction, coord, rotate)
+                self.plot_3d_single(direction, coord, rotate, **params)
             else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
@@ -1859,7 +1870,9 @@ class PhysicalField(Field):
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
                 for im in ims:
                     im.set_norm(norm)
-                fig.colorbar(ims[0], ax=ax, label=self.name)
+                name = params.get("name", self.name)
+                fig.colorbar(ims[0], ax=ax, label=name)
+                assert coord is not None
                 ax[dim].set_title(
                     "$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$"
                 )
@@ -1890,14 +1903,18 @@ class PhysicalField(Field):
         except Exception:
             for i in self.all_dimensions():
                 try:
-                    self.plot_3d_single(i, rotate)
+                    self.plot_3d_single(i, rotate, **params)
                 except Exception as e:
                     print("plot_3d failed with the following exception:")
                     print(e)
                     print("ignoring this and carrying on.")
 
     def plot_3d_single(
-        self, dim: int, coord: Optional[float] = None, rotate: bool = False
+        self,
+        dim: int,
+        coord: Optional[float] = None,
+        rotate: bool = False,
+        **params: Any,
     ) -> None:
         try:
             assert (
@@ -1946,7 +1963,8 @@ class PhysicalField(Field):
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
-            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+            name = params.get("name", self.name)
+            fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
@@ -2125,7 +2143,7 @@ class PhysicalField(Field):
             min_val = self.min()
             max_val = self.max()
             domain = self.get_physical_domain()
-            name = self.name
+            name = params.get("name", self.name)
             grid = pv.RectilinearGrid(*domain.grid)
             grid.point_data[name] = self.get_data().T.flatten()
             values = grid.point_data[name]
@@ -2146,12 +2164,12 @@ class PhysicalField(Field):
                 smooth_shading=True,
                 cmap="viridis",
                 scalar_bar_args={
+                    "title_font_size": font_size,
+                    "label_font_size": font_size,
                     "title": name,
                     "vertical": params.get("vertical_cbar", True),
                     "position_x": params.get("cbar_position_x", 0.85),
                     "position_y": params.get("cbar_position_y"),
-                    "title_font_size": font_size,
-                    "label_font_size": font_size,
                 },
                 # opacity=dist,
             )
@@ -2469,7 +2487,7 @@ class FourierField(Field):
     def field_2d(self, direction: int, wavenumber: int = 0) -> FourierField:
         N = self.data.shape[direction]
 
-        def get_data(wn: int):
+        def get_data(wn: int) -> "jnp_array":
             u_hat_const_data_0 = jnp.take(
                 self.data, indices=jnp.arange(wn, wn + 1), axis=direction
             )
@@ -2673,10 +2691,11 @@ class FourierField(Field):
         direction: Optional[int] = None,
         coord: Optional[float] = None,
         rotate: bool = False,
+        **params: Any,
     ) -> None:
         try:
             if direction is not None:
-                self.plot_3d_single(direction, coord, rotate)
+                self.plot_3d_single(direction, coord, rotate, **params)
             else:
                 assert (
                     self.physical_domain.number_of_dimensions == 3
@@ -2752,7 +2771,9 @@ class FourierField(Field):
                 norm = colors.Normalize(vmin=vmin, vmax=vmax)
                 for im in ims:
                     im.set_norm(norm)
-                fig.colorbar(ims[0], ax=ax, label=self.name)
+                name = params.get("name", self.name)
+                fig.colorbar(ims[0], ax=ax, label=name)
+                assert coord is not None
                 ax[dim].set_title(
                     "$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$"
                 )
@@ -2786,7 +2807,11 @@ class FourierField(Field):
             print("ignoring this and carrying on.")
 
     def plot_3d_single(
-        self, dim: int, coord: Optional[float], rotate: bool = False
+        self,
+        dim: int,
+        coord: Optional[float],
+        rotate: bool = False,
+        **params: Any,
     ) -> None:
         try:
             assert (
@@ -2835,7 +2860,8 @@ class FourierField(Field):
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
-            fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
+            name = params.get("name", self.name)
+            fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
