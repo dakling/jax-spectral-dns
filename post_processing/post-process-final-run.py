@@ -12,6 +12,7 @@ import jax
 
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
+import pyvista as pv
 import numpy as np
 import h5py
 import matplotlib
@@ -22,6 +23,8 @@ from jax_spectral_dns.field import Field, VectorField, PhysicalField, FourierFie
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
 # matplotlib.rcParams['axes.color_cycle'] = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink', 'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise', 'darkgreen', 'tan', 'salmon', 'gold']
+font_size = 18
+matplotlib.rcParams.update({"font.size": font_size})
 
 
 def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
@@ -145,9 +148,11 @@ def post_process(
             ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], label="kx = " + str(kx))
         for kz in range((Nz - 1) // 2 + 1)[:10]:
             ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], label="kz = " + str(kz))
-        fig_kx.legend()
+        # fig_kx.legend()
+        ax_kx.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         fig_kx.savefig("plots/plot_amplitudes_kx" + ".png")
-        fig_kz.legend()
+        # fig_kz.legend()
+        ax_kz.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         fig_kz.savefig("plots/plot_amplitudes_kz" + ".png")
 
         print("main post-processing loop")
@@ -325,11 +330,11 @@ def post_process(
                     color=dots[0].get_color(),
                     label="$k_z = " + str(kz) + "$",
                 )
-            fig_kx.legend()
+            ax_kx.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
             fig_kx.savefig(
                 "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step) + ".png"
             )
-            fig_kz.legend()
+            ax_kz.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
             fig_kz.savefig(
                 "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step) + ".png"
             )

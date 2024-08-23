@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 import math
 import jax
 import jax.numpy as jnp
+import matplotlib
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 import pyvista as pv
@@ -2134,6 +2135,10 @@ class PhysicalField(Field):
                 mesh = grid.contour([iso_val * max_val], values)
 
             interactive = params.get("interactive", False)
+            try:
+                font_size = matplotlib.rcParams["font.size"]
+            except Exception:
+                font_size = 18
             p = pv.Plotter(off_screen=(not interactive))
             p.add_mesh(
                 mesh,
@@ -2145,6 +2150,8 @@ class PhysicalField(Field):
                     "vertical": params.get("vertical_cbar", True),
                     "position_x": params.get("cbar_position_x", 0.85),
                     "position_y": params.get("cbar_position_y"),
+                    "title_font_size": font_size,
+                    "label_font_size": font_size,
                 },
                 # opacity=dist,
             )
