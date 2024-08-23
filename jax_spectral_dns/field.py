@@ -1937,7 +1937,7 @@ class PhysicalField(Field):
             for im in ims:
                 im.set_norm(norm)
             fig.colorbar(ims[0], ax=ax, label=self.name, orientation="vertical")
-            ax.set_title("$" + "xyz"[dim] + " = " + str(coord) + "$")
+            ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
                 fig.savefig(
