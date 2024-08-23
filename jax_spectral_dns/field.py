@@ -2732,7 +2732,9 @@ class FourierField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 fig.colorbar(ims[0], ax=ax, label=self.name)
-                ax[dim].set_title("$" + "xyz"[dim] + " = " + str(coord) + "$")
+                ax[dim].set_title(
+                    "$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$"
+                )
 
                 def save() -> None:
                     fig.savefig(

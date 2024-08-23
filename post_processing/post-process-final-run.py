@@ -14,11 +14,14 @@ jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 import numpy as np
 import h5py
+import matplotlib
 from matplotlib import figure
 from matplotlib.axes import Axes
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, VectorField, PhysicalField, FourierField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
+
+# matplotlib.rcParams['axes.color_cycle'] = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink', 'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise', 'darkgreen', 'tan', 'salmon', 'gold']
 
 
 def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
@@ -55,6 +58,8 @@ def post_process(
         amplitude_z_2d_t_1 = []
         amplitude_z_2d_t_2 = []
         amplitude_3d_t = []
+        amplitudes_2d_kxs = []
+        amplitudes_2d_kzs = []
         # prod = []
         # diss = []
         print("preparing")
@@ -104,6 +109,8 @@ def post_process(
             for kz in range((Nz - 1) // 2 + 1):
                 vel_2d_kz = vel_hat_[0].field_2d(2, kz).no_hat()
                 amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
+            amplitudes_2d_kxs.append(amplitudes_2d_kx)
+            amplitudes_2d_kzs.append(amplitudes_2d_kz)
             fig = figure.Figure()
             ax = fig.subplots(2, 1)
             ax[0].plot(amplitudes_2d_kx, "k.")
@@ -125,6 +132,23 @@ def post_process(
         energy_x_2d_2_arr = np.array(energy_x_2d_2)
         energy_x_3d_arr = np.array(energy_x_3d)
         print(max(energy_t_arr) / energy_t_arr[0])
+
+        amplitudes_2d_kxs_arr = np.array(amplitudes_2d_kxs)
+        amplitudes_2d_kzs_arr = np.array(amplitudes_2d_kzs)
+        fig_kx = figure.Figure()
+        ax_kx = fig_kx.subplots(1, 1)
+        fig_kz = figure.Figure()
+        ax_kz = fig_kz.subplots(1, 1)
+        ax_kx.plot(amplitude_t, "k--", label="full")
+        ax_kz.plot(amplitude_t, "k--", label="full")
+        for kx in range((Nx - 1) // 2 + 1)[:10]:
+            ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], label="kx = " + str(kx))
+        for kz in range((Nz - 1) // 2 + 1)[:10]:
+            ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], label="kz = " + str(kz))
+        fig_kx.legend()
+        fig_kx.savefig("plots/plot_amplitudes_kx" + ".png")
+        fig_kz.legend()
+        fig_kz.savefig("plots/plot_amplitudes_kz" + ".png")
 
         print("main post-processing loop")
         for i in range(n_steps):
@@ -183,14 +207,14 @@ def post_process(
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
             ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
-            ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
-            ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
+            # ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
+            # ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
             ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
             ax.plot(
                 ts[: i + 1],
                 energy_x_2d_arr[: i + 1] / energy_t_arr[0],
                 "bo",
-                label="$G_{x, 2d}$",
+                label="$G_{kx = 0}$",
             )
             ax.plot(
                 ts[: i + 1],
@@ -270,6 +294,43 @@ def post_process(
                 + "/plot_amplitudes_t_"
                 + "{:06}".format(time_step)
                 + ".png"
+            )
+
+            fig_kx = figure.Figure()
+            ax_kx = fig_kx.subplots(1, 1)
+            fig_kz = figure.Figure()
+            ax_kz = fig_kz.subplots(1, 1)
+            ax_kx.set_xlabel("$t h / u_\\tau$")
+            ax_kx.set_ylabel("Amplitude $\tilde{u}_x$")
+            ax_kz.set_xlabel("$t h / u_\\tau$")
+            ax_kz.set_ylabel("Amplitude $\tilde{u}_x$")
+            ax_kx.plot(amplitude_t, "k.", label="full")
+            ax_kx.plot(amplitude_t[: i + 1], "ko", label="full")
+            ax_kz.plot(amplitude_t, "k.", label="full")
+            ax_kz.plot(amplitude_t[: i + 1], "ko", label="full")
+            for kx in range((Nx - 1) // 2 + 1)[:10]:
+                dots = ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], ".")
+                ax_kx.plot(
+                    amplitudes_2d_kxs_arr[: i + 1, kx],
+                    "o",
+                    color=dots[0].get_color(),
+                    label="kx = " + str(kx),
+                )
+            for kz in range((Nz - 1) // 2 + 1)[:10]:
+                dots = ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], ".")
+                ax_kz.plot(
+                    amplitudes_2d_kzs_arr[: i + 1, kz],
+                    "o",
+                    color=dots[0].get_color(),
+                    label="kz = " + str(kz),
+                )
+            fig_kx.legend()
+            fig_kx.savefig(
+                "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step) + ".png"
+            )
+            fig_kz.legend()
+            fig_kz.savefig(
+                "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step) + ".png"
             )
             # ax_pd.plot(prod_arr, -diss_arr, "k.")
             # ax_pd.plot(
