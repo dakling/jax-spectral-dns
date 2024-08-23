@@ -2136,7 +2136,7 @@ class PhysicalField(Field):
 
             interactive = params.get("interactive", False)
             try:
-                font_size = matplotlib.rcParams["font.size"]
+                font_size = int(matplotlib.rcParams["font.size"])
             except Exception:
                 font_size = 18
             p = pv.Plotter(off_screen=(not interactive))
