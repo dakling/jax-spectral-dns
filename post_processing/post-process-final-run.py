@@ -308,7 +308,8 @@ def post_process(
             ax_kx.plot(amplitude_t[: i + 1], "ko", label="full")
             ax_kz.plot(amplitude_t, "k.")
             ax_kz.plot(amplitude_t[: i + 1], "ko", label="full")
-            for kx in range((Nx - 1) // 2 + 1)[0:14:2]:
+            # for kx in range((Nx - 1) // 2 + 1)[0:14:2]:
+            for kx in range((Nx - 1) // 2 + 1)[0:10]:
                 dots = ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], ".")
                 ax_kx.plot(
                     amplitudes_2d_kxs_arr[: i + 1, kx],

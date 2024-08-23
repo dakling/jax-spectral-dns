@@ -2139,7 +2139,7 @@ class PhysicalField(Field):
                 mesh,
                 opacity=params.get("opacity", 0.6),
                 smooth_shading=True,
-                cmap="plasma",
+                cmap="viridis",
                 scalar_bar_args={
                     "title": name,
                     "vertical": params.get("vertical_cbar", True),
