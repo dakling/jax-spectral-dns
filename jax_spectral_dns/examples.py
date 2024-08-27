@@ -19,6 +19,7 @@ except ModuleNotFoundError:
     pass
 import jax.numpy as jnp
 import numpy as np
+import scipy  # type: ignore
 import pickle
 from pathlib import Path
 import matplotlib.figure as figure
@@ -2640,6 +2641,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     max_step_size = params.get("max_step_size", 1.0e-1)
 
     full_channel_mean = params.get("full_channel_mean", False)
+    cess_mean = params.get("cess_mean", False)
+    A = params.get("cess_mean_a")
+    K = params.get("cess_mean_k")
     full_channel_reynolds_stresses = params.get("full_channel_reynolds_stresses", False)
 
     laminar_correction_modes = Enum(
@@ -2698,6 +2702,69 @@ def run_ld_2021_dual(**params: Any) -> None:
         inv_mat = np.linalg.inv(mat)
         return cast(float, -(inv_mat @ data)[-1])
 
+    def get_vel_field_cess(
+        domain: PhysicalDomain, A: float = 25.4, K: float = 0.426, u_sc: float = 1.0
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
+
+        def nu_t_fn(X: "np_jnp_array") -> "jsd_float":
+            def get_y(y_in: "float") -> "float":
+                return (1 - y_in) if y_in > 0.0 else 1 + y_in
+
+            y = np.vectorize(get_y)(X[1])
+            B = 1.0  # pressure gradient
+            # Re = Re_tau * 18.5
+            Re = Re_tau
+            return (
+                1
+                # / (2 * Re)
+                / 2
+                * (
+                    (
+                        1
+                        + K**2
+                        * Re**2
+                        * B**2
+                        / 9
+                        * (2 * y - y**2) ** 2
+                        * (3 - 4 * y + y**2) ** 2
+                        * (1 - np.exp(-y * Re * B**0.5 / A)) ** 2
+                    )
+                    ** 0.5
+                )
+                + 0.5
+            )
+
+        def shear_fn(X: "np_jnp_array") -> "jsd_float":
+            def get_y(y_in: "float") -> Tuple["float", "float"]:
+                return (1 - y_in) if y_in > 0.0 else (1 + y_in), (
+                    1.0 if y_in > 0.0 else -1.0
+                )
+
+            y, sign = np.vectorize(get_y)(X[1])
+            return -sign * Re_tau * (1 - y) / nu_t_fn(X)
+
+        # nu_t = PhysicalField.FromFunc(domain, cast("Vel_fn_type", nu_t_fn), name="nu_t")
+        # nu_t.plot_center(1)
+        shear = PhysicalField.FromFunc(
+            domain, cast("Vel_fn_type", shear_fn), name="shear"
+        )
+        u = shear.integrate(1, bc_left=0.0) * u_sc
+        u.set_name("velocity_base_x")
+        # u.plot_center(1)
+        u_data = u.get_data()
+        U_y_slice = cast("np_jnp_array", u_data[0, :, 0])
+        max = np.max(u_data)
+        flow_rate = get_flow_rate(domain, cast("np_complex_array", U_y_slice))
+        vel_base = VectorField(
+            [
+                u,
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+        vel_base.set_name("velocity_base")
+        return vel_base, U_y_slice, cast(float, max), flow_rate
+
     def get_vel_field_minimal_channel(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
     ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
@@ -2712,7 +2779,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
         max = np.max(u_data)
-        flow_rate = get_flow_rate(domain, U_y_slice)
+        flow_rate = get_flow_rate(domain, cast("np_complex_array", U_y_slice))
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2720,6 +2787,7 @@ def run_ld_2021_dual(**params: Any) -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
+        vel_base.set_name("velocity_base")
         return vel_base, U_y_slice, cast(float, max), flow_rate
 
     def get_vel_field_full_channel(
@@ -2758,7 +2826,39 @@ def run_ld_2021_dual(**params: Any) -> None:
         flow_rate = get_flow_rate(domain, u_y_slice)
         return VectorField([u, v, w]), u_y_slice, data_fn(0.0, 2), flow_rate, uv
 
-    if full_channel_mean:
+    def fit_cess() -> Tuple["float", "float"]:
+        reference_profile, _, _, _ = get_vel_field_minimal_channel(
+            domain, avg_vel_coeffs
+        )
+        # data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+        # reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
+        fit_fn = (
+            lambda A_K: (
+                get_vel_field_cess(domain, A_K[0], A_K[1])[0][0] - reference_profile[0]
+            )
+            .get_data()
+            .flatten()
+        )
+        res = scipy.optimize.least_squares(
+            fit_fn, [24.5, 0.6], method="trf", max_nfev=1000000, xtol=3e-16, ftol=3e-16
+        )
+        A, K = res.x
+        print("status:", res.status)
+        return A, K
+
+    if cess_mean:
+        if A is not None and K is not None:
+            vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
+                domain, A, K
+            )
+        else:
+            A_opt, K_opt = fit_cess()
+            print_verb("A (optimized:)", A_opt, "K (optimized:)", K_opt)
+            vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
+                domain, A_opt, K_opt
+            )
+        vel_base_turb[0].plot_center(1)
+    elif full_channel_mean:
         data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
         vel_base_turb, _, max_turb, flow_rate_turb, uv = get_vel_field_full_channel(
             domain, data
@@ -2850,8 +2950,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel_base_y_slice = (
             turb * U_base
             + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
-            # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile
-        )  # continuously blend from turbulent to laminar mean profile
+            # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile  # continuously blend from turbulent to laminar mean profile
+        )
         lsc_xz = LinearStabilityCalculation(
             Re=Re__,
             alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
