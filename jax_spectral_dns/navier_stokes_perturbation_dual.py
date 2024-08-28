@@ -30,6 +30,7 @@ except ModuleNotFoundError:
 # from importlib import reload
 import sys
 
+from jax_spectral_dns.fixed_parameters import NavierStokesVelVortFixedParameters
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 from jax_spectral_dns.navier_stokes import (
     get_nabla_vel_1_vel_2,
@@ -388,7 +389,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             velocity_field_ = velocity_field
         velocity_field_.set_name("velocity_hat")
-        super().__init__(velocity_field_, **params)
+        super().__init__(velocity_field_, prepare_matrices=False, **params)
         self.velocity_field_u_history: Optional["jnp_array"] = None
         self.dPdx_history: Optional[List["jsd_float"]] = None
         self.forward_equation = forward_equation
@@ -440,6 +441,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             self.coupling_term = lambda _: coupling_term
         self.set_linearise()
+
+    def get_fixed_params(self) -> "NavierStokesVelVortFixedParameters":
+        return self.forward_equation.nse_fixed_parameters
 
     def set_linearise(self) -> None:
         # self.linearise = lin

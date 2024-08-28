@@ -479,10 +479,13 @@ class NavierStokesVelVort(Equation):
         out = cast(VectorField[FourierField], super().get_latest_field(name))
         return out
 
+    def get_fixed_params(self) -> "NavierStokesVelVortFixedParameters":
+        return self.nse_fixed_parameters
+
     # @partial(jax.jit, static_argnums=0)
     def get_poisson_mat(self) -> "np_complex_array":
         if self.prepare_matrices:
-            return cast("np_complex_array", self.nse_fixed_parameters.poisson_mat)
+            return cast("np_complex_array", self.get_fixed_params().poisson_mat)
         else:
             return self.get_domain().assemble_poisson_matrix()
 
@@ -491,7 +494,7 @@ class NavierStokesVelVort(Equation):
         if self.prepare_matrices:
             return cast(
                 "np_jnp_array",
-                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv)[step, kx, kz],
+                jnp.asarray(self.get_fixed_params().rk_mats_lhs_inv)[step, kx, kz],
             )
         else:
             dt = self.get_dt()
@@ -515,7 +518,7 @@ class NavierStokesVelVort(Equation):
         if self.prepare_matrices:
             return cast(
                 "np_jnp_array",
-                jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs)[step, kx, kz],
+                jnp.asarray(self.get_fixed_params().rk_mats_rhs)[step, kx, kz],
             )
         else:
             dt = self.get_dt()
@@ -537,7 +540,7 @@ class NavierStokesVelVort(Equation):
         if self.prepare_matrices:
             return cast(
                 "np_jnp_array",
-                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_inhom)[
+                jnp.asarray(self.get_fixed_params().rk_mats_lhs_inv_inhom)[
                     step, kx, kz
                 ],
             )
@@ -570,7 +573,7 @@ class NavierStokesVelVort(Equation):
         if self.prepare_matrices:
             return cast(
                 "np_jnp_array",
-                jnp.asarray(self.nse_fixed_parameters.rk_rhs_inhom)[step, kx, kz],
+                jnp.asarray(self.get_fixed_params().rk_rhs_inhom)[step, kx, kz],
             )
         else:
             dt = self.get_dt()
@@ -600,7 +603,7 @@ class NavierStokesVelVort(Equation):
         if self.prepare_matrices:
             return cast(
                 "np_jnp_array",
-                jnp.asarray(self.nse_fixed_parameters.rk_mats_lhs_inv_ns)[step],
+                jnp.asarray(self.get_fixed_params().rk_mats_lhs_inv_ns)[step],
             )
         else:
             dt = self.get_dt()
@@ -621,7 +624,7 @@ class NavierStokesVelVort(Equation):
         if self.prepare_matrices:
             return cast(
                 "np_jnp_array",
-                jnp.asarray(self.nse_fixed_parameters.rk_mats_rhs_ns)[step],
+                jnp.asarray(self.get_fixed_params().rk_mats_rhs_ns)[step],
             )
         else:
             dt = self.get_dt()

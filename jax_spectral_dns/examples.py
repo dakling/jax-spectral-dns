@@ -2703,20 +2703,22 @@ def run_ld_2021_dual(**params: Any) -> None:
         return cast(float, -(inv_mat @ data)[-1])
 
     def get_vel_field_cess(
-        domain: PhysicalDomain, A: float = 25.4, K: float = 0.426, u_sc: float = 1.0
+        domain: PhysicalDomain,
+        A: float = 25.4,
+        K: float = 0.426,
+        u_sc: float = 1.0,
+        plot: bool = False,
     ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
 
         def nu_t_fn(X: "np_jnp_array") -> "jsd_float":
             def get_y(y_in: "float") -> "float":
-                return (1 - y_in) if y_in > 0.0 else 1 + y_in
+                return min((1 - y_in), (1 + y_in))
 
             y = np.vectorize(get_y)(X[1])
             B = 1.0  # pressure gradient
-            # Re = Re_tau * 18.5
             Re = Re_tau
             return (
                 1
-                # / (2 * Re)
                 / 2
                 * (
                     (
@@ -2726,7 +2728,7 @@ def run_ld_2021_dual(**params: Any) -> None:
                         * B**2
                         / 9
                         * (2 * y - y**2) ** 2
-                        * (3 - 4 * y + y**2) ** 2
+                        * (3 - 4 * y + 2 * y**2) ** 2
                         * (1 - np.exp(-y * Re * B**0.5 / A)) ** 2
                     )
                     ** 0.5
@@ -2736,15 +2738,16 @@ def run_ld_2021_dual(**params: Any) -> None:
 
         def shear_fn(X: "np_jnp_array") -> "jsd_float":
             def get_y(y_in: "float") -> Tuple["float", "float"]:
-                return (1 - y_in) if y_in > 0.0 else (1 + y_in), (
-                    1.0 if y_in > 0.0 else -1.0
-                )
+                return min((1 - y_in), (1 + y_in)), np.sign(y_in)
 
             y, sign = np.vectorize(get_y)(X[1])
             return -sign * Re_tau * (1 - y) / nu_t_fn(X)
 
-        # nu_t = PhysicalField.FromFunc(domain, cast("Vel_fn_type", nu_t_fn), name="nu_t")
-        # nu_t.plot_center(1)
+        if plot:
+            nu_t = PhysicalField.FromFunc(
+                domain, cast("Vel_fn_type", nu_t_fn), name="nu_t"
+            )
+            nu_t.plot_center(1)
         shear = PhysicalField.FromFunc(
             domain, cast("Vel_fn_type", shear_fn), name="shear"
         )
@@ -2827,11 +2830,15 @@ def run_ld_2021_dual(**params: Any) -> None:
         return VectorField([u, v, w]), u_y_slice, data_fn(0.0, 2), flow_rate, uv
 
     def fit_cess() -> Tuple["float", "float"]:
-        reference_profile, _, _, _ = get_vel_field_minimal_channel(
-            domain, avg_vel_coeffs
-        )
-        # data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-        # reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
+        if full_channel_mean:
+            data = np.loadtxt(
+                "./profiles/kmm/re_tau_180/statistics.prof", comments="%"
+            ).T
+            reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
+        else:
+            reference_profile, _, _, _ = get_vel_field_minimal_channel(
+                domain, avg_vel_coeffs
+            )
         fit_fn = (
             lambda A_K: (
                 get_vel_field_cess(domain, A_K[0], A_K[1])[0][0] - reference_profile[0]
@@ -2843,21 +2850,30 @@ def run_ld_2021_dual(**params: Any) -> None:
             fit_fn, [24.5, 0.6], method="trf", max_nfev=1000000, xtol=3e-16, ftol=3e-16
         )
         A, K = res.x
-        print("status:", res.status)
+        print_verb("optimizsing cess profile; exit status:", res.status)
         return A, K
 
     if cess_mean:
         if A is not None and K is not None:
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
-                domain, A, K
+                domain, A, K, plot=True
             )
         else:
             A_opt, K_opt = fit_cess()
             print_verb("A (optimized:)", A_opt, "K (optimized:)", K_opt)
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
-                domain, A_opt, K_opt
+                domain, A_opt, K_opt, plot=True
             )
-        vel_base_turb[0].plot_center(1)
+        # if full_channel_mean:
+        #     data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+        #     reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
+        # else:
+        #     reference_profile, _, _, _ = get_vel_field_minimal_channel(
+        #         domain, avg_vel_coeffs
+        #     )
+        # # vel_base_turb[0].plot_center(1)
+        # vel_base_turb[0].plot_center(1, reference_profile[0])
+        # vel_base_turb[0].diff(1).plot_center(1)
     elif full_channel_mean:
         data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
         vel_base_turb, _, max_turb, flow_rate_turb, uv = get_vel_field_full_channel(
