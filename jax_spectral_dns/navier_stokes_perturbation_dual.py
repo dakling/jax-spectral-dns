@@ -390,6 +390,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             velocity_field_ = velocity_field
         velocity_field_.set_name("velocity_hat")
         super().__init__(velocity_field_, prepare_matrices=False, **params)
+        self.prepare_matrices = True
         self.velocity_field_u_history: Optional["jnp_array"] = None
         self.dPdx_history: Optional[List["jsd_float"]] = None
         self.forward_equation = forward_equation
