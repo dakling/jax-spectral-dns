@@ -2960,6 +2960,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             aliasing=1,
         )
         if full_channel_mean:
+            data = np.loadtxt(
+                "./profiles/kmm/re_tau_180/statistics.prof", comments="%"
+            ).T
             _, U_base, _, _, _ = get_vel_field_full_channel(lsc_domain, data)
         else:
             _, U_base, _, _ = get_vel_field_minimal_channel(lsc_domain, avg_vel_coeffs)
