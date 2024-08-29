@@ -2644,6 +2644,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     cess_mean = params.get("cess_mean", False)
     A = params.get("cess_mean_a")
     K = params.get("cess_mean_k")
+    plot_cess_mean = params.get("plot_cess_mean", False)
     full_channel_reynolds_stresses = params.get("full_channel_reynolds_stresses", False)
 
     laminar_correction_modes = Enum(
@@ -2856,24 +2857,27 @@ def run_ld_2021_dual(**params: Any) -> None:
     if cess_mean:
         if A is not None and K is not None:
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
-                domain, A, K, plot=True
+                domain, A, K, plot=plot_cess_mean
             )
         else:
             A_opt, K_opt = fit_cess()
             print_verb("A (optimized:)", A_opt, "K (optimized:)", K_opt)
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
-                domain, A_opt, K_opt, plot=True
+                domain, A_opt, K_opt, plot=plot_cess_mean
             )
-        # if full_channel_mean:
-        #     data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-        #     reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
-        # else:
-        #     reference_profile, _, _, _ = get_vel_field_minimal_channel(
-        #         domain, avg_vel_coeffs
-        #     )
-        # # vel_base_turb[0].plot_center(1)
-        # vel_base_turb[0].plot_center(1, reference_profile[0])
-        # vel_base_turb[0].diff(1).plot_center(1)
+        if plot_cess_mean:
+            if full_channel_mean:
+                data = np.loadtxt(
+                    "./profiles/kmm/re_tau_180/statistics.prof", comments="%"
+                ).T
+                reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
+            else:
+                reference_profile, _, _, _ = get_vel_field_minimal_channel(
+                    domain, avg_vel_coeffs
+                )
+            # vel_base_turb[0].plot_center(1)
+            vel_base_turb[0].plot_center(1, reference_profile[0])
+            vel_base_turb[0].diff(1).plot_center(1)
     elif full_channel_mean:
         data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
         vel_base_turb, _, max_turb, flow_rate_turb, uv = get_vel_field_full_channel(
