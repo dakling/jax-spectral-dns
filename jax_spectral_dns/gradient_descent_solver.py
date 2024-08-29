@@ -404,7 +404,9 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
 
             if self.old_value is not None:
                 gain_change = gain - self.old_value
-                print_verb("gain change:", gain_change)
+                print_verb(
+                    self.dual_problem.get_objective_fun_name(), "change:", gain_change
+                )
             else:
                 gain_change = None
             print_verb("")
@@ -488,13 +490,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             "velocity_hat", self.current_guess
         )
         self.dual_problem.update_with_nse()
-        gain = self.dual_problem.get_gain()
+        gain = self.dual_problem.get_objective_fun()
 
         print_verb("")
-        print_verb("gain:", gain)
+        print_verb(self.dual_problem.get_objective_fun_name(), gain)
         if self.value is not None:
             gain_change = gain - self.value
-            print_verb("gain change:", gain_change)
+            print_verb(
+                self.dual_problem.get_objective_fun_name(), "change:", gain_change
+            )
         else:
             gain_change = None
         print_verb("")
@@ -607,9 +611,9 @@ class OptimiserWrapper(GradientDescentSolver):
                 )
             )
             if out:
-                return (nse_dual.get_gain(), (jnp.array([0.0]),))
+                return (nse_dual.get_objective_fun(), (jnp.array([0.0]),))
             else:
-                return (nse_dual.get_gain(), (-1 * nse_dual.get_grad(),))
+                return (nse_dual.get_objective_fun(), (-1 * nse_dual.get_grad(),))
 
         run_input_initial = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"

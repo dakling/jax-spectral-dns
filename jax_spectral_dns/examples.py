@@ -688,6 +688,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
             dealias_nonperiodic=dealias_nonperiodic,
             rotated=False,
             constant_mass_flux=constant_mass_flux,
+            linearise=linearise,
         )
     else:
         nse = solve_navier_stokes_perturbation(
@@ -2868,16 +2869,18 @@ def run_ld_2021_dual(**params: Any) -> None:
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
                 domain, A_opt, K_opt, plot=plot_cess_mean
             )
+        if full_channel_mean:
+            data = np.loadtxt(
+                "./profiles/kmm/re_tau_180/statistics.prof", comments="%"
+            ).T
+            reference_profile, _, max_val_reference, flow_rate_reference, _ = (
+                get_vel_field_full_channel(domain, data)
+            )
+        else:
+            reference_profile, _, max_val_reference, flow_rate_reference = (
+                get_vel_field_minimal_channel(domain, avg_vel_coeffs)
+            )
         if plot_cess_mean:
-            if full_channel_mean:
-                data = np.loadtxt(
-                    "./profiles/kmm/re_tau_180/statistics.prof", comments="%"
-                ).T
-                reference_profile, _, _, _, _ = get_vel_field_full_channel(domain, data)
-            else:
-                reference_profile, _, _, _ = get_vel_field_minimal_channel(
-                    domain, avg_vel_coeffs
-                )
             # vel_base_turb[0].plot_center(1)
             vel_base_turb[0].plot_center(1, reference_profile[0])
             vel_base_turb[0].diff(1).plot_center(1)
@@ -2929,18 +2932,30 @@ def run_ld_2021_dual(**params: Any) -> None:
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
 
-    if laminar_correction_mode == laminar_correction_modes.NoCorrection:
-        correction_factor = 1.0
-    elif laminar_correction_mode == laminar_correction_modes.MaxValue:
-        correction_factor = max_turb / u_max_over_u_tau
-    elif laminar_correction_mode == laminar_correction_modes.FlowRate:
-        correction_factor = flow_rate_turb / flow_rate
-    elif laminar_correction_mode == laminar_correction_modes.Energy:
-        correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
+    if cess_mean:
+        if laminar_correction_mode == laminar_correction_modes.NoCorrection:
+            correction_factor = 1.0
+        elif laminar_correction_mode == laminar_correction_modes.MaxValue:
+            correction_factor = max_turb / max_val_reference
+        elif laminar_correction_mode == laminar_correction_modes.FlowRate:
+            correction_factor = flow_rate_turb / flow_rate_reference
+        elif laminar_correction_mode == laminar_correction_modes.Energy:
+            correction_factor = np.sqrt(
+                vel_base_turb.energy() / reference_profile.energy()
+            )
+    else:
+        if laminar_correction_mode == laminar_correction_modes.NoCorrection:
+            correction_factor = 1.0
+        elif laminar_correction_mode == laminar_correction_modes.MaxValue:
+            correction_factor = max_turb / u_max_over_u_tau
+        elif laminar_correction_mode == laminar_correction_modes.FlowRate:
+            correction_factor = flow_rate_turb / flow_rate
+        elif laminar_correction_mode == laminar_correction_modes.Energy:
+            correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
 
     end_time__ = end_time * correction_factor
-    Re__ = Re_tau * correction_factor
-    # Re__ = Re_tau
+    # Re__ = Re_tau * correction_factor
+    Re__ = Re_tau
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
