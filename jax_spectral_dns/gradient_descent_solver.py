@@ -305,7 +305,9 @@ class GradientDescentSolver(ABC):
         try:
             phase_space_data_name = Field.plotting_dir + "phase_space_data.txt"
             with open(phase_space_data_name, "r") as file:
-                data = np.genfromtxt(phase_space_data_name, delimiter=",").T
+                data = np.atleast_2d(
+                    np.genfromtxt(phase_space_data_name, delimiter=",")
+                ).T
                 self.i = int(data[0][-1]) + 1
         except FileNotFoundError:
             print_verb(
