@@ -318,19 +318,9 @@ class NavierStokesVelVort(Equation):
             domain = velocity_field[0].fourier_domain
             physical_domain = velocity_field[0].physical_domain
 
-        u_max_over_u_tau = params.get("u_max_over_u_tau", 1.0)
-
-        dt = params.get("dt", 1e-2)
-
         max_cfl = params.get("max_cfl", 0.7)
 
-        try:
-            Re_tau = params["Re_tau"]
-        except KeyError:
-            try:
-                Re_tau = params["Re"] / u_max_over_u_tau
-            except KeyError:
-                raise Exception("Either Re or Re_tau has to be given as a parameter.")
+        Re_tau = self.get_Re_tau(**params)
         self.nonlinear_update_fn: Callable[
             ["jnp_array", int],
             Tuple["jnp_array", "jnp_array", "jnp_array", "jnp_array"],
@@ -343,56 +333,16 @@ class NavierStokesVelVort(Equation):
         super().__init__(domain, velocity_field, **params)
 
         n_rk_steps = 3
-        calculation_size = self.end_time / self.get_dt()
-        for i in self.all_dimensions():
-            calculation_size *= self.get_domain().number_of_cells(i)
-        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 1e12)
-        self.prepare_matrices = params.get(
-            "prepare_matrices", calculation_size < prepare_matrices_threshold
-        )
-        if self.prepare_matrices:
-            print_verb("preparing differentiation matrices...", verbosity_level=2)
-            poisson_mat = domain.assemble_poisson_matrix()
-            (
-                rk_mats_rhs,
-                rk_mats_lhs_inv,
-                rk_rhs_inhom,
-                rk_mats_lhs_inv_inhom,
-                rk_mats_rhs_ns,
-                rk_mats_lhs_inv_ns,
-            ) = self.prepare_assemble_rk_matrices(domain, Re_tau, dt, n_rk_steps)
 
-            poisson_mat.setflags(write=False)
-            rk_mats_rhs.setflags(write=False)
-            rk_mats_lhs_inv.setflags(write=False)
-            rk_rhs_inhom.setflags(write=False)
-            rk_mats_lhs_inv_inhom.setflags(write=False)
-            rk_mats_rhs_ns.setflags(write=False)
-            rk_mats_lhs_inv_ns.setflags(write=False)
-            print_verb("done preparing differentiation matrices", verbosity_level=2)
-        else:
-            print_verb(
-                "not preparing differentiation matrices - \
-                this may reduce memory usage but can carry \
-                a significant runtime penalty!",
-                verbosity_level=1,
-            )
-            poisson_mat = None
-            (
-                rk_mats_rhs,
-                rk_mats_lhs_inv,
-                rk_rhs_inhom,
-                rk_mats_lhs_inv_inhom,
-                rk_mats_rhs_ns,
-                rk_mats_lhs_inv_ns,
-            ) = (
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
+        (
+            poisson_mat,
+            rk_mats_rhs,
+            rk_mats_lhs_inv,
+            rk_rhs_inhom,
+            rk_mats_lhs_inv_inhom,
+            rk_mats_rhs_ns,
+            rk_mats_lhs_inv_ns,
+        ) = self.assemble_matrices(**params)
 
         self.nse_fixed_parameters = NavierStokesVelVortFixedParameters(
             physical_domain=physical_domain,
@@ -403,9 +353,9 @@ class NavierStokesVelVort(Equation):
             rk_mats_lhs_inv_inhom=rk_mats_lhs_inv_inhom,
             rk_mats_rhs_ns=rk_mats_rhs_ns,
             rk_mats_lhs_inv_ns=rk_mats_lhs_inv_ns,
-            Re_tau=Re_tau,
+            Re_tau=self.get_Re_tau(**params),
             max_cfl=max_cfl,
-            u_max_over_u_tau=u_max_over_u_tau,
+            u_max_over_u_tau=self.get_u_max_over_u_tau(**params),
             number_of_rk_steps=n_rk_steps,
         )
         print_verb("using RK" + str(n_rk_steps) + " time stepper", verbosity_level=2)
@@ -481,6 +431,73 @@ class NavierStokesVelVort(Equation):
 
     def get_fixed_params(self) -> "NavierStokesVelVortFixedParameters":
         return self.nse_fixed_parameters
+
+    def assemble_matrices(
+        self, **params: Any
+    ) -> Tuple[Optional["np_complex_array"], ...]:
+        n_rk_steps = 3
+        domain = self.get_domain()
+        calculation_size = self.end_time / self.get_dt()
+        for i in self.all_dimensions():
+            calculation_size *= self.get_domain().number_of_cells(i)
+        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 1e12)
+        self.prepare_matrices = params.get(
+            "prepare_matrices", calculation_size < prepare_matrices_threshold
+        )
+        if self.prepare_matrices:
+            print_verb("preparing differentiation matrices...", verbosity_level=2)
+            poisson_mat = domain.assemble_poisson_matrix()
+            (
+                rk_mats_rhs,
+                rk_mats_lhs_inv,
+                rk_rhs_inhom,
+                rk_mats_lhs_inv_inhom,
+                rk_mats_rhs_ns,
+                rk_mats_lhs_inv_ns,
+            ) = self.prepare_assemble_rk_matrices(
+                domain, self.get_Re_tau(**params), self.get_dt(), n_rk_steps
+            )
+
+            poisson_mat.setflags(write=False)
+            rk_mats_rhs.setflags(write=False)
+            rk_mats_lhs_inv.setflags(write=False)
+            rk_rhs_inhom.setflags(write=False)
+            rk_mats_lhs_inv_inhom.setflags(write=False)
+            rk_mats_rhs_ns.setflags(write=False)
+            rk_mats_lhs_inv_ns.setflags(write=False)
+            print_verb("done preparing differentiation matrices", verbosity_level=2)
+        else:
+            print_verb(
+                "not preparing differentiation matrices - \
+                this may reduce memory usage but can carry \
+                a significant runtime penalty!",
+                verbosity_level=1,
+            )
+            poisson_mat = None
+            (
+                rk_mats_rhs,
+                rk_mats_lhs_inv,
+                rk_rhs_inhom,
+                rk_mats_lhs_inv_inhom,
+                rk_mats_rhs_ns,
+                rk_mats_lhs_inv_ns,
+            ) = (
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+        return (
+            poisson_mat,
+            rk_mats_rhs,
+            rk_mats_lhs_inv,
+            rk_rhs_inhom,
+            rk_mats_lhs_inv_inhom,
+            rk_mats_rhs_ns,
+            rk_mats_lhs_inv_ns,
+        )
 
     # @partial(jax.jit, static_argnums=0)
     def get_poisson_mat(self) -> "np_complex_array":
@@ -639,8 +656,20 @@ class NavierStokesVelVort(Equation):
             rhs_mat_ns = I_ns + alpha[step] * dt * L_ns
             return rhs_mat_ns
 
-    def get_Re_tau(self) -> "float":
-        return self.nse_fixed_parameters.Re_tau
+    def get_Re_tau(self, **params: Any) -> "float":
+        try:
+            return self.nse_fixed_parameters.Re_tau
+        except Exception:
+            try:
+                Re_tau = params["Re_tau"]
+            except KeyError:
+                try:
+                    Re_tau = params["Re"] / self.get_u_max_over_u_tau(**params)
+                except KeyError:
+                    raise Exception(
+                        "Either Re or Re_tau has to be given as a parameter."
+                    )
+            return cast("float", Re_tau)
 
     def get_max_cfl(self) -> "float":
         return self.nse_fixed_parameters.max_cfl
@@ -648,8 +677,11 @@ class NavierStokesVelVort(Equation):
     def get_dt_update_frequency(self) -> "int":
         return self.nse_fixed_parameters.dt_update_frequency
 
-    def get_u_max_over_u_tau(self) -> "float":
-        return self.nse_fixed_parameters.u_max_over_u_tau
+    def get_u_max_over_u_tau(self, **params: Any) -> "float":
+        try:
+            return self.nse_fixed_parameters.u_max_over_u_tau
+        except Exception:
+            return cast("float", params.get("u_max_over_u_tau", 1.0))
 
     def get_number_of_rk_steps(self) -> "int":
         return self.nse_fixed_parameters.number_of_rk_steps

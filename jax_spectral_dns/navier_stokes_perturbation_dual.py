@@ -389,8 +389,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             velocity_field_ = velocity_field
         velocity_field_.set_name("velocity_hat")
-        super().__init__(velocity_field_, prepare_matrices=False, **params)
-        self.prepare_matrices = True
+        super().__init__(velocity_field_, **params)
         self.velocity_field_u_history: Optional["jnp_array"] = None
         self.dPdx_history: Optional[List["jsd_float"]] = None
         self.forward_equation = forward_equation
@@ -445,6 +444,27 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def get_fixed_params(self) -> "NavierStokesVelVortFixedParameters":
         return self.forward_equation.nse_fixed_parameters
+
+    def assemble_matrices(
+        self, **params: Any
+    ) -> Tuple[Optional["np_complex_array"], ...]:
+        dt = self.get_dt()
+        calculation_size = self.end_time / dt
+        for i in self.all_dimensions():
+            calculation_size *= self.get_domain().number_of_cells(i)
+        prepare_matrices_threshold = params.get("prepare_matrices_threshold", 1e12)
+        self.prepare_matrices = params.get(
+            "prepare_matrices", calculation_size < prepare_matrices_threshold
+        )
+        return (
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
 
     def set_linearise(self) -> None:
         # self.linearise = lin
