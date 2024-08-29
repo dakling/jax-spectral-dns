@@ -873,10 +873,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if self.optimisation_mode == self.optimisation_modes.gain:
             return None
         elif self.optimisation_mode == self.optimisation_modes.dissipation:
-            return cast(
-                "jnp_array",
+            return (
                 -1
-                / np.abs(self.get_Re_tau() * self.end_time)
+                / jnp.abs(self.get_Re_tau() * self.end_time)
                 * jnp.array(
                     [
                         self.get_domain().laplacian(
@@ -884,7 +883,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                         )
                         for i in range(3)
                     ]
-                ),
+                )
             )
         else:
             raise Exception(
