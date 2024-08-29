@@ -2943,6 +2943,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             correction_factor = np.sqrt(
                 vel_base_turb.energy() / reference_profile.energy()
             )
+        end_time__ = end_time / correction_factor
+        # Re__ = Re_tau * correction_factor
+        Re__ = Re_tau
     else:
         if laminar_correction_mode == laminar_correction_modes.NoCorrection:
             correction_factor = 1.0
@@ -2953,9 +2956,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         elif laminar_correction_mode == laminar_correction_modes.Energy:
             correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
 
-    end_time__ = end_time * correction_factor
-    # Re__ = Re_tau * correction_factor
-    Re__ = Re_tau
+        end_time__ = end_time * correction_factor
+        Re__ = Re_tau * correction_factor
+        # Re__ = Re_tau
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
