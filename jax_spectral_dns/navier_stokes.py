@@ -1210,6 +1210,9 @@ class NavierStokesVelVort(Equation):
                 self.update_pressure_gradient(vel_new_hat_field, cast(float, dPdx))
         return vel_new_hat_field, dPdx
 
+    def get_source_term(self, _: int) -> Optional["jnp_array"]:
+        return None
+
     def perform_runge_kutta_step(
         self, vel_hat_data: "jnp_array", dPdx: "jsd_float", time_step: int
     ) -> Tuple["jnp_array", "jsd_float"]:
@@ -1452,17 +1455,14 @@ class NavierStokesVelVort(Equation):
                         ** 0.5
                     )
 
-                    if type(self.source_x_00) is NoneType:
+                    source_hat = self.get_source_term(time_step)
+                    if type(source_hat) is NoneType:
                         source_x_00 = jnp.zeros_like(conv_ns_hat_sw_0_00)
-                    else:
-                        assert self.source_x_00 is not None
-                        source_x_00 = self.source_x_00
-
-                    if type(self.source_z_00) is NoneType:
                         source_z_00 = jnp.zeros_like(conv_ns_hat_sw_2_00)
                     else:
-                        assert self.source_z_00 is not None
-                        source_z_00 = self.source_z_00
+                        assert source_hat is not None
+                        source_x_00 = source_hat[0][0, :, 0]
+                        source_z_00 = source_hat[2][0, :, 0]
 
                     N_00_new = jnp.block(
                         [
@@ -1670,6 +1670,15 @@ class NavierStokesVelVort(Equation):
                 vort_hat,
                 conv_ns_hat,
             ) = self.nonlinear_update_fn(vel_hat_data, time_step)
+
+            source_hat = self.get_source_term(time_step)
+            if source_hat is not None:
+                domain: FourierDomain = self.get_domain()
+                curl_source = domain.curl(source_hat)[1]
+                h_v_hat += (
+                    domain.diff(curl_source[0], 2) - domain.diff(curl_source[2], 0)
+                )[1]
+                h_g_hat += curl_source[1]
 
             if step == 0:
                 h_v_hat_old = jnp.zeros_like(h_v_hat)

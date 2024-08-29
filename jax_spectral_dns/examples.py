@@ -2630,6 +2630,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     )  # when to switch on the coupling_term term (from 0 to 1)
     if coupling_term_switch is None and coupling_term is None:
         coupling_term = True
+
+    optimisation_mode = params.get("optimisation_mode", "gain")
+
     init_file = params.get("init_file")
     constant_mass_flux = params.get("constant_mass_flux", False)
 
@@ -3037,7 +3040,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         coupling_term_switch=coupling_term_switch,
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse
+        nse, optimisation_mode=optimisation_mode
     )
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,

@@ -12,6 +12,7 @@ from jax_spectral_dns.navier_stokes import (
 NoneType = type(None)
 import os
 import h5py  # type: ignore
+from enum import Enum
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -441,6 +442,13 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             self.coupling_term = lambda _: coupling_term
         self.set_linearise()
+        self.optimisation_modes = Enum(  # type: ignore[misc]
+            "optimisation_modes", ["gain", "dissipation"]
+        )
+        self.optimisation_mode = self.optimisation_modes[
+            params.get("optimisation_mode", "gain")
+        ]
+        print_verb("optimising for", self.get_objective_fun_name())
 
     def get_fixed_params(self) -> "NavierStokesVelVortFixedParameters":
         return self.forward_equation.nse_fixed_parameters
@@ -839,12 +847,52 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
             self.dPdx_history = dPdx_history
             self.current_dPdx_history = dPdx_history
-        self.set_initial_field(
-            "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
-        )
+        if self.optimisation_mode == self.optimisation_modes.gain:
+            self.set_initial_field(
+                "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
+            )
+        elif self.optimisation_mode == self.optimisation_modes.dissipation:
+            self.set_initial_field(
+                "velocity_hat", 0 * nse.get_latest_field("velocity_hat")
+            )
+        else:
+            raise Exception(
+                "unknown optimisation mode "
+                + self.optimisation_mode
+                + ". Valid choices are "
+                + self.optimisation_modes
+            )
         self.forward_equation = nse  # not sure if this is necessary
         jax.clear_caches()  # type: ignore
         gc.collect()
+
+    def get_objective_fun_name(self) -> "str":
+        return cast("str", self.optimisation_mode.name)
+
+    def get_source_term(self, timestep: int) -> Optional["jnp_array"]:
+        if self.optimisation_mode == self.optimisation_modes.gain:
+            return None
+        elif self.optimisation_mode == self.optimisation_modes.dissipation:
+            return cast(
+                "jnp_array",
+                -1
+                / np.abs(self.get_Re_tau() * self.end_time)
+                * jnp.array(
+                    [
+                        self.get_domain().laplacian(
+                            self.get_velocity_u_hat(timestep)[i]
+                        )
+                        for i in range(3)
+                    ]
+                ),
+            )
+        else:
+            raise Exception(
+                "unknown optimisation mode "
+                + self.optimisation_mode
+                + ". Valid choices are "
+                + self.optimisation_modes
+            )
 
     def run_forward_calculation_subrange(
         self, outer_timestep: int
@@ -908,6 +956,23 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_T = self.forward_equation.get_latest_field("velocity_hat").no_hat()
         self.gain = u_T.energy() / u_0.energy()
         return self.gain
+
+    def get_dissipation_average(self) -> float:
+        self.run_forward_calculation()
+        if self.checkpointing:
+            print_verb(
+                "warning: dissipation calculation may be inaccurate. This does not affect the optimisation, however."
+            )
+        u_hat_hist = self.velocity_field_u_history
+        assert u_hat_hist is not None
+        dissipation_hat = FourierField.Zeros(self.get_physical_domain())
+        domain = self.get_domain()
+        for u_hat in u_hat_hist:
+            for i in range(3):
+                for j in range(3):
+                    dissipation_hat += domain.diff(u_hat[i], j) ** 2
+        dissipation_hat /= np.abs(self.get_Re_tau() * len(u_hat_hist))
+        return dissipation_hat.no_hat().volume_integral()
 
     def get_grad(self) -> "jnp_array":
         self.run_backward_calculation()
