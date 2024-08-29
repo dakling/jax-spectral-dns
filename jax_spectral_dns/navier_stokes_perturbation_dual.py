@@ -866,6 +866,20 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         jax.clear_caches()  # type: ignore
         gc.collect()
 
+    def get_objective_fun(self) -> float:
+        if self.optimisation_mode == self.optimisation_modes.gain:
+            return self.get_gain()
+        elif self.optimisation_mode == self.optimisation_modes.dissipation:
+            self.gain = self.get_gain()  # TODO is this needed for gradient calculation?
+            return self.get_dissipation_average()
+        else:
+            raise Exception(
+                "unknown optimisation mode "
+                + self.optimisation_mode
+                + ". Valid choices are "
+                + self.optimisation_modes
+            )
+
     def get_objective_fun_name(self) -> "str":
         return cast("str", self.optimisation_mode.name)
 

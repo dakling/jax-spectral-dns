@@ -327,7 +327,8 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
         )
 
         if prepare_for_iterations:
-            self.value = self.dual_problem.get_gain()
+            # self.value = self.dual_problem.get_gain()
+            self.value = self.dual_problem.get_objective_fun()
             v_T = self.dual_problem.forward_equation.get_latest_field(
                 "velocity_hat"
             ).no_hat()
@@ -348,7 +349,7 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
             self.dual_problem.forward_equation.update_dt(dt)
             self.dual_problem.update_dt(-self.dual_problem.forward_equation.get_dt())
             print_verb("")
-            print_verb("gain:", self.value)
+            print_verb(self.dual_problem.get_objective_fun_name(), self.value)
             print_verb("")
 
     def update(self) -> None:
@@ -397,9 +398,10 @@ class SteepestAdaptiveDescentSolver(GradientDescentSolver):
                 )
             )
 
-            gain = self.dual_problem.get_gain()
+            gain = self.dual_problem.get_objective_fun()
             print_verb("")
-            print_verb("gain:", gain)
+            print_verb(self.dual_problem.get_objective_fun_name(), gain)
+
             if self.old_value is not None:
                 gain_change = gain - self.old_value
                 print_verb("gain change:", gain_change)

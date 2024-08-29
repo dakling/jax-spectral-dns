@@ -1190,7 +1190,7 @@ def run_transient_growth_nonpert(
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3),
         dt=1e-2,
         aliasing=3 / 2,
-        u_max_over_u_tau=1.0,
+        # u_max_over_u_tau=1.0,
         # aliasing=1,
     )
 
