@@ -2851,7 +2851,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             fit_fn, [24.5, 0.6], method="trf", max_nfev=1000000, xtol=3e-16, ftol=3e-16
         )
         A, K = res.x
-        print_verb("optimizsing cess profile; exit status:", res.status)
+        print_verb("optimising cess profile; exit status:", res.status)
         return A, K
 
     if cess_mean:
