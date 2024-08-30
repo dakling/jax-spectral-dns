@@ -5,7 +5,20 @@ import numpy as np
 import numpy.typing as npt
 import yaml
 from glob import glob
+from PIL import Image
 import matplotlib.pyplot as plt
+
+import matplotlib
+
+matplotlib.set_loglevel("error")
+matplotlib.use("ps")
+
+plt.rcParams.update(
+    {
+        "text.usetex": True,
+        "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
+    }
+)
 
 STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/"
 HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/"
@@ -130,9 +143,9 @@ def plot_single(
         ax.set_xlim(left=min(e_0[1:]) * 1e-1)
         ax_.set_xlim([-1e-20, 1e-20])
         ax_.get_xaxis().set_ticks([0.0])
-        ax.set_xlabel("$e_0 / E_0$")
+        ax.set_xlabel("$\\textcolor{red}{e_0} / \\textcolor{blue}{E_0}$")
         ax_.set_ylabel(
-            "$G_\\text{opt} / G_\\text{opt, lin}$" if relative else "$G_\\text{opt}$"
+            "$G_\\text{opt} / G_\\text{opt, lin}$" if rel else "$G_\\text{opt}$"
         )
         # hide the spines between ax and ax2
         ax_.spines.right.set_visible(False)
@@ -164,7 +177,15 @@ def plot(dirs_and_names):
         for base_dir, name, e_base in dirs_and_names:
             plot_single(fig, ax, ax_, base_dir, name, e_base, rel=rel)
         fig.legend()
-        fig.savefig(("relative_" if rel else "") + "gain_over_e0.png")
+        fname = ("relative_" if rel else "") + "gain_over_e0"
+        fig.savefig(fname + ".ps")
+        psimage = Image.open(fname + ".ps")
+        psimage.load(scale=10, transparency=True)
+        psimage.save(fname + ".png", optimize=True)
+        image = Image.open(fname + ".png")
+        imageBox = image.getbbox()
+        cropped = image.crop(imageBox)
+        cropped.save(fname + ".png")
 
 
 e_base_turb = 1.0

@@ -534,15 +534,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         dt = nse.get_dt()
         end_time = nse.end_time
 
-        # try:
-        #     reynolds_stress_ijj_hat = nse.get_latest_field(
-        #         "reynolds_stress_ijj_hat"
-        #     ) * (
-        #         -1
-        #     )  # TODO
-        # except KeyError:
-        #     reynolds_stress_ijj_hat = None
-
         nse_dual = cls(
             None,
             nse,

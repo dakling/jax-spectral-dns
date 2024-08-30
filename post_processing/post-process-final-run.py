@@ -22,9 +22,19 @@ from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, VectorField, PhysicalField, FourierField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
 
+matplotlib.set_loglevel("error")
+
+from PIL import Image
+
 # matplotlib.rcParams['axes.color_cycle'] = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink', 'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise', 'darkgreen', 'tan', 'salmon', 'gold']
 font_size = 18
-matplotlib.rcParams.update({"font.size": font_size})
+matplotlib.rcParams.update(
+    {
+        "font.size": font_size,
+        "text.usetex": True,
+        "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
+    }
+)
 pv.global_theme.font.size = font_size
 pv.global_theme.font.title_size = font_size
 pv.global_theme.font.label_size = font_size
@@ -185,15 +195,17 @@ def post_process(
                 Nx, _, Nz = vel_shape
                 x_max = max_inds[0] / Nx * domain.grid[0][-1]
                 z_max = max_inds[2] / Nz * domain.grid[2][-1]
-            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$")
+            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
             vel[1].plot_3d(2, z_max)
             vel[2].plot_3d(2, z_max)
-            vel[0].plot_3d(0, x_max, rotate=True, name="$\\tilde{u}_x$")
+            vel[0].plot_3d(
+                0, x_max, rotate=True, name="$\\tilde{u}_x$", name_color="red"
+            )
             vel[1].plot_3d(0, x_max, rotate=True)
             vel[2].plot_3d(0, x_max, rotate=True)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
-            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$")
+            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$", name_color="red")
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
             vel.plot_wavenumbers(1)
@@ -216,7 +228,7 @@ def post_process(
                 ts[: i + 1],
                 energy_t_arr[: i + 1] / energy_t_arr[0],
                 "ko",
-                label="G",
+                label="$G$",
             )
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
@@ -319,9 +331,13 @@ def post_process(
             fig_kz = figure.Figure()
             ax_kz = fig_kz.subplots(1, 1)
             ax_kx.set_xlabel("$t h / u_\\tau$")
-            ax_kx.set_ylabel("$\\tilde{u}_x$ ampl.")
+            ax_kx.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
+            # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
+            # ax_kx.yaxis.label.set_color("red")
             ax_kz.set_xlabel("$t h / u_\\tau$")
-            ax_kz.set_ylabel("$\\tilde{u}_x$ ampl.")
+            ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
+            # ax_kz.set_ylabel("${\\tilde{u}_x}$ amplitude")
+            # ax_kz.yaxis.label.set_color("red")
             ax_kx.plot(ts, amplitude_t, "k.")
             ax_kx.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
             ax_kz.plot(ts, amplitude_t, "k.")
@@ -347,16 +363,36 @@ def post_process(
                 )
             ax_kx.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
             ax_kx.set_box_aspect(1)
+            fname_kx = "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step)
             fig_kx.savefig(
-                "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step) + ".png",
+                fname_kx + ".ps",
+                # fname_kx + ".png",
                 bbox_inches="tight",
             )
+            psimage = Image.open(fname_kx + ".ps")
+            psimage.load(scale=10, transparency=True)
+            psimage.save(fname_kx + ".png", optimize=True)
+            image = Image.open(fname_kx + ".png")
+            imageBox = image.getbbox()
+            cropped = image.crop(imageBox)
+            cropped.save(fname_kx + ".png")
+
             ax_kz.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
             ax_kz.set_box_aspect(1)
+            fname_kz = "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step)
             fig_kz.savefig(
-                "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step) + ".png",
+                fname_kz + ".ps",
+                # fname_kz + ".png",
                 bbox_inches="tight",
             )
+            psimage = Image.open(fname_kz + ".ps")
+            psimage.load(scale=10, transparency=True)
+            psimage.save(fname_kz + ".png", optimize=True)
+            image = Image.open(fname_kz + ".png")
+            imageBox = image.getbbox()
+            cropped = image.crop(imageBox)
+            cropped.save(fname_kz + ".png")
+
             # ax_pd.plot(prod_arr, -diss_arr, "k.")
             # ax_pd.plot(
             #     np.array([0.0, max(-diss_arr)]),
@@ -383,7 +419,8 @@ STORE_PREFIX = "/store/DAMTP/dsk34"
 HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
-args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+# args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+args = {}
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
 assert (
     len(sys.argv) <= 2

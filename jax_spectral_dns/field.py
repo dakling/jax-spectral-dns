@@ -1862,8 +1862,8 @@ class PhysicalField(Field):
                             ),
                         )
                     )
-                    ax[dim].set_xlabel("xyz"[other_dim[1]])
-                    ax[dim].set_ylabel("xyz"[other_dim[0]])
+                    ax[dim].set_xlabel("$" + "xyz"[other_dim[1]] + "$")
+                    ax[dim].set_ylabel("$" + "xyz"[other_dim[0]] + "$")
                 # Find the min and max of all colors for use in setting the color scale.
                 vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
                 vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
@@ -1871,7 +1871,9 @@ class PhysicalField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 name = params.get("name", self.name)
-                fig.colorbar(ims[0], ax=ax, label=name)
+                name_color = params.get("name_color", "black")
+                cbar = fig.colorbar(ims[0], ax=ax, label=name)
+                cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
                 ax[dim].set_title(
                     "$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$"
@@ -1955,8 +1957,8 @@ class PhysicalField(Field):
                     ),
                 )
             )
-            ax.set_xlabel("xyz"[other_dim[0]])
-            ax.set_ylabel("xyz"[other_dim[1]])
+            ax.set_xlabel("$" + "xyz"[other_dim[0]] + "$")
+            ax.set_ylabel("$" + "xyz"[other_dim[1]] + "$")
             # Find the min and max of all colors for use in setting the color scale.
             vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
             vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
@@ -1964,7 +1966,9 @@ class PhysicalField(Field):
             for im in ims:
                 im.set_norm(norm)
             name = params.get("name", self.name)
-            fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
+            name_color = params.get("name_color", "black")
+            cbar = fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
+            cbar.ax.yaxis.label.set_color(name_color)
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
@@ -2028,8 +2032,8 @@ class PhysicalField(Field):
                     ),
                 )
             )
-            ax_.set_xlabel("xyz"[other_dim[0]])
-            ax_.set_ylabel("xyz"[other_dim[1]])
+            ax_.set_xlabel("$" + "xyz"[other_dim[0]] + "$")
+            ax_.set_ylabel("$" + "xyz"[other_dim[1]] + "$")
             # Find the min and max of all colors for use in setting the color scale.
             vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
             vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
@@ -2763,8 +2767,8 @@ class FourierField(Field):
                             ),
                         )
                     )
-                    ax[dim].set_xlabel("xyz"[other_dim[1]])
-                    ax[dim].set_ylabel("xyz"[other_dim[0]])
+                    ax[dim].set_xlabel("$" + "xyz"[other_dim[1]] + "$")
+                    ax[dim].set_ylabel("$" + "xyz"[other_dim[0]] + "$")
                 # Find the min and max of all colors for use in setting the color scale.
                 vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
                 vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
@@ -2772,7 +2776,9 @@ class FourierField(Field):
                 for im in ims:
                     im.set_norm(norm)
                 name = params.get("name", self.name)
-                fig.colorbar(ims[0], ax=ax, label=name)
+                name_color = params.get("name_color", "black")
+                cbar = fig.colorbar(ims[0], ax=ax, label=name)
+                cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
                 ax[dim].set_title(
                     "$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$"
@@ -2852,8 +2858,8 @@ class FourierField(Field):
                     ),
                 )
             )
-            ax.set_xlabel("xyz"[other_dim[0]])
-            ax.set_ylabel("xyz"[other_dim[1]])
+            ax.set_xlabel("$" + "xyz"[other_dim[1]] + "$")
+            ax.set_ylabel("$" + "xyz"[other_dim[0]] + "$")
             # Find the min and max of all colors for use in setting the color scale.
             vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
             vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
@@ -2861,7 +2867,9 @@ class FourierField(Field):
             for im in ims:
                 im.set_norm(norm)
             name = params.get("name", self.name)
-            fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
+            name_color = params.get("name_color", "black")
+            cbar = fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
+            cbar.ax.yaxis.label.set_color(name_color)
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
