@@ -18,6 +18,10 @@ try:
     from mpl_toolkits.mplot3d.axes3d import Axes3D  # type: ignore
 except Exception:
     print("unable to load Axes3D, some plotting features may not work.")
+try:
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+except Exception:
+    print("unable to load make_axes_locatable, some plotting features may not work.")
 from matplotlib import colors
 from scipy.interpolate import RegularGridInterpolator  # type: ignore
 import functools
@@ -1872,7 +1876,9 @@ class PhysicalField(Field):
                     im.set_norm(norm)
                 name = params.get("name", self.name)
                 name_color = params.get("name_color", "black")
-                cbar = fig.colorbar(ims[0], ax=ax, label=name)
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="5%", pad=0.05)
+                cbar = fig.colorbar(ims[0], cax=cax, label=name)
                 cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
                 ax[dim].set_title(
@@ -1967,7 +1973,9 @@ class PhysicalField(Field):
                 im.set_norm(norm)
             name = params.get("name", self.name)
             name_color = params.get("name_color", "black")
-            cbar = fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.05)
+            cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
             cbar.ax.yaxis.label.set_color(name_color)
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
@@ -2040,7 +2048,9 @@ class PhysicalField(Field):
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
-            fig.colorbar(ims[0], ax=ax_, label=name, orientation="vertical")
+            divider = make_axes_locatable(ax_)
+            cax = divider.append_axes("right", size="5%", pad=0.05)
+            cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
 
             def save() -> None:
                 fig.savefig(
@@ -2777,7 +2787,9 @@ class FourierField(Field):
                     im.set_norm(norm)
                 name = params.get("name", self.name)
                 name_color = params.get("name_color", "black")
-                cbar = fig.colorbar(ims[0], ax=ax, label=name)
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="5%", pad=0.05)
+                cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
                 cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
                 ax[dim].set_title(
@@ -2868,7 +2880,9 @@ class FourierField(Field):
                 im.set_norm(norm)
             name = params.get("name", self.name)
             name_color = params.get("name_color", "black")
-            cbar = fig.colorbar(ims[0], ax=ax, label=name, orientation="vertical")
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.05)
+            cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
             cbar.ax.yaxis.label.set_color(name_color)
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 

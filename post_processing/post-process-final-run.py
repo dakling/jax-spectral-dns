@@ -18,6 +18,8 @@ import h5py
 import matplotlib
 from matplotlib import figure
 from matplotlib.axes import Axes
+import jax.numpy as jnp
+from jax_spectral_dns.cheb import cheby
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, VectorField, PhysicalField, FourierField
 from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
@@ -40,12 +42,45 @@ pv.global_theme.font.title_size = font_size
 pv.global_theme.font.label_size = font_size
 
 
+STORE_PREFIX = "/store/DAMTP/dsk34"
+HOME_PREFIX = "/home/dsk34/jax-optim/run"
+STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
+HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
+
+
 def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
     return PhysicalDomain.create(
         shape,
         (True, False, True),
         scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
     )
+
+
+def get_vel_field_minimal_channel(domain: PhysicalDomain):
+
+    cheb_coeffs = np.loadtxt(
+        HOME_DIR_BASE + "/profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+    )
+
+    Ny = domain.number_of_cells(1)
+    U_mat = np.zeros((Ny, len(cheb_coeffs)))
+    for i in range(Ny):
+        for j in range(len(cheb_coeffs)):
+            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+    U_y_slice = U_mat @ cheb_coeffs
+    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+    u_data = np.moveaxis(
+        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+    )
+    vel_base = VectorField(
+        [
+            PhysicalField(domain, jnp.asarray(u_data)),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+        ]
+    )
+    vel_base.set_name("velocity_base")
+    return vel_base
 
 
 def post_process(
@@ -172,6 +207,8 @@ def post_process(
         fig_kz.tight_layout()
         fig_kz.savefig("plots/plot_amplitudes_kz" + ".png", bbox_inches="tight")
 
+        vel_base = get_vel_field_minimal_channel(domain)
+
         print("main post-processing loop")
         for i in range(n_steps):
             print("step", i + 1, "of", n_steps)
@@ -195,6 +232,9 @@ def post_process(
                 Nx, _, Nz = vel_shape
                 x_max = max_inds[0] / Nx * domain.grid[0][-1]
                 z_max = max_inds[2] / Nz * domain.grid[2][-1]
+            vel_total_x = vel[0] + vel_base[0]
+            vel_total_x.set_name("velocity_total_x")
+            vel_total_x.plot_3d(2, z_max, name="$U_x$")
             vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
             vel[1].plot_3d(2, z_max)
             vel[2].plot_3d(2, z_max)
@@ -415,10 +455,6 @@ def post_process(
             # )
 
 
-STORE_PREFIX = "/store/DAMTP/dsk34"
-HOME_PREFIX = "/home/dsk34/jax-optim/run"
-STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
-HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
 # args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
 args = {}
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
