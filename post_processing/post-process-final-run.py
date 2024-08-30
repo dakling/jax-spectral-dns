@@ -455,8 +455,8 @@ def post_process(
             # )
 
 
-# args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
-args = {}
+args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+# args = {}
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
 assert (
     len(sys.argv) <= 2
