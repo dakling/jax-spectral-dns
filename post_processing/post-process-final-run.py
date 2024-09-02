@@ -245,7 +245,7 @@ def post_process(
             vel[2].plot_3d(0, x_max, rotate=True)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
-            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$", name_color="red")
+            vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
             vel.plot_wavenumbers(1)
@@ -280,7 +280,7 @@ def post_process(
                 ts[: i + 1],
                 energy_x_2d_arr[: i + 1] / energy_t_arr[0],
                 "bo",
-                label="$G_{kx = 0}$",
+                label="$G_{k_x = 0}$",
             )
             ax.plot(
                 ts[: i + 1],
@@ -310,7 +310,7 @@ def post_process(
                 ts[: i + 1],
                 amplitude_x_2d_t[: i + 1],
                 "bo",
-                label="streak (kx = 0) amplitude (x-velocity)",
+                label="streak (k_x = 0) amplitude (x-velocity)",
             )
             ax_amplitudes.plot(ts, amplitude_x_2d_t_1, "y.")
             ax_amplitudes.plot(
@@ -371,11 +371,16 @@ def post_process(
             fig_kz = figure.Figure()
             ax_kz = fig_kz.subplots(1, 1)
             ax_kx.set_xlabel("$t h / u_\\tau$")
-            ax_kx.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
+            ax_kx.set_ylabel(
+                "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+            )
             # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kx.yaxis.label.set_color("red")
             ax_kz.set_xlabel("$t h / u_\\tau$")
-            ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
+            # ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
+            ax_kz.set_ylabel(
+                "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+            )
             # ax_kz.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kz.yaxis.label.set_color("red")
             ax_kx.plot(ts, amplitude_t, "k.")

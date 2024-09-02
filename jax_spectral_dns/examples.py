@@ -3058,7 +3058,10 @@ def run_ld_2021_dual(**params: Any) -> None:
         coupling_term_switch=coupling_term_switch,
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse, optimisation_mode=optimisation_mode
+        nse,
+        optimisation_mode=optimisation_mode,
+        checkpointing=params.get("checkpointing"),
+        checkpointing_threshold=params.get("checkpointing_threshold"),
     )
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,
