@@ -1891,7 +1891,8 @@ class PhysicalField(Field):
                         + "plot_3d_"
                         + self.name
                         + "_latest"
-                        + self.plotting_format
+                        + self.plotting_format,
+                        bbox_inches="tight",
                     )
                     fig.savefig(
                         self.plotting_dir
@@ -1899,7 +1900,8 @@ class PhysicalField(Field):
                         + self.name
                         + "_t_"
                         + "{:06}".format(self.time_step)
-                        + self.plotting_format
+                        + self.plotting_format,
+                        bbox_inches="tight",
                     )
 
                 try:
@@ -1987,7 +1989,8 @@ class PhysicalField(Field):
                     + "_"
                     + self.name
                     + "_latest"
-                    + self.plotting_format
+                    + self.plotting_format,
+                    bbox_inches="tight",
                 )
                 fig.savefig(
                     self.plotting_dir
@@ -1997,7 +2000,8 @@ class PhysicalField(Field):
                     + self.name
                     + "_t_"
                     + "{:06}".format(self.time_step)
-                    + self.plotting_format
+                    + self.plotting_format,
+                    bbox_inches="tight",
                 )
 
             try:
@@ -2060,7 +2064,8 @@ class PhysicalField(Field):
                     + "_"
                     + name
                     + "_latest"
-                    + self.plotting_format
+                    + self.plotting_format,
+                    bbox_inches="tight",
                 )
                 fig.savefig(
                     self.plotting_dir
@@ -2070,7 +2075,8 @@ class PhysicalField(Field):
                     + name
                     + "_t_"
                     + "{:06}".format(self.time_step)
-                    + self.plotting_format
+                    + self.plotting_format,
+                    bbox_inches="tight",
                 )
 
             try:
@@ -2802,7 +2808,8 @@ class FourierField(Field):
                         + "plot_3d_"
                         + self.name
                         + "_latest"
-                        + self.plotting_format
+                        + self.plotting_format,
+                        bbox_inches="tight",
                     )
                     fig.savefig(
                         self.plotting_dir
@@ -2810,7 +2817,8 @@ class FourierField(Field):
                         + self.name
                         + "_t_"
                         + "{:06}".format(self.time_step)
-                        + self.plotting_format
+                        + self.plotting_format,
+                        bbox_inches="tight",
                     )
 
                 try:
@@ -2894,7 +2902,8 @@ class FourierField(Field):
                     + "_"
                     + self.name
                     + "_latest"
-                    + self.plotting_format
+                    + self.plotting_format,
+                    bbox_inches="tight",
                 )
                 fig.savefig(
                     self.plotting_dir
@@ -2904,7 +2913,8 @@ class FourierField(Field):
                     + self.name
                     + "_t_"
                     + "{:06}".format(self.time_step)
-                    + self.plotting_format
+                    + self.plotting_format,
+                    bbox_inches="tight",
                 )
 
             try:
