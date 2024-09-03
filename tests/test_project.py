@@ -30,6 +30,7 @@ from jax_spectral_dns.navier_stokes_perturbation import (
 )
 from jax_spectral_dns.linear_stability_calculation import LinearStabilityCalculation
 from jax_spectral_dns.examples import (
+    run_optimisation_transient_growth_dual,
     run_pseudo_2d_perturbation,
     run_transient_growth,
     run_transient_growth_nonpert,
@@ -1530,6 +1531,28 @@ class TestProject(unittest.TestCase):
         error = (v0_no_cp_nh - v0_cp_nh).energy()
         print_verb("error:", error, verbosity_level=3)
         assert error < 1e-30
+
+    def test_dual(self) -> None:
+        opt_diss = run_optimisation_transient_growth_dual(
+            Re=100,
+            T=0.1,
+            Nx=4,
+            Ny=24,
+            Nz=4,
+            number_of_steps=1,
+            optimisation_mode="dissipation",
+        )
+        assert opt_diss.value - opt_diss.old_value >= 0.0
+        opt_gain = run_optimisation_transient_growth_dual(
+            Re=100,
+            T=0.1,
+            Nx=4,
+            Ny=24,
+            Nz=4,
+            number_of_steps=1,
+            optimisation_mode="gain",
+        )
+        assert opt_gain.value - opt_gain.old_value >= 0.0
 
 
 if __name__ == "__main__":

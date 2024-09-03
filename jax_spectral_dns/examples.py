@@ -1992,6 +1992,7 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
             relative_gain_increase_threshold=0.3,
         )
     optimiser.optimise()
+    return optimisiser
 
 
 def run_ld_2021_get_mean(**params: Any) -> None:
