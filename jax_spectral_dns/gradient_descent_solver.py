@@ -48,6 +48,7 @@ class GradientDescentSolver(ABC):
         self.i = params.get("start_iteration", 0)
         if self.i == -1:
             self.determine_last_iteration_step()
+        self.trajectory_write_interval = params.get("trajectory_write_interval", 20)
         self.max_step_size = params.get("max_step_size", 1e-1)
         self.min_step_size = params.get("min_step_size", 1e-4)
         self.step_size = params.get("step_size", 1e-2)
@@ -485,6 +486,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         start_time = time.time()
         print_verb("iteration", self.i + 1, "of", self.number_of_steps)
         print_verb("step size:", self.step_size, "; beta:", self.beta)
+
+        if self.i % self.trajectory_write_interval == 0:
+            self.dual_problem.write_trajectory = True
+        else:
+            self.dual_problem.write_trajectory = False
 
         domain = self.dual_problem.get_physical_domain()
 

@@ -449,6 +449,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             params.get("optimisation_mode", "gain")
         ]
         print_verb("optimising for", self.get_objective_fun_name())
+        self.write_trajectory = False
 
     def get_fixed_params(self) -> "NavierStokesVelVortFixedParameters":
         return self.forward_equation.nse_fixed_parameters
@@ -833,7 +834,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             start_time = time.time()
             velocity_u_hat_history_, dPdx_history, _ = nse.solve_scan()
             iteration_duration = time.time() - start_time
-            if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+            if (
+                os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None
+                and self.write_trajectory
+            ):
                 print_verb("writing velocity trajectory to file...")
 
                 with h5py.File(Field.field_dir + "/trajectory", "w") as f:
