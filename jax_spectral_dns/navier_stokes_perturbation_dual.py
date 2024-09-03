@@ -836,7 +836,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             iteration_duration = time.time() - start_time
             if (
                 os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None
-                and not self.checkpointing
                 and self.write_trajectory
             ):
                 print_verb("writing velocity trajectory to file...")
