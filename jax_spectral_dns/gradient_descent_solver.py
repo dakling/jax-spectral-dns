@@ -487,10 +487,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("iteration", self.i + 1, "of", self.number_of_steps)
         print_verb("step size:", self.step_size, "; beta:", self.beta)
 
-        if self.i % self.trajectory_write_interval == 0:
-            self.dual_problem.write_trajectory = True
-        else:
-            self.dual_problem.write_trajectory = False
+        if not self.dual_problem.checkpointing:
+            if self.i % self.trajectory_write_interval == 0:
+                self.dual_problem.write_trajectory = True
+            else:
+                self.dual_problem.write_trajectory = False
 
         domain = self.dual_problem.get_physical_domain()
 
