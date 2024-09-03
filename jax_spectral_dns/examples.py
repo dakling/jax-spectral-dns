@@ -2759,7 +2759,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         u = shear.integrate(1, bc_left=0.0) * u_sc
         u.set_name("velocity_base_x")
         # u.plot_center(1)
-        u_data = u.get_data()
+        u_data = u.get_data()  # TODO obtain this without jnp
         U_y_slice = cast("np_jnp_array", u_data[0, :, 0])
         max = np.max(u_data)
         flow_rate = get_flow_rate(domain, cast("np_complex_array", U_y_slice))

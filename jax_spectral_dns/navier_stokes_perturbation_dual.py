@@ -740,7 +740,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 dPdx = -self.dPdx_history[-1]
             else:
                 dPdx = 0.0
-            ts = jnp.arange(0, self.end_time, self.get_dt())
+            # ts = jnp.arange(0, self.end_time, self.get_dt())
+            ts = jnp.arange(0, -1 * self.forward_equation.end_time, self.get_dt())
 
             if self.write_intermediate_output and not self.write_entire_output:
                 u_final, trajectory = jax.lax.scan(
