@@ -534,6 +534,23 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         dt = nse.get_dt()
         end_time = nse.end_time
 
+        stripped_params = {
+            x: params[x]
+            for x in params
+            if x
+            not in [
+                "Re_tau",
+                "dt",
+                "end_time",
+                "velocity_base_hat",
+                "constant_mass_flux",
+                "linearise",
+                "linearise_switch",
+                "coupling_term",
+                "coupling_term_switch",
+            ]
+        }
+
         nse_dual = cls(
             None,
             nse,
@@ -549,7 +566,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 nse.coupling_term(0) if nse.coupling_term_switch is None else None
             ),
             coupling_term_switch=nse.coupling_term_switch,
-            **params,
+            **stripped_params,
         )
         nse_dual.set_linearise()
         return nse_dual

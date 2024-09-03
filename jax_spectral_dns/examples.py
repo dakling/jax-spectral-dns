@@ -2883,7 +2883,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         if plot_cess_mean:
             # vel_base_turb[0].plot_center(1)
             vel_base_turb[0].plot_center(1, reference_profile[0])
-            vel_base_turb[0].diff(1).plot_center(1)
+            vel_base_turb[0].diff(1).plot_center(1, reference_profile[0].diff(1))
     elif full_channel_mean:
         data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
         vel_base_turb, _, max_turb, flow_rate_turb, uv = get_vel_field_full_channel(
@@ -3059,9 +3059,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,
-        optimisation_mode=optimisation_mode,
-        checkpointing=params.get("checkpointing"),
-        checkpointing_threshold=params.get("checkpointing_threshold"),
+        **params,
     )
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,

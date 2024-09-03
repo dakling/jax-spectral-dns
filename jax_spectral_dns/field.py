@@ -19,7 +19,7 @@ try:
 except Exception:
     print("unable to load Axes3D, some plotting features may not work.")
 try:
-    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    from mpl_toolkits.axes_grid1 import make_axes_locatable  # type: ignore
 except Exception:
     print("unable to load make_axes_locatable, some plotting features may not work.")
 from matplotlib import colors
