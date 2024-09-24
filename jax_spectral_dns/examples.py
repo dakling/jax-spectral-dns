@@ -3035,6 +3035,16 @@ def run_ld_2021_dual(**params: Any) -> None:
             )
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
+        vort = v0.curl()
+        v0_data = NavierStokesVelVort.vort_yvel_to_vel(
+            domain,
+            vort[1].get_data(),
+            v0[1].get_data(),
+            v0[0][0, :, 0],
+            v0[2][0, :, 0],
+            two_d=False,
+        )
+        v0 = VectorField.FromData(PhysicalField, domain, v0_data, v0.get_name())
         v0_hat = v0.hat()
     v0_hat.set_name("velocity_hat")
 
