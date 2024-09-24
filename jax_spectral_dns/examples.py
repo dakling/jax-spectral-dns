@@ -3040,8 +3040,8 @@ def run_ld_2021_dual(**params: Any) -> None:
             domain,
             vort[1].hat().get_data(),
             v0[1].hat().get_data(),
-            v0[0][0, :, 0],
-            v0[2][0, :, 0],
+            v0[0].hat()[0, :, 0],
+            v0[2].hat()[0, :, 0],
             two_d=False,
         )
         v0 = VectorField.FromData(PhysicalField, domain, v0_data, v0.get_name())
