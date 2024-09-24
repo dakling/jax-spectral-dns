@@ -511,7 +511,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         j = 0
         m = jax.numpy.linalg.norm(self.grad)
         t = c * m
-        while old_value - new_value > step_size * t:
+        while new_value - old_value < step_size * t:
             step_size *= tau
             print_verb("iteration", j, "step size", step_size)
 
