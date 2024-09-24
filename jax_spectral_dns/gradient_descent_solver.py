@@ -498,6 +498,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.step_size, u_hat_0, v_hat_0
             )
         current_guess = self.current_guess + step_size * self.grad
+        current_guess = self.normalize_field(current_guess)
 
         self.dual_problem.forward_equation.set_initial_field(
             "velocity_hat", current_guess
@@ -511,7 +512,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         tau = 0.5
         c = 0.5
         j = 0
-        m = jax.numpy.linalg.norm(self.grad)
+        # m = jax.numpy.linalg.norm(self.grad)
+        m = jnp.dot(
+            self.dual_problem.get_grad(u_hat_0, v_hat_0).flatten().T,
+            self.grad.flatten(),
+        )
         t = c * m
         cond = new_value - old_value > step_size * t
         if cond:
@@ -529,6 +534,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         self.step_size, u_hat_0, v_hat_0
                     )
                 current_guess = self.current_guess + step_size * self.grad
+                current_guess = self.normalize_field(current_guess)
 
                 # TODO: possibly recompute gradient
                 self.dual_problem.forward_equation.set_initial_field(
@@ -539,7 +545,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
-                m = jax.numpy.linalg.norm(self.grad)
+                # m = jax.numpy.linalg.norm(self.grad)
+                m = jnp.dot(
+                    self.dual_problem.get_grad(u_hat_0, v_hat_0).flatten().T,
+                    self.grad.flatten(),
+                )
                 t = c * m
                 j += 1
             step_size *= tau
@@ -562,6 +572,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         self.step_size, u_hat_0, v_hat_0
                     )
                 current_guess = self.current_guess + step_size * self.grad
+                current_guess = self.normalize_field(current_guess)
 
                 # TODO: possibly recompute gradient
                 self.dual_problem.forward_equation.set_initial_field(
@@ -572,7 +583,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
-                m = jax.numpy.linalg.norm(self.grad)
+                # m = jax.numpy.linalg.norm(self.grad)
+                m = jnp.dot(
+                    self.dual_problem.get_grad(u_hat_0, v_hat_0).flatten().T,
+                    self.grad.flatten(),
+                )
                 t = c * m
                 j += 1
 

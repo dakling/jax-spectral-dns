@@ -999,10 +999,17 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         dissipation_hat /= np.abs(self.get_Re_tau() * len(u_hat_hist))
         return dissipation_hat.no_hat().volume_integral()
 
-    def get_grad(self) -> "jnp_array":
-        self.run_backward_calculation()
-        u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
-        v_hat_0 = self.get_latest_field("velocity_hat")
+    def get_grad(
+        self,
+        u_hat_0: Optional[VectorField[FourierField]] = None,
+        v_hat_0: Optional[VectorField[FourierField]] = None,
+    ) -> "jnp_array":
+        if u_hat_0 is None and v_hat_0 is None:
+            self.run_backward_calculation()
+        if u_hat_0 is None:
+            u_hat_0 = self.forward_equation.get_initial_field("velocity_hat")
+        if v_hat_0 is None:
+            v_hat_0 = self.get_latest_field("velocity_hat")
         gain = self.get_gain()
         e_0 = u_hat_0.no_hat().energy()
 
