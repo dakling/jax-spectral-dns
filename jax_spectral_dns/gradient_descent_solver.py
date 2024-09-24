@@ -510,8 +510,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         c = 0.5
         j = 0
         m = jax.numpy.linalg.norm(self.grad)
-        t = -c * m
-        while old_value - new_value < step_size * t:
+        t = c * m
+        while old_value - new_value > step_size * t:
             step_size *= tau
             print_verb("iteration", j, "step size", step_size)
 
@@ -533,7 +533,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             new_value = self.dual_problem.get_objective_fun()
             print_verb("gain:", new_value)
             m = jax.numpy.linalg.norm(self.grad)
-            t = -c * m
+            t = c * m
             j += 1
 
         # ls = jaxopt.HagerZhangLineSearch(
