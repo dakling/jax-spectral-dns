@@ -618,21 +618,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("m", m)
                 print_verb("t", t)
                 print_verb("step_size * t", step_size * t)
-
-        # ls = jaxopt.HagerZhangLineSearch(
-        #     fun=fun,
-        #     maxiter=5,
-        #     # condition="strong-wolfe",
-        #     # decrease_factor=0.8,
-        #     jit=False,
-        #     unroll=False,
-        # )
-        # stepsize, _ = ls.run(
-        #     init_stepsize=1.0,
-        #     params=self.current_guess.get_data(),
-        #     value=self.value,
-        #     grad=self.grad,
-        # )
         return cast(float, step_size)
 
     def update(self) -> None:
@@ -728,8 +713,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("sub-iteration took", iteration_duration, "seconds")
         print_verb("\n")
 
-    def decrease_step_size(self) -> None:
-        self.step_size = max(self.step_size / 2.0, self.min_step_size)
+    def decrease_step_size(self, tau: float = 2.0) -> None:
+        self.step_size = max(self.step_size / tau, self.min_step_size)
 
     def update_beta(self, last_iteration_successful: bool) -> None:
         if last_iteration_successful:
