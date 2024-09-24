@@ -3038,8 +3038,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         vort = v0.curl()
         v0_data = NavierStokesVelVort.vort_yvel_to_vel(
             domain,
-            vort[1].get_data(),
-            v0[1].get_data(),
+            vort[1].hat().get_data(),
+            v0[1].hat().get_data(),
             v0[0][0, :, 0],
             v0[2][0, :, 0],
             two_d=False,
