@@ -121,7 +121,7 @@ def collect_gain_e0(
     gains.append(get_gain(store_path, "linear"))
     e_0s, gains = (list(x) for x in zip(*sorted(zip(e_0s, gains))))
     relative_gains = np.array(gains) / gains[0]
-    return np.array(e_0s), np.array(gains), relative_gains
+    return np.array(e_0s)[:-1], np.array(gains)[:-1], relative_gains  # TODO
 
 
 def plot_single(

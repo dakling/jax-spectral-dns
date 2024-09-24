@@ -8,6 +8,7 @@ import math
 from typing import Any, Optional, Tuple, cast, TYPE_CHECKING
 import jax
 import jax.numpy as jnp
+import jaxopt
 from matplotlib import figure
 import numpy as np
 from matplotlib.axes import Axes, subplot_class_factory
@@ -636,7 +637,7 @@ class OptimiserWrapper(GradientDescentSolver):
             minimise=False,
             force_2d=False,
             max_iter=self.number_of_steps,
-            use_optax=True,
+            use_optax=False,
             min_optax_iter=self.number_of_steps,
             learning_rate=1e-2,
             scale_by_norm=True,

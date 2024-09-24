@@ -233,11 +233,11 @@ class Optimiser(ABC, Generic[I]):
             self.value_and_grad_fn,
             value_and_grad=True,
             implicit_diff=False,
-            jit=True,
+            jit=False,
             linesearch="zoom",
             linesearch_init="current",
             maxls=15,
-            unroll=False,
+            # unroll=False,
         )
         return solver
 

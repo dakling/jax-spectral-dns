@@ -1542,6 +1542,8 @@ class TestProject(unittest.TestCase):
             number_of_steps=1,
             optimisation_mode="dissipation",
         )
+        assert opt_diss.value is not None
+        assert opt_diss.old_value is not None
         assert opt_diss.value - opt_diss.old_value >= 0.0
         opt_gain = run_optimisation_transient_growth_dual(
             Re=100,
@@ -1552,6 +1554,8 @@ class TestProject(unittest.TestCase):
             number_of_steps=1,
             optimisation_mode="gain",
         )
+        assert opt_gain.value is not None
+        assert opt_gain.old_value is not None
         assert opt_gain.value - opt_gain.old_value >= 0.0
 
 

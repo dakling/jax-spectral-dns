@@ -1820,7 +1820,7 @@ def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
     optimiser.optimise()
 
 
-def run_optimisation_transient_growth_dual(**params: Any) -> None:
+def run_optimisation_transient_growth_dual(**params: Any) -> GradientDescentSolver:
     Re: float = params.get("Re", 3000.0)
     T: float = params.get("T", 15)
     Nx: int = params.get("Nx", 4)
@@ -1992,7 +1992,7 @@ def run_optimisation_transient_growth_dual(**params: Any) -> None:
             relative_gain_increase_threshold=0.3,
         )
     optimiser.optimise()
-    return optimisiser
+    return optimiser
 
 
 def run_ld_2021_get_mean(**params: Any) -> None:
@@ -3062,7 +3062,15 @@ def run_ld_2021_dual(**params: Any) -> None:
         nse,
         **params,
     )
-    optimiser = ConjugateGradientDescentSolver(
+    # optimiser = ConjugateGradientDescentSolver(
+    #     nse_dual,
+    #     max_iterations=number_of_steps,
+    #     step_size=initial_step_size,
+    #     max_step_size=max_step_size,
+    #     min_step_size=min_step_size,
+    #     start_iteration=start_iteration,
+    # )
+    optimiser = OptimiserWrapper(
         nse_dual,
         max_iterations=number_of_steps,
         step_size=initial_step_size,
