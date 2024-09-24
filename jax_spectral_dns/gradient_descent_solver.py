@@ -491,7 +491,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         )
         stepsize, _ = ls.run(
             init_stepsize=1.0,
-            params=self.current_guess,
+            params=self.current_guess.get_data(),
             value=self.value,
             grad=self.grad,
         )
