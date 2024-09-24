@@ -1026,7 +1026,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         def get_new_energy_0(l: float) -> float:
             return (
-                ((1 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
+                ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
                 .no_hat()
                 .energy()
             )
@@ -1086,7 +1086,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         def get_new_energy_0(l: float) -> float:
             return (
                 (
-                    (1 + step_size * l) * u_hat_0
+                    (1.0 + step_size * l) * u_hat_0
                     + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
                 )
                 .no_hat()
@@ -1112,7 +1112,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         return (
             (
                 lam * u_hat_0.get_data()
-                + (-1 * v_hat_0.get_data() + beta * old_grad) / self.gain
+                + (-1.0 * v_hat_0.get_data() + beta * old_grad) / self.gain
             ),
             i < max_iter,
         )
