@@ -8,7 +8,7 @@ import math
 from typing import Any, Optional, Tuple, cast, TYPE_CHECKING
 import jax
 import jax.numpy as jnp
-import jaxopt
+import jaxopt  # type: ignore[import-untyped]
 from matplotlib import figure
 import numpy as np
 from matplotlib.axes import Axes, subplot_class_factory
@@ -482,9 +482,18 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
-    def get_step_size_ls(self) -> float:
+    def get_step_size_ls(self) -> "float":
+        def fun(v0: "jnp_array", **kw: Any) -> "float":
+            self.current_guess = VectorField.FromData(
+                FourierField, self.dual_problem.get_physical_domain(), v0
+            )
+            self.dual_problem.forward_equation.set_initial_field(
+                "velocity_hat", self.current_guess
+            )
+            return self.dual_problem.get_gain()
+
         ls = jaxopt.BacktrackingLineSearch(
-            fun=self.dual_problem.get_objective_fun,
+            fun=fun,
             maxiter=20,
             condition="strong-wolfe",
             decrease_factor=0.8,
