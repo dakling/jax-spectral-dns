@@ -509,18 +509,19 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.dual_problem.write_trajectory = True
         print_verb("gain:", new_value)
 
+        local_grad = self.dual_problem.get_projected_grad(step_size, u_hat_0, v_hat_0)[
+            0
+        ].flatten()
         tau = 0.5
-        c = 0.1
+        c = 0.5
         j = 0
         # m = jax.numpy.linalg.norm(self.grad)
-        m = jnp.dot(
-            self.dual_problem.get_projected_grad(step_size, u_hat_0, v_hat_0)[
-                0
-            ].flatten(),
-            self.grad.flatten(),
-        )
+        m = jnp.abs(jnp.dot(local_grad, self.grad.flatten()))
         t = c * m
         cond = new_value - old_value > step_size * t
+        print_verb("m", m)
+        print_verb("t", t)
+        print_verb("step_size * t", step_size * t)
         if cond:
             print_verb("wolfe conditions satisfied, trying to increase the step size")
             while new_value - old_value > step_size * t:
@@ -548,14 +549,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
                 # m = jax.numpy.linalg.norm(self.grad)
-                m = jnp.dot(
-                    self.dual_problem.get_projected_grad(step_size, u_hat_0, v_hat_0)[
-                        0
-                    ].flatten(),
-                    self.grad.flatten(),
-                )
+                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten()))
                 t = c * m
                 j += 1
+                print_verb("m", m)
+                print_verb("t", t)
+                print_verb("step_size * t", step_size * t)
             step_size *= tau
 
         else:
@@ -588,14 +587,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
                 # m = jax.numpy.linalg.norm(self.grad)
-                m = jnp.dot(
-                    self.dual_problem.get_projected_grad(step_size, u_hat_0, v_hat_0)[
-                        0
-                    ].flatten(),
-                    self.grad.flatten(),
-                )
+                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten()))
                 t = c * m
                 j += 1
+                print_verb("m", m)
+                print_verb("t", t)
+                print_verb("step_size * t", step_size * t)
 
         # ls = jaxopt.HagerZhangLineSearch(
         #     fun=fun,
