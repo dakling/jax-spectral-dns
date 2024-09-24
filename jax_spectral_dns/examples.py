@@ -2652,6 +2652,8 @@ def run_ld_2021_dual(**params: Any) -> None:
     plot_cess_mean = params.get("plot_cess_mean", False)
     full_channel_reynolds_stresses = params.get("full_channel_reynolds_stresses", False)
 
+    use_linesearch = params.get("use_linesearch", False)
+
     laminar_correction_modes = Enum(
         "laminar_correction_modes", ["NoCorrection", "MaxValue", "FlowRate", "Energy"]
     )
@@ -3078,6 +3080,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         max_step_size=max_step_size,
         min_step_size=min_step_size,
         start_iteration=start_iteration,
+        use_linesearch=use_linesearch,
     )
     # optimiser = OptimiserWrapper(
     #     nse_dual,

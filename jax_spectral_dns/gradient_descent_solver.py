@@ -63,6 +63,8 @@ class GradientDescentSolver(ABC):
         self.value_change_threshold = params.get("value_change_threshold", 1e-8)
         self.step_size_threshold = params.get("step_size_threshold", 1e-5)
 
+        self.use_linesearch = params.get("use_linesearch", False)
+
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
         )
@@ -675,7 +677,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        self.step_size = self.get_step_size_ls(gain)
+        if self.use_linesearch:
+            self.step_size = self.get_step_size_ls(gain)
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
@@ -699,10 +702,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         if gain_change is not None:
             if gain_change > 0.0:
-                # self.increase_step_size()
+                if not self.use_linesearch:
+                    self.increase_step_size()
                 self.reset_beta = False
             else:
-                # self.decrease_step_size()
+                if not self.use_linesearch:
+                    self.decrease_step_size()
                 self.reset_beta = True
             self.update_beta(not self.reset_beta)
         self.old_grad = self.grad
