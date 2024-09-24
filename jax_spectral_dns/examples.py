@@ -3062,15 +3062,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         nse,
         **params,
     )
-    # optimiser = ConjugateGradientDescentSolver(
-    #     nse_dual,
-    #     max_iterations=number_of_steps,
-    #     step_size=initial_step_size,
-    #     max_step_size=max_step_size,
-    #     min_step_size=min_step_size,
-    #     start_iteration=start_iteration,
-    # )
-    optimiser = OptimiserWrapper(
+    optimiser = ConjugateGradientDescentSolver(
         nse_dual,
         max_iterations=number_of_steps,
         step_size=initial_step_size,
@@ -3078,6 +3070,14 @@ def run_ld_2021_dual(**params: Any) -> None:
         min_step_size=min_step_size,
         start_iteration=start_iteration,
     )
+    # optimiser = OptimiserWrapper(
+    #     nse_dual,
+    #     max_iterations=number_of_steps,
+    #     step_size=initial_step_size,
+    #     max_step_size=max_step_size,
+    #     min_step_size=min_step_size,
+    #     start_iteration=start_iteration,
+    # )
     optimiser.optimise()
 
 

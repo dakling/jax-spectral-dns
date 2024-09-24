@@ -121,6 +121,10 @@ class GradientDescentSolver(ABC):
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
 
+        v0_div = v0.div()
+        cont_error = v0_div.energy() / v0.energy()
+        print_verb("continuity error:", cont_error)
+
         write_all = os.environ.get("JAX_SPECTRAL_DNS_WRITE_FIELDS")
         out_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR")
         v0.save_to_file("velocity_latest")
