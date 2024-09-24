@@ -71,11 +71,11 @@ class GradientDescentSolver(ABC):
     def e_0(self) -> float:
         return self._e_0
 
-    def increase_step_size(self) -> None:
-        self.step_size = min(self.max_step_size, self.step_size * 1.5)
+    def increase_step_size(self, tau: float = 1.5) -> None:
+        self.step_size = min(self.max_step_size, self.step_size * tau)
 
-    def decrease_step_size(self) -> None:
-        self.step_size /= 5.0
+    def decrease_step_size(self, tau: float = 5.0) -> None:
+        self.step_size /= tau
 
     @abstractmethod
     def initialise(self, prepare_for_iterations: bool = True) -> None: ...
@@ -546,6 +546,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
             while new_value - old_value < step_size * t:
                 step_size *= tau
+
                 print_verb("iteration", j, "step size", step_size)
 
                 if self.old_grad is not None:
@@ -651,10 +652,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         if gain_change is not None:
             if gain_change > 0.0:
-                self.increase_step_size()
+                # self.increase_step_size()
                 self.reset_beta = False
             else:
-                self.decrease_step_size()
+                # self.decrease_step_size()
                 self.reset_beta = True
             self.update_beta(not self.reset_beta)
         self.old_grad = self.grad
