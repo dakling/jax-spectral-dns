@@ -3044,8 +3044,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             v0[2].hat()[0, :, 0],
             two_d=False,
         )
-        v0 = VectorField.FromData(PhysicalField, domain, v0_data, v0.get_name())
-        v0_hat = v0.hat()
+        v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
     v0_hat.set_name("velocity_hat")
 
     # dt = Equation.find_suitable_dt(
