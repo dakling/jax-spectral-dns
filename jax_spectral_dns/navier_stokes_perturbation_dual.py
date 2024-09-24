@@ -1051,7 +1051,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_hat_0: Optional[VectorField[FourierField]] = None,
         v_hat_0: Optional[VectorField[FourierField]] = None,
     ) -> Tuple["jnp_array", bool]:
-        self.run_backward_calculation()
+        if u_hat_0 is None and v_hat_0 is None:
+            self.run_backward_calculation()
         if u_hat_0 is None:
             u_hat_0 = self.velocity_u_hat_0
         if v_hat_0 is None:
@@ -1066,7 +1067,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_hat_0: Optional[VectorField[FourierField]] = None,
         v_hat_0: Optional[VectorField[FourierField]] = None,
     ) -> Tuple["jnp_array", bool]:
-        self.run_backward_calculation()
+        if u_hat_0 is None and v_hat_0 is None:
+            self.run_backward_calculation()
         if u_hat_0 is None:
             u_hat_0 = self.velocity_u_hat_0
         if v_hat_0 is None:

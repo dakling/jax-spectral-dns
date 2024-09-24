@@ -484,7 +484,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def get_step_size_ls(self, old_value: "float") -> "float":
 
-        step_size = 1.0
+        step_size = self.step_size
         print_verb("performing line search, step size", step_size)
 
         u_hat_0 = self.dual_problem.velocity_u_hat_0
@@ -511,30 +511,63 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         j = 0
         m = jax.numpy.linalg.norm(self.grad)
         t = c * m
-        while new_value - old_value < step_size * t:
+        cond = new_value - old_value < step_size * t
+        if cond:
+            print_verb("wolfe conditions satisfied, trying to increase the step size")
+            while new_value - old_value < step_size * t:
+                step_size /= tau
+                print_verb("iteration", j, "step size", step_size)
+
+                if self.old_grad is not None:
+                    self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                        self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                    )
+                else:
+                    self.grad, _ = self.dual_problem.get_projected_grad(
+                        self.step_size, u_hat_0, v_hat_0
+                    )
+                self.current_guess = self.current_guess + step_size * self.grad
+
+                # TODO: possibly recompute gradient
+                self.dual_problem.forward_equation.set_initial_field(
+                    "velocity_hat", self.current_guess
+                )
+                self.dual_problem.update_with_nse()
+                new_value = self.dual_problem.get_objective_fun()
+                print_verb("gain:", new_value)
+                m = jax.numpy.linalg.norm(self.grad)
+                t = c * m
+                j += 1
             step_size *= tau
-            print_verb("iteration", j, "step size", step_size)
 
-            if self.old_grad is not None:
-                self.grad, _ = self.dual_problem.get_projected_cg_grad(
-                    self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
-                )
-            else:
-                self.grad, _ = self.dual_problem.get_projected_grad(
-                    self.step_size, u_hat_0, v_hat_0
-                )
-            self.current_guess = self.current_guess + step_size * self.grad
-
-            # TODO: possibly recompute gradient
-            self.dual_problem.forward_equation.set_initial_field(
-                "velocity_hat", self.current_guess
+        else:
+            print_verb(
+                "wolfe conditions not satisfied, trying to decrease the step size"
             )
-            self.dual_problem.update_with_nse()
-            new_value = self.dual_problem.get_objective_fun()
-            print_verb("gain:", new_value)
-            m = jax.numpy.linalg.norm(self.grad)
-            t = c * m
-            j += 1
+            while new_value - old_value < step_size * t:
+                step_size *= tau
+                print_verb("iteration", j, "step size", step_size)
+
+                if self.old_grad is not None:
+                    self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                        self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                    )
+                else:
+                    self.grad, _ = self.dual_problem.get_projected_grad(
+                        self.step_size, u_hat_0, v_hat_0
+                    )
+                self.current_guess = self.current_guess + step_size * self.grad
+
+                # TODO: possibly recompute gradient
+                self.dual_problem.forward_equation.set_initial_field(
+                    "velocity_hat", self.current_guess
+                )
+                self.dual_problem.update_with_nse()
+                new_value = self.dual_problem.get_objective_fun()
+                print_verb("gain:", new_value)
+                m = jax.numpy.linalg.norm(self.grad)
+                t = c * m
+                j += 1
 
         # ls = jaxopt.HagerZhangLineSearch(
         #     fun=fun,
