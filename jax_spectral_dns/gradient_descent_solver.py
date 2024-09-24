@@ -526,7 +526,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         #     value=self.value,
         #     grad=self.grad,
         # )
-        return cast(float, stepsize)
+        return cast(float, step_size)
 
     def update(self) -> None:
 
