@@ -552,7 +552,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        self.step_size = self.get_step_size_ls()
+        # self.step_size = self.get_step_size_ls()
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
