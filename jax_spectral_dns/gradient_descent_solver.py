@@ -516,7 +516,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         c = 0.5
         j = 0
         # m = jax.numpy.linalg.norm(self.grad)
-        m = jnp.abs(jnp.dot(local_grad, self.grad.flatten()))
+        m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (self.e_0 / old_value)
         t = c * m
         cond = new_value - old_value > step_size * t
         print_verb("m", m)
@@ -548,8 +548,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
-                # m = jax.numpy.linalg.norm(self.grad)
-                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten()))
+                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
+                    self.e_0 / old_value
+                )
                 t = c * m
                 j += 1
                 print_verb("m", m)
@@ -586,8 +587,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
-                # m = jax.numpy.linalg.norm(self.grad)
-                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten()))
+                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
+                    self.e_0 / old_value
+                )
                 t = c * m
                 j += 1
                 print_verb("m", m)
