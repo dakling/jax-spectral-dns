@@ -491,7 +491,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.dual_problem.forward_equation.set_initial_field(
                 "velocity_hat", self.current_guess
             )
-            return self.dual_problem.get_gain()
+            self.dual_problem.update_with_nse()
+            return self.dual_problem.get_objective_fun()
 
         ls = jaxopt.BacktrackingLineSearch(
             fun=fun,
@@ -499,7 +500,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             condition="strong-wolfe",
             decrease_factor=0.8,
             jit=False,
-            unroll=True,
+            unroll=False,
         )
         stepsize, _ = ls.run(
             init_stepsize=1.0,
