@@ -482,9 +482,20 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
-    def get_step_size_ls(self) -> "float":
+    def get_step_size_ls(self, old_value: "float") -> "float":
 
         step_size = 1.0
+
+        u_hat_0 = self.dual_problem.velocity_u_hat_0
+        v_hat_0 = self.dual_problem.get_latest_field("velocity_hat")
+        if self.old_grad is not None:
+            self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+            )
+        else:
+            self.grad, _ = self.dual_problem.get_projected_grad(
+                self.step_size, u_hat_0, v_hat_0
+            )
         self.current_guess = self.current_guess + step_size * self.grad
 
         self.dual_problem.forward_equation.set_initial_field(
@@ -498,9 +509,17 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         j = 0
         m = jax.numpy.linalg.norm(self.grad)
         t = -c * m
-        assert self.value is not None
-        while self.value - new_value < step_size * t:
+        while old_value - new_value < step_size * t:
             step_size *= tau
+
+            if self.old_grad is not None:
+                self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                    self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                )
+            else:
+                self.grad, _ = self.dual_problem.get_projected_grad(
+                    self.step_size, u_hat_0, v_hat_0
+                )
             self.current_guess = self.current_guess + step_size * self.grad
 
             # TODO: possibly recompute gradient
@@ -570,7 +589,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        self.step_size = self.get_step_size_ls()
+        self.step_size = self.get_step_size_ls(old_value)
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)

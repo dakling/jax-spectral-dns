@@ -1045,18 +1045,32 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             i < max_iter,
         )
 
-    def get_projected_grad(self, step_size: float) -> Tuple["jnp_array", bool]:
+    def get_projected_grad(
+        self,
+        step_size: float,
+        u_hat_0: Optional[VectorField[FourierField]] = None,
+        v_hat_0: Optional[VectorField[FourierField]] = None,
+    ) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
-        u_hat_0 = self.velocity_u_hat_0
-        v_hat_0 = self.get_latest_field("velocity_hat")
+        if u_hat_0 is None:
+            u_hat_0 = self.velocity_u_hat_0
+        if v_hat_0 is None:
+            v_hat_0 = self.get_latest_field("velocity_hat")
         return self.get_projected_grad_from_u_and_v(step_size, u_hat_0, v_hat_0)
 
     def get_projected_cg_grad(
-        self, step_size: float, beta: float, old_grad: "jnp_array"
+        self,
+        step_size: float,
+        beta: float,
+        old_grad: "jnp_array",
+        u_hat_0: Optional[VectorField[FourierField]] = None,
+        v_hat_0: Optional[VectorField[FourierField]] = None,
     ) -> Tuple["jnp_array", bool]:
         self.run_backward_calculation()
-        u_hat_0 = self.velocity_u_hat_0
-        v_hat_0 = self.get_latest_field("velocity_hat")
+        if u_hat_0 is None:
+            u_hat_0 = self.velocity_u_hat_0
+        if v_hat_0 is None:
+            v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
         lam = -1.0
 
