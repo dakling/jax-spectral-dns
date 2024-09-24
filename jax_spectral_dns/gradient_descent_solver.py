@@ -503,7 +503,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             "velocity_hat", self.current_guess
         )
         self.dual_problem.update_with_nse()
+        self.dual_problem.write_trajectory = False
         new_value = self.dual_problem.get_objective_fun()
+        self.dual_problem.write_trajectory = True
         print_verb("gain:", new_value)
 
         tau = 0.5
@@ -533,7 +535,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     "velocity_hat", self.current_guess
                 )
                 self.dual_problem.update_with_nse()
+                self.dual_problem.write_trajectory = False
                 new_value = self.dual_problem.get_objective_fun()
+                self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
                 m = jax.numpy.linalg.norm(self.grad)
                 t = c * m
@@ -564,7 +568,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     "velocity_hat", self.current_guess
                 )
                 self.dual_problem.update_with_nse()
+                self.dual_problem.write_trajectory = False
                 new_value = self.dual_problem.get_objective_fun()
+                self.dual_problem.write_trajectory = True
                 print_verb("gain:", new_value)
                 m = jax.numpy.linalg.norm(self.grad)
                 t = c * m
