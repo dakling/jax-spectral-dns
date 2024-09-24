@@ -485,20 +485,20 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
     def get_step_size_ls(self) -> "float":
         def fun(v0: "jnp_array", **kw: Any) -> "float":
             print_verb("evaluating fn")
-            self.current_guess = VectorField.FromData(
+            v0_field = VectorField.FromData(
                 FourierField, self.dual_problem.get_physical_domain(), v0
             )
             self.dual_problem.forward_equation.set_initial_field(
-                "velocity_hat", self.current_guess
+                "velocity_hat", v0_field
             )
             self.dual_problem.update_with_nse()
             return self.dual_problem.get_objective_fun()
 
-        ls = jaxopt.BacktrackingLineSearch(
+        ls = jaxopt.HagerZhangLineSearch(
             fun=fun,
             maxiter=5,
-            condition="strong-wolfe",
-            decrease_factor=0.8,
+            # condition="strong-wolfe",
+            # decrease_factor=0.8,
             jit=False,
             unroll=False,
         )
@@ -552,7 +552,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        # self.step_size = self.get_step_size_ls()
+        self.step_size = self.get_step_size_ls()
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
