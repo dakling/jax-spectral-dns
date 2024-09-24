@@ -483,31 +483,49 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_grad: Optional["jnp_array"] = None
 
     def get_step_size_ls(self) -> "float":
-        def fun(v0: "jnp_array", **kw: Any) -> "float":
-            print_verb("evaluating fn")
-            v0_field = VectorField.FromData(
-                FourierField, self.dual_problem.get_physical_domain(), v0
-            )
+
+        step_size = 1.0
+        self.current_guess = self.current_guess + step_size * self.grad
+
+        self.dual_problem.forward_equation.set_initial_field(
+            "velocity_hat", self.current_guess
+        )
+        self.dual_problem.update_with_nse()
+        new_value = self.dual_problem.get_objective_fun()
+
+        tau = 0.5
+        c = 0.5
+        j = 0
+        m = jax.numpy.linalg.norm(self.grad)
+        t = -c * m
+        assert self.value is not None
+        while self.value - new_value < step_size * t:
+            step_size *= tau
+            self.current_guess = self.current_guess + step_size * self.grad
+
+            # TODO: possibly recompute gradient
             self.dual_problem.forward_equation.set_initial_field(
-                "velocity_hat", v0_field
+                "velocity_hat", self.current_guess
             )
             self.dual_problem.update_with_nse()
-            return self.dual_problem.get_objective_fun()
+            new_value = self.dual_problem.get_objective_fun()
+            t = -c * m
+            j += 1
 
-        ls = jaxopt.HagerZhangLineSearch(
-            fun=fun,
-            maxiter=5,
-            # condition="strong-wolfe",
-            # decrease_factor=0.8,
-            jit=False,
-            unroll=False,
-        )
-        stepsize, _ = ls.run(
-            init_stepsize=1.0,
-            params=self.current_guess.get_data(),
-            value=self.value,
-            grad=self.grad,
-        )
+        # ls = jaxopt.HagerZhangLineSearch(
+        #     fun=fun,
+        #     maxiter=5,
+        #     # condition="strong-wolfe",
+        #     # decrease_factor=0.8,
+        #     jit=False,
+        #     unroll=False,
+        # )
+        # stepsize, _ = ls.run(
+        #     init_stepsize=1.0,
+        #     params=self.current_guess.get_data(),
+        #     value=self.value,
+        #     grad=self.grad,
+        # )
         return cast(float, stepsize)
 
     def update(self) -> None:
