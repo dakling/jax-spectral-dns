@@ -491,11 +491,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v_hat_0 = self.dual_problem.get_latest_field("velocity_hat")
         if self.old_grad is not None:
             self.grad, _ = self.dual_problem.get_projected_cg_grad(
-                self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
             )
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(
-                self.step_size, u_hat_0, v_hat_0
+                step_size, u_hat_0, v_hat_0
             )
         current_guess = self.current_guess + step_size * self.grad
         current_guess = self.normalize_field(current_guess)
@@ -514,7 +514,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         ].flatten()
         tau = 0.5
         c = 0.5
-        j = 0
+        j = 1
         # m = jax.numpy.linalg.norm(self.grad)
         # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (self.e_0 / old_value)
         m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
@@ -529,15 +529,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb("wolfe conditions satisfied, trying to increase the step size")
             while new_value - old_value > step_size * t:
                 step_size /= tau
-                print_verb("iteration", j, "step size", step_size)
+                print_verb("line search iteration", j, "step size", step_size)
 
                 if self.old_grad is not None:
                     self.grad, _ = self.dual_problem.get_projected_cg_grad(
-                        self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                        step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
                     )
                 else:
                     self.grad, _ = self.dual_problem.get_projected_grad(
-                        self.step_size, u_hat_0, v_hat_0
+                        step_size, u_hat_0, v_hat_0
                     )
                 current_guess = self.current_guess + step_size * self.grad
                 current_guess = self.normalize_field(current_guess)
@@ -555,9 +555,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 #     self.e_0 / old_value
                 # )
                 # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (1.0 / old_value) ** 2
-                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
-                    self.e_0 / old_value**2
-                )
+                m = jnp.abs(
+                    jnp.dot(
+                        self.dual_problem.get_projected_grad(
+                            step_size, u_hat_0, v_hat_0
+                        )[0].flatten(),
+                        self.grad.flatten(),
+                    )
+                ) * (self.e_0 / old_value**2)
                 t = c * m
                 j += 1
                 print_verb("m", m)
@@ -572,15 +577,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             while new_value - old_value < step_size * t:
                 step_size *= tau
 
-                print_verb("iteration", j, "step size", step_size)
+                print_verb("line search iteration", j, "step size", step_size)
 
                 if self.old_grad is not None:
                     self.grad, _ = self.dual_problem.get_projected_cg_grad(
-                        self.step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                        step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
                     )
                 else:
                     self.grad, _ = self.dual_problem.get_projected_grad(
-                        self.step_size, u_hat_0, v_hat_0
+                        step_size, u_hat_0, v_hat_0
                     )
                 current_guess = self.current_guess + step_size * self.grad
                 current_guess = self.normalize_field(current_guess)
@@ -598,9 +603,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 #     self.e_0 / old_value
                 # )
                 # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (1.0 / old_value) ** 2
-                m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
-                    self.e_0 / old_value**2
-                )
+                m = jnp.abs(
+                    jnp.dot(
+                        self.dual_problem.get_projected_grad(
+                            step_size, u_hat_0, v_hat_0
+                        )[0].flatten(),
+                        self.grad.flatten(),
+                    )
+                ) * (self.e_0 / old_value**2)
                 t = c * m
                 j += 1
                 print_verb("m", m)
