@@ -484,6 +484,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def get_step_size_ls(self) -> "float":
         def fun(v0: "jnp_array", **kw: Any) -> "float":
+            print_verb("evaluating fn")
             self.current_guess = VectorField.FromData(
                 FourierField, self.dual_problem.get_physical_domain(), v0
             )
@@ -494,9 +495,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         ls = jaxopt.BacktrackingLineSearch(
             fun=fun,
-            maxiter=20,
+            maxiter=5,
             condition="strong-wolfe",
             decrease_factor=0.8,
+            jit=False,
+            unroll=True,
         )
         stepsize, _ = ls.run(
             init_stepsize=1.0,
