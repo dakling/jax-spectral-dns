@@ -485,6 +485,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
     def get_step_size_ls(self, old_value: "float") -> "float":
 
         step_size = 1.0
+        print_verb("performing line search, step size", step_size)
 
         u_hat_0 = self.dual_problem.velocity_u_hat_0
         v_hat_0 = self.dual_problem.get_latest_field("velocity_hat")
@@ -503,6 +504,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         )
         self.dual_problem.update_with_nse()
         new_value = self.dual_problem.get_objective_fun()
+        print_verb("gain:", new_value)
 
         tau = 0.5
         c = 0.5
@@ -511,6 +513,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         t = -c * m
         while old_value - new_value < step_size * t:
             step_size *= tau
+            print_verb("iteration", j, "step size", step_size)
 
             if self.old_grad is not None:
                 self.grad, _ = self.dual_problem.get_projected_cg_grad(
@@ -528,6 +531,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
             self.dual_problem.update_with_nse()
             new_value = self.dual_problem.get_objective_fun()
+            print_verb("gain:", new_value)
+            m = jax.numpy.linalg.norm(self.grad)
             t = -c * m
             j += 1
 
