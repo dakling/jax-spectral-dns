@@ -497,10 +497,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.grad, _ = self.dual_problem.get_projected_grad(
                 self.step_size, u_hat_0, v_hat_0
             )
-        self.current_guess = self.current_guess + step_size * self.grad
+        current_guess = self.current_guess + step_size * self.grad
 
         self.dual_problem.forward_equation.set_initial_field(
-            "velocity_hat", self.current_guess
+            "velocity_hat", current_guess
         )
         self.dual_problem.update_with_nse()
         self.dual_problem.write_trajectory = False
@@ -528,11 +528,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     self.grad, _ = self.dual_problem.get_projected_grad(
                         self.step_size, u_hat_0, v_hat_0
                     )
-                self.current_guess = self.current_guess + step_size * self.grad
+                current_guess = self.current_guess + step_size * self.grad
 
                 # TODO: possibly recompute gradient
                 self.dual_problem.forward_equation.set_initial_field(
-                    "velocity_hat", self.current_guess
+                    "velocity_hat", current_guess
                 )
                 self.dual_problem.update_with_nse()
                 self.dual_problem.write_trajectory = False
@@ -561,11 +561,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     self.grad, _ = self.dual_problem.get_projected_grad(
                         self.step_size, u_hat_0, v_hat_0
                     )
-                self.current_guess = self.current_guess + step_size * self.grad
+                current_guess = self.current_guess + step_size * self.grad
 
                 # TODO: possibly recompute gradient
                 self.dual_problem.forward_equation.set_initial_field(
-                    "velocity_hat", self.current_guess
+                    "velocity_hat", current_guess
                 )
                 self.dual_problem.update_with_nse()
                 self.dual_problem.write_trajectory = False
