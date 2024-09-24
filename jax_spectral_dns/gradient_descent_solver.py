@@ -121,10 +121,6 @@ class GradientDescentSolver(ABC):
         v0.set_name("vel_0")
         v0.set_time_step(self.i)
 
-        v0_div = v0.div()
-        cont_error = v0_div.energy() / v0.energy()
-        print_verb("continuity error:", cont_error)
-
         write_all = os.environ.get("JAX_SPECTRAL_DNS_WRITE_FIELDS")
         out_dir = os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR")
         v0.save_to_file("velocity_latest")
@@ -486,11 +482,31 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
+    def get_step_size_ls(self) -> float:
+        ls = jaxopt.BacktrackingLineSearch(
+            fun=self.dual_problem.get_objective_fun,
+            maxiter=20,
+            condition="strong-wolfe",
+            decrease_factor=0.8,
+        )
+        stepsize, _ = ls.run(
+            init_stepsize=1.0,
+            params=self.current_guess,
+            value=self.value,
+            grad=self.grad,
+        )
+        return cast(float, stepsize)
+
     def update(self) -> None:
 
         start_time = time.time()
         print_verb("iteration", self.i + 1, "of", self.number_of_steps)
         print_verb("step size:", self.step_size, "; beta:", self.beta)
+
+        v0 = self.current_guess.no_hat()
+        v0_div = v0.div()
+        cont_error = v0_div.energy() / v0.energy()
+        print_verb("cont_error", cont_error)
 
         if self.i % self.trajectory_write_interval == 0:
             self.dual_problem.write_trajectory = True
@@ -522,6 +538,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+
+        self.step_size = self.get_step_size_ls()
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
