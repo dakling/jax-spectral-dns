@@ -484,7 +484,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
-    def get_step_size_ls(self, old_value: "float", max_iter_ls: "int" = 20) -> "float":
+    def get_step_size_ls(self, old_value: "float", max_iter_ls: "int" = 10) -> "float":
 
         step_size = self.step_size
         print_verb("performing line search, step size", step_size)
