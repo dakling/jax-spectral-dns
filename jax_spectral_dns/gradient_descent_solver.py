@@ -484,7 +484,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
-    def get_step_size_ls(self, old_value: "float", max_iter_ls: "int" = 10) -> "float":
+    def get_step_size_ls(self, old_value: "float") -> "float":
 
         step_size = self.step_size
         print_verb("performing line search, step size", step_size)
@@ -529,7 +529,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("step_size * t", step_size * t)
         if cond:
             print_verb("wolfe conditions satisfied, trying to increase the step size")
-            while new_value - old_value > step_size * t and j < max_iter_ls:
+            while new_value - old_value > step_size * t:
                 step_size /= tau
                 print_verb("line search iteration", j, "step size", step_size)
 
@@ -576,7 +576,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             print_verb(
                 "wolfe conditions not satisfied, trying to decrease the step size"
             )
-            while new_value - old_value < step_size * t and j < max_iter_ls:
+            while (
+                new_value - old_value < step_size * t and step_size > self.min_step_size
+            ):
                 step_size *= tau
 
                 print_verb("line search iteration", j, "step size", step_size)
