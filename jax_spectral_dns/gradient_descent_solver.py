@@ -508,8 +508,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.dual_problem.update_with_nse()
         self.dual_problem.write_trajectory = False
         new_value = self.dual_problem.get_objective_fun()
+        new_old_value = new_value
         self.dual_problem.write_trajectory = True
-        print_verb("gain:", new_value)
+        print_verb("gain change:", new_value - old_value)
 
         local_grad = self.dual_problem.get_projected_grad(step_size, u_hat_0, v_hat_0)[
             0
@@ -529,7 +530,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("step_size * t", step_size * t, verbosity_level=2)
         if cond:
             print_verb("wolfe conditions satisfied, trying to increase the step size")
-            while new_value - old_value > step_size * t:
+            while (
+                (new_old_value < new_value)
+                and new_value - old_value > step_size * t
+                and step_size < self.max_step_size
+            ):
                 step_size *= 1.2
                 print_verb("line search iteration", j, "step size", step_size)
 
@@ -550,9 +555,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 )
                 self.dual_problem.update_with_nse()
                 self.dual_problem.write_trajectory = False
+                new_old_value = new_value
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
-                print_verb("gain:", new_value)
+                print_verb("gain change:", new_value - old_value)
                 # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
                 #     self.e_0 / old_value
                 # )
@@ -602,7 +608,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.dual_problem.write_trajectory = False
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
-                print_verb("gain:", new_value)
+                print_verb("gain change:", new_value - old_value)
                 # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
                 #     self.e_0 / old_value
                 # )
