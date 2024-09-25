@@ -535,7 +535,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 and new_value - old_value > step_size * t
                 and step_size < self.max_step_size
             ):
-                step_size *= 1.2
+                step_size *= 1.5
                 print_verb("line search iteration", j, "step size", step_size)
 
                 if self.old_grad is not None:
