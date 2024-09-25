@@ -582,7 +582,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     print_verb("m", m, verbosity_level=2)
                     print_verb("t", t, verbosity_level=2)
                     print_verb("step_size * t", step_size * t, verbosity_level=2)
-                step_size *= tau
+                step_size *= 1.5
             else:
                 print_verb(
                     "wolfe conditions satisfied, but accepting current step size"
