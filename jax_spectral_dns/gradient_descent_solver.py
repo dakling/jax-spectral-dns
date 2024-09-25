@@ -530,7 +530,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         if cond:
             print_verb("wolfe conditions satisfied, trying to increase the step size")
             while new_value - old_value > step_size * t:
-                step_size /= tau
+                step_size *= 1.2
                 print_verb("line search iteration", j, "step size", step_size)
 
                 if self.old_grad is not None:

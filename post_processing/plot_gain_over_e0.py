@@ -117,11 +117,17 @@ def collect_gain_e0(
         if e_0 is not None and gain is not None:
             e_0s.append(e_0)
             gains.append(gain)
-    e_0s.append(0.0)
-    gains.append(get_gain(store_path, "linear"))
+
+    try:
+        gain = get_gain(store_path, "linear")
+    except Exception as e:
+        gain = None
+    if gain is not None:
+        e_0s.append(0.0)
+        gains.append(gain)
     e_0s, gains = (list(x) for x in zip(*sorted(zip(e_0s, gains))))
     relative_gains = np.array(gains) / gains[0]
-    return np.array(e_0s)[:-1], np.array(gains)[:-1], relative_gains  # TODO
+    return np.array(e_0s), np.array(gains), relative_gains
 
 
 def plot_single(
@@ -194,10 +200,16 @@ plot(
     [
         # ("laminar_base_two_t_e_0_study", "laminar base", e_base_lam),
         # ("two_t_e_0_study", "minimal channel mean (long channel)", e_base_turb),
+        # (
+        #     "smaller_channel_two_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=0.7 h / u_\tau$",
+        #     e_base_turb,
+        # ),
         (
-            "smaller_channel_two_t_e_0_study",
+            "smaller_channel_three_t_e_0_study",
             # "minimal channel mean (short channel)",
-            "minimal channel mean",
+            "$T=1.05 h / u_\tau$",
             e_base_turb,
         ),
         # ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
