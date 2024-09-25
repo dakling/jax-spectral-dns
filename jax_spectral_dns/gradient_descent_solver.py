@@ -622,7 +622,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 current_guess = self.current_guess + step_size * self.grad
                 current_guess = self.normalize_field(current_guess)
 
-                # TODO: possibly recompute gradient
                 self.dual_problem.forward_equation.set_initial_field(
                     "velocity_hat", current_guess
                 )
@@ -631,10 +630,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 new_value = self.dual_problem.get_objective_fun()
                 self.dual_problem.write_trajectory = True
                 print_verb("gain change:", new_value - old_value)
-                # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
-                #     self.e_0 / old_value
-                # )
-                # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (1.0 / old_value) ** 2
                 m = jnp.abs(
                     jnp.dot(
                         self.dual_problem.get_projected_grad(
@@ -671,6 +666,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("writing trajectory to file failed", verbosity_level=2)
         else:
             print_verb("not writing trajectory to file", verbosity_level=2)
+        self.current_guess = current_guess
         return cast(float, step_size), new_value
 
     def update(self) -> None:
