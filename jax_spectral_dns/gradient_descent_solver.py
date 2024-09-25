@@ -64,6 +64,9 @@ class GradientDescentSolver(ABC):
         self.step_size_threshold = params.get("step_size_threshold", 1e-5)
 
         self.use_linesearch = params.get("use_linesearch", False)
+        self.linesearch_increase_interval = params.get(
+            "linesearch_increase_interval", 3
+        )
 
         self.current_guess = self.dual_problem.forward_equation.get_initial_field(
             "velocity_hat"
@@ -529,7 +532,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("t", t, verbosity_level=2)
         print_verb("step_size * t", step_size * t, verbosity_level=2)
         if cond:
-            if self.i % 3 == 0:
+            if self.i % self.linesearch_increase_interval == 0:
                 print_verb(
                     "wolfe conditions satisfied, trying to increase the step size"
                 )
