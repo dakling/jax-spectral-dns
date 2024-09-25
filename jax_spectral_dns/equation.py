@@ -390,7 +390,6 @@ class Equation:
                     verbosity_level=1,
                 )
             self.deactivate_jit()
-
         else:
             msg = (
                 "WARNING: Solving without jit/scan - performance will be "

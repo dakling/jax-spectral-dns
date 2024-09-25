@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from abc import ABC, abstractmethod
+import h5py  # type: ignore
 import os, glob
 from shutil import copyfile
 import time
@@ -553,6 +554,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         self.grad, _ = self.dual_problem.get_projected_grad(
                             step_size, u_hat_0, v_hat_0
                         )
+                    old_current_guess = current_guess
                     current_guess = self.current_guess + step_size * self.grad
                     current_guess = self.normalize_field(current_guess)
 
@@ -583,7 +585,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     print_verb("m", m, verbosity_level=2)
                     print_verb("t", t, verbosity_level=2)
                     print_verb("step_size * t", step_size * t, verbosity_level=2)
+                # revert effects of last iteration
                 step_size /= tau_inv
+                current_guess = old_current_guess
                 if self.old_grad is not None:
                     self.grad, _ = self.dual_problem.get_projected_cg_grad(
                         step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
@@ -642,6 +646,23 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("m", m, verbosity_level=2)
                 print_verb("t", t, verbosity_level=2)
                 print_verb("step_size * t", step_size * t, verbosity_level=2)
+
+        if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
+            try:
+                print_verb("writing trajectory to file...", verbosity_level=2)
+
+                with h5py.File(Field.field_dir + "/trajectory", "w") as f:
+                    f.create_dataset(
+                        "trajectory",
+                        data=self.dual_problem.velocity_field_u_history,
+                        compression="gzip",
+                        compression_opts=9,
+                    )
+                print_verb("done writing trajectory to file", verbosity_level=2)
+            except Exception:
+                print_verb("writing trajectory to file failed", verbosity_level=2)
+        else:
+            print_verb("not writing trajectory to file", verbosity_level=2)
         return cast(float, step_size)
 
     def update(self) -> None:
@@ -666,7 +687,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             "velocity_hat", self.current_guess
         )
         self.dual_problem.update_with_nse()
-        gain = self.dual_problem.get_objective_fun()
+
+        if not self.use_linesearch:
+            gain = self.dual_problem.get_objective_fun()
+        else:
+            assert self.value is not None
+            gain = self.value
 
         print_verb("")
         print_verb(self.dual_problem.get_objective_fun_name(), gain)
@@ -687,7 +713,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
         if self.use_linesearch:
-            self.step_size = self.get_step_size_ls(gain)
+            self.step_size, gain = self.get_step_size_ls(gain)
 
         self.current_guess = self.current_guess + self.step_size * self.grad
         self.current_guess = self.normalize_field(self.current_guess)
