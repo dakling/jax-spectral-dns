@@ -652,9 +652,15 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("writing trajectory to file...", verbosity_level=2)
 
                 with h5py.File(Field.field_dir + "/trajectory", "w") as f:
+                    assert self.dual_problem.velocity_field_u_history is not None
                     f.create_dataset(
                         "trajectory",
-                        data=self.dual_problem.velocity_field_u_history,
+                        data=jnp.insert(
+                            self.dual_problem.velocity_field_u_history,
+                            0,
+                            self.current_guess.get_data(),
+                            axis=0,
+                        ),
                         compression="gzip",
                         compression_opts=9,
                     )
@@ -688,10 +694,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         )
         self.dual_problem.update_with_nse()
 
-        if not self.use_linesearch:
+        if (not self.use_linesearch) or (self.value is None):
             gain = self.dual_problem.get_objective_fun()
         else:
-            assert self.value is not None
             gain = self.value
 
         print_verb("")
