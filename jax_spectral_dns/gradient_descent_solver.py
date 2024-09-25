@@ -524,9 +524,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         )
         t = c * m
         cond = new_value - old_value > step_size * t
-        print_verb("m", m)
-        print_verb("t", t)
-        print_verb("step_size * t", step_size * t)
+        print_verb("m", m, verbosity_level=2)
+        print_verb("t", t, verbosity_level=2)
+        print_verb("step_size * t", step_size * t, verbosity_level=2)
         if cond:
             print_verb("wolfe conditions satisfied, trying to increase the step size")
             while new_value - old_value > step_size * t:
@@ -567,9 +567,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 ) * (self.e_0 / old_value**2)
                 t = c * m
                 j += 1
-                print_verb("m", m)
-                print_verb("t", t)
-                print_verb("step_size * t", step_size * t)
+                print_verb("m", m, verbosity_level=2)
+                print_verb("t", t, verbosity_level=2)
+                print_verb("step_size * t", step_size * t, verbosity_level=2)
             step_size *= tau
 
         else:
@@ -617,9 +617,9 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 ) * (self.e_0 / old_value**2)
                 t = c * m
                 j += 1
-                print_verb("m", m)
-                print_verb("t", t)
-                print_verb("step_size * t", step_size * t)
+                print_verb("m", m, verbosity_level=2)
+                print_verb("t", t, verbosity_level=2)
+                print_verb("step_size * t", step_size * t, verbosity_level=2)
         return cast(float, step_size)
 
     def update(self) -> None:
