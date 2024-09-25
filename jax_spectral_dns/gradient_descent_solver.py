@@ -584,6 +584,14 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     print_verb("t", t, verbosity_level=2)
                     print_verb("step_size * t", step_size * t, verbosity_level=2)
                 step_size /= tau_inv
+                if self.old_grad is not None:
+                    self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                        step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                    )
+                else:
+                    self.grad, _ = self.dual_problem.get_projected_grad(
+                        step_size, u_hat_0, v_hat_0
+                    )
             else:
                 print_verb(
                     "wolfe conditions satisfied, but accepting current step size"
@@ -636,15 +644,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("m", m, verbosity_level=2)
                 print_verb("t", t, verbosity_level=2)
                 print_verb("step_size * t", step_size * t, verbosity_level=2)
-
-        if self.old_grad is not None:
-            self.grad, _ = self.dual_problem.get_projected_cg_grad(
-                step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
-            )
-        else:
-            self.grad, _ = self.dual_problem.get_projected_grad(
-                step_size, u_hat_0, v_hat_0
-            )
         return cast(float, step_size)
 
     def update(self) -> None:
