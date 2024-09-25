@@ -620,6 +620,36 @@ class VectorField(Generic[T]):
     def get_localisation(self: VectorField[PhysicalField], p: int = 3) -> float:
         return self.energy_p(p) / self.energy()
 
+    def get_q_criterion(self: VectorField[PhysicalField]) -> PhysicalField:
+        grad_u = [
+            [self[i].diff(j) for j in range(self[0].number_of_dimensions())]
+            for i in range(self[0].number_of_dimensions())
+        ]
+        s = [
+            [
+                0.5 * (grad_u[i][j] + grad_u[j][i])
+                for j in range(self[0].number_of_dimensions())
+            ]
+            for i in range(self[0].number_of_dimensions())
+        ]
+        omega = [
+            [
+                0.5 * (grad_u[i][j] - grad_u[j][i])
+                for j in range(self[0].number_of_dimensions())
+            ]
+            for i in range(self[0].number_of_dimensions())
+        ]
+
+        def sum_sq_nested_list(lst: List[List[PhysicalField]]) -> PhysicalField:
+            s_sq = [
+                [(s[i][j] * s[j][i]) for j in range(self[0].number_of_dimensions())]
+                for i in range(self[0].number_of_dimensions())
+            ]
+            s_sq_flat = [s for ss in s_sq for s in ss]
+            return functools.reduce(lambda a, b: a + b, s_sq_flat)
+
+        return 0.5 * (sum_sq_nested_list(s) + sum_sq_nested_list(omega))
+
     def normalize_by_energy(
         self: VectorField[PhysicalField],
     ) -> VectorField[PhysicalField]:
@@ -836,6 +866,14 @@ class VectorField(Generic[T]):
             )
             print(e)
             print("ignoring this and carrying on.")
+
+    def plot_q_criterion_isosurfaces(
+        self: VectorField[PhysicalField], iso_val: float = 0.4
+    ) -> None:
+        q_crit = self.get_q_criterion()
+        q_crit.set_time_step(self.get_time_step())
+        q_crit.set_name("q_criterion")
+        q_crit.plot_isosurfaces(iso_val)
 
     def cross_product(self, other: VectorField[T]) -> VectorField[T]:
         out_0: T = self[1] * other[2] - self[2] * other[1]

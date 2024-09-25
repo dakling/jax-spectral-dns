@@ -535,7 +535,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         if cond:
             if self.i % self.linesearch_increase_interval == 0:
                 print_verb(
-                    "wolfe conditions satisfied, trying to increase the step size"
+                    "wolfe conditions satisfied; trying to increase the step size"
                 )
                 while (
                     (new_value >= new_old_value)
@@ -593,12 +593,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         step_size, u_hat_0, v_hat_0
                     )
             else:
-                print_verb(
-                    "wolfe conditions satisfied, but accepting current step size"
-                )
+                print_verb("wolfe conditions satisfied; accepting current step size")
         else:
             print_verb(
-                "wolfe conditions not satisfied, trying to decrease the step size"
+                "wolfe conditions not satisfied; trying to decrease the step size"
             )
             while (
                 new_value - old_value < step_size * t and step_size > self.min_step_size

@@ -212,6 +212,24 @@ plot(
             "$T=1.05 h / u_\tau$",
             e_base_turb,
         ),
+        (
+            "smaller_channel_four_t_e_0_study",
+            # "minimal channel mean (short channel)",
+            "$T=1.4 h / u_\tau$",
+            e_base_turb,
+        ),
+        (
+            "smaller_channel_six_t_e_0_study",
+            # "minimal channel mean (short channel)",
+            "$T=2.1 h / u_\tau$",
+            e_base_turb,
+        ),
+        (
+            "smaller_channel_eight_t_e_0_study",
+            # "minimal channel mean (short channel)",
+            "$T=2.8 h / u_\tau$",
+            e_base_turb,
+        ),
         # ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
     ]
 )

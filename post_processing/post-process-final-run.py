@@ -142,6 +142,7 @@ def post_process(
             energy_x_2d_1.append(e_x_2d_1)
             energy_x_2d_2.append(e_x_2d_2)
             vel_2d_x.set_name("velocity_x_2d")
+            vel_2d_x.set_time_step(j)
             vel_2d_x.plot_3d(0, rotate=True)
             vel_2d_x.plot_3d(2)
             amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
@@ -248,6 +249,7 @@ def post_process(
             vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
+            vel.plot_q_criterion_isosurfaces()
             vel.plot_wavenumbers(1)
             vel.magnitude().plot_wavenumbers(1)
 
