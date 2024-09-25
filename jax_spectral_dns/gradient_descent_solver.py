@@ -519,6 +519,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             0
         ].flatten()
         tau = 0.5
+        tau_inv = 1.5
         c = 0.5
         j = 1
         # m = jax.numpy.linalg.norm(self.grad)
@@ -541,7 +542,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     and new_value - old_value > step_size * t
                     and step_size < self.max_step_size
                 ):
-                    step_size *= 1.5
+                    step_size *= tau_inv
                     print_verb("line search iteration", j, "step size", step_size)
 
                     if self.old_grad is not None:
@@ -582,7 +583,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     print_verb("m", m, verbosity_level=2)
                     print_verb("t", t, verbosity_level=2)
                     print_verb("step_size * t", step_size * t, verbosity_level=2)
-                step_size *= 1.5
+                step_size /= tau_inv
             else:
                 print_verb(
                     "wolfe conditions satisfied, but accepting current step size"
