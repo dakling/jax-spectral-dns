@@ -488,7 +488,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
 
-    def get_step_size_ls(self, old_value: "float") -> "float":
+    def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
         step_size = self.step_size
         print_verb("performing line search, step size", step_size)
@@ -505,6 +505,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
         current_guess = self.current_guess + step_size * self.grad
         current_guess = self.normalize_field(current_guess)
+        old_current_guess = current_guess
 
         self.dual_problem.forward_equation.set_initial_field(
             "velocity_hat", current_guess
@@ -588,6 +589,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 # revert effects of last iteration
                 step_size /= tau_inv
                 current_guess = old_current_guess
+                new_value = new_old_value
                 if self.old_grad is not None:
                     self.grad, _ = self.dual_problem.get_projected_cg_grad(
                         step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
@@ -669,7 +671,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 print_verb("writing trajectory to file failed", verbosity_level=2)
         else:
             print_verb("not writing trajectory to file", verbosity_level=2)
-        return cast(float, step_size)
+        return cast(float, step_size), new_value
 
     def update(self) -> None:
 
