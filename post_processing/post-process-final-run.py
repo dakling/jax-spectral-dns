@@ -255,7 +255,7 @@ def post_process(
             q_crit.set_name("q_criterion")
             q_crit.plot_3d(2, z_max)
             q_crit.plot_3d(0, x_max)
-            vel.plot_q_criterion_isosurfaces()
+            vel.plot_q_criterion_isosurfaces(iso_vals=[0.05, 0.1, 0.5])
             vel.plot_wavenumbers(1)
             vel.magnitude().plot_wavenumbers(1)
 

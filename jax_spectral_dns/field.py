@@ -856,13 +856,13 @@ class VectorField(Generic[T]):
     def plot_q_criterion_isosurfaces(
         self: VectorField[PhysicalField],
         plot_min_and_max: bool = False,
-        iso_vals: List[float] = [0.1, 0.5],
+        iso_vals: List[float] = [0.05, 0.1, 0.5],
     ) -> None:
         q_crit = self.get_q_criterion()
         q_crit.set_time_step(self.get_time_step())
         q_crit.set_name("q_criterion")
         q_crit.plot_isosurfaces(
-            iso_vals[0], plot_min_and_max=False, other_vals=iso_vals[1:]
+            iso_vals[0], plot_min_and_max=plot_min_and_max, other_vals=iso_vals[1:]
         )
 
     def cross_product(self, other: VectorField[T]) -> VectorField[T]:
