@@ -508,7 +508,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.dual_problem.update_with_nse()
         self.dual_problem.write_trajectory = False
         new_value = self.dual_problem.get_objective_fun()
-        new_old_value = new_value
+        new_old_value = old_value
         self.dual_problem.write_trajectory = True
         print_verb("gain change:", new_value - old_value)
 
