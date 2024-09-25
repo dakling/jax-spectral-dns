@@ -531,7 +531,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         if cond:
             print_verb("wolfe conditions satisfied, trying to increase the step size")
             while (
-                (new_old_value < new_value)
+                (new_value >= new_old_value)
                 and new_value - old_value > step_size * t
                 and step_size < self.max_step_size
             ):
@@ -637,7 +637,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0 = self.current_guess.no_hat()
         v0_div = v0.div()
         cont_error = v0_div.energy() / v0.energy()
-        print_verb("cont_error", cont_error)
+        print_verb("continuity error", cont_error)
 
         if self.i % self.trajectory_write_interval == 0:
             self.dual_problem.write_trajectory = True
