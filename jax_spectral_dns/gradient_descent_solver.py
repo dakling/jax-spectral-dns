@@ -694,11 +694,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         if (not self.use_linesearch) or (self.value is None):
             gain = self.dual_problem.get_objective_fun()
+        else:
+            gain = self.value
 
-        assert gain is not None
         print_verb("")
         print_verb(self.dual_problem.get_objective_fun_name(), gain)
-        if self.value is not None:
+        if self.value is not None and (not self.use_linesearch):
             gain_change = gain - self.value
             print_verb(
                 self.dual_problem.get_objective_fun_name(), "change:", gain_change
