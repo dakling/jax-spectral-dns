@@ -529,55 +529,61 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("t", t, verbosity_level=2)
         print_verb("step_size * t", step_size * t, verbosity_level=2)
         if cond:
-            print_verb("wolfe conditions satisfied, trying to increase the step size")
-            while (
-                (new_value >= new_old_value)
-                and new_value - old_value > step_size * t
-                and step_size < self.max_step_size
-            ):
-                step_size *= 1.5
-                print_verb("line search iteration", j, "step size", step_size)
-
-                if self.old_grad is not None:
-                    self.grad, _ = self.dual_problem.get_projected_cg_grad(
-                        step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
-                    )
-                else:
-                    self.grad, _ = self.dual_problem.get_projected_grad(
-                        step_size, u_hat_0, v_hat_0
-                    )
-                current_guess = self.current_guess + step_size * self.grad
-                current_guess = self.normalize_field(current_guess)
-
-                # TODO: possibly recompute gradient
-                self.dual_problem.forward_equation.set_initial_field(
-                    "velocity_hat", current_guess
+            if self.i % 3 == 0:
+                print_verb(
+                    "wolfe conditions satisfied, trying to increase the step size"
                 )
-                self.dual_problem.update_with_nse()
-                self.dual_problem.write_trajectory = False
-                new_old_value = new_value
-                new_value = self.dual_problem.get_objective_fun()
-                self.dual_problem.write_trajectory = True
-                print_verb("gain change:", new_value - old_value)
-                # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
-                #     self.e_0 / old_value
-                # )
-                # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (1.0 / old_value) ** 2
-                m = jnp.abs(
-                    jnp.dot(
-                        self.dual_problem.get_projected_grad(
-                            step_size, u_hat_0, v_hat_0
-                        )[0].flatten(),
-                        self.grad.flatten(),
-                    )
-                ) * (self.e_0 / old_value**2)
-                t = c * m
-                j += 1
-                print_verb("m", m, verbosity_level=2)
-                print_verb("t", t, verbosity_level=2)
-                print_verb("step_size * t", step_size * t, verbosity_level=2)
-            step_size *= tau
+                while (
+                    (new_value >= new_old_value)
+                    and new_value - old_value > step_size * t
+                    and step_size < self.max_step_size
+                ):
+                    step_size *= 1.5
+                    print_verb("line search iteration", j, "step size", step_size)
 
+                    if self.old_grad is not None:
+                        self.grad, _ = self.dual_problem.get_projected_cg_grad(
+                            step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
+                        )
+                    else:
+                        self.grad, _ = self.dual_problem.get_projected_grad(
+                            step_size, u_hat_0, v_hat_0
+                        )
+                    current_guess = self.current_guess + step_size * self.grad
+                    current_guess = self.normalize_field(current_guess)
+
+                    # TODO: possibly recompute gradient
+                    self.dual_problem.forward_equation.set_initial_field(
+                        "velocity_hat", current_guess
+                    )
+                    self.dual_problem.update_with_nse()
+                    self.dual_problem.write_trajectory = False
+                    new_old_value = new_value
+                    new_value = self.dual_problem.get_objective_fun()
+                    self.dual_problem.write_trajectory = True
+                    print_verb("gain change:", new_value - old_value)
+                    # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
+                    #     self.e_0 / old_value
+                    # )
+                    # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (1.0 / old_value) ** 2
+                    m = jnp.abs(
+                        jnp.dot(
+                            self.dual_problem.get_projected_grad(
+                                step_size, u_hat_0, v_hat_0
+                            )[0].flatten(),
+                            self.grad.flatten(),
+                        )
+                    ) * (self.e_0 / old_value**2)
+                    t = c * m
+                    j += 1
+                    print_verb("m", m, verbosity_level=2)
+                    print_verb("t", t, verbosity_level=2)
+                    print_verb("step_size * t", step_size * t, verbosity_level=2)
+                step_size *= tau
+            else:
+                print_verb(
+                    "wolfe conditions satisfied, but accepting current step size"
+                )
         else:
             print_verb(
                 "wolfe conditions not satisfied, trying to decrease the step size"
