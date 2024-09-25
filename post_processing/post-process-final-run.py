@@ -249,6 +249,12 @@ def post_process(
             vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
+
+            q_crit = vel.get_q_criterion()
+            q_crit.set_time_step(vel.get_time_step())
+            q_crit.set_name("q_criterion")
+            q_crit.plot_3d(2, z_max)
+            q_crit.plot_3d(0, x_max)
             vel.plot_q_criterion_isosurfaces()
             vel.plot_wavenumbers(1)
             vel.magnitude().plot_wavenumbers(1)

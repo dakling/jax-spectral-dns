@@ -625,30 +625,16 @@ class VectorField(Generic[T]):
             [self[i].diff(j) for j in range(self[0].number_of_dimensions())]
             for i in range(self[0].number_of_dimensions())
         ]
-        s = [
+        u_grad_sq = [
             [
-                0.5 * (grad_u[i][j] + grad_u[j][i])
+                (grad_u[i][j] * grad_u[j][i])
                 for j in range(self[0].number_of_dimensions())
             ]
             for i in range(self[0].number_of_dimensions())
         ]
-        omega = [
-            [
-                0.5 * (grad_u[i][j] - grad_u[j][i])
-                for j in range(self[0].number_of_dimensions())
-            ]
-            for i in range(self[0].number_of_dimensions())
-        ]
-
-        def sum_sq_nested_list(lst: List[List[PhysicalField]]) -> PhysicalField:
-            s_sq = [
-                [(s[i][j] * s[j][i]) for j in range(self[0].number_of_dimensions())]
-                for i in range(self[0].number_of_dimensions())
-            ]
-            s_sq_flat = [s for ss in s_sq for s in ss]
-            return functools.reduce(lambda a, b: a + b, s_sq_flat)
-
-        return 0.5 * (sum_sq_nested_list(s) + sum_sq_nested_list(omega))
+        u_grad_sq_flat = [x for xs in u_grad_sq for x in xs]
+        u_grad_sum = functools.reduce(lambda a, b: a + b, u_grad_sq_flat)
+        return -0.5 * u_grad_sum
 
     def normalize_by_energy(
         self: VectorField[PhysicalField],
@@ -868,12 +854,16 @@ class VectorField(Generic[T]):
             print("ignoring this and carrying on.")
 
     def plot_q_criterion_isosurfaces(
-        self: VectorField[PhysicalField], iso_val: float = 0.4
+        self: VectorField[PhysicalField],
+        plot_min_and_max: bool = False,
+        iso_vals: List[float] = [0.1, 0.5],
     ) -> None:
         q_crit = self.get_q_criterion()
         q_crit.set_time_step(self.get_time_step())
         q_crit.set_name("q_criterion")
-        q_crit.plot_isosurfaces(iso_val)
+        q_crit.plot_isosurfaces(
+            iso_vals[0], plot_min_and_max=False, other_vals=iso_vals[1:]
+        )
 
     def cross_product(self, other: VectorField[T]) -> VectorField[T]:
         out_0: T = self[1] * other[2] - self[2] * other[1]
@@ -2205,10 +2195,20 @@ class PhysicalField(Field):
             grid = pv.RectilinearGrid(*domain.grid)
             grid.point_data[name] = self.get_data().T.flatten()
             values = grid.point_data[name]
+            other_values = params.get("other_values", [])
             if plot_min_and_max:
-                mesh = grid.contour([iso_val * min_val, iso_val * max_val], values)
+                # mesh = grid.contour([iso_val * min_val, iso_val * max_val], values)
+                mesh = grid.contour(
+                    [iso_val * max_val, iso_val * min_val]
+                    + [val * max_val for val in other_values]
+                    + [val * min_val for val in other_values],
+                    values,
+                )
             else:
-                mesh = grid.contour([iso_val * max_val], values)
+                mesh = grid.contour(
+                    [iso_val * max_val] + [val * max_val for val in other_values],
+                    values,
+                )
 
             interactive = params.get("interactive", False)
             try:
