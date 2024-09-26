@@ -29,7 +29,7 @@ except ModuleNotFoundError:
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array, jsd_array
 
-DEBUG_LINESEARCH = False
+DEBUG_LINESEARCH = True
 
 
 class GradientDescentSolver(ABC):
