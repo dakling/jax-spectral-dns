@@ -2642,9 +2642,9 @@ def run_ld_2021_dual(**params: Any) -> None:
     alpha = params.get("alpha", 1.0)
     beta = params.get("beta", 2.0)
 
-    initial_step_size = params.get("initial_step_size", 1.0e-3)
+    initial_step_size = params.get("initial_step_size", 1.0e-1)
     min_step_size = params.get("min_step_size", 1.0e-4)
-    max_step_size = params.get("max_step_size", 1.0e-1)
+    max_step_size = params.get("max_step_size", 9.0e-1)
 
     mean_perturbation = params.get("mean_perturbation", 0.0)
 
