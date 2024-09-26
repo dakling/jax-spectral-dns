@@ -1966,8 +1966,9 @@ def run_optimisation_transient_growth_dual(**params: Any) -> GradientDescentSolv
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,
-        checkpointing=False,
+        # checkpointing=False,
         # checkpointing=True,
+        **params,
     )
     if use_custom_optimiser:
         print_verb("using custom optimiser")

@@ -29,6 +29,8 @@ except ModuleNotFoundError:
 if TYPE_CHECKING:
     from jax_spectral_dns._typing import jsd_float, parameter_type, jnp_array, jsd_array
 
+DEBUG_LINESEARCH = False
+
 
 class GradientDescentSolver(ABC):
 
@@ -677,7 +679,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0 = self.current_guess.no_hat()
         v0_div = v0.div()
         cont_error = v0_div.energy() / v0.energy()
-        print_verb("continuity error", cont_error)
+        print_verb("continuity error:", cont_error)
 
         if self.i % self.trajectory_write_interval == 0:
             self.dual_problem.write_trajectory = True
@@ -713,7 +715,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
 
-        if True:
+        if DEBUG_LINESEARCH:
             print_verb("performing fwd run for testing purposes")
             self.dual_problem.forward_equation.set_initial_field(
                 "velocity_hat", self.current_guess
