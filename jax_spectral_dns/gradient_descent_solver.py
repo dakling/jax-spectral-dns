@@ -535,7 +535,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         if cond:
             if self.i % self.linesearch_increase_interval == 0:
                 print_verb(
-                    "wolfe conditions satisfied; trying to increase the step size"
+                    "armijo condition satisfied; trying to increase the step size"
                 )
                 while (
                     (new_value >= new_old_value)
@@ -598,10 +598,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                         step_size, u_hat_0, v_hat_0
                     )
             else:
-                print_verb("wolfe conditions satisfied; accepting current step size")
+                print_verb("armijo condition satisfied; accepting current step size")
         else:
             print_verb(
-                "wolfe conditions not satisfied; trying to decrease the step size"
+                "armijo condition not satisfied; trying to decrease the step size"
             )
             while (
                 new_value - old_value < step_size * t and step_size > self.min_step_size
@@ -712,6 +712,23 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             )
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+
+        if True:
+            print_verb("performing fwd run for testing purposes")
+            self.dual_problem.forward_equation.set_initial_field(
+                "velocity_hat", self.current_guess
+            )
+            self.dual_problem.update_with_nse()
+            gain = self.dual_problem.get_objective_fun()
+            print_verb("gain:", gain)
+            if self.old_grad is not None:
+                grad, _ = self.dual_problem.get_projected_cg_grad(
+                    self.step_size, self.beta, self.old_grad
+                )
+            else:
+                grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+
+            print_verb("grad error:", jnp.linalg.norm(grad - self.grad))
 
         if self.use_linesearch:
             self.step_size, gain = self.get_step_size_ls(gain)
