@@ -284,15 +284,19 @@ class GradientDescentSolver(ABC):
         self.dual_problem.forward_equation.activate_jit()
         self.dual_problem.forward_equation.set_post_process_fn(self.post_process_fn)
         self.dual_problem.forward_equation.solve()
-        gain = (
-            self.dual_problem.forward_equation.get_latest_field("velocity_hat")
-            .no_hat()
-            .energy()
-            / self.dual_problem.forward_equation.get_initial_field("velocity_hat")
-            .no_hat()
-            .energy()
-        )
-        print_verb("final gain:", gain)
+        # gain = (
+        #     self.dual_problem.forward_equation.get_latest_field("velocity_hat")
+        #     .no_hat()
+        #     .energy()
+        #     / self.dual_problem.forward_equation.get_initial_field("velocity_hat")
+        #     .no_hat()
+        #     .energy()
+        # )
+        # print_verb("final gain:", gain)
+        obj_val = self.dual_problem.get_objective_fun()
+        print_verb("final", self.dual_problem.get_objective_fun_name() + ":", obj_val)
+        self.old_value = self.value
+        self.value = obj_val
         self.dual_problem.forward_equation.post_process()
 
     def normalize_field(

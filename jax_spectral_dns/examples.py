@@ -2646,6 +2646,8 @@ def run_ld_2021_dual(**params: Any) -> None:
     min_step_size = params.get("min_step_size", 1.0e-4)
     max_step_size = params.get("max_step_size", 1.0e-1)
 
+    mean_perturbation = params.get("mean_perturbation", 0.0)
+
     full_channel_mean = params.get("full_channel_mean", False)
     cess_mean = params.get("cess_mean", False)
     A = params.get("cess_mean_a")
@@ -2922,12 +2924,28 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
+    vel_base_perturbation = VectorField(
+        [
+            PhysicalField.FromFunc(
+                domain,
+                lambda X: mean_perturbation
+                * (jnp.cos(jnp.pi * X[1]) + jnp.cos(2 * jnp.pi * X[1]))
+                + 0.0 * X[2],
+            ),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
+    )
+
     vel_base = (
         turb * vel_base_turb + (1 - turb) * vel_base_lam
-    )  # continuously blend from turbulent to laminar mean profile
+    ) + vel_base_perturbation  # continuously blend from turbulent to laminar mean profile
 
     flow_rate = turb * flow_rate_turb + (1 - turb) * flow_rate_lam
     vel_base.set_name("velocity_base")
+
+    vel_base_turb.set_name("velocity_base (unperturbed)")
+    vel_base[0].plot_center(1, vel_base_turb[0])
 
     u_max_over_u_tau = turb * max_turb + (1 - turb) * Re_tau / 2.0
     h_over_delta: float = (
@@ -2999,6 +3017,11 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel_base_y_slice = (
             turb * U_base
             + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
+            + mean_perturbation
+            * (
+                jnp.cos(jnp.pi * lsc_domain.grid[1])
+                + jnp.cos(2 * jnp.pi * lsc_domain.grid[1])
+            )
             # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile  # continuously blend from turbulent to laminar mean profile
         )
         lsc_xz = LinearStabilityCalculation(
