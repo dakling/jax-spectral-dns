@@ -524,8 +524,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         tau_inv = 1.5
         c = 0.5
         j = 1
-        # m = jax.numpy.linalg.norm(self.grad)
-        # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (self.e_0 / old_value)
         m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
             self.e_0 / old_value**2
         )
@@ -559,7 +557,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     current_guess = self.current_guess + step_size * self.grad
                     current_guess = self.normalize_field(current_guess)
 
-                    # TODO: possibly recompute gradient
                     self.dual_problem.forward_equation.set_initial_field(
                         "velocity_hat", current_guess
                     )
@@ -569,10 +566,6 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                     new_value = self.dual_problem.get_objective_fun()
                     self.dual_problem.write_trajectory = True
                     print_verb("gain change:", new_value - old_value)
-                    # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
-                    #     self.e_0 / old_value
-                    # )
-                    # m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (1.0 / old_value) ** 2
                     m = jnp.abs(
                         jnp.dot(
                             self.dual_problem.get_projected_grad(
@@ -590,6 +583,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 step_size /= tau_inv
                 current_guess = old_current_guess
                 new_value = new_old_value
+                self.dual_problem.forward_equation.set_initial_field(
+                    "velocity_hat", current_guess
+                )
+                self.dual_problem.update_with_nse()
+                self.dual_problem.write_trajectory = False
+                new_value = self.dual_problem.get_objective_fun()
                 if self.old_grad is not None:
                     self.grad, _ = self.dual_problem.get_projected_cg_grad(
                         step_size, self.beta, self.old_grad, u_hat_0, v_hat_0
