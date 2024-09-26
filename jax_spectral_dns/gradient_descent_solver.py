@@ -687,12 +687,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         domain = self.dual_problem.get_physical_domain()
 
-        self.dual_problem.forward_equation.set_initial_field(
-            "velocity_hat", self.current_guess
-        )
-        self.dual_problem.update_with_nse()
-
         if (not self.use_linesearch) or (self.value is None):
+            self.dual_problem.forward_equation.set_initial_field(
+                "velocity_hat", self.current_guess
+            )
+            self.dual_problem.update_with_nse()
             gain = self.dual_problem.get_objective_fun()
         else:
             gain = self.value
@@ -717,6 +716,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
         if self.use_linesearch:
             self.step_size, gain = self.get_step_size_ls(gain)
+            if self.value is not None:
+                print_verb(
+                    self.dual_problem.get_objective_fun_name(),
+                    "change:",
+                    (gain - self.value),
+                )
         else:
             self.current_guess = self.current_guess + self.step_size * self.grad
             self.current_guess = self.normalize_field(self.current_guess)
