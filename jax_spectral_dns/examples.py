@@ -2925,19 +2925,8 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
-    # vel_base_perturbation_constant_mass_flux = VectorField(
-    #     [
-    #         PhysicalField.FromFunc(
-    #             domain,
-    #             lambda X: mean_perturbation
-    #             * (jnp.cos(jnp.pi * X[1]) + jnp.cos(2 * jnp.pi * X[1]))
-    #             + 0.0 * X[2],
-    #         ),
-    #         PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-    #         PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-    #     ]
-    # )
-    # b = 1
+    def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
+        return ((vel[0].diff(1)) ** 2).volume_integral()
 
     def get_base_perturbation_constant_dissipation() -> (
         Tuple["VectorField[PhysicalField]", float]
@@ -2964,9 +2953,6 @@ def run_ld_2021_dual(**params: Any) -> None:
                 ]
             )
 
-        def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
-            return ((vel[0].diff(1)) ** 2).volume_integral()
-
         def fn(b: float) -> float:
             return get_dissipation(
                 vel_base_turb + get_base_perturbation(b)
@@ -2985,9 +2971,23 @@ def run_ld_2021_dual(**params: Any) -> None:
         print_verb("dissipation rel error:", fn(b) / get_dissipation(vel_base_turb))
         return get_base_perturbation(b), b
 
-    vel_base_perturbation_constant_dissipation, b = (
-        get_base_perturbation_constant_dissipation()
+    # vel_base_perturbation_constant_dissipation, b = (
+    #     get_base_perturbation_constant_dissipation()
+    # )
+
+    vel_base_perturbation_constant_mass_flux = VectorField(
+        [
+            PhysicalField.FromFunc(
+                domain,
+                lambda X: mean_perturbation
+                * (jnp.cos(jnp.pi * X[1]) + jnp.cos(2 * jnp.pi * X[1]))
+                + 0.0 * X[2],
+            ),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+        ]
     )
+    b = 1
 
     vel_base = (
         turb * vel_base_turb
@@ -3045,10 +3045,13 @@ def run_ld_2021_dual(**params: Any) -> None:
     print_verb("max value turbulent:", vel_base_turb[0].max())
     print_verb("energy turbulent:", vel_base_turb.energy())
     print_verb("flow rate turbulent:", flow_rate_turb)
+    print_verb("dissipation turbulent:", get_dissipation(vel_base_turb))
     print_verb("max value laminar:", vel_base_lam[0].max())
     print_verb("energy laminar:", vel_base_lam.energy())
+    print_verb("dissipation laminar:", get_dissipation(vel_base_lam))
     print_verb("max value:", vel_base[0].max())
     print_verb("energy:", vel_base.energy())
+    print_verb("dissipation:", get_dissipation(vel_base))
 
     E_0 = vel_base_turb.energy()
 
