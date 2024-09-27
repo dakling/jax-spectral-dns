@@ -17,6 +17,7 @@ try:
     from humanfriendly import format_timespan  # type: ignore
 except ModuleNotFoundError:
     pass
+import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy  # type: ignore
@@ -2924,22 +2925,75 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     flow_rate_lam = Re_tau / 2 * (4.0 / 3.0)
 
-    vel_base_perturbation = VectorField(
-        [
-            PhysicalField.FromFunc(
-                domain,
-                lambda X: mean_perturbation
-                * (jnp.cos(jnp.pi * X[1]) + jnp.cos(2 * jnp.pi * X[1]))
-                + 0.0 * X[2],
-            ),
-            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-        ]
+    # vel_base_perturbation_constant_mass_flux = VectorField(
+    #     [
+    #         PhysicalField.FromFunc(
+    #             domain,
+    #             lambda X: mean_perturbation
+    #             * (jnp.cos(jnp.pi * X[1]) + jnp.cos(2 * jnp.pi * X[1]))
+    #             + 0.0 * X[2],
+    #         ),
+    #         PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+    #         PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
+    #     ]
+    # )
+    # b = 1
+
+    def get_base_perturbation_constant_dissipation() -> (
+        Tuple["VectorField[PhysicalField]", float]
+    ):
+        def get_base_perturbation(b: float) -> "VectorField[PhysicalField]":
+            return VectorField(
+                [
+                    PhysicalField.FromFunc(
+                        domain,
+                        lambda X: mean_perturbation
+                        * (
+                            (1 - b)
+                            + jnp.cos(jnp.pi * X[1])
+                            + b * jnp.cos(2 * jnp.pi * X[1])
+                        )
+                        + 0.0 * X[2],
+                    ),
+                    PhysicalField.FromFunc(
+                        domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
+                    ),
+                    PhysicalField.FromFunc(
+                        domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]
+                    ),
+                ]
+            )
+
+        def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
+            return ((vel[0].diff(1)) ** 2).volume_integral()
+
+        def fn(b: float) -> float:
+            return get_dissipation(
+                vel_base_turb + get_base_perturbation(b)
+            ) - get_dissipation(vel_base_turb)
+
+        i = 0
+        b = 0.0
+        max_iter = 100
+        tol = 1e-25
+        while abs(fn(b)) > tol and i < max_iter:
+            b += -(fn(b)) / jax.grad(fn)(b)
+            i += 1
+
+        print_verb("b:", b)
+        print_verb("dissipation error:", fn(b))
+        print_verb("dissipation rel error:", fn(b) / get_dissipation(vel_base_turb))
+        return get_base_perturbation(b), b
+
+    vel_base_perturbation_constant_dissipation, b = (
+        get_base_perturbation_constant_dissipation()
     )
 
     vel_base = (
-        turb * vel_base_turb + (1 - turb) * vel_base_lam
-    ) + vel_base_perturbation  # continuously blend from turbulent to laminar mean profile
+        turb * vel_base_turb
+        + (1 - turb) * vel_base_lam
+        # ) + vel_base_perturbation_constant_mass_flux  # continuously blend from turbulent to laminar mean profile
+    ) + vel_base_perturbation_constant_dissipation  # continuously blend from turbulent to laminar mean profile
 
     flow_rate = turb * flow_rate_turb + (1 - turb) * flow_rate_lam
     vel_base.set_name("velocity_base")
@@ -3019,8 +3073,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
             + mean_perturbation
             * (
-                jnp.cos(jnp.pi * lsc_domain.grid[1])
-                + jnp.cos(2 * jnp.pi * lsc_domain.grid[1])
+                (1 - b)
+                + jnp.cos(jnp.pi * lsc_domain.grid[1])
+                + b * jnp.cos(2 * jnp.pi * lsc_domain.grid[1])
             )
             # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile  # continuously blend from turbulent to laminar mean profile
         )
