@@ -2971,9 +2971,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         print_verb("dissipation rel error:", fn(b) / get_dissipation(vel_base_turb))
         return get_base_perturbation(b), b
 
-    # vel_base_perturbation_constant_dissipation, b = (
-    #     get_base_perturbation_constant_dissipation()
-    # )
+    vel_base_perturbation_constant_dissipation, b_cd = (
+        get_base_perturbation_constant_dissipation()
+    )
 
     vel_base_perturbation_constant_mass_flux = VectorField(
         [
@@ -2987,13 +2987,16 @@ def run_ld_2021_dual(**params: Any) -> None:
             PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
         ]
     )
-    b = 1
+    b_cmf = 1
+
+    vel_base_perturbation = vel_base_perturbation_constant_mass_flux
+    b = b_cmf
 
     vel_base = (
         turb * vel_base_turb
         + (1 - turb) * vel_base_lam
         # ) + vel_base_perturbation_constant_mass_flux  # continuously blend from turbulent to laminar mean profile
-    ) + vel_base_perturbation_constant_dissipation  # continuously blend from turbulent to laminar mean profile
+    ) + vel_base_perturbation  # continuously blend from turbulent to laminar mean profile
 
     flow_rate = turb * flow_rate_turb + (1 - turb) * flow_rate_lam
     vel_base.set_name("velocity_base")
