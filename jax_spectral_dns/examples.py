@@ -2031,31 +2031,60 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         ]
     )
 
-    def get_vel_field(
-        domain: PhysicalDomain, data: "np_jnp_array"
-    ) -> VectorField[PhysicalField]:
-        def data_fn(y: float) -> float:
-            y_data_s = data[0]
-            u_mean = data[2]
-            y_data = y + 1.0  # shift
-            if y_data > 1.0:
-                y_data = 2.0 - y_data  # symmetry
-            y_sign_change_index = np.argmax(
-                (np.diff(np.sign(y_data_s - y_data)) != 0) * 1
-            )
-            y_0 = y_data_s[y_sign_change_index]
-            y_1 = y_data_s[y_sign_change_index + 1]
-            u_0 = u_mean[y_sign_change_index]
-            u_1 = u_mean[y_sign_change_index + 1]
-            return cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
+    # def get_vel_field(
+    #     domain: PhysicalDomain, data: "np_jnp_array"
+    # ) -> VectorField[PhysicalField]:
+    #     def data_fn(y: float) -> float:
+    #         y_data_s = data[0]
+    #         u_mean = data[2]
+    #         y_data = y + 1.0  # shift
+    #         if y_data > 1.0:
+    #             y_data = 2.0 - y_data  # symmetry
+    #         y_sign_change_index = np.argmax(
+    #             (np.diff(np.sign(y_data_s - y_data)) != 0) * 1
+    #         )
+    #         y_0 = y_data_s[y_sign_change_index]
+    #         y_1 = y_data_s[y_sign_change_index + 1]
+    #         u_0 = u_mean[y_sign_change_index]
+    #         u_1 = u_mean[y_sign_change_index + 1]
+    #         return cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
 
-        u = PhysicalField.FromFunc(domain, func=lambda X: np.vectorize(data_fn)(X[1]))
-        v = PhysicalField.Zeros(domain)
-        w = PhysicalField.Zeros(domain)
-        return VectorField([u, v, w])
+    #     u = PhysicalField.FromFunc(domain, func=lambda X: np.vectorize(data_fn)(X[1]))
+    #     v = PhysicalField.Zeros(domain)
+    #     w = PhysicalField.Zeros(domain)
+    #     return VectorField([u, v, w])
 
-    data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-    vel_base_turb = get_vel_field(domain, data)
+    # data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
+
+    def get_vel_field_minimal_channel(
+        domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
+    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
+        Ny = domain.number_of_cells(1)
+        U_mat = np.zeros((Ny, len(cheb_coeffs)))
+        for i in range(Ny):
+            for j in range(len(cheb_coeffs)):
+                U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+        U_y_slice = U_mat @ cheb_coeffs
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(
+            np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+        )
+        max = np.max(u_data)
+        flow_rate = get_flow_rate(domain, cast("np_complex_array", U_y_slice))
+        vel_base = VectorField(
+            [
+                PhysicalField(domain, jnp.asarray(u_data)),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+        vel_base.set_name("velocity_base")
+        return vel_base, U_y_slice, cast(float, max), flow_rate
+
+    avg_vel_coeffs = np.loadtxt(
+        "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+    )
+    vel_base_turb = get_vel_field_minimal_channel(domain, avg_vel_coeffs)
 
     # number_of_modes = 60
     # n = 64
@@ -3100,16 +3129,17 @@ def run_ld_2021_dual(**params: Any) -> None:
             U_base=cast("np_float_array", vel_base_y_slice),
         )
 
-        # T = end_time__
-        # Ts = [T, 2 * T, 3 * T]
+        T = end_time__
+        Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             domain,
             end_time__,
             number_of_modes,
             recompute_full=True,
             save_final=False,
-            # Ts=Ts,
+            Ts=Ts,
         )
+        raise Exception("break")
         print_verb(
             "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
