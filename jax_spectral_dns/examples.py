@@ -2058,7 +2058,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
 
     def get_vel_field_minimal_channel(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-    ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "float", "float"]:
+    ) -> VectorField[PhysicalField]:
         Ny = domain.number_of_cells(1)
         U_mat = np.zeros((Ny, len(cheb_coeffs)))
         for i in range(Ny):
@@ -2069,8 +2069,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         u_data = np.moveaxis(
             np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
         )
-        max = np.max(u_data)
-        flow_rate = get_flow_rate(domain, cast("np_complex_array", U_y_slice))
         vel_base = VectorField(
             [
                 PhysicalField(domain, jnp.asarray(u_data)),
@@ -2079,7 +2077,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             ]
         )
         vel_base.set_name("velocity_base")
-        return vel_base, U_y_slice, cast(float, max), flow_rate
+        return vel_base
 
     avg_vel_coeffs = np.loadtxt(
         "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
