@@ -200,6 +200,7 @@ plot(
     [
         # ("laminar_base_two_t_e_0_study", "laminar base", e_base_lam),
         # ("two_t_e_0_study", "minimal channel mean (long channel)", e_base_turb),
+        ("minimal_z", "minimal channel mean (minimal channel)", e_base_turb),
         (
             "smaller_channel_two_t_e_0_study",
             # "minimal channel mean (short channel)",
