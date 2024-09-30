@@ -2130,9 +2130,13 @@ def run_ld_2021_get_mean(**params: Any) -> None:
     else:
         pert = params.get("perturbation_field", False)
         if pert:
-            v0_0 = VectorField.FromFile(domain, init_file, "vel_0")
+            v0_0 = VectorField.FromFile(
+                domain, init_file, "vel_0", allow_projection=True
+            )
         else:
-            v0_0 = VectorField.FromFile(domain, init_file, "velocity")
+            v0_0 = VectorField.FromFile(
+                domain, init_file, "velocity", allow_projection=True
+            )
         if pert:
             e_0 = params.get("e_0")
             if e_0 is not None:
