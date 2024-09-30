@@ -3127,17 +3127,17 @@ def run_ld_2021_dual(**params: Any) -> None:
             U_base=cast("np_float_array", vel_base_y_slice),
         )
 
-        T = end_time__
-        Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
+        # T = end_time__
+        # Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
         v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
             domain,
             end_time__,
             number_of_modes,
             recompute_full=True,
             save_final=False,
-            Ts=Ts,
+            # Ts=Ts,
         )
-        raise Exception("break")
+        # raise Exception("break")
         print_verb(
             "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
