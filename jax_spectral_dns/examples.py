@@ -1498,7 +1498,12 @@ def run_transient_growth_time_study(
 
         ts_list.append(ts)
         energy_t_list.append(energy_t)
-        ax.plot(ts, energy_t / energy_t[0], ".", label="gain (T = " + str(T) + ")")
+        ax.plot(
+            ts,
+            np.array(energy_t) / energy_t[0],
+            ".",
+            label="gain ($T = " + str(T) + "$)",
+        )
         ax.plot(
             rh_93_data[0],
             rh_93_data[1],
@@ -1527,7 +1532,7 @@ def run_transient_growth_time_study(
         ts = ts_list[i]
         energy_t = energy_t_list[i]
         ax_final.plot(
-            ts, energy_t / energy_t[0], ".", label="gain (T = " + str(T) + ")"
+            ts, np.array(energy_t) / energy_t[0], ".", label="gain (T = " + str(T) + ")"
         )
 
     ax_final.plot(
@@ -3023,8 +3028,10 @@ def run_ld_2021_dual(**params: Any) -> None:
     )
     b_cmf = 1
 
-    vel_base_perturbation = vel_base_perturbation_constant_mass_flux
-    b = b_cmf
+    # vel_base_perturbation = vel_base_perturbation_constant_mass_flux
+    # b = b_cmf
+    vel_base_perturbation = vel_base_perturbation_constant_dissipation
+    b = b_cd
 
     vel_base = (
         turb * vel_base_turb
