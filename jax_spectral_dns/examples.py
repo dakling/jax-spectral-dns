@@ -1475,8 +1475,8 @@ def run_transient_growth_time_study(
     fig = figure.Figure()
     ax = fig.subplots(1, 1)
     assert type(ax) is Axes
-    ax.set_xlabel("T")
-    ax.set_ylabel("G")
+    ax.set_xlabel("$T$")
+    ax.set_ylabel("$G$")
     ax.plot(
         rh_93_data[0],
         rh_93_data[1],
@@ -1519,26 +1519,26 @@ def run_transient_growth_time_study(
     fig_final = figure.Figure()
     ax_final = fig_final.subplots(1, 1)
     assert type(ax_final) is Axes
-    ax_final.set_xlabel("T")
-    ax_final.set_ylabel("G")
+    ax_final.set_xlabel("$T$")
+    ax_final.set_ylabel("$G$")
     ax_final.plot(
         rh_93_data[0],
         rh_93_data[1],
         "b--",
-        label="max gain (Reddy/Henningson 1993)",
+        label="upper limit",
     )
     for i in range(len(T_list)):
         T = T_list[i]
         ts = ts_list[i]
         energy_t = energy_t_list[i]
         ax_final.plot(
-            ts, np.array(energy_t) / energy_t[0], ".", label="gain (T = " + str(T) + ")"
+            ts, np.array(energy_t) / energy_t[0], ".", label="$T = " + str(T) + "$"
         )
 
     ax_final.plot(
         rh_93_data[0],
         rh_93_data[1],
-        "b--",
+        "k--",
     )
     fig_final.legend()
     fig_final.savefig(Field.plotting_dir + "/energy_t_final.png")
