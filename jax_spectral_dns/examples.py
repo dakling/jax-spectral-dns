@@ -1475,7 +1475,7 @@ def run_transient_growth_time_study(
     fig = figure.Figure()
     ax = fig.subplots(1, 1)
     assert type(ax) is Axes
-    ax.set_xlabel("$T$")
+    ax.set_xlabel("$t$")
     ax.set_ylabel("$G$")
     ax.plot(
         rh_93_data[0],
@@ -1519,7 +1519,7 @@ def run_transient_growth_time_study(
     fig_final = figure.Figure()
     ax_final = fig_final.subplots(1, 1)
     assert type(ax_final) is Axes
-    ax_final.set_xlabel("$T$")
+    ax_final.set_xlabel("$t$")
     ax_final.set_ylabel("$G$")
     ax_final.plot(
         rh_93_data[0],
