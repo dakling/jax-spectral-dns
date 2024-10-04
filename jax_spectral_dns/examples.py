@@ -2314,6 +2314,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             vel_pert.save_to_file("velocity_pert" + str(i))
 
         vel[0].plot_3d(2)
+        vel[0].plot_3d(0)
+        vel[0].plot_isosurfaces()
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
 
