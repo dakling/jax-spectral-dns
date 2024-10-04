@@ -182,7 +182,7 @@ def plot(dirs_and_names):
         fig.subplots_adjust(wspace=0.05)  # adjust space between Axes
         for base_dir, name, e_base in dirs_and_names:
             plot_single(fig, ax, ax_, base_dir, name, e_base, rel=rel)
-        fig.legend()
+        fig.legend(loc="upper left")
         fname = ("relative_" if rel else "") + "gain_over_e0"
         fig.savefig(fname + ".ps")
         psimage = Image.open(fname + ".ps")
@@ -200,7 +200,7 @@ plot(
     [
         # ("laminar_base_two_t_e_0_study", "laminar base", e_base_lam),
         # ("two_t_e_0_study", "minimal channel mean (long channel)", e_base_turb),
-        ("minimal_z", "minimal channel mean (minimal channel)", e_base_turb),
+        # ("minimal_z", "minimal channel mean (minimal channel)", e_base_turb),
         (
             "smaller_channel_two_t_e_0_study",
             # "minimal channel mean (short channel)",

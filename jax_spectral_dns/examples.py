@@ -2314,10 +2314,11 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             vel_pert.save_to_file("velocity_pert" + str(i))
 
         vel[0].plot_3d(2)
-        vel[0].plot_3d(0)
+        vel[0].plot_3d(0, rotate=True)
         vel[0].plot_isosurfaces()
         vel[1].plot_3d(2)
         vel[2].plot_3d(2)
+        vel.plot_q_criterion_isosurfaces(iso_vals=[0.05, 0.1, 0.5])
 
         if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
             vel.set_time_step(i + time_step)
