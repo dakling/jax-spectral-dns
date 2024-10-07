@@ -3,7 +3,7 @@
 import os
 import sys
 
-from jax_spectral_dns.equation import Equation
+from jax_spectral_dns.equation import Equation, print_verb
 from jax_spectral_dns.main import get_args_from_yaml_file
 
 os.environ["JAX_PLATFORMS"] = "cpu"
@@ -45,7 +45,8 @@ pv.global_theme.font.title_size = font_size
 pv.global_theme.font.label_size = font_size
 
 
-STORE_PREFIX = "/store/DAMTP/dsk34"
+# STORE_PREFIX = "/store/DAMTP/dsk34"
+STORE_PREFIX = "/data/septal/dsk34"
 HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
@@ -59,13 +60,40 @@ def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
     )
 
 
+def get_vel_field_minimal_channel(domain: PhysicalDomain):
+
+    cheb_coeffs = np.loadtxt(
+        HOME_DIR_BASE + "/profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+    )
+
+    Ny = domain.number_of_cells(1)
+    U_mat = np.zeros((Ny, len(cheb_coeffs)))
+    for i in range(Ny):
+        for j in range(len(cheb_coeffs)):
+            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+    U_y_slice = U_mat @ cheb_coeffs
+    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+    u_data = np.moveaxis(
+        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+    )
+    vel_base = VectorField(
+        [
+            PhysicalField(domain, jnp.asarray(u_data)),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+        ]
+    )
+    vel_base.set_name("average_velocity_vilda")
+    return vel_base
+
+
 def post_process_averages() -> None:
 
     Lx_over_pi = 0.6
     Lz_over_pi = 0.3
     domain = get_domain((48, 129, 60), Lx_over_pi, Lz_over_pi)
     avg_vels = []
-    for f in glob.glob("avg_vel_*", root_dir="./fields"):
+    for f in glob.glob("avg_vel_20*", root_dir="./fields"):
         avg_vels.append(VectorField.FromFile(domain, f, "average_velocity"))
 
     def avg_fields(fs: List[VectorField[PhysicalField]]) -> VectorField[PhysicalField]:
@@ -74,8 +102,19 @@ def post_process_averages() -> None:
             out += f
         return out / len(fs)
 
+    print_verb("Taking the average of", len(avg_vels), "snapshots (equally weighted!)")
     avg = avg_fields(avg_vels)
+    print_verb("average y-velocity range: [", avg[1].max(), ",", avg[1].min(), "]")
+    print_verb("average z-velocity range: [", avg[2].max(), ",", avg[2].min(), "]")
+    avg.set_name("average_velocity_single")
+    avg[0].plot_center(1)
+    avg.set_name("average_velocity_ensemble")
     avg[0].plot_center(1, *[avg_vel[0] for avg_vel in avg_vels])
+    avg.set_name("average_velocity")
+    avg[0].plot_center(1, get_vel_field_minimal_channel(domain)[0])
+    # avg.plot_3d(0)
+    # avg.plot_3d(1)
+    # avg.plot_3d(2)
 
 
 post_process_averages()

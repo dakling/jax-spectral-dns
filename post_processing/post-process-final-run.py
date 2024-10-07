@@ -111,6 +111,8 @@ def post_process(
         amplitude_3d_t = []
         amplitudes_2d_kxs = []
         amplitudes_2d_kzs = []
+        amplitudes_2d_vilda = []
+        E_0 = get_vel_field_minimal_channel(domain).energy()
         # prod = []
         # diss = []
         print("preparing")
@@ -163,6 +165,7 @@ def post_process(
                 amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
             amplitudes_2d_kxs.append(amplitudes_2d_kx)
             amplitudes_2d_kzs.append(amplitudes_2d_kz)
+
             fig = figure.Figure()
             ax = fig.subplots(2, 1)
             ax[0].plot(amplitudes_2d_kx, "k.")
@@ -179,7 +182,20 @@ def post_process(
             amplitude_3d_t.append(vel_3d[0].max() - vel_3d[0].min())
             # prod.append(nse.get_production(j))
             # diss.append(nse.get_dissipation(j))
+            amplitudes_2d_vilda.append(
+                np.sqrt(vel_2d_x.energy() / E_0 * 180.0)
+            )  # TODO watch out for hardcoded Re_tau!
 
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        ax.plot(amplitudes_2d_vilda, "k.")
+        ax.set_xlabel("$t h / u_\\tau$")
+        ax.set_ylabel("$A \\sqrt{\\text{Re}_\\tau} $")
+        fig.tight_layout()
+        fig.savefig(
+            "plots/plot_amplitudes_vilda.png",
+            bbox_inches="tight",
+        )
         energy_t_arr = np.array(energy_t)
         energy_x_2d_arr = np.array(energy_x_2d)
         energy_x_2d_1_arr = np.array(energy_x_2d_1)
