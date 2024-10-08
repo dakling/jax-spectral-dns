@@ -493,8 +493,10 @@ def post_process_pub(
 ) -> None:
 
     n_snapshots = 3
-    fig_pub = figure.Figure(layout="tight", figsize=(15, 15))
-    ax_pub = fig_pub.subplots(1, n_snapshots)
+    fig_pub_x_plane = figure.Figure(layout="tight", figsize=(15, 15))
+    ax_pub_x_plane = fig_pub_x_plane.subplots(1, n_snapshots)
+    fig_pub_z_plane = figure.Figure(layout="tight", figsize=(15, 15))
+    ax_pub_z_plane = fig_pub_x_plane.subplots(1, n_snapshots)
 
     with h5py.File(file, "r") as f:
         velocity_trajectory = f["trajectory"]
@@ -507,10 +509,19 @@ def post_process_pub(
                 FourierField, domain, velocity_trajectory[i], name="velocity"
             )
             vel = vel_hat.no_hat()
-            vel[0].plot_3d_single(0, name="$\\tilde{u}_x$", ax=ax_pub[n], fig=fig_pub)
+            vel[0].plot_3d_single(
+                0, name="$\\tilde{u}_x$", ax=ax_pub_x_plane[n], fig=fig_pub_x_plane
+            )
+            vel[0].plot_3d_single(
+                2, name="$\\tilde{u}_x$", ax=ax_pub_z_plane[n], fig=fig_pub_z_plane
+            )
             n += 1
-    fig_pub.savefig(
-        "plots/vel_pub.png",
+    fig_pub_x_plane.savefig(
+        "plots/vel_pub_x_plane.png",
+        bbox_inches="tight",
+    )
+    fig_pub_z_plane.savefig(
+        "plots/vel_pub_z_plane.png",
         bbox_inches="tight",
     )
 
