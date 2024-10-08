@@ -1958,8 +1958,12 @@ class PhysicalField(Field):
             assert (
                 self.physical_domain.number_of_dimensions == 3
             ), "Only 3D supported for this plotting method."
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
+            ax = params.get("ax")
+            if ax is None:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+            else:
+                fig = params.get("fig")
             assert type(ax) is Axes
             ims = []
             data_shape = self.data.shape
@@ -2010,34 +2014,37 @@ class PhysicalField(Field):
             ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_3d_"
-                    + "xyz"[dim]
-                    + "_"
-                    + self.name
-                    + "_latest"
-                    + self.plotting_format,
-                    bbox_inches="tight",
-                )
-                fig.savefig(
-                    self.plotting_dir
-                    + "plot_3d_"
-                    + "xyz"[dim]
-                    + "_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format,
-                    bbox_inches="tight",
-                )
+                if params.get("ax") is None:
+                    assert fig is not None
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_3d_"
+                        + "xyz"[dim]
+                        + "_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format,
+                        bbox_inches="tight",
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_3d_"
+                        + "xyz"[dim]
+                        + "_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format,
+                        bbox_inches="tight",
+                    )
 
             try:
                 save()
             except FileNotFoundError:
                 Field.initialize(False)
                 save()
-            del fig, ax
+            if params.get("ax") is None:
+                del fig, ax
 
         except Exception as e:
             print("plot_3d_single failed with the following exception:")

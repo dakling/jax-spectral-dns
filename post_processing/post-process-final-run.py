@@ -3,6 +3,8 @@
 import os
 import sys
 
+from matplotlib.pyplot import tight_layout
+
 from jax_spectral_dns.equation import Equation
 from jax_spectral_dns.main import get_args_from_yaml_file
 
@@ -484,12 +486,48 @@ def post_process(
             # )
 
 
+def post_process_pub(
+    file: str,
+    Lx_over_pi: float,
+    Lz_over_pi: float,
+) -> None:
+
+    n_snapshots = 3
+    fig_pub = figure.Figure(layout="tight", figsize=(15, 15))
+    ax_pub = fig_pub.subplots(1, n_snapshots)
+
+    with h5py.File(file, "r") as f:
+        velocity_trajectory = f["trajectory"]
+        domain = get_domain(velocity_trajectory.shape[2:], Lx_over_pi, Lz_over_pi)
+        n_fields = len(velocity_trajectory)
+        n = 0
+        for j in range(n_snapshots):
+            i = (n_fields - 1) * j // (n_snapshots - 1)
+            vel_hat = VectorField.FromData(
+                FourierField, domain, velocity_trajectory[i], name="velocity"
+            )
+            vel = vel_hat.no_hat()
+            vel[0].plot_3d_single(0, name="$\\tilde{u}_x$", ax=ax_pub[n], fig=fig_pub)
+            n += 1
+    fig_pub.savefig(
+        "plots/vel_pub.png",
+        bbox_inches="tight",
+    )
+
+
 args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
 # args = {}
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
 assert (
     len(sys.argv) <= 2
 ), "there is no need to provide further arguments as these are inferred automatically from simulation_settings.yml"
+
+post_process_pub(
+    sys.argv[1],
+    args.get("Lx_over_pi", 2.0),
+    args.get("Lz_over_pi", 1.0),
+)
+
 post_process(
     sys.argv[1],
     args.get("end_time", 0.7),
