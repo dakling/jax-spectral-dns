@@ -182,7 +182,8 @@ def plot(dirs_and_names):
         fig.subplots_adjust(wspace=0.05)  # adjust space between Axes
         for base_dir, name, e_base in dirs_and_names:
             plot_single(fig, ax, ax_, base_dir, name, e_base, rel=rel)
-        fig.legend(loc="upper left")
+        if len(dirs_and_names) > 1:
+            fig.legend(loc="upper left")
         fname = ("relative_" if rel else "") + "gain_over_e0"
         fig.savefig(fname + ".ps")
         psimage = Image.open(fname + ".ps")
@@ -207,30 +208,30 @@ plot(
             "$T=0.7 h / u_\\tau$",
             e_base_turb,
         ),
-        (
-            "smaller_channel_three_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=1.05 h / u_\\tau$",
-            e_base_turb,
-        ),
-        (
-            "smaller_channel_four_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=1.4 h / u_\\tau$",
-            e_base_turb,
-        ),
-        (
-            "smaller_channel_six_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=2.1 h / u_\\tau$",
-            e_base_turb,
-        ),
-        (
-            "smaller_channel_eight_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=2.8 h / u_\\tau$",
-            e_base_turb,
-        ),
+        # (
+        #     "smaller_channel_three_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=1.05 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
+        # (
+        #     "smaller_channel_four_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=1.4 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
+        # (
+        #     "smaller_channel_six_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=2.1 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
+        # (
+        #     "smaller_channel_eight_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=2.8 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
         # ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
     ]
 )

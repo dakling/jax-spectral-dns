@@ -493,6 +493,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.value: Optional["float"] = None
         self.old_value: Optional["float"] = None
         self.old_grad: Optional["jnp_array"] = None
+        self.old_steepest_grad: Optional["jnp_array"] = None
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
@@ -716,8 +717,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.grad, _ = self.dual_problem.get_projected_cg_grad(
                 self.step_size, self.beta, self.old_grad
             )
+            self.steepest_grad, _ = self.dual_problem.get_projected_grad(self.step_size)
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(self.step_size)
+            self.steepest_grad, _ = self.grad
 
         if DEBUG_LINESEARCH:
             print_verb("performing fwd run for testing purposes")
@@ -770,6 +773,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.reset_beta = True
             self.update_beta(not self.reset_beta)
         self.old_grad = self.grad
+        self.old_steepest_grad = self.steepest_grad
         self.old_value = self.value
         self.value = gain
 
@@ -792,9 +796,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def update_beta(self, last_iteration_successful: bool) -> None:
         if last_iteration_successful:
-            assert self.old_grad is not None
-            grad = self.grad.flatten()
-            old_grad = self.old_grad.flatten()
+            assert self.old_steepest_grad is not None
+
+            grad = self.steepest_grad.flatten()
+            old_grad = self.old_steepest_grad.flatten()
             self.beta = cast(
                 float, jnp.dot(grad, (grad - old_grad)) / jnp.dot(old_grad, old_grad)
             )
