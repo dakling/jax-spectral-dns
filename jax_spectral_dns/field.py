@@ -1963,7 +1963,7 @@ class PhysicalField(Field):
                 fig = figure.Figure()
                 ax = fig.subplots(1, 1)
             else:
-                fig = params.get("fig")
+                fig = cast("figure.Figure", params.get("fig"))
             assert type(ax) is Axes
             ims = []
             data_shape = self.data.shape

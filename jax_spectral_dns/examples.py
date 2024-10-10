@@ -22,7 +22,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy  # type: ignore
 import pickle
-import h5py
+import h5py  # type: ignore
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
@@ -2193,7 +2193,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
-        avg_vel = VectorField([PhysicalField.Zeros(domain) for _ in range(3)])
         if i == 0:
             energy_t = []
             ts = []
@@ -2203,6 +2202,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 scale_factors=(1.0,),
                 aliasing=1,
             )
+            avg_vel = VectorField([PhysicalField.Zeros(slice_domain) for _ in range(3)])
             vel_base_turb = nse.get_initial_field("velocity_base_hat").no_hat()
             vel_base_turb_slice = PhysicalField(slice_domain, vel_base_turb[0][0, :, 0])
             vel_base_turb_slice.set_name("velocity_base_x")
@@ -2211,17 +2211,17 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 time = (j / (n_steps - 1)) * end_time + last_end_time
                 vel_hat = nse.get_field("velocity_hat", j)
                 vel = vel_hat.no_hat()
-                avg_vel += vel / n_steps
                 ts.append(time)
                 energy_t.append(vel.energy())
                 print_verb("time:", ts[-1], "energy:", energy_t[-1])
-                vel_spatial_mean = FourierField(
-                    slice_domain, vel_hat[0][0, :, 0]
+                vel_spatial_mean = VectorField.FromData(
+                    FourierField, slice_domain, vel_hat.get_data()[:, 0, :, 0]
                 ).no_hat()
-                vel_spatial_mean.set_name("velocity_x_spatial_average")
+                vel_spatial_mean.set_name("velocity_spatial_average")
                 vel_spatial_mean.set_time_step(time_step + j)
-                vel_spatial_mean.plot_center(0, vel_base_turb_slice)
+                vel_spatial_mean[0].plot_center(0, vel_base_turb_slice)
                 vel_spatial_means.append(vel_spatial_mean)
+                avg_vel += vel_spatial_mean / n_steps
 
             with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
                 f.create_dataset(
@@ -2235,8 +2235,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             avg_vel.set_time_step(time_step)
             avg_vel.set_name("average_velocity")
             avg_vel.save_to_file("avg_vel")
-            avg_vel.plot_3d(0)
-            avg_vel.plot_3d(2)
+            avg_vel[0].plot_center(0)
 
             energy_t_arr = np.array(energy_t)
             fig = figure.Figure()
@@ -2309,10 +2308,15 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                     return vel_base, U_y_slice, max
 
                 vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
-                avg_vel[0].plot_center(1, vel_base_turb[0])
+                avg_vel[0].plot_center(
+                    0,
+                    PhysicalField(
+                        slice_domain, vel_base_turb[0][0, :, 0], name="mean (Vilda)"
+                    ),
+                )
             except Exception:
                 print_verb("plotting of reference profile failed.")
-                avg_vel[0].plot_center(1)
+                avg_vel[0].plot_center(0)
             avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
             for i_x in range(Nx):
                 for i_z in range(Nz):
