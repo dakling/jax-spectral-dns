@@ -22,6 +22,7 @@ import jax.numpy as jnp
 import numpy as np
 import scipy  # type: ignore
 import pickle
+import h5py
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
@@ -2196,6 +2197,16 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         if i == 0:
             energy_t = []
             ts = []
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            vel_base_turb = nse.get_initial_field("velocity_base_hat").no_hat()
+            vel_base_turb_slice = PhysicalField(slice_domain, vel_base_turb[0][0, :, 0])
+            vel_base_turb_slice.set_name("velocity_base_x")
+            vel_spatial_means = []
             for j in range(n_steps):
                 time = (j / (n_steps - 1)) * end_time + last_end_time
                 vel_hat = nse.get_field("velocity_hat", j)
@@ -2204,12 +2215,21 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 ts.append(time)
                 energy_t.append(vel.energy())
                 print_verb("time:", ts[-1], "energy:", energy_t[-1])
-            slice_domain = PhysicalDomain.create(
-                (domain.get_shape_aliasing()[1],),
-                (False,),
-                scale_factors=(1.0,),
-                aliasing=1,
-            )
+                vel_spatial_mean = FourierField(
+                    slice_domain, vel_hat[0][0, :, 0]
+                ).no_hat()
+                vel_spatial_mean.set_name("velocity_x_spatial_average")
+                vel_spatial_mean.set_time_step(time_step + j)
+                vel_spatial_mean.plot_center(0, vel_base_turb_slice)
+                vel_spatial_means.append(vel_spatial_mean)
+
+            with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
+                f.create_dataset(
+                    "trajectory_00",
+                    data=jnp.array(vel_spatial_means),
+                    compression="gzip",
+                    compression_opts=9,
+                )
             print_verb("max value (avg):", jnp.max(avg_vel[0].get_data()))
             # avg_vel = avg_vel.normalize_by_max_value()
             avg_vel.set_time_step(time_step)
