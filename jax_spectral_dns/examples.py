@@ -2249,17 +2249,15 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 ts.append(time)
                 energy_t.append(vel.energy())
                 print_verb("time:", ts[-1], "energy:", energy_t[-1])
-                vel_spatial_mean = VectorField.FromData(
-                    FourierField, slice_domain, vel_hat.get_data()[:, 0, :, 0], dim=3
-                ).no_hat()
+                vel_spatial_mean = vel_hat.field_2d(2).field_2d(0).no_hat()
                 vel_spatial_mean.set_name("velocity_spatial_average")
                 vel_spatial_mean.set_time_step(time_step + j)
-                if vel_base_turb_slice is not None:
-                    vel_spatial_mean[0].plot_center(0, vel_base_turb_slice)
+                if vel_base_turb is not None:
+                    vel_spatial_mean[0].plot_center(1, vel_base_turb[0])
                 else:
-                    vel_spatial_mean[0].plot_center(0)
-                vel_spatial_means.append(vel_spatial_mean.get_data())
-                avg_vel += vel_spatial_mean / n_steps
+                    vel_spatial_mean[0].plot_center(1)
+                vel_spatial_means.append(vel_spatial_mean.get_data()[:, 0, :, 0])
+                avg_vel += vel_spatial_mean.get_data()[:, 0, :, 0] / n_steps
 
             with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
                 f.create_dataset(
