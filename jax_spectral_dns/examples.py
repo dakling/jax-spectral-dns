@@ -2202,10 +2202,45 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 scale_factors=(1.0,),
                 aliasing=1,
             )
+
+            try:
+                avg_vel_coeffs = np.loadtxt(
+                    "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
+                )
+
+                def get_vel_field(
+                    domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
+                ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
+                    Ny = domain.number_of_cells(1)
+                    U_mat = np.zeros((Ny, len(cheb_coeffs)))
+                    for i in range(Ny):
+                        for j in range(len(cheb_coeffs)):
+                            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+                    U_y_slice = U_mat @ cheb_coeffs
+                    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+                    u_data = np.moveaxis(
+                        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+                    )
+                    max = np.max(u_data)
+                    vel_base = VectorField(
+                        [
+                            PhysicalField(domain, jnp.asarray(u_data)),
+                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                        ]
+                    )
+                    return vel_base, U_y_slice, max
+
+                vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
+                vel_base_turb_slice = PhysicalField(
+                    slice_domain, vel_base_turb[0][0, :, 0]
+                )
+                vel_base_turb_slice.set_name("velocity_base_x")
+            except Exception:
+                print_verb("plotting of reference profile failed.")
+                vel_base_turb = None
+                vel_base_turb_slice = None
             avg_vel = VectorField([PhysicalField.Zeros(slice_domain) for _ in range(3)])
-            vel_base_turb = nse.get_initial_field("velocity_base_hat").no_hat()
-            vel_base_turb_slice = PhysicalField(slice_domain, vel_base_turb[0][0, :, 0])
-            vel_base_turb_slice.set_name("velocity_base_x")
             vel_spatial_means = []
             for j in range(n_steps):
                 time = (j / (n_steps - 1)) * end_time + last_end_time
@@ -2215,12 +2250,15 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 energy_t.append(vel.energy())
                 print_verb("time:", ts[-1], "energy:", energy_t[-1])
                 vel_spatial_mean = VectorField.FromData(
-                    FourierField, slice_domain, vel_hat.get_data()[:, 0, :, 0]
+                    FourierField, slice_domain, vel_hat.get_data()[:, 0, :, 0], dim=3
                 ).no_hat()
                 vel_spatial_mean.set_name("velocity_spatial_average")
                 vel_spatial_mean.set_time_step(time_step + j)
-                vel_spatial_mean[0].plot_center(0, vel_base_turb_slice)
-                vel_spatial_means.append(vel_spatial_mean)
+                if vel_base_turb_slice is not None:
+                    vel_spatial_mean[0].plot_center(0, vel_base_turb_slice)
+                else:
+                    vel_spatial_mean[0].plot_center(0)
+                vel_spatial_means.append(vel_spatial_mean.get_data())
                 avg_vel += vel_spatial_mean / n_steps
 
             with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
@@ -2280,34 +2318,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             fig.savefig(Field.plotting_dir + "/energy.png")
 
             try:
-                avg_vel_coeffs = np.loadtxt(
-                    "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
-                )
-
-                def get_vel_field(
-                    domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-                ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
-                    Ny = domain.number_of_cells(1)
-                    U_mat = np.zeros((Ny, len(cheb_coeffs)))
-                    for i in range(Ny):
-                        for j in range(len(cheb_coeffs)):
-                            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
-                    U_y_slice = U_mat @ cheb_coeffs
-                    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-                    u_data = np.moveaxis(
-                        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
-                    )
-                    max = np.max(u_data)
-                    vel_base = VectorField(
-                        [
-                            PhysicalField(domain, jnp.asarray(u_data)),
-                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                        ]
-                    )
-                    return vel_base, U_y_slice, max
-
-                vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
+                assert vel_base_turb is not None
                 avg_vel[0].plot_center(
                     0,
                     PhysicalField(
@@ -2317,14 +2328,14 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             except Exception:
                 print_verb("plotting of reference profile failed.")
                 avg_vel[0].plot_center(0)
-            avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
-            for i_x in range(Nx):
-                for i_z in range(Nz):
-                    avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
-            avg_vel_x_slice.set_time_step(time_step)
-            avg_vel_x_slice.set_name("average_velocity_x_slice")
-            avg_vel_x_slice.save_to_file("avg_vel_x_slice")
-            avg_vel_x_slice.plot()
+            # avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
+            # for i_x in range(Nx):
+            #     for i_z in range(Nz):
+            #         avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
+            # avg_vel_x_slice.set_time_step(time_step)
+            # avg_vel_x_slice.set_name("average_velocity_x_slice")
+            # avg_vel_x_slice.save_to_file("avg_vel_x_slice")
+            # avg_vel_x_slice.plot()
 
         vel.set_time_step(i + time_step)
         vel.set_name("velocity")

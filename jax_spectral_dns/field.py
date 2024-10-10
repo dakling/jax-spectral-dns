@@ -324,8 +324,10 @@ class VectorField(Generic[T]):
         data: "jnp_array",
         name: str = "field",
         allow_projection: bool = False,
+        dim: Optional[int] = None,
     ) -> Self:
-        dim = domain.number_of_dimensions
+        if dim is None:
+            dim = domain.number_of_dimensions
         if field_cls is PhysicalField:
             data_matches_domain = data.shape[1:] == domain.get_shape_aliasing()
         elif field_cls is FourierField:
