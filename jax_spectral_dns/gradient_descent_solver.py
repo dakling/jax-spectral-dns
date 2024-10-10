@@ -50,7 +50,7 @@ class GradientDescentSolver(ABC):
 
         # set various solver options
         self.i = params.get("start_iteration", 0)
-        if self.i == -1:
+        if self.i < 0:
             self.determine_last_iteration_step()
         self.trajectory_write_interval = params.get("trajectory_write_interval", 20)
         self.max_step_size = params.get("max_step_size", 1e-1)
@@ -329,6 +329,7 @@ class GradientDescentSolver(ABC):
                 phase_space_data_name,
                 "not found, unable to determine last iteration step.",
             )
+            self.i = 0
 
 
 class SteepestAdaptiveDescentSolver(GradientDescentSolver):
