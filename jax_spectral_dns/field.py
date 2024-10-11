@@ -1533,7 +1533,8 @@ class PhysicalField(Field):
                         "--",
                         label=other_field.name,
                     )
-                fig.legend()
+                if params.get("ax") is None:
+                    fig.legend()
 
                 def save() -> None:
                     if params.get("ax") is None:
@@ -1580,7 +1581,8 @@ class PhysicalField(Field):
                         "--",
                         label=other_field.name,
                     )
-                fig.legend()
+                if params.get("ax") is None:
+                    fig.legend()
 
                 def save() -> None:
                     if params.get("ax") is None:
@@ -1636,7 +1638,8 @@ class PhysicalField(Field):
                         "--",
                         label=other_field.name,
                     )
-                fig.legend()
+                if params.get("ax") is None:
+                    fig.legend()
 
                 def save() -> None:
                     if params.get("ax") is None:

@@ -180,7 +180,7 @@ def post_process_averages() -> None:
     # )
     mass_flux = []
     vel_cl = []
-    n_bins = 8
+    n_bins = 9
     for f in vel_00_s:
         mass_flux.append(f[0].volume_integral())
         vel_cl.append(f[0][Ny // 2])
@@ -191,32 +191,61 @@ def post_process_averages() -> None:
     ax[0][1].hist(mass_flux, bins=n_bins, orientation="horizontal")
     ax[1][1].hist(vel_cl, bins=n_bins, orientation="horizontal")
     fig.savefig("plots/mass_flux_over_time.png")
+
     vel_cl_hist, vel_cl_bin_edges = np.histogram(vel_cl, bins=n_bins)
+    mass_flux_hist, mass_flux_bin_edges = np.histogram(mass_flux, bins=n_bins)
     profile_hist = [[] for _ in range(len(vel_cl_hist))]
+    profile_hist_mf = [[] for _ in range(len(mass_flux_hist))]
     for i in range(len(vel_cl)):
         vel_cl_current = vel_cl[i]
+        mass_flux_current = mass_flux[i]
         for j in range(len(vel_cl_bin_edges) - 1):
             if (
                 vel_cl_current >= vel_cl_bin_edges[j]
                 and vel_cl_current < vel_cl_bin_edges[j + 1]
             ):
                 profile_hist[j].append(vel_00_symm_s[i])
-            j += 1
+                break
+        for k in range(len(vel_cl_bin_edges) - 1):
+            if (
+                mass_flux_current >= mass_flux_bin_edges[k]
+                and mass_flux_current < mass_flux_bin_edges[k + 1]
+            ):
+                profile_hist_mf[k].append(vel_00_symm_s[i])
+                break
     profile_hist_avg = []
-    fig_hist_profiles = figure.Figure()
-    ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 1)
+    profile_hist_avg_mf = []
     for interval in profile_hist:
         profile_hist_avg.append(avg_fields(interval))
-    avg[0].plot_center(0, *[avg_vel[0] for avg_vel in profile_hist_avg])
+    for interval in profile_hist_mf:
+        profile_hist_avg_mf.append(avg_fields(interval))
+    fig_hist_profiles = figure.Figure(layout="tight", figsize=(10, 3 * n_bins))
+    ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
+
+    def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
+        return ((vel[0].diff(0)) ** 2).volume_integral()
+
+    def get_mass_flux(vel: "VectorField[PhysicalField]") -> float:
+        return vel[0].volume_integral()
+
     for i in range(len(profile_hist_avg)):
         profile_hist_avg[i].set_name(
-            "hist. bin "
+            "hist_bin_"
+            + str(i)
+            + "_"
             + str(vel_cl_bin_edges[i])
-            + " .. "
+            + ".."
             + str(vel_cl_bin_edges[i + 1])
         )
+        print("n:", len(profile_hist[i]))
+        print("dissipation:", get_dissipation(profile_hist_avg[i]))
+        print("mass flux:", get_mass_flux(profile_hist_avg[i]))
+        profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
         profile_hist_avg[i][0].plot_center(
-            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles
+            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][0]
+        )
+        profile_hist_avg_mf[i][0].plot_center(
+            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
         )
     fig_hist_profiles.savefig("plots/vel_hist_avg_profiles.png")
 

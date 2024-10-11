@@ -2960,6 +2960,11 @@ def run_ld_2021_dual(**params: Any) -> None:
         print_verb("optimising cess profile; exit status:", res.status)
         return A, K
 
+    def get_vel_base_hist(domain: PhysicalDomain) -> VectorField[PhysicalField]:
+        base_file_name = params.get("velocity_base_file_name")
+        assert base_file_name is not None
+        # TODO
+
     if cess_mean:
         if A is not None and K is not None:
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
