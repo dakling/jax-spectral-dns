@@ -1513,11 +1513,17 @@ class PhysicalField(Field):
             out += (other_values[dim] - base_value) * weights[dim]
         return out
 
-    def plot_center(self, dimension: int, *other_fields: PhysicalField) -> None:
+    def plot_center(
+        self, dimension: int, *other_fields: PhysicalField, **params: Any
+    ) -> None:
         try:
             if self.physical_domain.number_of_dimensions == 1:
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
+                ax = params.get("ax")
+                if ax is None:
+                    fig = figure.Figure()
+                    ax = fig.subplots(1, 1)
+                else:
+                    fig = cast("figure.Figure", params.get("fig"))
                 assert type(ax) is Axes
                 ax.plot(self.physical_domain.grid[0], self.data, label=self.name)
                 for other_field in other_fields:
@@ -1530,22 +1536,24 @@ class PhysicalField(Field):
                 fig.legend()
 
                 def save() -> None:
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_cl_"
-                        + self.name
-                        + "_latest"
-                        + self.plotting_format
-                    )
-                    # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_cl_"
-                        + self.name
-                        + "_t_"
-                        + "{:06}".format(self.time_step)
-                        + self.plotting_format
-                    )
+                    if params.get("ax") is None:
+                        assert fig is not None
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_cl_"
+                            + self.name
+                            + "_latest"
+                            + self.plotting_format
+                        )
+                        # fig.savefig(self.plotting_dir + "plot_cl_" + self.name + "_t_" + str(self.time_step) + self.plotting_format)
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_cl_"
+                            + self.name
+                            + "_t_"
+                            + "{:06}".format(self.time_step)
+                            + self.plotting_format
+                        )
 
                 try:
                     save()
@@ -1575,25 +1583,27 @@ class PhysicalField(Field):
                 fig.legend()
 
                 def save() -> None:
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_cl_"
-                        + self.name
-                        + "_"
-                        + ["x", "y"][dimension]
-                        + "_latest"
-                        + self.plotting_format
-                    )
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_cl_"
-                        + self.name
-                        + "_"
-                        + ["x", "y"][dimension]
-                        + "_t_"
-                        + "{:06}".format(self.time_step)
-                        + self.plotting_format
-                    )
+                    if params.get("ax") is None:
+                        assert fig is not None
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_cl_"
+                            + self.name
+                            + "_"
+                            + ["x", "y"][dimension]
+                            + "_latest"
+                            + self.plotting_format
+                        )
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_cl_"
+                            + self.name
+                            + "_"
+                            + ["x", "y"][dimension]
+                            + "_t_"
+                            + "{:06}".format(self.time_step)
+                            + self.plotting_format
+                        )
 
                 try:
                     save()
@@ -1629,25 +1639,27 @@ class PhysicalField(Field):
                 fig.legend()
 
                 def save() -> None:
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_cl_"
-                        + self.name
-                        + "_"
-                        + ["x", "y", "z"][dimension]
-                        + "_latest"
-                        + self.plotting_format
-                    )
-                    fig.savefig(
-                        self.plotting_dir
-                        + "plot_cl_"
-                        + self.name
-                        + "_"
-                        + ["x", "y", "z"][dimension]
-                        + "_t_"
-                        + "{:06}".format(self.time_step)
-                        + self.plotting_format
-                    )
+                    if params.get("ax") is None:
+                        assert fig is not None
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_cl_"
+                            + self.name
+                            + "_"
+                            + ["x", "y", "z"][dimension]
+                            + "_latest"
+                            + self.plotting_format
+                        )
+                        fig.savefig(
+                            self.plotting_dir
+                            + "plot_cl_"
+                            + self.name
+                            + "_"
+                            + ["x", "y", "z"][dimension]
+                            + "_t_"
+                            + "{:06}".format(self.time_step)
+                            + self.plotting_format
+                        )
 
                 try:
                     save()

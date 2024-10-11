@@ -128,7 +128,10 @@ def post_process_averages() -> None:
     vel_00_s = []
     vel_00_symm_s = []
     time_step = 15138
-    for fl in glob.glob("trajectory_00_20*", root_dir="./fields"):
+    for fl in sorted(
+        glob.glob("trajectory_00_20*", root_dir="./fields"),
+        key=lambda f: os.path.getmtime("fields/" + f),
+    ):
         with h5py.File("fields/" + fl, "r") as f:
             velocity_00_trajectory = f["trajectory_00"]
             n_steps = velocity_00_trajectory.shape[0]
@@ -141,14 +144,23 @@ def post_process_averages() -> None:
                         name="velocity_00",
                     )
                 )
+                vel_00 = vel_00_s[-1]
+                vel_00.set_time_step(time_step)
+                vel_00.set_name("velocity_spatial_average")
+                # vel_00[0].plot_center(
+                #     0,
+                #     PhysicalField(
+                #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
+                #     ),
+                # )
                 vel_00_symm = average_y_symm(vel_00_s[-1])
                 vel_00_symm.set_time_step(time_step)
-                vel_00_symm[0].plot_center(
-                    0,
-                    PhysicalField(
-                        slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
-                    ),
-                )
+                # vel_00_symm[0].plot_center(
+                #     0,
+                #     PhysicalField(
+                #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
+                #     ),
+                # )
                 vel_00_symm_s.append(average_y_symm(vel_00_symm))
                 time_step += 1
 
@@ -157,30 +169,56 @@ def post_process_averages() -> None:
     # avg = avg_fields(avg_vels)
     # avg = avg_fields(vel_00_s)
     avg = avg_fields(vel_00_symm_s)
-    # print_verb("average y-velocity range: [", avg[1].max(), ",", avg[1].min(), "]")
-    # print_verb("average z-velocity range: [", avg[2].max(), ",", avg[2].min(), "]")
     avg.set_name("average_velocity_single")
-    avg[0].plot_center(0)
-    avg.set_name("average_velocity_ensemble")
-    # avg[0].plot_center(1, *[avg_vel[0] for avg_vel in avg_vels])
-    avg[0].plot_center(0, *[avg_vel[0] for avg_vel in vel_00_s])
-    avg.set_name("average_velocity")
-    avg[0].plot_center(
-        0, PhysicalField(slice_domain, vel_base_turb[0][0, :, 0], name="vilda")
-    )
-    # avg.plot_3d(0)
-    # avg.plot_3d(1)
-    # avg.plot_3d(2)
+    # avg[0].plot_center(0)
+    # avg.set_name("average_velocity_ensemble")
+    # # avg[0].plot_center(1, *[avg_vel[0] for avg_vel in avg_vels])
+    # avg[0].plot_center(0, *[avg_vel[0] for avg_vel in vel_00_s])
+    # avg.set_name("average_velocity")
+    # avg[0].plot_center(
+    #     0, PhysicalField(slice_domain, vel_base_turb[0][0, :, 0], name="vilda")
+    # )
     mass_flux = []
     vel_cl = []
+    n_bins = 8
     for f in vel_00_s:
         mass_flux.append(f[0].volume_integral())
         vel_cl.append(f[0][Ny // 2])
     fig = figure.Figure()
-    ax = fig.subplots(2, 1)
-    ax[0].plot(mass_flux)
-    ax[1].plot(vel_cl)
+    ax = fig.subplots(2, 2)
+    ax[0][0].plot(mass_flux)
+    ax[1][0].plot(vel_cl)
+    ax[0][1].hist(mass_flux, bins=n_bins, orientation="horizontal")
+    ax[1][1].hist(vel_cl, bins=n_bins, orientation="horizontal")
     fig.savefig("plots/mass_flux_over_time.png")
+    vel_cl_hist, vel_cl_bin_edges = np.histogram(vel_cl, bins=n_bins)
+    profile_hist = [[] for _ in range(len(vel_cl_hist))]
+    for i in range(len(vel_cl)):
+        vel_cl_current = vel_cl[i]
+        for j in range(len(vel_cl_bin_edges) - 1):
+            if (
+                vel_cl_current >= vel_cl_bin_edges[j]
+                and vel_cl_current < vel_cl_bin_edges[j + 1]
+            ):
+                profile_hist[j].append(vel_00_symm_s[i])
+            j += 1
+    profile_hist_avg = []
+    fig_hist_profiles = figure.Figure()
+    ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 1)
+    for interval in profile_hist:
+        profile_hist_avg.append(avg_fields(interval))
+    avg[0].plot_center(0, *[avg_vel[0] for avg_vel in profile_hist_avg])
+    for i in range(len(profile_hist_avg)):
+        profile_hist_avg[i].set_name(
+            "hist. bin "
+            + str(vel_cl_bin_edges[i])
+            + " .. "
+            + str(vel_cl_bin_edges[i + 1])
+        )
+        profile_hist_avg[i][0].plot_center(
+            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles
+        )
+    fig_hist_profiles.savefig("plots/vel_hist_avg_profiles.png")
 
 
 post_process_averages()
