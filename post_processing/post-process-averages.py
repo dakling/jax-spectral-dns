@@ -89,6 +89,26 @@ def get_vel_field_minimal_channel(domain: PhysicalDomain):
 
 def post_process_averages() -> None:
 
+    def average_y_symm(vel: VectorField[PhysicalField]) -> VectorField[PhysicalField]:
+        y_axis = 0  # assuming vel is only a slice
+        vel_flip = VectorField(
+            [
+                PhysicalField(
+                    vel.get_physical_domain(), jnp.flip(v.get_data(), axis=y_axis)
+                )
+                for v in vel
+            ]
+        )
+        out = 0.5 * (vel_flip + vel)
+        out.set_name(vel.get_name() + "_y_symm")
+        return out
+
+    def avg_fields(fs: List[VectorField[PhysicalField]]) -> VectorField[PhysicalField]:
+        out = fs[0] * 0.0
+        for f in fs:
+            out += f
+        return out / len(fs)
+
     Lx_over_pi = 0.6
     Lz_over_pi = 0.3
     Nx, Ny, Nz = (48, 129, 60)
@@ -103,40 +123,51 @@ def post_process_averages() -> None:
     # avg_vels = []
     # for f in glob.glob("avg_vel_20*", root_dir="./fields"):
     #     avg_vels.append(VectorField.FromFile(domain, f, "average_velocity"))
+
+    vel_base_turb = get_vel_field_minimal_channel(domain)
     vel_00_s = []
+    vel_00_symm_s = []
+    time_step = 15138
     for fl in glob.glob("trajectory_00_20*", root_dir="./fields"):
-        with h5py.File(fl, "r") as f:
+        with h5py.File("fields/" + fl, "r") as f:
             velocity_00_trajectory = f["trajectory_00"]
             n_steps = velocity_00_trajectory.shape[0]
             for i in range(n_steps):
                 vel_00_s.append(
                     VectorField.FromData(
                         PhysicalField,
-                        domain,
+                        slice_domain,
                         velocity_00_trajectory[i],
                         name="velocity_00",
                     )
                 )
-
-    def avg_fields(fs: List[VectorField[PhysicalField]]) -> VectorField[PhysicalField]:
-        out = fs[0] * 0.0
-        for f in fs:
-            out += f
-        return out / len(fs)
+                vel_00_symm = average_y_symm(vel_00_s[-1])
+                vel_00_symm.set_time_step(time_step)
+                vel_00_symm[0].plot_center(
+                    0,
+                    PhysicalField(
+                        slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
+                    ),
+                )
+                vel_00_symm_s.append(average_y_symm(vel_00_symm))
+                time_step += 1
 
     # print_verb("Taking the average of", len(avg_vels), "snapshots (equally weighted!)")
     print_verb("Taking the average of", len(vel_00_s), "snapshots (equally weighted!)")
     # avg = avg_fields(avg_vels)
-    avg = avg_fields(vel_00_s)
-    print_verb("average y-velocity range: [", avg[1].max(), ",", avg[1].min(), "]")
-    print_verb("average z-velocity range: [", avg[2].max(), ",", avg[2].min(), "]")
+    # avg = avg_fields(vel_00_s)
+    avg = avg_fields(vel_00_symm_s)
+    # print_verb("average y-velocity range: [", avg[1].max(), ",", avg[1].min(), "]")
+    # print_verb("average z-velocity range: [", avg[2].max(), ",", avg[2].min(), "]")
     avg.set_name("average_velocity_single")
     avg[0].plot_center(0)
     avg.set_name("average_velocity_ensemble")
     # avg[0].plot_center(1, *[avg_vel[0] for avg_vel in avg_vels])
     avg[0].plot_center(0, *[avg_vel[0] for avg_vel in vel_00_s])
     avg.set_name("average_velocity")
-    avg[0].plot_center(0, get_vel_field_minimal_channel(domain)[0])
+    avg[0].plot_center(
+        0, PhysicalField(slice_domain, vel_base_turb[0][0, :, 0], name="vilda")
+    )
     # avg.plot_3d(0)
     # avg.plot_3d(1)
     # avg.plot_3d(2)

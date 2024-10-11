@@ -2203,6 +2203,23 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 aliasing=1,
             )
 
+            def average_y_symm(
+                vel: VectorField[PhysicalField],
+            ) -> VectorField[PhysicalField]:
+                y_axis = 1
+                vel_flip = VectorField(
+                    [
+                        PhysicalField(
+                            vel.get_physical_domain(),
+                            jnp.flip(v.get_data(), axis=y_axis),
+                        )
+                        for v in vel
+                    ]
+                )
+                out = 0.5 * (vel_flip + vel)
+                out.set_name(vel.get_name() + "_y_symm")
+                return out
+
             try:
                 avg_vel_coeffs = np.loadtxt(
                     "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
@@ -2252,12 +2269,14 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 vel_spatial_mean = vel_hat.field_2d(2).field_2d(0).no_hat()
                 vel_spatial_mean.set_name("velocity_spatial_average")
                 vel_spatial_mean.set_time_step(time_step + j)
+                vel_spatial_mean_ysymm = average_y_symm(vel_spatial_mean)
                 if vel_base_turb is not None:
                     vel_spatial_mean[0].plot_center(1, vel_base_turb[0])
+                    vel_spatial_mean_ysymm[0].plot_center(1, vel_base_turb[0])
                 else:
                     vel_spatial_mean[0].plot_center(1)
                 vel_spatial_means.append(vel_spatial_mean.get_data()[:, 0, :, 0])
-                avg_vel += vel_spatial_mean.get_data()[:, 0, :, 0] / n_steps
+                avg_vel += vel_spatial_mean_ysymm.get_data()[:, 0, :, 0] / n_steps
 
             with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
                 f.create_dataset(
