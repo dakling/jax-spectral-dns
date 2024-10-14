@@ -3006,10 +3006,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         ), "Exactly one base profile called vel_hist_bin_[0-..] must be present in fields folder."
         import re
 
-        i = filenames[0][-1]
-        print(i)
+        i = filenames[0][-1]  # TODO generalize
         vel_base_turb_slice = PhysicalField.FromFile(
-            slice_domain, filenames[0], "hist_bin_" + i, time_step=0
+            slice_domain, filenames[0], "hist_bin_" + i + "_x", time_step=0
         )
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(
@@ -3026,6 +3025,8 @@ def run_ld_2021_dual(**params: Any) -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
+        flow_rate_turb = vel_base_turb[0].volume_integral()
+        max_turb = vel_base_turb[0].max()
         vel_base_turb.set_name("velocity_base")
     else:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
