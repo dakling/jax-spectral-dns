@@ -3006,8 +3006,6 @@ def run_ld_2021_dual(**params: Any) -> None:
         ), "Exactly one base profile called vel_hist_bin_[0-..] must be present in fields folder, found {0}.".format(
             len(filenames)
         )
-        import re
-
         i = filenames[0][-1]  # TODO generalize
         vel_base_turb_slice = PhysicalField.FromFile(
             slice_domain, filenames[0], "hist_bin_" + i + "_x", time_step=0
@@ -3028,7 +3026,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             ]
         )
         flow_rate_turb = vel_base_turb[0].volume_integral()
-        max_turb = vel_base_turb[0].max()
+        max_turb = 19.5  # TODO rough estimate is fine here
         vel_base_turb.set_name("velocity_base")
     else:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
