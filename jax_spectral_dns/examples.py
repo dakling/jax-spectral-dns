@@ -3135,7 +3135,13 @@ def run_ld_2021_dual(**params: Any) -> None:
     vel_base.set_name("velocity_base")
 
     vel_base_turb.set_name("velocity_base (unperturbed)")
-    vel_base[0].plot_center(1, vel_base_turb[0])
+    if hist_mean:
+        vel_base_turb_minimal, _, max_turb, flow_rate_turb = (
+            get_vel_field_minimal_channel(domain, avg_vel_coeffs)
+        )
+        vel_base[0].plot_center(1, vel_base_turb_minimal[0])
+    else:
+        vel_base[0].plot_center(1, vel_base_turb[0])
 
     u_max_over_u_tau = turb * max_turb + (1 - turb) * Re_tau / 2.0
     h_over_delta: float = (
