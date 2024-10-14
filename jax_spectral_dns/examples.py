@@ -3000,10 +3000,12 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=(1.0,),
             aliasing=1,
         )
-        filenames = glob.glob("vel_hist_bin_*", root_dir="./fields")
+        filenames = glob.glob("vel_hist_bin_*", root_dir=Field.field_dir)
         assert (
             len(filenames) == 1
-        ), "Exactly one base profile called vel_hist_bin_[0-..] must be present in fields folder."
+        ), "Exactly one base profile called vel_hist_bin_[0-..] must be present in fields folder, found {0}.".format(
+            len(filenames)
+        )
         import re
 
         i = filenames[0][-1]  # TODO generalize
