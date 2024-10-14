@@ -136,7 +136,8 @@ class Field(ABC):
     def save_to_hdf_file(self, filename: str) -> None:
         """Save field to file filename using hdf5."""
         with h5py.File(filename, "w") as f:
-            dset = f.create_dataset(
+            grp = f.create_group(str(self.get_time_step()))
+            dset = grp.create_dataset(
                 self.name, data=self.get_data(), compression="gzip", compression_opts=9
             )
             dset.attrs.create("time_step", self.time_step)

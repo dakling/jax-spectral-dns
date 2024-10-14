@@ -229,17 +229,11 @@ def post_process_averages() -> None:
         return vel[0].volume_integral()
 
     for i in range(len(profile_hist_avg)):
-        profile_hist_avg[i].set_name(
-            "hist_bin_"
-            + str(i)
-            + "_"
-            + str(vel_cl_bin_edges[i])
-            + ".."
-            + str(vel_cl_bin_edges[i + 1])
-        )
+        profile_hist_avg[i].set_name("hist_bin_" + str(i))
         print("n:", len(profile_hist[i]))
         print("dissipation:", get_dissipation(profile_hist_avg[i]))
         print("mass flux:", get_mass_flux(profile_hist_avg[i]))
+        profile_hist_avg[i].set_time_step(0)
         profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
         profile_hist_avg[i][0].plot_center(
             0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][0]

@@ -23,6 +23,7 @@ import numpy as np
 import scipy  # type: ignore
 import pickle
 import h5py  # type: ignore
+import glob
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
@@ -2745,6 +2746,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     full_channel_mean = params.get("full_channel_mean", False)
     cess_mean = params.get("cess_mean", False)
+    hist_mean = params.get("hist_mean", False)
     A = params.get("cess_mean_a")
     K = params.get("cess_mean_k")
     plot_cess_mean = params.get("plot_cess_mean", False)
@@ -2960,11 +2962,6 @@ def run_ld_2021_dual(**params: Any) -> None:
         print_verb("optimising cess profile; exit status:", res.status)
         return A, K
 
-    def get_vel_base_hist(domain: PhysicalDomain) -> VectorField[PhysicalField]:
-        base_file_name = params.get("velocity_base_file_name")
-        assert base_file_name is not None
-        # TODO
-
     if cess_mean:
         if A is not None and K is not None:
             vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_cess(
@@ -2996,6 +2993,40 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel_base_turb, _, max_turb, flow_rate_turb, uv = get_vel_field_full_channel(
             domain, data
         )
+    elif hist_mean:
+        slice_domain = PhysicalDomain.create(
+            (domain.get_shape_aliasing()[1],),
+            (False,),
+            scale_factors=(1.0,),
+            aliasing=1,
+        )
+        filenames = glob.glob("vel_hist_bin_*", root_dir="./fields")
+        assert (
+            len(filenames) == 1
+        ), "Exactly one base profile called vel_hist_bin_[0-..] must be present in fields folder."
+        import re
+
+        i = filenames[0][-1]
+        print(i)
+        vel_base_turb_slice = PhysicalField.FromFile(
+            slice_domain, filenames[0], "hist_bin_" + i, time_step=0
+        )
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(
+            np.tile(
+                np.tile(vel_base_turb_slice.get_data(), reps=(nz, 1)), reps=(nx, 1, 1)
+            ),
+            1,
+            2,
+        )
+        vel_base_turb = VectorField(
+            [
+                PhysicalField(domain, jnp.asarray(u_data)),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+        vel_base_turb.set_name("velocity_base")
     else:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
             domain, avg_vel_coeffs
