@@ -161,7 +161,7 @@ def post_process_averages() -> None:
                 #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
                 #     ),
                 # )
-                vel_00_symm_s.append(average_y_symm(vel_00_symm))
+                vel_00_symm_s.append(vel_00_symm)
                 time_step += 1
 
     # print_verb("Taking the average of", len(avg_vels), "snapshots (equally weighted!)")
@@ -169,7 +169,11 @@ def post_process_averages() -> None:
     # avg = avg_fields(avg_vels)
     # avg = avg_fields(vel_00_s)
     avg = avg_fields(vel_00_symm_s)
-    avg.set_name("average_velocity_single")
+    avg.set_name("average_velocity")
+    for vel_00_symm in vel_00_symm_s:
+        vel_00_symm[0].plot_center(0, avg[0])
+    for vel_00 in vel_00_s:
+        vel_00[0].plot_center(0, avg[0])
     # avg[0].plot_center(0)
     # avg.set_name("average_velocity_ensemble")
     # # avg[0].plot_center(1, *[avg_vel[0] for avg_vel in avg_vels])

@@ -103,7 +103,7 @@ def get_e0(base_path: str, directory: str) -> float:
 
 def collect_gain_e0(
     home_path: str, store_path: str
-) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
     e_0s = []
     gains = []
