@@ -510,11 +510,22 @@ class LinearStabilityCalculation:
         F_inv = np.linalg.inv(F)
         if type(Ts) is not NoneType:
             assert Ts is not None
+            Gs = []
             for t in Ts:
                 Sigma = np.diag([np.exp(evs[i] * t) for i in range(number_of_modes)])
                 mat = F @ Sigma @ F_inv
                 U, S, Vh = svd(mat, compute_uv=True)
                 print("time:", t, "gain:", S[0] ** 2)
+                Gs.append(S[0] ** 2)
+            print(
+                "| "
+                + str(int(self.alpha))
+                + "|"
+                + str(int(self.beta))
+                + "|"
+                + "|".join("{0:.3f}".format(G) for G in Gs)
+                + "|"
+            )
         Sigma = np.diag([np.exp(evs[i] * T) for i in range(number_of_modes)])
         mat = F @ Sigma @ F_inv
         U, S, Vh = svd(mat, compute_uv=True)

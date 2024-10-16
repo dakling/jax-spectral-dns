@@ -89,7 +89,7 @@ def collect(
 def plot(dirs_and_names: List[str]) -> None:
     fig = figure.Figure()
     ax = fig.subplots(1, 1)
-    ax.set_xlabel("$T$")
+    ax.set_xlabel("$T h  / u_\\tau$")
     ax.set_ylabel("$e_0/E_0$")
     ax.set_yscale("log")
     e_0_lam_boundary = [0.0 for _ in range(len(dirs_and_names))]
