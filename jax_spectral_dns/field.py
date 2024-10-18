@@ -439,9 +439,9 @@ class VectorField(Generic[T]):
         try:
             field_array, time_step = cls.read_hdf(filename, name, time_step)
         except Exception as e:
-            print("unable to load hdf due to the following exception:")
-            print(e)
-            print("trying to interpret file as pickle instead")
+            # print("unable to load hdf due to the following exception:")
+            # print(e)
+            # print("trying to interpret file as pickle instead")
             field_array = cls.read_pickle(filename, name)
         out: VectorField[PhysicalField] = VectorField.FromData(
             PhysicalField, domain, field_array, name, allow_projection
@@ -1354,9 +1354,9 @@ class PhysicalField(Field):
         try:
             data = cls.read_hdf(filename, name, time_step)
         except Exception as e:
-            print("unable to load hdf due to the following exception:")
-            print(e)
-            print("trying to interpret file as pickle instead")
+            # print("unable to load hdf due to the following exception:")
+            # print(e)
+            # print("trying to interpret file as pickle instead")
             data = cls.read_pickle(filename, name)
         data_matches_domain = data.shape == domain.get_shape_aliasing()
         if not allow_projection:

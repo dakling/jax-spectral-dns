@@ -100,15 +100,20 @@ def plot(dirs_and_names: List[str]) -> None:
         home_dir_base = HOME_DIR_BASE + "/" + base_path
         T, e_0, gain = collect(home_dir_base, store_dir_base)
         Ts.append(T[0])
+        max_i = np.argmax(gain)
         for i in range(len(T)):
             g_lin = gain[0]
             g = gain[i]
-            if g <= g_lin * 1.05:
+            e_0_lam_boundary_change = True
+            if g <= g_lin * 1.05 and e_0_lam_boundary_change:
                 marker = "x"
                 e_0_lam_boundary[j] = e_0[i]
             else:
                 marker = "o"
-            color = "k"  # TODO encode information in color
+                e_0_lam_boundary_change = False
+            color = (
+                "r" if i == max_i else "k"
+            )  # TODO encode information in color -> maximium gain at this time
             ax.plot(T[i], e_0[i], color + marker)
         j += 1
     # paint linear regime grey
