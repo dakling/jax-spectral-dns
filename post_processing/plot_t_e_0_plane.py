@@ -56,6 +56,9 @@ def collect(
     home_path: str, store_path: str
 ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
+    dirs += glob("[0-9]eminus[0-9]_sweep_down", root_dir=home_path)
+    dirs += glob("[0-9]eminus[0-9]_from_linopt", root_dir=home_path)
+    dirs += glob("[0-9]eminus[0-9]_from_lin_opt", root_dir=home_path)
     e_0s = []
     Ts = []
     gains = []
@@ -69,9 +72,13 @@ def collect(
             T = None
             gain = None
         if e_0 is not None and T is not None and gain is not None:
-            e_0s.append(e_0)
-            Ts.append(T)
-            gains.append(gain)
+            if (gain is not None) and (T in Ts) and (e_0 in e_0s):
+                ind = e_0s.index(e_0)
+                gains[ind] = max(gain, gains[ind])
+            else:
+                e_0s.append(e_0)
+                Ts.append(T)
+                gains.append(gain)
     try:
         gain = get_gain(store_path, "linear")
         T = get_T(home_path, "linear")
@@ -101,10 +108,10 @@ def plot(dirs_and_names: List[str]) -> None:
         T, e_0, gain = collect(home_dir_base, store_dir_base)
         Ts.append(T[0])
         max_i = np.argmax(gain)
+        e_0_lam_boundary_change = True
         for i in range(len(T)):
             g_lin = gain[0]
             g = gain[i]
-            e_0_lam_boundary_change = True
             if g <= g_lin * 1.05 and e_0_lam_boundary_change:
                 marker = "x"
                 e_0_lam_boundary[j] = e_0[i]

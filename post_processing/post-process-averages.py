@@ -341,6 +341,12 @@ def post_process_averages() -> None:
         uw.plot_center(1, fig=fig_stat, ax=ax_stat)
         vw.plot_center(1, fig=fig_stat, ax=ax_stat)
         fig_stat.savefig("plots/reystresses.png")
+        uu.plot_center(1)
+        vv.plot_center(1)
+        ww.plot_center(1)
+        uv.plot_center(1)
+        uw.plot_center(1)
+        vw.plot_center(1)
 
 
 post_process_averages()

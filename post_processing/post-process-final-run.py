@@ -190,7 +190,7 @@ def post_process(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
-        ax.plot(amplitudes_2d_vilda, "k.")
+        ax.plot(amplitude_t, amplitudes_2d_vilda, "k.")
         ax.set_xlabel("$t h / u_\\tau$")
         ax.set_ylabel("$A \\sqrt{\\text{Re}_\\tau} $")
         fig.tight_layout()
