@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from typing import Tuple, Optional, List
+from typing import Tuple, Optional, List, Self
 import numpy as np
 import numpy.typing as npt
 import yaml
@@ -22,75 +22,88 @@ plt.rcParams.update(
     }
 )
 
-STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/"
-HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/"
 
+class Case:
+    STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/"
+    HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/"
 
-def get_property_from_settings(base_path: str, directory: str, property: str) -> float:
-    fname = base_path + "/" + directory + "/simulation_settings.yml"
-    with open(fname, "r") as file:
-        args = yaml.safe_load(file)
-    return args[property]
-
-
-def get_e0(base_path: str, directory: str) -> float:
-    return get_property_from_settings(base_path, directory, "e_0")
-
-
-def get_T(base_path: str, directory: str) -> float:
-    return get_property_from_settings(base_path, directory, "end_time")
-
-
-def get_gain(base_path, directory: str) -> Optional[float]:
-    phase_space_data_name = base_path + "/" + directory + "/plots/phase_space_data.txt"
-    phase_space_data = np.atleast_2d(
-        np.genfromtxt(
-            phase_space_data_name,
-            delimiter=",",
+    def __init__(self, directory: str):
+        self.T = self.get_T(self.HOME_DIR_BASE, directory)
+        self.e_0 = self.get_e0(self.HOME_DIR_BASE, directory)
+        self.gain = self.get_gain(self.STORE_DIR_BASE, directory)
+        self.successfully_read = (
+            self.T is not None and self.e_0 is not None and self.gain is not None
         )
-    ).T
-    return max(phase_space_data[1])
+        self.directory = directory
 
-
-def collect(
-    home_path: str, store_path: str
-) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
-    dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
-    dirs += glob("[0-9]eminus[0-9]_sweep_down", root_dir=home_path)
-    dirs += glob("[0-9]eminus[0-9]_from_linopt", root_dir=home_path)
-    dirs += glob("[0-9]eminus[0-9]_from_lin_opt", root_dir=home_path)
-    e_0s = []
-    Ts = []
-    gains = []
-    for dir in dirs:
+    def get_property_from_settings(
+        self, base_path: str, directory: str, property: str
+    ) -> Optional[float]:
+        fname = base_path + "/" + directory + "/simulation_settings.yml"
         try:
-            e_0 = get_e0(home_path, dir)
-            T = get_T(home_path, dir)
-            gain = get_gain(store_path, dir)
+            with open(fname, "r") as file:
+                args = yaml.safe_load(file)
+            return args[property]
         except Exception as e:
-            e_0 = None
-            T = None
-            gain = None
-        if e_0 is not None and T is not None and gain is not None:
-            if (gain is not None) and (T in Ts) and (e_0 in e_0s):
-                ind = e_0s.index(e_0)
-                gains[ind] = max(gain, gains[ind])
+            return None
+
+    def get_e0(self, base_path: str, directory: str) -> Optional[float]:
+        return self.get_property_from_settings(base_path, directory, "e_0")
+
+    def get_T(self, base_path: str, directory: str) -> Optional[float]:
+        return self.get_property_from_settings(base_path, directory, "end_time")
+
+    def get_gain(self, base_path, directory: str) -> Optional[float]:
+        phase_space_data_name = (
+            base_path + "/" + directory + "/plots/phase_space_data.txt"
+        )
+        try:
+            phase_space_data = np.atleast_2d(
+                np.genfromtxt(
+                    phase_space_data_name,
+                    delimiter=",",
+                )
+            ).T
+            return max(phase_space_data[1])
+        except Exception:
+            return None
+
+    def sort_by_e_0(self, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.e_0)
+        return cases
+
+    def append_to(self, cases: "List[Self]") -> "List[Self]":
+        if self.successfully_read:
+            assert self.gain is not None
+            Ts = [case.T for case in cases]
+            e_0s = [case.e_0 for case in cases]
+            gains = [case.gain for case in cases]
+            if (self.T in Ts) and (self.e_0 in e_0s):
+                ind = e_0s.index(self.e_0)
+                other_gain = gains[ind]
+                assert other_gain is not None
+                if self.gain > other_gain:
+                    cases[ind] = self
             else:
-                e_0s.append(e_0)
-                Ts.append(T)
-                gains.append(gain)
-    try:
-        gain = get_gain(store_path, "linear")
-        T = get_T(home_path, "linear")
-    except Exception as e:
-        gain = None
-        T = None
-    if gain is not None and T is not None:
-        e_0s.append(0.0)
-        Ts.append(T)
-        gains.append(gain)
-    Ts, e_0s, gains = (list(x) for x in zip(*sorted(zip(Ts, e_0s, gains))))
-    return np.array(Ts), np.array(e_0s), np.array(gains)
+                cases.append(self)
+        return cases
+
+    @classmethod
+    def collect(cls, base_path: str) -> "List[Case]":
+        home_path = Case.HOME_DIR_BASE + "/" + base_path
+        dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
+        dirs += glob("[0-9]eminus[0-9]_sweep_down", root_dir=home_path)
+        dirs += glob("[0-9]eminus[0-9]_from_linopt", root_dir=home_path)
+        dirs += glob("[0-9]eminus[0-9]_from_lin_opt", root_dir=home_path)
+        cases = []
+        for dir in dirs:
+            case = Case(base_path + "/" + dir)
+            cases = case.append_to(cases)
+        case = Case(base_path + "/" + "linear")
+        case.e_0 = 0.0
+        cases = case.append_to(cases)
+        case.sort_by_e_0(cases)
+        return cases
 
 
 def plot(dirs_and_names: List[str]) -> None:
@@ -103,25 +116,23 @@ def plot(dirs_and_names: List[str]) -> None:
     j = 0
     Ts = []
     for base_path, name in dirs_and_names:
-        store_dir_base = STORE_DIR_BASE + "/" + base_path
-        home_dir_base = HOME_DIR_BASE + "/" + base_path
-        T, e_0, gain = collect(home_dir_base, store_dir_base)
-        Ts.append(T[0])
-        max_i = np.argmax(gain)
+        cases = Case.collect(base_path)
+        Ts.append(cases[0].T)
+        max_i = np.argmax([case.gain for case in cases])
         e_0_lam_boundary_change = True
-        for i in range(len(T)):
-            g_lin = gain[0]
-            g = gain[i]
+        for i in range(len(cases)):
+            g_lin = cases[0].gain
+            g = cases[i].gain
             if g <= g_lin * 1.05 and e_0_lam_boundary_change:
                 marker = "x"
-                e_0_lam_boundary[j] = e_0[i]
+                e_0_lam_boundary[j] = cases[i].e_0
             else:
                 marker = "o"
                 e_0_lam_boundary_change = False
             color = (
                 "r" if i == max_i else "k"
             )  # TODO encode information in color -> maximium gain at this time
-            ax.plot(T[i], e_0[i], color + marker)
+            ax.plot(cases[i].T, cases[i].e_0, color + marker)
         j += 1
     # paint linear regime grey
     ax.fill_between(
