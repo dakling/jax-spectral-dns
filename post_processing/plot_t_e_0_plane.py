@@ -105,6 +105,24 @@ class Case:
         case.sort_by_e_0(cases)
         return cases
 
+    @classmethod
+    def get_e_0_lam_boundary(cls, cases: "List[Case]") -> "Tuple[float, int]":
+        e_0_lam_boundary_change = True
+        e_0_lam_boundary = 0.0
+        j = 0
+        for i in range(len(cases)):
+            g_lin = cases[0].gain
+            g = cases[i].gain
+            assert g_lin is not None
+            assert g is not None
+            if g <= g_lin * 1.05 and e_0_lam_boundary_change:
+                e_0_lam_boundary = cases[i].e_0
+                j = i
+            else:
+                e_0_lam_boundary_change = False
+        assert e_0_lam_boundary is not None
+        return e_0_lam_boundary, j
+
 
 def plot(dirs_and_names: List[str]) -> None:
     fig = figure.Figure()
@@ -112,28 +130,23 @@ def plot(dirs_and_names: List[str]) -> None:
     ax.set_xlabel("$T h  / u_\\tau$")
     ax.set_ylabel("$e_0/E_0$")
     ax.set_yscale("log")
-    e_0_lam_boundary = [0.0 for _ in range(len(dirs_and_names))]
-    j = 0
+    e_0_lam_boundary = []
     Ts = []
     for base_path, name in dirs_and_names:
         cases = Case.collect(base_path)
         Ts.append(cases[0].T)
         max_i = np.argmax([case.gain for case in cases])
-        e_0_lam_boundary_change = True
+        e_0_lam_boundary_, k = Case.get_e_0_lam_boundary(cases)
+        e_0_lam_boundary.append(e_0_lam_boundary_)
         for i in range(len(cases)):
-            g_lin = cases[0].gain
-            g = cases[i].gain
-            if g <= g_lin * 1.05 and e_0_lam_boundary_change:
+            if i <= k:
                 marker = "x"
-                e_0_lam_boundary[j] = cases[i].e_0
             else:
                 marker = "o"
-                e_0_lam_boundary_change = False
             color = (
                 "r" if i == max_i else "k"
             )  # TODO encode information in color -> maximium gain at this time
             ax.plot(cases[i].T, cases[i].e_0, color + marker)
-        j += 1
     # paint linear regime grey
     ax.fill_between(
         Ts,
