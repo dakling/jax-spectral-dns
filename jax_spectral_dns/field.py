@@ -610,9 +610,9 @@ class VectorField(Generic[T]):
         )
 
     def field_2d(
-        self: VectorField[FourierField], direction: int
+        self: VectorField[FourierField], direction: int, wavenumber: int = 0
     ) -> VectorField[FourierField]:
-        return VectorField([f.field_2d(direction) for f in self])
+        return VectorField([f.field_2d(direction, wavenumber) for f in self])
 
     def energy_2d(self: VectorField[FourierField], direction: int) -> float:
         en: float = 0.0

@@ -2241,9 +2241,9 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
                     Ny = domain.number_of_cells(1)
                     U_mat = np.zeros((Ny, len(cheb_coeffs)))
-                    for i in range(Ny):
+                    for k in range(Ny):
                         for j in range(len(cheb_coeffs)):
-                            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+                            U_mat[k, j] = cheby(j, 0)(domain.grid[1][k])
                     U_y_slice = U_mat @ cheb_coeffs
                     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
                     u_data = np.moveaxis(
@@ -2324,7 +2324,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             except FileNotFoundError:
                 print_verb("No dedalus data to compare results with were found.")
             try:
-                out_arr = np.array([[ts[i], energy_t_arr[i]] for i in range(len(ts))])
+                out_arr = np.array([[ts[k], energy_t_arr[k]] for k in range(len(ts))])
                 with open(Field.plotting_dir + "/energy-jax.txt", "a") as f:
                     np.savetxt(f, out_arr, delimiter=",")
             except Exception:
@@ -2435,8 +2435,8 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             )
 
             velocity_trajectory = cast("jnp_array", f["trajectory"])
-            n_steps = velocity_trajectory.shape[0]
-            for i in range(n_steps):
+            n_steps_ = velocity_trajectory.shape[0]
+            for i in range(n_steps_):
                 vel_pert = (
                     VectorField.FromData(
                         FourierField, domain, velocity_trajectory[i], name="velocity"
@@ -2502,7 +2502,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             uv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
             uw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
             vw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            fig_stat.savefig("plots/reystresses.png")
+            fig_stat.savefig(Field.plotting_dir + "reystresses.png")
             uu.plot_center(1)
             vv.plot_center(1)
             ww.plot_center(1)

@@ -14,7 +14,7 @@ jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 import glob
 
-from typing import List, TypeVar
+from typing import Iterable, List, TypeVar
 import pyvista as pv
 import numpy as np
 import h5py
@@ -105,11 +105,14 @@ def post_process_averages() -> None:
 
     T = TypeVar("T", bound="Field")
 
-    def avg_fields(fs: List[T]) -> T:
-        out = fs[0] * 0.0
+    def avg_fields(fs: Iterable[T]) -> T:
+        fs = iter(fs)
+        out = next(fs)
+        length = 1
         for f in fs:
             out += f
-        return out / len(fs)
+            length += 1
+        return out / length
 
     Lx_over_pi = 0.6
     Lz_over_pi = 0.3
@@ -290,43 +293,45 @@ def post_process_averages() -> None:
             vel_pert.set_name("velocity_pert")
 
             vel_pert_s.append(vel_pert)
+            if i in [0, n_steps // 4, n_steps // 2, 3 * nsteps // 4, nsteps]:
+                print("perturbation energy:", vel_pert.energy())
         uu = (
-            avg_fields([vel_pert[0] ** 2 for vel_pert in vel_pert_s])
+            avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))
             .hat()
             .field_2d(2)
             .field_2d(0)
             .no_hat()
         )
         vv = (
-            avg_fields([vel_pert[1] ** 2 for vel_pert in vel_pert_s])
+            avg_fields((vel_pert[1] ** 2 for vel_pert in vel_pert_s))
             .hat()
             .field_2d(2)
             .field_2d(0)
             .no_hat()
         )
         ww = (
-            avg_fields([vel_pert[2] ** 2 for vel_pert in vel_pert_s])
+            avg_fields((vel_pert[2] ** 2 for vel_pert in vel_pert_s))
             .hat()
             .field_2d(2)
             .field_2d(0)
             .no_hat()
         )
         uv = (
-            avg_fields([vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s])
+            avg_fields((vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s))
             .hat()
             .field_2d(2)
             .field_2d(0)
             .no_hat()
         )
         uw = (
-            avg_fields([vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s])
+            avg_fields((vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s))
             .hat()
             .field_2d(2)
             .field_2d(0)
             .no_hat()
         )
         vw = (
-            avg_fields([vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s])
+            avg_fields((vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s))
             .hat()
             .field_2d(2)
             .field_2d(0)
