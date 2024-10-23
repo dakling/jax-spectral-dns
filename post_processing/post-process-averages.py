@@ -129,51 +129,51 @@ def post_process_averages() -> None:
     vel_base_turb = get_vel_field_minimal_channel(domain)
     vel_00_s = []
     vel_00_symm_s = []
-    # time_step = 15138
-    # for fl in sorted(
-    #     glob.glob("trajectory_00_20*", root_dir="./fields"),
-    #     key=lambda f: os.path.getmtime("fields/" + f),
-    # ):
-    #     with h5py.File("fields/" + fl, "r") as f:
-    #         velocity_00_trajectory = f["trajectory_00"]
-    #         n_steps = velocity_00_trajectory.shape[0]
-    #         for i in range(n_steps):
-    #             vel_00_s.append(
-    #                 VectorField.FromData(
-    #                     PhysicalField,
-    #                     slice_domain,
-    #                     velocity_00_trajectory[i],
-    #                     name="velocity_00",
-    #                 )
-    #             )
-    #             vel_00 = vel_00_s[-1]
-    #             vel_00.set_time_step(time_step)
-    #             vel_00.set_name("velocity_spatial_average")
-    #             # vel_00[0].plot_center(
-    #             #     0,
-    #             #     PhysicalField(
-    #             #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
-    #             #     ),
-    #             # )
-    #             vel_00_symm = average_y_symm(vel_00_s[-1])
-    #             vel_00_symm.set_time_step(time_step)
-    #             # vel_00_symm[0].plot_center(
-    #             #     0,
-    #             #     PhysicalField(
-    #             #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
-    #             #     ),
-    #             # )
-    #             vel_00_symm_s.append(vel_00_symm)
-    #             time_step += 1
+    time_step = 15138
+    for fl in sorted(
+        glob.glob("trajectory_00_20*", root_dir="./fields"),
+        key=lambda f: os.path.getmtime("fields/" + f),
+    ):
+        with h5py.File("fields/" + fl, "r") as f:
+            velocity_00_trajectory = f["trajectory_00"]
+            n_steps = velocity_00_trajectory.shape[0]
+            for i in range(n_steps):
+                vel_00_s.append(
+                    VectorField.FromData(
+                        PhysicalField,
+                        slice_domain,
+                        velocity_00_trajectory[i],
+                        name="velocity_00",
+                    )
+                )
+                vel_00 = vel_00_s[-1]
+                vel_00.set_time_step(time_step)
+                vel_00.set_name("velocity_spatial_average")
+                # vel_00[0].plot_center(
+                #     0,
+                #     PhysicalField(
+                #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
+                #     ),
+                # )
+                vel_00_symm = average_y_symm(vel_00_s[-1])
+                vel_00_symm.set_time_step(time_step)
+                # vel_00_symm[0].plot_center(
+                #     0,
+                #     PhysicalField(
+                #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
+                #     ),
+                # )
+                vel_00_symm_s.append(vel_00_symm)
+                time_step += 1
 
-    # print_verb("Taking the average of", len(vel_00_s), "snapshots (equally weighted!)")
-    # avg = avg_fields(vel_00_symm_s)
+    print_verb("Taking the average of", len(vel_00_s), "snapshots (equally weighted!)")
+    avg = avg_fields(vel_00_symm_s)
 
-    print_verb("Reusing previously calculated velocity average")
-    avg_0 = PhysicalField.FromFile(
-        slice_domain, "average_velocity", name="average_velocity_x"
-    )
-    avg = VectorField([avg_0, 0 * avg_0, 0 * avg_0])
+    # print_verb("Reusing previously calculated velocity average")
+    # avg_0 = PhysicalField.FromFile(
+    #     slice_domain, "average_velocity", name="average_velocity_x"
+    # )
+    # avg = VectorField([avg_0, 0 * avg_0, 0 * avg_0])
     # nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
     # u_data = np.moveaxis(
     #     np.tile(
@@ -191,7 +191,7 @@ def post_process_averages() -> None:
     # )
     avg.set_name("average_velocity")
     avg.set_time_step(0)
-    # avg[0].save_to_file("average_velocity")
+    avg[0].save_to_file("average_velocity")
     for vel_00_symm in vel_00_symm_s:
         vel_00_symm[0].plot_center(0, avg[0])
     for vel_00 in vel_00_s:
@@ -210,56 +210,56 @@ def post_process_averages() -> None:
     ax[1][1].hist(vel_cl, bins=n_bins, orientation="horizontal")
     fig.savefig("plots/mass_flux_over_time.png")
 
-    # vel_cl_hist, vel_cl_bin_edges = np.histogram(vel_cl, bins=n_bins)
-    # mass_flux_hist, mass_flux_bin_edges = np.histogram(mass_flux, bins=n_bins)
-    # profile_hist = [[] for _ in range(len(vel_cl_hist))]
-    # profile_hist_mf = [[] for _ in range(len(mass_flux_hist))]
-    # for i in range(len(vel_cl)):
-    #     vel_cl_current = vel_cl[i]
-    #     mass_flux_current = mass_flux[i]
-    #     for j in range(len(vel_cl_bin_edges) - 1):
-    #         if (
-    #             vel_cl_current >= vel_cl_bin_edges[j]
-    #             and vel_cl_current < vel_cl_bin_edges[j + 1]
-    #         ):
-    #             profile_hist[j].append(vel_00_symm_s[i])
-    #             break
-    #     for k in range(len(vel_cl_bin_edges) - 1):
-    #         if (
-    #             mass_flux_current >= mass_flux_bin_edges[k]
-    #             and mass_flux_current < mass_flux_bin_edges[k + 1]
-    #         ):
-    #             profile_hist_mf[k].append(vel_00_symm_s[i])
-    #             break
-    # profile_hist_avg = []
-    # profile_hist_avg_mf = []
-    # for interval in profile_hist:
-    #     profile_hist_avg.append(avg_fields(interval))
-    # for interval in profile_hist_mf:
-    #     profile_hist_avg_mf.append(avg_fields(interval))
-    # fig_hist_profiles = figure.Figure(layout="tight", figsize=(10, 3 * n_bins))
-    # ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
+    vel_cl_hist, vel_cl_bin_edges = np.histogram(vel_cl, bins=n_bins)
+    mass_flux_hist, mass_flux_bin_edges = np.histogram(mass_flux, bins=n_bins)
+    profile_hist = [[] for _ in range(len(vel_cl_hist))]
+    profile_hist_mf = [[] for _ in range(len(mass_flux_hist))]
+    for i in range(len(vel_cl)):
+        vel_cl_current = vel_cl[i]
+        mass_flux_current = mass_flux[i]
+        for j in range(len(vel_cl_bin_edges) - 1):
+            if (
+                vel_cl_current >= vel_cl_bin_edges[j]
+                and vel_cl_current < vel_cl_bin_edges[j + 1]
+            ):
+                profile_hist[j].append(vel_00_symm_s[i])
+                break
+        for k in range(len(vel_cl_bin_edges) - 1):
+            if (
+                mass_flux_current >= mass_flux_bin_edges[k]
+                and mass_flux_current < mass_flux_bin_edges[k + 1]
+            ):
+                profile_hist_mf[k].append(vel_00_symm_s[i])
+                break
+    profile_hist_avg = []
+    profile_hist_avg_mf = []
+    for interval in profile_hist:
+        profile_hist_avg.append(avg_fields(interval))
+    for interval in profile_hist_mf:
+        profile_hist_avg_mf.append(avg_fields(interval))
+    fig_hist_profiles = figure.Figure(layout="tight", figsize=(10, 3 * n_bins))
+    ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
 
-    # def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
-    #     return ((vel[0].diff(0)) ** 2).volume_integral()
+    def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
+        return ((vel[0].diff(0)) ** 2).volume_integral()
 
-    # def get_mass_flux(vel: "VectorField[PhysicalField]") -> float:
-    #     return vel[0].volume_integral()
+    def get_mass_flux(vel: "VectorField[PhysicalField]") -> float:
+        return vel[0].volume_integral()
 
-    # for i in range(len(profile_hist_avg)):
-    #     profile_hist_avg[i].set_name("hist_bin_" + str(i))
-    #     print("n:", len(profile_hist[i]))
-    #     print("dissipation:", get_dissipation(profile_hist_avg[i]))
-    #     print("mass flux:", get_mass_flux(profile_hist_avg[i]))
-    #     profile_hist_avg[i].set_time_step(0)
-    #     profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
-    #     profile_hist_avg[i][0].plot_center(
-    #         0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][0]
-    #     )
-    #     profile_hist_avg_mf[i][0].plot_center(
-    #         0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
-    #     )
-    # fig_hist_profiles.savefig("plots/vel_hist_avg_profiles.png")
+    for i in range(len(profile_hist_avg)):
+        profile_hist_avg[i].set_name("hist_bin_" + str(i))
+        print("n:", len(profile_hist[i]))
+        print("dissipation:", get_dissipation(profile_hist_avg[i]))
+        print("mass flux:", get_mass_flux(profile_hist_avg[i]))
+        profile_hist_avg[i].set_time_step(0)
+        profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
+        profile_hist_avg[i][0].plot_center(
+            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][0]
+        )
+        profile_hist_avg_mf[i][0].plot_center(
+            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
+        )
+    fig_hist_profiles.savefig("plots/vel_hist_avg_profiles.png")
 
     print_verb("calculating statistics")
     with h5py.File("fields/" + "trajectory", "r") as f:

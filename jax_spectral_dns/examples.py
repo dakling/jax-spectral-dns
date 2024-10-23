@@ -3322,7 +3322,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     if init_file is None:
         number_of_modes = params.get("number_of_modes", 60)
-        n = 64
+        n = Ny
         lsc_domain = PhysicalDomain.create(
             (2, n, 2),
             (True, False, True),

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from typing import Tuple, Optional, List, Self
+from typing import Tuple, Optional, List, Self, cast, Enum
 import numpy as np
 import numpy.typing as npt
 import yaml
@@ -11,6 +11,9 @@ import matplotlib.pyplot as plt
 import matplotlib.figure as figure
 
 import matplotlib
+
+from jax_spectral_dns.domain import PhysicalDomain
+from jax_spectral_dns.field import VectorField, PhysicalField
 
 matplotlib.set_loglevel("error")
 matplotlib.use("ps")
@@ -26,6 +29,9 @@ plt.rcParams.update(
 class Case:
     STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/"
     HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/"
+    Vel_0_types = Enum(
+        "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
+    )
 
     def __init__(self, directory: str):
         self.T = self.get_T(self.HOME_DIR_BASE, directory)
@@ -71,6 +77,46 @@ class Case:
     def sort_by_e_0(self, cases: "List[Self]") -> "List[Self]":
         cases.sort(key=lambda x: x.e_0)
         return cases
+
+    def get_domain(self) -> "PhysicalDomain":
+        Nx = self.get_property_from_settings("Nx", 48)
+        Ny = self.get_property_from_settings("Ny", 129)
+        Nz = self.get_property_from_settings("Nz", 80)
+        sc_x = self.get_property_from_settings("Lx_over_pi", 2)
+        sc_z = self.get_property_from_settings("Lx_over_pi", 2)
+        domain = PhysicalDomain.create(
+            (Nx, Ny, Nz), (True, False, True), (sc_x, 1.0, sc_z)
+        )
+        return domain
+
+    def get_vel_0(self) -> "VectorField[PhysicalField]":
+        path = self.STORE_DIR_BASE + "/" + self.directory
+        domain = self.get_domain()
+        vel_0 = VectorField.FromFile(domain, path, name="velocity_latest")
+        return vel_0
+
+    def classify_vel_0(self) -> "Self.Vel_0_types":
+        vel_0_hat = self.get_vel_0().hat()
+        amplitudes_2d_kx = []
+        Nx, _, Nz = vel_0_hat[0].get_domain().get_shape()
+        for kx in range((Nx - 1) // 2 + 1):
+            vel_2d_kx = vel_0_hat[0].field_2d(0, kx).no_hat()
+            amplitudes_2d_kx.append(vel_2d_kx.max() - vel_2d_kx.min())
+        amplitudes_2d_kz = []
+        for kz in range((Nz - 1) // 2 + 1):
+            vel_2d_kz = vel_0_hat[0].field_2d(2, kz).no_hat()
+            amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
+        kx_max = cast(int, np.argmax(amplitudes_2d_kx))
+        kz_max = cast(int, np.argmax(amplitudes_2d_kz))
+        vel_0_hat_2d = vel_0_hat[0].field_2d(0, kx_max).field_2d(2, kz_max)
+        if (
+            abs(
+                (vel_0_hat_2d.no_hat().energy() - vel_0_hat.no_hat().energy())
+                / vel_0_hat.no_hat().energy()
+            )
+            < 1e-10
+        ):
+            return Case.Vel_0_types["linear"]
 
     def append_to(self, cases: "List[Self]") -> "List[Self]":
         if self.successfully_read:
@@ -135,7 +181,7 @@ def plot(dirs_and_names: List[str]) -> None:
     for base_path, name in dirs_and_names:
         cases = Case.collect(base_path)
         Ts.append(cases[0].T)
-        max_i = np.argmax([case.gain for case in cases])
+        max_i = np.argmax([cast(float, case.gain) for case in cases])
         e_0_lam_boundary_, k = Case.get_e_0_lam_boundary(cases)
         e_0_lam_boundary.append(e_0_lam_boundary_)
         for i in range(len(cases)):
@@ -146,7 +192,7 @@ def plot(dirs_and_names: List[str]) -> None:
             color = (
                 "r" if i == max_i else "k"
             )  # TODO encode information in color -> maximium gain at this time
-            ax.plot(cases[i].T, cases[i].e_0, color + marker)
+            ax.plot(cast(float, cases[i].T), cast(float, cases[i]).e_0, color + marker)
     # paint linear regime grey
     ax.fill_between(
         Ts,
@@ -156,7 +202,7 @@ def plot(dirs_and_names: List[str]) -> None:
         alpha=0.5,
         interpolate=True,
     )
-    ax.text(1.5, 0.9e-6, "linear regime", backgroundcolor="white")
+    ax.text(1.5, 0.9e-6, "quasi-linear regime", backgroundcolor="white")
     ax.text(1.5, 3.0e-5, "nonlinear regime", backgroundcolor="white")
     fig.savefig("plots/T_e_0_space.png")
 
