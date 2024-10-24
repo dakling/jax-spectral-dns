@@ -3392,12 +3392,16 @@ def run_ld_2021_dual(**params: Any) -> None:
     if init_file is None:
         v0_hat = vel_hat
     else:
-        try:
-            v0 = VectorField.FromFile(domain, init_file, "vel_0", allow_projection=True)
-        except Exception:
-            v0 = VectorField.FromFile(
-                domain, init_file, "velocity", allow_projection=True
-            )
+        possible_names = ["vel_0", "velocity", "velocity_pert"]
+        v0 = None
+        for name in possible_names:
+            try:
+                v0 = VectorField.FromFile(
+                    domain, init_file, name, allow_projection=True
+                )
+            except Exception:
+                pass
+        assert v0 is not None
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         vort = v0.curl()

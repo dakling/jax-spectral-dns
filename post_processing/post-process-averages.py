@@ -293,7 +293,7 @@ def post_process_averages() -> None:
             vel_pert.set_name("velocity_pert")
 
             vel_pert_s.append(vel_pert)
-            if i in [0, n_steps // 4, n_steps // 2, 3 * nsteps // 4, nsteps]:
+            if i in [0, n_steps // 4, n_steps // 2, 3 * n_steps // 4, nsteps]:
                 print("perturbation energy:", vel_pert.energy())
         uu = (
             avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))

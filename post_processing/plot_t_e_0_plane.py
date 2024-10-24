@@ -36,14 +36,14 @@ plt.rcParams.update(
 
 class Case:
     STORE_DIR_BASE = (
-        "/home/klingenberg/mnt/maths_store/"
-        if os.getenv("HOSTNAME") == "klingenberg-laptop"
-        else "/store/DAMTP/dsk34/"
+        "/store/DAMTP/dsk34/"
+        if os.getenv("HOSTNAME") and "maths.cam.ac.uk" in os.getenv("HOSTNAME")
+        else "/home/klingenberg/mnt/maths_store/"
     )
     HOME_DIR_BASE = (
-        "/home/klingenberg/mnt/maths/jax-optim/run/"
-        if os.getenv("HOSTNAME") == "klingenberg-laptop"
-        else "/home/dsk34/jax-optim/run/"
+        "/home/dsk34/jax-optim/run/"
+        if os.getenv("HOSTNAME") and "maths.cam.ac.uk" in os.getenv("HOSTNAME")
+        else "/home/klingenberg/mnt/maths/jax-optim/run/"
     )
     Vel_0_types = Enum(
         "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
@@ -254,9 +254,9 @@ class Case:
     def collect(cls, base_path: str) -> "List[Case]":
         home_path = Case.HOME_DIR_BASE + "/" + base_path
         dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
-        dirs += glob("[0-9]eminus[0-9]_sweep_down", root_dir=home_path)
-        dirs += glob("[0-9]eminus[0-9]_from_linopt", root_dir=home_path)
-        dirs += glob("[0-9]eminus[0-9]_from_lin_opt", root_dir=home_path)
+        dirs += glob("[0-9]eminus[0-9]_sweep_*", root_dir=home_path)
+        dirs += glob("[0-9]eminus[0-9]_from_*", root_dir=home_path)
+        print(dirs)
         cases = []
         for dir in dirs:
             case = Case(base_path + "/" + dir)
@@ -348,8 +348,8 @@ def plot(dirs_and_names: List[str]) -> None:
     for base_path, name in dirs_and_names:
         cases = Case.collect(base_path)
         Ts.append(cases[0].T)
-        max_i = np.argmax(
-            [cast(float, case.gain) for case in cases[1:]]
+        max_i = (
+            np.argmax([cast(float, case.gain) for case in cases[1:]]) + 1
         )  # TODO exclude truly laminar case?
         e_0_lam_boundary.append(Case.get_e_0_lam_upper_boundary(cases))
         e_0_nl_lower_glob_boundary.append(Case.get_e_0_nl_glob_lower_boundary(cases))
@@ -427,7 +427,9 @@ def plot(dirs_and_names: List[str]) -> None:
         pass
     print(e_0_nl_lower_loc_boundary)
     print(e_0_nl_upper_loc_boundary)
-    [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
+    print(
+        [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
+    )
     [
         e_0_nl_lower_loc_boundary[i]
         for i in range(len(Ts))
@@ -458,9 +460,9 @@ def plot(dirs_and_names: List[str]) -> None:
     except Exception:
         print("drawing nonlinear localised regime did not work")
         pass
-    ax.text(0.5, 2.0e-6, "quasi-linear regime", backgroundcolor="white")
-    ax.text(1.95, 1.6e-5, "nonlinear global regime", backgroundcolor="white")
-    ax.text(1.6, 9.5e-5, "nonlinear localised \n regime", backgroundcolor="white")
+    ax.text(0.5, 2.0e-6, "quasi-linear regime")
+    ax.text(1.95, 1.6e-5, "nonlinear global regime")
+    ax.text(1.6, 9.5e-5, "nonlinear localised \n regime")
     ax.text(
         1.8,
         9.9e-4,
