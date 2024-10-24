@@ -2392,118 +2392,118 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 file.write("\n")
                 file.write(str(end_time + last_end_time))
 
-        T = TypeVar("T", bound="Field")
+        # T = TypeVar("T", bound="Field")
 
-        def avg_fields(fs: List[T]) -> T:
-            out = fs[0] * 0.0
-            for f in fs:
-                out += f
-            return out / len(fs)
+        # def avg_fields(fs: List[T]) -> T:
+        #     out = fs[0] * 0.0
+        #     for f in fs:
+        #         out += f
+        #     return out / len(fs)
 
-        with h5py.File(Field.field_dir + "trajectory", "r") as f:
-            vel_pert_s: "List[VectorField[PhysicalField]]" = []
+        # with h5py.File(Field.field_dir + "trajectory", "r") as f:
+        #     vel_pert_s: "List[VectorField[PhysicalField]]" = []
 
-            slice_domain = PhysicalDomain.create(
-                (domain.get_shape_aliasing()[1],),
-                (False,),
-                scale_factors=(1.0,),
-                aliasing=1,
-            )
-            vel_base_turb_slice = PhysicalField.FromFile(
-                slice_domain, "average_velocity", name="average_velocity_x"
-            )
-            nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-            u_data = np.moveaxis(
-                np.tile(
-                    np.tile(vel_base_turb_slice.get_data(), reps=(nz, 1)),
-                    reps=(nx, 1, 1),
-                ),
-                1,
-                2,
-            )
-            avg = VectorField(
-                [
-                    PhysicalField(domain, jnp.asarray(u_data)),
-                    PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                    PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                ]
-            )
+        #     slice_domain = PhysicalDomain.create(
+        #         (domain.get_shape_aliasing()[1],),
+        #         (False,),
+        #         scale_factors=(1.0,),
+        #         aliasing=1,
+        #     )
+        #     vel_base_turb_slice = PhysicalField.FromFile(
+        #         slice_domain, "average_velocity", name="average_velocity_x"
+        #     )
+        #     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        #     u_data = np.moveaxis(
+        #         np.tile(
+        #             np.tile(vel_base_turb_slice.get_data(), reps=(nz, 1)),
+        #             reps=(nx, 1, 1),
+        #         ),
+        #         1,
+        #         2,
+        #     )
+        #     avg = VectorField(
+        #         [
+        #             PhysicalField(domain, jnp.asarray(u_data)),
+        #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+        #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+        #         ]
+        #     )
 
-            velocity_trajectory = cast("jnp_array", f["trajectory"])
-            n_steps_ = velocity_trajectory.shape[0]
-            for i in range(n_steps_):
-                vel_pert = (
-                    VectorField.FromData(
-                        FourierField, domain, velocity_trajectory[i], name="velocity"
-                    ).no_hat()
-                    - avg
-                )
-                vel_pert.set_name("velocity_pert")
+        #     velocity_trajectory = cast("jnp_array", f["trajectory"])
+        # n_steps_ = velocity_trajectory.shape[0]
+        # for i in range(n_steps_):
+        #     vel_pert = (
+        #         VectorField.FromData(
+        #             FourierField, domain, velocity_trajectory[i], name="velocity"
+        #         ).no_hat()
+        #         - avg
+        #     )
+        #     vel_pert.set_name("velocity_pert")
 
-                vel_pert_s.append(vel_pert)
-            uu = (
-                avg_fields([vel_pert[0] ** 2 for vel_pert in vel_pert_s])
-                .hat()
-                .field_2d(2)
-                .field_2d(0)
-                .no_hat()
-            )
-            uu.set_name("uu")
-            vv = (
-                avg_fields([vel_pert[1] ** 2 for vel_pert in vel_pert_s])
-                .hat()
-                .field_2d(2)
-                .field_2d(0)
-                .no_hat()
-            )
-            vv.set_name("vv")
-            ww = (
-                avg_fields([vel_pert[2] ** 2 for vel_pert in vel_pert_s])
-                .hat()
-                .field_2d(2)
-                .field_2d(0)
-                .no_hat()
-            )
-            ww.set_name("ww")
-            uv = (
-                avg_fields([vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s])
-                .hat()
-                .field_2d(2)
-                .field_2d(0)
-                .no_hat()
-            )
-            uv.set_name("uv")
-            uw = (
-                avg_fields([vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s])
-                .hat()
-                .field_2d(2)
-                .field_2d(0)
-                .no_hat()
-            )
-            uw.set_name("uw")
-            vw = (
-                avg_fields([vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s])
-                .hat()
-                .field_2d(2)
-                .field_2d(0)
-                .no_hat()
-            )
-            vw.set_name("vw")
-            fig_stat = figure.Figure()
-            ax_stat = fig_stat.subplots(1, 1, squeeze=False)
-            uu.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            vv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            ww.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            uv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            uw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            vw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-            fig_stat.savefig(Field.plotting_dir + "reystresses.png")
-            uu.plot_center(1)
-            vv.plot_center(1)
-            ww.plot_center(1)
-            uv.plot_center(1)
-            uw.plot_center(1)
-            vw.plot_center(1)
+        #     vel_pert_s.append(vel_pert)
+        # uu = (
+        #     avg_fields([vel_pert[0] ** 2 for vel_pert in vel_pert_s])
+        #     .hat()
+        #     .field_2d(2)
+        #     .field_2d(0)
+        #     .no_hat()
+        # )
+        # uu.set_name("uu")
+        # vv = (
+        #     avg_fields([vel_pert[1] ** 2 for vel_pert in vel_pert_s])
+        #     .hat()
+        #     .field_2d(2)
+        #     .field_2d(0)
+        #     .no_hat()
+        # )
+        # vv.set_name("vv")
+        # ww = (
+        #     avg_fields([vel_pert[2] ** 2 for vel_pert in vel_pert_s])
+        #     .hat()
+        #     .field_2d(2)
+        #     .field_2d(0)
+        #     .no_hat()
+        # )
+        # ww.set_name("ww")
+        # uv = (
+        #     avg_fields([vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s])
+        #     .hat()
+        #     .field_2d(2)
+        #     .field_2d(0)
+        #     .no_hat()
+        # )
+        # uv.set_name("uv")
+        # uw = (
+        #     avg_fields([vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s])
+        #     .hat()
+        #     .field_2d(2)
+        #     .field_2d(0)
+        #     .no_hat()
+        # )
+        # uw.set_name("uw")
+        # vw = (
+        #     avg_fields([vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s])
+        #     .hat()
+        #     .field_2d(2)
+        #     .field_2d(0)
+        #     .no_hat()
+        # )
+        # vw.set_name("vw")
+        # fig_stat = figure.Figure()
+        # ax_stat = fig_stat.subplots(1, 1, squeeze=False)
+        # uu.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+        # vv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+        # ww.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+        # uv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+        # uw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+        # vw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+        # fig_stat.savefig(Field.plotting_dir + "reystresses.png")
+        # uu.plot_center(1)
+        # vv.plot_center(1)
+        # ww.plot_center(1)
+        # uv.plot_center(1)
+        # uw.plot_center(1)
+        # vw.plot_center(1)
 
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time
