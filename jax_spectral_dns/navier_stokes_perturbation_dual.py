@@ -867,7 +867,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             )
         elif self.optimisation_mode == self.optimisation_modes.gain_3d:
             self.set_initial_field(
-                "velocity_hat", -1 * nse.get_latest_field("velocity_hat").field_2d(0)
+                "velocity_hat",
+                -1
+                * (
+                    nse.get_latest_field("velocity_hat")
+                    - nse.get_latest_field("velocity_hat").field_2d(0)
+                ),
             )
         elif self.optimisation_mode == self.optimisation_modes.dissipation:
             self.set_initial_field(
