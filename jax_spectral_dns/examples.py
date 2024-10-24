@@ -2383,11 +2383,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         vel[2].plot_3d(2)
         vel.plot_q_criterion_isosurfaces(iso_vals=[0.05, 0.1, 0.5])
 
-        if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
-            vel.set_time_step(i + time_step)
-            vel.set_name("velocity")
-            # vel.save_to_file("velocity_final_run_t_" + "{:06}".format(i))
-            vel.save_to_file("velocity_final_run")
         if i >= n_steps - 1:
             vel.set_time_step(i + time_step)
             vel.set_name("velocity")

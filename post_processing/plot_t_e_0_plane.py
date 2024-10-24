@@ -12,6 +12,7 @@ from typing import Any, Tuple, Optional, List, Self, cast
 import numpy as np
 import numpy.typing as npt
 import yaml
+import os
 from glob import glob
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -34,8 +35,16 @@ plt.rcParams.update(
 
 
 class Case:
-    STORE_DIR_BASE = "/home/klingenberg/mnt/maths_store/"
-    HOME_DIR_BASE = "/home/klingenberg/mnt/maths/jax-optim/run/"
+    STORE_DIR_BASE = (
+        "/home/klingenberg/mnt/maths_store/"
+        if os.getenv("HOSTNAME") == "klingenberg-laptop"
+        else "/store/DAMTP/dsk34/"
+    )
+    HOME_DIR_BASE = (
+        "/home/klingenberg/mnt/maths/jax-optim/run/"
+        if os.getenv("HOSTNAME") == "klingenberg-laptop"
+        else "/home/dsk34/jax-optim/run/"
+    )
     Vel_0_types = Enum(
         "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
     )
@@ -297,6 +306,32 @@ class Case:
                 return cases[i].e_0
         return None
 
+    @classmethod
+    def get_e_0_nl_loc_lower_boundary(cls, cases: "List[Case]") -> "Optional[float]":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(1, len(cases_sorted)):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]
+                and cases[i - 1].classify_vel_0()
+                != Case.Vel_0_types["nonlinear_localised"]
+            ):
+                return cases[i].e_0
+        return None
+
+    @classmethod
+    def get_e_0_nl_loc_upper_boundary(cls, cases: "List[Case]") -> "Optional[float]":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(len(cases_sorted) - 1):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]
+                and cases[i + 1].classify_vel_0()
+                != Case.Vel_0_types["nonlinear_localised"]
+            ):
+                return cases[i].e_0
+            if cases[-1].classify_vel_0 == Case.Vel_0_types["nonlinear_localised"]:
+                return cases[-1].e_0
+        return None
+
 
 def plot(dirs_and_names: List[str]) -> None:
     fig = figure.Figure()
@@ -307,14 +342,20 @@ def plot(dirs_and_names: List[str]) -> None:
     e_0_lam_boundary = []
     e_0_nl_lower_glob_boundary = []
     e_0_nl_upper_glob_boundary = []
+    e_0_nl_lower_loc_boundary = []
+    e_0_nl_upper_loc_boundary = []
     Ts = []
     for base_path, name in dirs_and_names:
         cases = Case.collect(base_path)
         Ts.append(cases[0].T)
-        max_i = np.argmax([cast(float, case.gain) for case in cases])
+        max_i = np.argmax(
+            [cast(float, case.gain) for case in cases[1:]]
+        )  # TODO exclude truly laminar case?
         e_0_lam_boundary.append(Case.get_e_0_lam_upper_boundary(cases))
         e_0_nl_lower_glob_boundary.append(Case.get_e_0_nl_glob_lower_boundary(cases))
         e_0_nl_upper_glob_boundary.append(Case.get_e_0_nl_glob_upper_boundary(cases))
+        e_0_nl_lower_loc_boundary.append(Case.get_e_0_nl_loc_lower_boundary(cases))
+        e_0_nl_upper_loc_boundary.append(Case.get_e_0_nl_loc_upper_boundary(cases))
         for i in range(len(cases)):
             print_verb(cases[i], verbosity_level=3)
             marker = cases[i].get_marker()
@@ -335,30 +376,30 @@ def plot(dirs_and_names: List[str]) -> None:
     except Exception:
         print("drawing linear regime did not work")
         pass
-    try:
-        ax.fill_between(
-            [
-                Ts[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_glob_boundary[i] is not None
-            ],
-            [
-                e_0_lam_boundary[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_glob_boundary[i] is not None
-            ],
-            [
-                e_0_nl_lower_glob_boundary[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_glob_boundary[i] is not None
-            ],
-            color="grey",
-            alpha=0.55,
-            interpolate=True,
-        )
-    except Exception:
-        print("drawing intermediate regime did not work")
-        pass
+    # try:
+    #     ax.fill_between(
+    #         [
+    #             Ts[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_glob_boundary[i] is not None
+    #         ],
+    #         [
+    #             e_0_lam_boundary[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_glob_boundary[i] is not None
+    #         ],
+    #         [
+    #             e_0_nl_lower_glob_boundary[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_glob_boundary[i] is not None
+    #         ],
+    #         color="grey",
+    #         alpha=0.55,
+    #         interpolate=True,
+    #     )
+    # except Exception:
+    #     print("drawing intermediate regime did not work")
+    #     pass
     # paint nonlinear global regime light grey
     try:
         ax.fill_between(
@@ -378,15 +419,54 @@ def plot(dirs_and_names: List[str]) -> None:
                 if e_0_nl_upper_glob_boundary[i] is not None
             ],
             color="grey",
-            alpha=0.4,
+            alpha=0.5,
             interpolate=True,
         )
     except Exception:
-        print("drawing nolinear global regime did not work")
+        print("drawing nonlinear global regime did not work")
+        pass
+    print(e_0_nl_lower_loc_boundary)
+    print(e_0_nl_upper_loc_boundary)
+    [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
+    [
+        e_0_nl_lower_loc_boundary[i]
+        for i in range(len(Ts))
+        if e_0_nl_upper_loc_boundary[i] is not None
+    ],
+    [
+        e_0_nl_upper_loc_boundary[i]
+        for i in range(len(Ts))
+        if e_0_nl_upper_loc_boundary[i] is not None
+    ],
+    try:
+        ax.fill_between(
+            [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
+            [
+                e_0_nl_lower_loc_boundary[i]
+                for i in range(len(Ts))
+                if e_0_nl_upper_loc_boundary[i] is not None
+            ],
+            [
+                e_0_nl_upper_loc_boundary[i]
+                for i in range(len(Ts))
+                if e_0_nl_upper_loc_boundary[i] is not None
+            ],
+            color="grey",
+            alpha=0.3,
+            interpolate=True,
+        )
+    except Exception:
+        print("drawing nonlinear localised regime did not work")
         pass
     ax.text(0.5, 2.0e-6, "quasi-linear regime", backgroundcolor="white")
-    ax.text(1.9, 1.7e-5, "nonlinear global regime", backgroundcolor="white")
-    ax.text(1.5, 8.0e-4, "nonlinear localised regime", backgroundcolor="white")
+    ax.text(1.95, 1.6e-5, "nonlinear global regime", backgroundcolor="white")
+    ax.text(1.6, 9.5e-5, "nonlinear localised \n regime", backgroundcolor="white")
+    ax.text(
+        1.8,
+        9.9e-4,
+        "non-convergence due to \n turbulent end state",
+        backgroundcolor="white",
+    )
     fig.savefig("plots/T_e_0_space.png")
 
 
