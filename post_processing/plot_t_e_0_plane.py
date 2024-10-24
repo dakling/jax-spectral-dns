@@ -15,10 +15,10 @@ import yaml
 import os
 from glob import glob
 from PIL import Image
+import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.figure as figure
-
-import matplotlib
+import matplotlib.patches as mpatches
 
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import VectorField, PhysicalField
@@ -256,7 +256,6 @@ class Case:
         dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
         dirs += glob("[0-9]eminus[0-9]_sweep_*", root_dir=home_path)
         dirs += glob("[0-9]eminus[0-9]_from_*", root_dir=home_path)
-        print(dirs)
         cases = []
         for dir in dirs:
             case = Case(base_path + "/" + dir)
@@ -328,7 +327,7 @@ class Case:
                 != Case.Vel_0_types["nonlinear_localised"]
             ):
                 return cases[i].e_0
-            if cases[-1].classify_vel_0 == Case.Vel_0_types["nonlinear_localised"]:
+            if cases[-1].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]:
                 return cases[-1].e_0
         return None
 
@@ -346,7 +345,12 @@ def plot(dirs_and_names: List[str]) -> None:
     e_0_nl_upper_loc_boundary = []
     Ts = []
     for base_path, name in dirs_and_names:
+        print_verb("collecting cases in", base_path)
         cases = Case.collect(base_path)
+        print_verb(
+            "collected cases:",
+            "; ".join([case.directory.split("/")[-1] for case in cases]),
+        )
         Ts.append(cases[0].T)
         max_i = (
             np.argmax([cast(float, case.gain) for case in cases[1:]]) + 1
@@ -425,11 +429,6 @@ def plot(dirs_and_names: List[str]) -> None:
     except Exception:
         print("drawing nonlinear global regime did not work")
         pass
-    print(e_0_nl_lower_loc_boundary)
-    print(e_0_nl_upper_loc_boundary)
-    print(
-        [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
-    )
     [
         e_0_nl_lower_loc_boundary[i]
         for i in range(len(Ts))
@@ -460,15 +459,19 @@ def plot(dirs_and_names: List[str]) -> None:
     except Exception:
         print("drawing nonlinear localised regime did not work")
         pass
+    ax.text(1.35, 3.0e-6, "unexplored")
+    ax.text(1.25, 1.7e-5, "unexplored")
     ax.text(0.5, 2.0e-6, "quasi-linear regime")
     ax.text(1.95, 1.6e-5, "nonlinear global regime")
-    ax.text(1.6, 9.5e-5, "nonlinear localised \n regime")
+    ax.text(1.6, 7.0e-5, "nonlinear \n localised \n regime")
     ax.text(
-        1.8,
-        9.9e-4,
+        1.4,
+        6.0e-4,
         "non-convergence due to \n turbulent end state",
         backgroundcolor="white",
     )
+    red_patch = mpatches.Patch(color="red", label="maximum gain at each $T$")
+    fig.legend(handles=[red_patch])
     fig.savefig("plots/T_e_0_space.png")
 
 

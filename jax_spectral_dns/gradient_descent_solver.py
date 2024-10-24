@@ -99,7 +99,7 @@ class GradientDescentSolver(ABC):
                 ((self.value is not None) and (self.old_value is not None))
                 and (
                     abs((self.value - self.old_value) / self.value)
-                    < self.value_change_threshold
+                    < self.value_change_threshold  # TODO take into account the step size
                 )
             )
         )
