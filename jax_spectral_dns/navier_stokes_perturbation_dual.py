@@ -861,12 +861,13 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
             self.dPdx_history = dPdx_history
             self.current_dPdx_history = dPdx_history
-        if (
-            self.optimisation_mode == self.optimisation_modes.gain
-            or self.optimisation_mode == self.optimisation_modes.gain_3d
-        ):
+        if self.optimisation_mode == self.optimisation_modes.gain:
             self.set_initial_field(
                 "velocity_hat", -1 * nse.get_latest_field("velocity_hat")
+            )
+        elif self.optimisation_mode == self.optimisation_modes.gain_3d:
+            self.set_initial_field(
+                "velocity_hat", -1 * nse.get_latest_field("velocity_hat").field_2d(0)
             )
         elif self.optimisation_mode == self.optimisation_modes.dissipation:
             self.set_initial_field(
@@ -1032,13 +1033,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         gain = self.get_gain()
         e_0 = u_hat_0.no_hat().energy()
 
-        if self.optimisation_mode == self.optimisation_modes["gain_3d"]:
-            v_hat_0_3d = v_hat_0 - v_hat_0.field_2d(0)
-            v_hat_0_data = v_hat_0_3d.get_data()
-        else:
-            v_hat_0_data = v_hat_0.get_data()
-
-        return (gain * u_hat_0.get_data() - v_hat_0_data) / e_0
+        return (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0
 
     def get_projected_grad_from_u_and_v(
         self,
@@ -1048,12 +1043,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     ) -> Tuple["jnp_array", bool]:
         e_0 = u_hat_0.no_hat().energy()
         lam = -1.0
-
-        if self.optimisation_mode == self.optimisation_modes["gain_3d"]:
-            v_hat_0_3d = v_hat_0 - v_hat_0.field_2d(0)
-            v_hat_0 = v_hat_0_3d
-        else:
-            v_hat_0 = v_hat_0
 
         def get_new_energy_0(l: float) -> float:
             return (
@@ -1113,12 +1102,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
         lam = -1.0
-
-        if self.optimisation_mode == self.optimisation_modes["gain_3d"]:
-            v_hat_0_3d = v_hat_0 - v_hat_0.field_2d(0)
-            v_hat_0 = v_hat_0_3d
-        else:
-            v_hat_0 = v_hat_0
 
         def get_new_energy_0(l: float) -> float:
             return (
