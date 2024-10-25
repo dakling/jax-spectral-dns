@@ -435,34 +435,48 @@ def post_process(
             ax_kx.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
             ax_kx.set_box_aspect(1)
             fname_kx = "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step)
-            fig_kx.savefig(
-                fname_kx + ".ps",
-                # fname_kx + ".png",
-                bbox_inches="tight",
-            )
-            psimage = Image.open(fname_kx + ".ps")
-            psimage.load(scale=10, transparency=True)
-            psimage.save(fname_kx + ".png", optimize=True)
-            image = Image.open(fname_kx + ".png")
-            imageBox = image.getbbox()
-            cropped = image.crop(imageBox)
-            cropped.save(fname_kx + ".png")
+            try:
+                fig_kx.savefig(
+                    fname_kx + ".ps",
+                    # fname_kx + ".png",
+                    bbox_inches="tight",
+                )
+                psimage = Image.open(fname_kx + ".ps")
+                psimage.load(scale=10, transparency=True)
+                psimage.save(fname_kx + ".png", optimize=True)
+                image = Image.open(fname_kx + ".png")
+                imageBox = image.getbbox()
+                cropped = image.crop(imageBox)
+                cropped.save(fname_kx + ".png")
+            except Exception:
+                fig_kx.savefig(
+                    # fname_kx + ".ps",
+                    fname_kx + ".png",
+                    bbox_inches="tight",
+                )
 
             ax_kz.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
             ax_kz.set_box_aspect(1)
             fname_kz = "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step)
-            fig_kz.savefig(
-                fname_kz + ".ps",
-                # fname_kz + ".png",
-                bbox_inches="tight",
-            )
-            psimage = Image.open(fname_kz + ".ps")
-            psimage.load(scale=10, transparency=True)
-            psimage.save(fname_kz + ".png", optimize=True)
-            image = Image.open(fname_kz + ".png")
-            imageBox = image.getbbox()
-            cropped = image.crop(imageBox)
-            cropped.save(fname_kz + ".png")
+            try:
+                fig_kz.savefig(
+                    fname_kz + ".ps",
+                    # fname_kz + ".png",
+                    bbox_inches="tight",
+                )
+                psimage = Image.open(fname_kz + ".ps")
+                psimage.load(scale=10, transparency=True)
+                psimage.save(fname_kz + ".png", optimize=True)
+                image = Image.open(fname_kz + ".png")
+                imageBox = image.getbbox()
+                cropped = image.crop(imageBox)
+                cropped.save(fname_kz + ".png")
+            except Exception:
+                fig_kz.savefig(
+                    # fname_kz + ".ps",
+                    fname_kz + ".png",
+                    bbox_inches="tight",
+                )
 
             # ax_pd.plot(prod_arr, -diss_arr, "k.")
             # ax_pd.plot(
