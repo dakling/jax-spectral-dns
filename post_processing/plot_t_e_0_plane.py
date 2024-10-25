@@ -482,6 +482,11 @@ dirs_and_names = [
         "$T=0.35 h / u_\\tau$",
     ),
     (
+        "smaller_channel_one_pt_five_t_0_e_0_study",
+        # "minimal channel mean (short channel)",
+        "$T=0.525 h / u_\\tau$",
+    ),
+    (
         "smaller_channel_two_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=0.7 h / u_\\tau$",

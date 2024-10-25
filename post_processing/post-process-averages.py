@@ -294,7 +294,10 @@ def post_process_averages() -> None:
 
             vel_pert_s.append(vel_pert)
             if i in [0, n_steps // 4, n_steps // 2, 3 * n_steps // 4, n_steps]:
+                vel_pert_00 = vel_pert.field_2d(0).field_2d(2)
+                vel_pert_3d = vel_pert - vel_pert_00
                 print("perturbation energy:", vel_pert.energy())
+                print("perturbation energy (no spatial mean):", vel_pert_3d.energy())
         uu = (
             avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))
             .hat()
