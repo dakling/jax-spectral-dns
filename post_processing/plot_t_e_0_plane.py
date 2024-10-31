@@ -119,6 +119,7 @@ class Case:
         file = "velocity_latest"
         domain = self.get_domain()
         success = False
+        retries = 0
         vel_0 = None
         while not success:
             try:
@@ -126,16 +127,35 @@ class Case:
                 success = True
             except Exception:
                 try:
-                    bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
-                    vel_0 = VectorField.FromFile(domain, path + bak_file, name="vel_0")
+                    vel_0 = VectorField.FromFile(
+                        domain, path + file, name="velocity_pert"
+                    )
                     success = True
                 except Exception:
-                    print(
-                        "issues with opening velocity file for case",
-                        self,
-                        "trying again in 20 seconds.",
-                    )
-                    time.sleep(20)
+                    try:
+                        bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
+                        vel_0 = VectorField.FromFile(
+                            domain, path + bak_file, name="vel_0"
+                        )
+                        success = True
+                    except Exception:
+                        try:
+                            bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
+                            vel_0 = VectorField.FromFile(
+                                domain, path + bak_file, name="velocity_pert"
+                            )
+                            success = True
+                        except Exception as e:
+                            if retries < 10:
+                                print(
+                                    "issues with opening velocity file for case",
+                                    self,
+                                    "; trying again in 20 seconds.",
+                                )
+                                time.sleep(20)
+                                retries += 1
+                            else:
+                                raise e
         assert vel_0 is not None
         return vel_0
 
@@ -467,7 +487,7 @@ def plot(dirs_and_names: List[str]) -> None:
     ax.text(
         1.4,
         6.0e-4,
-        "non-convergence due to \n turbulent end state",
+        "no convergence due to \n turbulent end state",
         backgroundcolor="white",
     )
     red_patch = mpatches.Patch(color="red", label="maximum gain at each $T$")

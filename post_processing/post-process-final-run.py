@@ -520,15 +520,19 @@ def post_process_pub(
         for j in range(n_snapshots):
             i = (n_fields - 1) * j // (n_snapshots - 1)
             vel_hat = VectorField.FromData(
-                FourierField, domain, velocity_trajectory[i], name="velocity"
+                FourierField, domain, velocity_trajectory[i], name="velocity_hat"
             )
             vel = vel_hat.no_hat()
+            vel.set_time_step(j)
+            vel.set_name("vel_pub")
             vel[0].plot_3d_single(
                 0, name="$\\tilde{u}_x$", ax=ax_pub_x_plane[n], fig=fig_pub_x_plane
             )
             vel[0].plot_3d_single(
                 2, name="$\\tilde{u}_x$", ax=ax_pub_z_plane[n], fig=fig_pub_z_plane
             )
+            vel[0].plot_3d_single(0, name="$\\tilde{u}_x$")
+            vel[0].plot_3d_single(2, name="$\\tilde{u}_x$")
             n += 1
     fig_pub_x_plane.savefig(
         "plots/vel_pub_x_plane.png",

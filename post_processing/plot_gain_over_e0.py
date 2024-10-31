@@ -105,6 +105,8 @@ def collect_gain_e0(
     home_path: str, store_path: str
 ) -> Tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
+    dirs += glob("[0-9]eminus[0-9]_sweep_*", root_dir=home_path)
+    dirs += glob("[0-9]eminus[0-9]_from*opt", root_dir=home_path)
     e_0s = []
     gains = []
     for dir in dirs:
@@ -208,30 +210,30 @@ plot(
             "$T=0.7 h / u_\\tau$",
             e_base_turb,
         ),
-        (
-            "smaller_channel_three_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=1.05 h / u_\\tau$",
-            e_base_turb,
-        ),
-        (
-            "smaller_channel_four_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=1.4 h / u_\\tau$",
-            e_base_turb,
-        ),
-        (
-            "smaller_channel_six_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=2.1 h / u_\\tau$",
-            e_base_turb,
-        ),
-        (
-            "smaller_channel_eight_t_e_0_study",
-            # "minimal channel mean (short channel)",
-            "$T=2.8 h / u_\\tau$",
-            e_base_turb,
-        ),
+        # (
+        #     "smaller_channel_three_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=1.05 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
+        # (
+        #     "smaller_channel_four_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=1.4 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
+        # (
+        #     "smaller_channel_six_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=2.1 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
+        # (
+        #     "smaller_channel_eight_t_e_0_study",
+        #     # "minimal channel mean (short channel)",
+        #     "$T=2.8 h / u_\\tau$",
+        #     e_base_turb,
+        # ),
         # ("full_channel_mean_only_two_t_e_0_study", "full mean", e_base_turb),
     ]
 )
