@@ -306,13 +306,15 @@ def post_process(
             ax.plot(ts, energy_x_3d_arr / energy_x_3d_arr[0], "g.")
             ax.plot(
                 ts[: i + 1],
-                energy_x_2d_arr[: i + 1] / energy_t_arr[0],
+                # energy_x_2d_arr[: i + 1] / energy_t_arr[0],
+                energy_x_2d_arr[: i + 1] / energy_x_2d_arr[0],
                 "bo",
                 label="$G_{k_x = 0}$",
             )
             ax.plot(
                 ts[: i + 1],
-                energy_x_3d_arr[: i + 1] / energy_t_arr[0],
+                # energy_x_3d_arr[: i + 1] / energy_t_arr[0],
+                energy_x_3d_arr[: i + 1] / energy_x_3d_arr[0],
                 "go",
                 label="$G_{3d}$",
             )
