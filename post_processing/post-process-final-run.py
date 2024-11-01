@@ -298,10 +298,12 @@ def post_process(
             )
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
-            ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
+            # ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
+            ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
             # ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
             # ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
-            ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
+            # ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
+            ax.plot(ts, energy_x_3d_arr / energy_x_3d_arr[0], "g.")
             ax.plot(
                 ts[: i + 1],
                 energy_x_2d_arr[: i + 1] / energy_t_arr[0],
