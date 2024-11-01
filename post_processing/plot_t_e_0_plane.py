@@ -178,7 +178,6 @@ class Case:
             kx_max = cast(int, np.argmax(amplitudes_2d_kx))
             kz_max = cast(int, np.argmax(amplitudes_2d_kz))
             vel_0_hat_2d = vel_0_hat.field_2d(0, kx_max).field_2d(2, kz_max)
-            # TODO remove this later
             if Equation.verbosity_level >= 3:
                 coarse_domain = PhysicalDomain.create(
                     (Nx // 4, Ny, Nz // 4),
@@ -211,7 +210,6 @@ class Case:
                     ),
                     verbosity_level=3,
                 )
-            # END remove
             if (
                 abs((vel_0_hat_2d.no_hat().energy() - vel_0_energy) / vel_0_energy)
                 < 1e-1
@@ -269,6 +267,12 @@ class Case:
             else:
                 cases.append(self)
         return cases
+
+    @classmethod
+    def prune_times(cls, cases: "List[Case]") -> "List[Case]":
+        Ts = [case.T for case in cases]
+        dominant_time = max(set(Ts), key=Ts.count)
+        return [case for case in cases if abs(case.T - dominant_time) < 1.0e-10]
 
     @classmethod
     def collect(cls, base_path: str) -> "List[Case]":
@@ -364,7 +368,7 @@ def plot(dirs_and_names: List[str]) -> None:
     e_0_nl_lower_loc_boundary = []
     e_0_nl_upper_loc_boundary = []
     Ts = []
-    for base_path, name in dirs_and_names:
+    for base_path, name, _ in dirs_and_names:
         print_verb("collecting cases in", base_path)
         cases = Case.collect(base_path)
         print_verb(
@@ -495,42 +499,53 @@ def plot(dirs_and_names: List[str]) -> None:
     fig.savefig("plots/T_e_0_space.png")
 
 
+e_base_turb = 1.0
+e_base_lam = 2160.0 / 122.756
+
 dirs_and_names = [
     (
         "smaller_channel_one_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=0.35 h / u_\\tau$",
+        e_base_turb,
     ),
     (
         "smaller_channel_one_pt_five_t_0_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=0.525 h / u_\\tau$",
+        e_base_turb,
     ),
     (
         "smaller_channel_two_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=0.7 h / u_\\tau$",
+        e_base_turb,
     ),
     (
         "smaller_channel_three_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=1.05 h / u_\\tau$",
+        e_base_turb,
     ),
     (
         "smaller_channel_four_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=1.4 h / u_\\tau$",
+        e_base_turb,
     ),
     (
         "smaller_channel_six_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=2.1 h / u_\\tau$",
+        e_base_turb,
     ),
     (
         "smaller_channel_eight_t_e_0_study",
         # "minimal channel mean (short channel)",
         "$T=2.8 h / u_\\tau$",
+        e_base_turb,
     ),
 ]
 
-plot(dirs_and_names)
+if __name__ == "__main__":
+    plot(dirs_and_names)

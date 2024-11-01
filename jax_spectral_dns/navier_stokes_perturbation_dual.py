@@ -1000,11 +1000,13 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     def get_gain_3d(self) -> float:
         self.run_forward_calculation()
-        u_0 = self.forward_equation.get_initial_field("velocity_hat").no_hat()
+        u_0_hat = self.forward_equation.get_initial_field("velocity_hat")
+        u_0_kx0 = u_0_hat.field_2d(0).no_hat()
+        u_0_3d = u_0_hat.no_hat() - u_0_kx0
         u_T_hat = self.forward_equation.get_latest_field("velocity_hat")
         u_T_kx0 = u_T_hat.field_2d(0).no_hat()
         u_T_3d = u_T_hat.no_hat() - u_T_kx0
-        self.gain = u_T_3d.energy() / u_0.energy()
+        self.gain = u_T_3d.energy() / u_0_3d.energy()
         return self.gain
 
     def get_dissipation_average(self) -> float:
