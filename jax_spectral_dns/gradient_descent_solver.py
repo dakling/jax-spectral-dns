@@ -686,6 +686,18 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         v0_div = v0.div()
         cont_error = v0_div.energy() / v0.energy()
         print_verb("continuity error:", cont_error)
+        if cont_error > 0.1:
+
+            vel_shape = v0_div.get_data().shape
+            max_inds = np.unravel_index(v0_div.get_data().argmax(axis=None), vel_shape)
+            Nx, Ny, Nz = vel_shape
+            domain = self.dual_problem.forward_equation.get_physical_domain()
+            x_max = max_inds[0] / Nx * domain.grid[0][-1]
+            y_max = max_inds[1] / Ny * domain.grid[1][-1]
+            z_max = max_inds[2] / Nz * domain.grid[2][-1]
+            v0_div.plot_3d(0, x_max)
+            v0_div.plot_3d(1, y_max)
+            v0_div.plot_3d(2, z_max)
 
         if self.i % self.trajectory_write_interval == 0:
             self.dual_problem.write_trajectory = True

@@ -147,7 +147,7 @@ class Case:
                             success = True
                         except Exception as e:
                             if retries < 10:
-                                print(
+                                print_verb(
                                     "issues with opening velocity file for case",
                                     self,
                                     "; trying again in 20 seconds.",
@@ -327,6 +327,8 @@ class Case:
                 != Case.Vel_0_types["nonlinear_global"]
             ):
                 return cases[i].e_0
+        if cases[-1].classify_vel_0() == Case.Vel_0_types["nonlinear_global"]:
+            return cases[-1].e_0
         return None
 
     @classmethod
@@ -351,8 +353,8 @@ class Case:
                 != Case.Vel_0_types["nonlinear_localised"]
             ):
                 return cases[i].e_0
-            if cases[-1].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]:
-                return cases[-1].e_0
+        if cases[-1].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]:
+            return cases[-1].e_0
         return None
 
 
@@ -371,6 +373,7 @@ def plot(dirs_and_names: List[str]) -> None:
     for base_path, name, _ in dirs_and_names:
         print_verb("collecting cases in", base_path)
         cases = Case.collect(base_path)
+        cases = Case.prune_times(cases)  # TODO why is this necessary?
         print_verb(
             "collected cases:",
             "; ".join([case.directory.split("/")[-1] for case in cases]),
@@ -388,7 +391,7 @@ def plot(dirs_and_names: List[str]) -> None:
             print_verb(cases[i], verbosity_level=3)
             marker = cases[i].get_marker()
             color = "r" if i == max_i else "k"
-            ax.plot(cast(float, cases[i].T), cast(float, cases[i]).e_0, color + marker)
+            ax.plot(cast(float, cases[i].T), cast(float, cases[i].e_0), color + marker)
 
     # TODO plot intermediate range to show lack of confidence
     # paint linear regime dark grey
