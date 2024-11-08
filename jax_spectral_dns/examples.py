@@ -3397,8 +3397,8 @@ def run_ld_2021_dual(**params: Any) -> None:
             lambda X: jnp.exp(
                 -initial_condition_localisation
                 * (
-                    (X[0] / domain.scale_factors[0]) ** 2
-                    + (X[2] / domain.scale_factors[2]) ** 2
+                    (X[0] / domain.scale_factors[0] - 0.5) ** 2
+                    + (X[2] / domain.scale_factors[2] - 0.5) ** 2
                 )
             )
             + 0.0 * X[2],
