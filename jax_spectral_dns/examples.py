@@ -3419,7 +3419,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         v0_0.set_time_step(-1)
-
+        v0_0.set_name("vel_0_initial_guess")
         vel_shape = v0_0[0].get_data().shape
         max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
         x_max = max_inds[0] / Nx * domain.grid[0][-1]
