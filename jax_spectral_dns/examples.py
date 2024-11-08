@@ -3403,7 +3403,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             )
             + 0.0 * X[2],
         )
-        vort_0_hat = (v0_0.curl() * gaussian_filter_field).hat()
+        vort_0_hat = ((v0_0.curl() * gaussian_filter_field)[1]).hat()
         v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
         v0_00 = v0_0[0].hat()[0, :, 0]
         v2_00 = v0_0[2].hat()[0, :, 0]
