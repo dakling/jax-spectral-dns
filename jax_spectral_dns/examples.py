@@ -3406,6 +3406,15 @@ def run_ld_2021_dual(**params: Any) -> None:
         v0_0 = VectorField([v0 * gaussian_filter_field for v0 in v0_0])
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
+        v0_0.set_time_step(-1)
+
+        vel_shape = v0_0[0].get_data().shape
+        max_inds = np.unravel_index(v0_0.get_data().argmax(axis=None), vel_shape)
+        Nx, _, Nz = vel_shape
+        x_max = max_inds[0] / Nx * domain.grid[0][-1]
+        z_max = max_inds[2] / Nz * domain.grid[2][-1]
+        v0_0.plot_3d(0, x_max)
+        v0_0.plot_3d(2, z_max, rotate=True)
         vel_hat: VectorField[FourierField] = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
