@@ -3403,10 +3403,14 @@ def run_ld_2021_dual(**params: Any) -> None:
             )
             + 0.0 * X[2],
         )
-        vort_0_hat = ((v0_0.curl() * gaussian_filter_field)[1]).hat()
+        vort_0_hat = (v0_0.curl()[1] * gaussian_filter_field).hat()
         v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
-        v0_00 = v0_0[0].hat()[0, :, 0]
-        v2_00 = v0_0[2].hat()[0, :, 0]
+        v0_00 = (v0_0[0] * gaussian_filter_field).hat()[0, :, 0]
+        v2_00 = (v0_0[2] * gaussian_filter_field).hat()[0, :, 0]
+        v1_0 = v1_0_hat.no_hat()
+        v1_0.set_name("initial_guess_pre")
+        vort_0 = vort_0_hat.no_hat()
+        vort_0.set_name("initial_guess_pre_vort")
         v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
             domain,
             vort_0_hat.get_data(),
@@ -3426,6 +3430,10 @@ def run_ld_2021_dual(**params: Any) -> None:
         z_max = max_inds[2] / Nz * domain.grid[2][-1]
         v0_0.plot_3d(0, x_max)
         v0_0.plot_3d(2, z_max, rotate=True)
+        v1_0.plot_3d(0, x_max)
+        v1_0.plot_3d(2, z_max, rotate=True)
+        vort_0.plot_3d(0, x_max)
+        vort_0.plot_3d(2, z_max, rotate=True)
         vel_hat: VectorField[FourierField] = v0_0.hat()
         vel_hat.set_name("velocity_hat")
 
