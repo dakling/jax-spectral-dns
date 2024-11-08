@@ -3403,7 +3403,19 @@ def run_ld_2021_dual(**params: Any) -> None:
             )
             + 0.0 * X[2],
         )
-        v0_0 = VectorField([v0 * gaussian_filter_field for v0 in v0_0])
+        vort_0_hat = (v0_0.curl() * gaussian_filter_field).hat()
+        v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
+        v0_00 = v0_0[0].hat()[0, :, 0]
+        v2_00 = v0_0[2].hat()[0, :, 0]
+        v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
+            domain,
+            vort_0_hat.get_data(),
+            v1_0_hat.get_data(),
+            v0_00,
+            v2_00,
+            two_d=False,
+        )
+        v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         v0_0.set_time_step(-1)
