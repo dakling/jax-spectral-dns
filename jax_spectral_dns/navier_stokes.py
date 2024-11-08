@@ -1084,13 +1084,14 @@ class NavierStokesVelVort(Equation):
         def rk_00() -> Tuple["jnp_array", ...]:
             return (
                 (vel_x_00 * (1 + 0j)).astype(jnp.complex128),
-                # (
-                #     NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
-                #         physical_domain, vel_y[0, :, 0], #3 * Ny // 2
-                #     )
-                #     * (1 + 0j)
-                # ).astype(jnp.complex128),
-                (jnp.zeros_like(vel_x_00) * (1 + 0j)).astype(jnp.complex128),
+                (
+                    NavierStokesVelVort.smooth_and_enforce_bc_vel_y(
+                        physical_domain,
+                        vel_y[0, :, 0],  # 3 * Ny // 2
+                    )
+                    * (1 + 0j)
+                ).astype(jnp.complex128),
+                # (jnp.zeros_like(vel_x_00) * (1 + 0j)).astype(jnp.complex128),
                 (vel_z_00 * (1 + 0j)).astype(jnp.complex128),
             )
 
