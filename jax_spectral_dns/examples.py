@@ -2866,6 +2866,8 @@ def run_ld_2021_dual(**params: Any) -> None:
     min_step_size = params.get("min_step_size", 1.0e-4)
     max_step_size = params.get("max_step_size", 9.0e-1)
 
+    initial_condition_localisation = params.get("initial_condition_localisation", 0.0)
+
     mean_perturbation = params.get("mean_perturbation", 0.0)
 
     full_channel_mean = params.get("full_channel_mean", False)
@@ -3390,6 +3392,18 @@ def run_ld_2021_dual(**params: Any) -> None:
             "expected gain:",
             lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
         )
+        gaussian_filter_field = PhysicalField.FromFunc(
+            domain,
+            lambda X: jnp.exp(
+                -initial_condition_localisation
+                * (
+                    (X[0] / domain.scale_factors[0]) ** 2
+                    + (X[2] / domain.scale_factors[2]) ** 2
+                )
+            )
+            + 0.0 * X[2],
+        )
+        v0_0 = VectorField([v0 * gaussian_filter_field for v0 in v0_0])
         v0_0.normalize_by_energy()
         v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
         vel_hat: VectorField[FourierField] = v0_0.hat()

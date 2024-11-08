@@ -1022,10 +1022,10 @@ class TestProject(unittest.TestCase):
         Ny = 28
         Nz = 24
 
-        # scale_factor_x = 1.0
-        # scale_factor_z = 1.5
-        scale_factor_x = 2 * jnp.pi
-        scale_factor_z = 2 * jnp.pi
+        scale_factor_x = 1.0
+        scale_factor_z = 1.5
+        # scale_factor_x = 2 * jnp.pi
+        # scale_factor_z = 2 * jnp.pi
         domain = PhysicalDomain.create(
             (Nx, Ny, Nz),
             (True, False, True),

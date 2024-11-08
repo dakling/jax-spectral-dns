@@ -24,7 +24,10 @@ import jax.numpy as jnp
 from jax_spectral_dns.cheb import cheby
 from jax_spectral_dns.domain import PhysicalDomain
 from jax_spectral_dns.field import Field, VectorField, PhysicalField, FourierField
-from jax_spectral_dns.navier_stokes_perturbation import NavierStokesVelVortPerturbation
+from jax_spectral_dns.navier_stokes_perturbation import (
+    NavierStokesVelVortPerturbation,
+    update_nonlinear_terms_high_performance_perturbation_skew_symmetric,
+)
 
 matplotlib.set_loglevel("error")
 
@@ -96,6 +99,7 @@ def post_process(
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
         domain = get_domain(velocity_trajectory.shape[2:], Lx_over_pi, Lz_over_pi)
+        fourier_domain = domain.hat()
 
         ts = []
         energy_t = []
@@ -267,6 +271,50 @@ def post_process(
             vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
+
+            # pressure
+            pressure_poisson_source = PhysicalField.Zeros(domain)
+            for k in range(3):
+                for j in range(3):
+                    pressure_poisson_source += -(vel[k] * vel[j]).diff(j).diff(k)
+                    pressure_poisson_source += -(vel_base[k] * vel[j]).diff(j).diff(k)
+                    pressure_poisson_source += -(vel[k] * vel_base[j]).diff(j).diff(k)
+            pressure_poisson_source.set_name("pressure_poisson_source")
+            pressure_poisson_source.plot_3d(0)
+            pressure_poisson_source.plot_3d(2)
+            pressure = pressure_poisson_source.hat().solve_poisson().no_hat()
+            # filter_field = PhysicalField.FromFunc(domain, lambda X: jnp.exp(1.0)**(- 20.0 * X[1]**10) + 0.0 * X[2])
+            # filter_field = PhysicalField.FromFunc(
+            #     domain, lambda X: jnp.exp(-((1.03 * X[1]) ** 40)) + 0.0 * X[2]
+            # )  # make sure that we are not messing with the boundary conditions
+            # pressure *= filter_field
+            pressure.update_boundary_conditions()
+            pressure.set_name("pressure")
+            pressure.set_time_step(vel.get_time_step())
+            if i == 0:
+                vel_shape = vel[0].get_data().shape
+                max_inds = np.unravel_index(
+                    pressure.get_data().argmax(axis=None), vel_shape
+                )
+                Nx, _, Nz = vel_shape
+                x_max_pres = max_inds[0] / Nx * domain.grid[0][-1]
+                z_max_pres = max_inds[2] / Nz * domain.grid[2][-1]
+            pressure.plot_3d(0, x_max_pres, rotate=True)
+            pressure.plot_3d(2, z_max_pres)
+            dp_dy = pressure.diff(1)
+            dp_dy.update_boundary_conditions()
+            dp_dy.set_name("dp_dy")
+            dp_dy.set_time_step(vel.get_time_step())
+            if i == 0:
+                vel_shape = vel[0].get_data().shape
+                max_inds = np.unravel_index(
+                    dp_dy.get_data().argmax(axis=None), vel_shape
+                )
+                Nx, _, Nz = vel_shape
+                x_max_dpdy = max_inds[0] / Nx * domain.grid[0][-1]
+                z_max_dpdy = max_inds[2] / Nz * domain.grid[2][-1]
+            dp_dy.plot_3d(0, x_max_dpdy, rotate=True)
+            dp_dy.plot_3d(2, z_max_dpdy)
 
             q_crit = vel.get_q_criterion()
             q_crit.set_time_step(vel.get_time_step())
