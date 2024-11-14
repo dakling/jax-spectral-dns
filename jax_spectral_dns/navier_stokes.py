@@ -1548,7 +1548,14 @@ class NavierStokesVelVort(Equation):
         Ny = self.get_domain().number_of_cells(1)
         Nz = self.get_domain().number_of_cells(2)
 
-        @partial(jax.jit, static_argnums=(0,))
+        @partial(
+            jax.jit,
+            static_argnums=(0,),
+            compiler_options={
+                "exec_time_optimization_effort": 0.5,  # change here
+                "memory_fitting_effort": 1.0,  # change here
+            },
+        )
         def get_new_vel_field_map(
             step: int,
             v_1_lap_hat: "jnp_array",
