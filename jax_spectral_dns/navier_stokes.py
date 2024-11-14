@@ -1551,10 +1551,10 @@ class NavierStokesVelVort(Equation):
         @partial(
             jax.jit,
             static_argnums=(0,),
-            compiler_options={
-                "exec_time_optimization_effort": 0.5,  # change here
-                "memory_fitting_effort": 1.0,  # change here
-            },
+            # compiler_options={
+            #     "exec_time_optimization_effort": 0.5,  # change here
+            #     "memory_fitting_effort": 1.0,  # change here
+            # },
         )
         def get_new_vel_field_map(
             step: int,
