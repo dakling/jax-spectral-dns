@@ -196,7 +196,21 @@ def post_process_averages() -> None:
     avg.set_time_step(0)
     avg[0].save_to_file("average_velocity")
     for vel_00_symm in vel_00_symm_s:
-        vel_00_symm[0].plot_center(0, avg[0])
+        fig = figure.Figure()
+        ax = fig.subplots(1, 1)
+        vel_00_symm[0].set_name("")
+        vel_00_symm[0].plot_center(
+            0, avg[0], fig=fig, ax=ax, name="$U_x$", other_names=["$\\bar U_x$"]
+        )
+        fig.legend("bottom center")
+        fig.savefig(
+            Field.plotting_dir
+            + "/plot_cl_"
+            + vel_00_symm[0].name
+            + "_t_"
+            + "{:06}".format(vel_00_symm[0].time_step)
+            + vel_00_symm[0].plotting_format
+        )
     for vel_00 in vel_00_s:
         vel_00[0].plot_center(0, avg[0])
     mass_flux = []

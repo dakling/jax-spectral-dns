@@ -1526,14 +1526,18 @@ class PhysicalField(Field):
                 else:
                     fig = cast("figure.Figure", params.get("fig"))
                 assert type(ax) is Axes
-                ax.plot(self.physical_domain.grid[0], self.data, label=self.name)
+                name = params.get("name", self.name)
+                ax.plot(self.physical_domain.grid[0], self.data, label=name)
+                other_names = params.get("other_names", [f.name for f in other_fields])
+                i = 0
                 for other_field in other_fields:
                     ax.plot(
                         other_field.physical_domain.grid[dimension],
                         other_field.data,
                         "--",
-                        label=other_field.name,
+                        label=other_names[i],
                     )
+                    i += 1
                 if params.get("ax") is None:
                     fig.legend()
 

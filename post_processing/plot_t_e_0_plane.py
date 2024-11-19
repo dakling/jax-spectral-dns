@@ -123,26 +123,31 @@ class Case:
         vel_0 = None
         while not success:
             try:
-                vel_0 = VectorField.FromFile(domain, path + file, name="vel_0")
+                vel_0 = VectorField.FromFile(
+                    domain, path + file, name="vel_0", allow_projection=True
+                )
                 success = True
             except Exception:
                 try:
                     vel_0 = VectorField.FromFile(
-                        domain, path + file, name="velocity_pert"
+                        domain, path + file, name="velocity_pert", allow_projection=True
                     )
                     success = True
                 except Exception:
                     try:
                         bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
                         vel_0 = VectorField.FromFile(
-                            domain, path + bak_file, name="vel_0"
+                            domain, path + bak_file, name="vel_0", allow_projection=True
                         )
                         success = True
                     except Exception:
                         try:
                             bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
                             vel_0 = VectorField.FromFile(
-                                domain, path + bak_file, name="velocity_pert"
+                                domain,
+                                path + bak_file,
+                                name="velocity_pert",
+                                allow_projection=True,
                             )
                             success = True
                         except Exception as e:
