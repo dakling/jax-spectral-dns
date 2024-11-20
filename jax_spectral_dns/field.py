@@ -1153,7 +1153,7 @@ class PhysicalField(Field):
                 new_name = ""
             else:
                 assert isinstance(other, PhysicalField)
-                if other.name[0] == "-":
+                if len(other.name) > 0 and other.name[0] == "-":
                     new_name = self.name + " - " + other.name[1:]
                 else:
                     new_name = self.name + " + " + other.name
