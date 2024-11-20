@@ -1518,17 +1518,17 @@ class PhysicalField(Field):
         self, dimension: int, *other_fields: PhysicalField, **params: Any
     ) -> None:
         try:
+            ax = params.get("ax")
+            if ax is None:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+            else:
+                fig = cast("figure.Figure", params.get("fig"))
+            name = params.get("name", self.name)
+            other_names = params.get("other_names", [f.name for f in other_fields])
             if self.physical_domain.number_of_dimensions == 1:
-                ax = params.get("ax")
-                if ax is None:
-                    fig = figure.Figure()
-                    ax = fig.subplots(1, 1)
-                else:
-                    fig = cast("figure.Figure", params.get("fig"))
                 assert type(ax) is Axes
-                name = params.get("name", self.name)
                 ax.plot(self.physical_domain.grid[0], self.data, label=name)
-                other_names = params.get("other_names", [f.name for f in other_fields])
                 i = 0
                 for other_field in other_fields:
                     ax.plot(
@@ -1568,24 +1568,23 @@ class PhysicalField(Field):
                     save()
                 # plt.close(fig)
             elif self.physical_domain.number_of_dimensions == 2:
-                # fig, ax = plt.subplots(1, 1)
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 other_dim = [i for i in self.all_dimensions() if i != dimension][0]
                 N_c = self.physical_domain.number_of_cells(other_dim) // 2
                 ax.plot(
                     self.physical_domain.grid[dimension],
                     self.data.take(indices=N_c, axis=other_dim),
-                    label=self.name,
+                    label=name,
                 )
+                i = 0
                 for other_field in other_fields:
                     ax.plot(
                         other_field.physical_domain.grid[dimension],
                         other_field.data.take(indices=N_c, axis=other_dim),
                         "--",
-                        label=other_field.name,
+                        label=other_names[i],
                     )
+                    i += 1
                 if params.get("ax") is None:
                     fig.legend()
 
@@ -1619,9 +1618,6 @@ class PhysicalField(Field):
                     save()
                 # plt.close(fig)
             elif self.physical_domain.number_of_dimensions == 3:
-                # fig, ax = plt.subplots(1, 1)
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
                 assert type(ax) is Axes
                 other_dims = [i for i in self.all_dimensions() if i != dimension]
                 N_cs = [
@@ -1634,6 +1630,7 @@ class PhysicalField(Field):
                     ),
                     label=self.name,
                 )
+                i = 0
                 for other_field in other_fields:
                     ax.plot(
                         other_field.physical_domain.grid[dimension],
@@ -1641,8 +1638,9 @@ class PhysicalField(Field):
                             indices=N_cs[0], axis=other_dims[0]
                         ),
                         "--",
-                        label=other_field.name,
+                        label=other_names[i],
                     )
+                    i += 1
                 if params.get("ax") is None:
                     fig.legend()
 

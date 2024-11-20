@@ -198,11 +198,11 @@ def post_process_averages() -> None:
     for vel_00_symm in vel_00_symm_s:
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
-        vel_00_symm[0].set_name("")
         vel_00_symm[0].plot_center(
             0, avg[0], fig=fig, ax=ax, name="$U_x$", other_names=["$\\bar U_x$"]
         )
-        fig.legend("bottom center")
+        fig.legend(loc="bottom center")
+        fig.tight_layout()
         fig.savefig(
             Field.plotting_dir
             + "/plot_cl_"
@@ -211,8 +211,8 @@ def post_process_averages() -> None:
             + "{:06}".format(vel_00_symm[0].time_step)
             + vel_00_symm[0].plotting_format
         )
-    for vel_00 in vel_00_s:
-        vel_00[0].plot_center(0, avg[0])
+    # for vel_00 in vel_00_s:
+    #     vel_00[0].plot_center(0, avg[0])
     mass_flux = []
     vel_cl = []
     n_bins = 9
