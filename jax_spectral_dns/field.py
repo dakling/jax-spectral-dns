@@ -1526,17 +1526,29 @@ class PhysicalField(Field):
                 fig = cast("figure.Figure", params.get("fig"))
             name = params.get("name", self.name)
             other_names = params.get("other_names", [f.name for f in other_fields])
+            rotate = params.get("rotate", False)
             if self.physical_domain.number_of_dimensions == 1:
                 assert type(ax) is Axes
-                ax.plot(self.physical_domain.grid[0], self.data, label=name)
+                if not rotate:
+                    ax.plot(self.physical_domain.grid[0], self.data, label=name)
+                else:
+                    ax.plot(self.data, self.physical_domain.grid[0], label=name)
                 i = 0
                 for other_field in other_fields:
-                    ax.plot(
-                        other_field.physical_domain.grid[dimension],
-                        other_field.data,
-                        "--",
-                        label=other_names[i],
-                    )
+                    if not rotate:
+                        ax.plot(
+                            other_field.physical_domain.grid[dimension],
+                            other_field.data,
+                            "--",
+                            label=other_names[i],
+                        )
+                    else:
+                        ax.plot(
+                            other_field.data,
+                            other_field.physical_domain.grid[dimension],
+                            "--",
+                            label=other_names[i],
+                        )
                     i += 1
                 if params.get("ax") is None:
                     fig.legend()
@@ -1571,19 +1583,34 @@ class PhysicalField(Field):
                 assert type(ax) is Axes
                 other_dim = [i for i in self.all_dimensions() if i != dimension][0]
                 N_c = self.physical_domain.number_of_cells(other_dim) // 2
-                ax.plot(
-                    self.physical_domain.grid[dimension],
-                    self.data.take(indices=N_c, axis=other_dim),
-                    label=name,
-                )
+                if not rotate:
+                    ax.plot(
+                        self.physical_domain.grid[dimension],
+                        self.data.take(indices=N_c, axis=other_dim),
+                        label=name,
+                    )
+                else:
+                    ax.plot(
+                        self.data.take(indices=N_c, axis=other_dim),
+                        self.physical_domain.grid[dimension],
+                        label=name,
+                    )
                 i = 0
                 for other_field in other_fields:
-                    ax.plot(
-                        other_field.physical_domain.grid[dimension],
-                        other_field.data.take(indices=N_c, axis=other_dim),
-                        "--",
-                        label=other_names[i],
-                    )
+                    if not rotate:
+                        ax.plot(
+                            other_field.physical_domain.grid[dimension],
+                            other_field.data.take(indices=N_c, axis=other_dim),
+                            "--",
+                            label=other_names[i],
+                        )
+                    else:
+                        ax.plot(
+                            other_field.data.take(indices=N_c, axis=other_dim),
+                            other_field.physical_domain.grid[dimension],
+                            "--",
+                            label=other_names[i],
+                        )
                     i += 1
                 if params.get("ax") is None:
                     fig.legend()
@@ -1623,23 +1650,46 @@ class PhysicalField(Field):
                 N_cs = [
                     self.physical_domain.number_of_cells(dim) // 2 for dim in other_dims
                 ]
-                ax.plot(
-                    self.physical_domain.grid[dimension],
-                    self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
-                        indices=N_cs[0], axis=other_dims[0]
-                    ),
-                    label=self.name,
-                )
-                i = 0
-                for other_field in other_fields:
+                if not rotate:
                     ax.plot(
-                        other_field.physical_domain.grid[dimension],
-                        other_field.data.take(indices=N_cs[1], axis=other_dims[1]).take(
+                        self.physical_domain.grid[dimension],
+                        self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
                             indices=N_cs[0], axis=other_dims[0]
                         ),
-                        "--",
-                        label=other_names[i],
+                        label=self.name,
                     )
+                else:
+                    ax.plot(
+                        self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
+                            self.physical_domain.grid[dimension],
+                            indices=N_cs[0],
+                            axis=other_dims[0],
+                        ),
+                        label=self.name,
+                    )
+                i = 0
+                for other_field in other_fields:
+                    if not rotate:
+                        ax.plot(
+                            other_field.physical_domain.grid[dimension],
+                            other_field.data.take(
+                                indices=N_cs[1], axis=other_dims[1]
+                            ).take(indices=N_cs[0], axis=other_dims[0]),
+                            "--",
+                            label=other_names[i],
+                        )
+                    else:
+                        ax.plot(
+                            other_field.data.take(
+                                indices=N_cs[1], axis=other_dims[1]
+                            ).take(
+                                other_field.physical_domain.grid[dimension],
+                                indices=N_cs[0],
+                                axis=other_dims[0],
+                            ),
+                            "--",
+                            label=other_names[i],
+                        )
                     i += 1
                 if params.get("ax") is None:
                     fig.legend()

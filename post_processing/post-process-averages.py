@@ -199,9 +199,17 @@ def post_process_averages() -> None:
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         vel_00_symm[0].plot_center(
-            0, avg[0], fig=fig, ax=ax, name="$U_x$", other_names=["$\\bar U_x$"]
+            0,
+            avg[0],
+            fig=fig,
+            ax=ax,
+            name="$U_x$",
+            other_names=["$\\bar U_x$"],
+            rotate=True,
         )
-        fig.legend(loc="bottom center")
+        # fig.legend(loc="center")
+        ax.set_xlabel("velocity_x")
+        ax.set_ylabel("$y$")
         fig.tight_layout()
         fig.savefig(
             Field.plotting_dir
