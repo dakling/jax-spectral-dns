@@ -88,6 +88,40 @@ def get_vel_field_minimal_channel(domain: PhysicalDomain):
     return vel_base
 
 
+def get_streak_scales(vel: "VectorField[FourierField]") -> "Tuple(float, float)":
+    vel_x_0_hat = vel[0].field_2d(0)
+    vel_x_0 = vel_x_0_hat.no_hat()
+    vel_x_0.set_time_step(vel.get_time_step())
+    vel_x_0.set_name("vel_x_streaks")
+
+    Nx, Ny, Nz = vel_x_0.get_data().shape
+    # phyiscal_domain = vel_x_0.physical_domain
+    # coarse_domain = PhysicalDomain.create((Nx, Ny, 20), domain.periodic_directions, domain.scale_factors)
+
+    max_inds = np.unravel_index(
+        vel_x_0.get_data().argmax(axis=None), vel_x_0.get_data().shape
+    )
+    x_max = max_inds[0] / Nx * vel_x_0.physical_domain.grid[0][-1]
+    z_max = max_inds[2] / Nz * vel_x_0.physical_domain.grid[2][-1]
+    vel_x_0.plot_3d(0, coord=x_max)
+    vel_x_0.plot_3d(2, coord=z_max)
+
+    lambda_y = 1 - abs(vel_x_0.physical_domain.grid[1][max_inds[1]])
+    print("max_inds", max_inds)
+    print("lambda_y:", lambda_y)
+    max_inds_hat = np.unravel_index(
+        abs(vel_x_0_hat.get_data()[:, :, 1:]).argmax(axis=None),
+        vel_x_0_hat.get_data()[:, :, 1:].shape,
+    )
+    lambda_z = abs(
+        vel_x_0.physical_domain.scale_factors[0]
+        / vel_x_0_hat.fourier_domain.grid[2][max_inds_hat[2]]
+    )
+    print("max_inds_hat", max_inds_hat)
+    print("lambda_z:", lambda_z)
+    return (lambda_y, lambda_z)
+
+
 def post_process(
     file: str,
     end_time: float,
@@ -99,7 +133,7 @@ def post_process(
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
         domain = get_domain(velocity_trajectory.shape[2:], Lx_over_pi, Lz_over_pi)
-        fourier_domain = domain.hat()
+        # fourier_domain = domain.hat()
 
         ts = []
         energy_t = []
@@ -118,6 +152,8 @@ def post_process(
         amplitudes_2d_kxs = []
         amplitudes_2d_kzs = []
         amplitudes_2d_vilda = []
+        lambda_y_s = []
+        lambda_z_s = []
         E_0 = get_vel_field_minimal_channel(domain).energy()
         # prod = []
         # diss = []
@@ -127,6 +163,7 @@ def post_process(
             vel_hat_ = VectorField.FromData(
                 FourierField, domain, velocity_trajectory[j], name="velocity_hat"
             )
+            vel_hat_.set_time_step(j + time_step_0)
             vel_ = vel_hat_.no_hat()
             vel_.set_time_step(j + time_step_0)
             vel_energy_ = vel_.energy()
@@ -191,6 +228,10 @@ def post_process(
             amplitudes_2d_vilda.append(
                 np.sqrt(vel_2d_x.energy() / E_0 * 180.0)
             )  # TODO watch out for hardcoded Re_tau!
+
+            lambda_y, lambda_z = get_streak_scales(vel_hat_)
+            lambda_y_s.append(lambda_y)
+            lambda_z_s.append(lambda_z)
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
@@ -603,11 +644,11 @@ assert (
     len(sys.argv) <= 2
 ), "there is no need to provide further arguments as these are inferred automatically from simulation_settings.yml"
 
-post_process_pub(
-    sys.argv[1],
-    args.get("Lx_over_pi", 2.0),
-    args.get("Lz_over_pi", 1.0),
-)
+# post_process_pub(
+#     sys.argv[1],
+#     args.get("Lx_over_pi", 2.0),
+#     args.get("Lz_over_pi", 1.0),
+# )
 
 post_process(
     sys.argv[1],

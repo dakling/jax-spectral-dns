@@ -14,7 +14,7 @@ jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 import glob
 
-from typing import Iterable, List, TypeVar
+from typing import Iterable, List, TypeVar, Tuple
 import pyvista as pv
 import numpy as np
 import h5py

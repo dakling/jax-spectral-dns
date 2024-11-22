@@ -1952,18 +1952,42 @@ class PhysicalField(Field):
                             )
                         )
                     other_dim = [i for i in self.all_dimensions() if i != dim]
+
+                    extent = (
+                        self.physical_domain.grid[other_dim[0]][0],
+                        self.physical_domain.grid[other_dim[0]][-1],
+                        self.physical_domain.grid[other_dim[1]][0],
+                        self.physical_domain.grid[other_dim[1]][-1],
+                    )
+                    x = self.physical_domain.grid[other_dim[0]]
+                    y = jnp.flip(self.physical_domain.grid[other_dim[1]])
+                    Nx = self.physical_domain.get_shape()[other_dim[0]]
+                    Ny = self.physical_domain.get_shape()[other_dim[1]]
+                    xi = np.linspace(x[0], x[-1], Nx)
+                    yi = np.linspace(y[0], y[-1], Ny)
+                    interp = RegularGridInterpolator((x, y), self.data, method="cubic")
+                    interp_data = np.array(
+                        [[interp([[x_, y_]])[0] for x_ in xi] for y_ in yi]
+                    )
                     ims.append(
                         ax[dim].imshow(
-                            self.data.take(indices=N_c, axis=dim),
+                            interp_data.take(indices=N_c, axis=dim),
                             interpolation=None,
-                            extent=(
-                                self.physical_domain.grid[other_dim[1]][0],
-                                self.physical_domain.grid[other_dim[1]][-1],
-                                self.physical_domain.grid[other_dim[0]][0],
-                                self.physical_domain.grid[other_dim[0]][-1],
-                            ),
+                            extent=extent,
                         )
                     )
+                    # ims.append(
+                    #     ax[dim].imshow(
+                    #         self.data.take(indices=N_c, axis=dim),
+                    #         interpolation=None,
+                    #         extent=(
+                    #             self.physical_domain.grid[other_dim[1]][0],
+                    #             self.physical_domain.grid[other_dim[1]][-1],
+                    #             self.physical_domain.grid[other_dim[0]][0],
+                    #             self.physical_domain.grid[other_dim[0]][-1],
+                    #         ),
+                    #     )
+                    # )
                     ax[dim].set_xlabel("$" + "xyz"[other_dim[1]] + "$")
                     ax[dim].set_ylabel("$" + "xyz"[other_dim[0]] + "$")
                 # Find the min and max of all colors for use in setting the color scale.
@@ -2050,21 +2074,31 @@ class PhysicalField(Field):
                     * (coord - self.get_domain().grid[dim][0])
                     / (self.get_domain().grid[dim][-1] - self.get_domain().grid[dim][0])
                 )
-            data = self.data.take(indices=N_c, axis=dim).T
+            data = self.data.take(indices=N_c, axis=dim)
             other_dim = [i for i in self.all_dimensions() if i != dim]
             if rotate:
                 other_dim.reverse()
                 data = data.T
+
+            extent = (
+                self.physical_domain.grid[other_dim[0]][0],
+                self.physical_domain.grid[other_dim[0]][-1],
+                self.physical_domain.grid[other_dim[1]][0],
+                self.physical_domain.grid[other_dim[1]][-1],
+            )
+            x = self.physical_domain.grid[other_dim[0]]
+            y = jnp.flip(self.physical_domain.grid[other_dim[1]])
+            Nx = self.physical_domain.get_shape()[other_dim[0]]
+            Ny = self.physical_domain.get_shape()[other_dim[1]]
+            xi = np.linspace(x[0], x[-1], Nx)
+            yi = np.linspace(y[0], y[-1], Ny)
+            interp = RegularGridInterpolator((x, y), data, method="cubic")
+            interp_data = np.array([[interp([[x_, y_]])[0] for x_ in xi] for y_ in yi])
             ims.append(
                 ax.imshow(
-                    data,
+                    interp_data,
                     interpolation=None,
-                    extent=(
-                        self.physical_domain.grid[other_dim[0]][0],
-                        self.physical_domain.grid[other_dim[0]][-1],
-                        self.physical_domain.grid[other_dim[1]][0],
-                        self.physical_domain.grid[other_dim[1]][-1],
-                    ),
+                    extent=extent,
                 )
             )
             ax.set_xlabel("$" + "xyz"[other_dim[0]] + "$")
