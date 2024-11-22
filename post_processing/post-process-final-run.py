@@ -138,6 +138,7 @@ def post_process(
     end_time: float,
     Lx_over_pi: float,
     Lz_over_pi: float,
+    Re_tau: float,
     time_step_0: int = 0,
 ) -> None:
     with h5py.File(file, "r") as f:
@@ -281,6 +282,15 @@ def post_process(
         ax_kz.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         fig_kz.tight_layout()
         fig_kz.savefig("plots/plot_amplitudes_kz" + ".png", bbox_inches="tight")
+
+        fig_lambdas = figure.Figure()
+        ax_lambdas = fig_lambdas.subplots(1, 1)
+        ax_lambdas.plot(ts, Re_tau * np.array(lambda_y_s), "ko", label="$\\lambda_y^+$")
+        ax_lambdas.plot(ts, Re_tau * np.array(lambda_z_s), "bo", label="$\\lambda_z^+$")
+        ax_lambdas.set_xlabel("$t$")
+        ax_lambdas.set_ylabel("$\\lambda^+$")
+        fig_lambdas.tight_layout()
+        fig_lambdas.savefig("plots/plot_lambdas" + ".png", bbox_inches="tight")
 
         vel_base = get_vel_field_minimal_channel(domain)
 
@@ -666,5 +676,6 @@ post_process(
     args.get("end_time", 0.7),
     args.get("Lx_over_pi", 2.0),
     args.get("Lz_over_pi", 1.0),
+    args.get("Re_tau", 180.0),
     0,
 )

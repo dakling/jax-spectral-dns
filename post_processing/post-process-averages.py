@@ -93,23 +93,23 @@ def get_streak_scales(vel: "VectorField[FourierField]") -> "Tuple(float, float)"
     vel_x_0.set_time_step(vel.get_time_step())
     vel_x_0.set_name("vel_x_streaks")
 
-    Nx, Ny, Nz = vel_x_0.get_data().shape
-    domain = vel_x_0.physical_domain
-    coarse_domain = PhysicalDomain.create(
-        (Nx, Ny, 20), domain.periodic_directions, domain.scale_factors
-    )
+    # Nx, _, Nz = vel_x_0.get_data().shape
+    # domain = vel_x_0.physical_domain
+    # coarse_domain = PhysicalDomain.create(
+    #     (Nx, Ny, 20), domain.periodic_directions, domain.scale_factors
+    # )
 
     max_inds = np.unravel_index(
         vel_x_0.get_data().argmax(axis=None), vel_x_0.get_data().shape
     )
-    x_max = max_inds[0] / Nx * vel_x_0.physical_domain.grid[0][-1]
-    z_max = max_inds[2] / Nz * vel_x_0.physical_domain.grid[2][-1]
-    vel_x_0.plot_3d(0, coord=x_max)
-    vel_x_0.plot_3d(2, coord=z_max)
+    # x_max = max_inds[0] / Nx * vel_x_0.physical_domain.grid[0][-1]
+    # z_max = max_inds[2] / Nz * vel_x_0.physical_domain.grid[2][-1]
+    # vel_x_0.plot_3d(0, coord=x_max)
+    # vel_x_0.plot_3d(2, coord=z_max)
 
     lambda_y = 1 - abs(vel_x_0.physical_domain.grid[1][max_inds[1]])
-    print("max_inds", max_inds)
-    print("lambda_y:", lambda_y)
+    # print("max_inds", max_inds)
+    # print("lambda_y:", lambda_y)
     max_inds_hat = np.unravel_index(
         abs(vel_x_0_hat.get_data()[:, :, 1:]).argmax(axis=None),
         vel_x_0_hat.get_data()[:, :, 1:].shape,
@@ -127,8 +127,8 @@ def get_streak_scales(vel: "VectorField[FourierField]") -> "Tuple(float, float)"
     #     vel_x_0.physical_domain.scale_factors[0]
     #     / vel_x_0_hat_filtered.fourier_domain.grid[2][max_inds_hat[2]]
     # )
-    print("max_inds_hat", max_inds_hat)
-    print("lambda_z:", lambda_z)
+    # print("max_inds_hat", max_inds_hat)
+    # print("lambda_z:", lambda_z)
     return (lambda_y, lambda_z)
 
 
