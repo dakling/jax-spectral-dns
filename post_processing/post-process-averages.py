@@ -321,8 +321,11 @@ def post_process_averages() -> None:
                 print("perturbation energy:", vel_pert.energy())
                 print("perturbation energy (no spatial mean):", vel_pert_3d.energy())
                 lambda_y, lambda_z = vel_pert.hat()[0].get_streak_scales()
+                Re_tau = 180  # TODO watch out for hardcoded Re
                 print("lambda_y:", lambda_y)
+                print("lambda_y+:", lambda_y * Re_tau)
                 print("lambda_z:", lambda_z)
+                print("lambda_z+:", lambda_z * Re_tau)
         uu = (
             avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))
             .hat()

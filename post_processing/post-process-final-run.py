@@ -192,11 +192,11 @@ def post_process(
             amplitude_3d_t.append(vel_3d[0].max() - vel_3d[0].min())
             # prod.append(nse.get_production(j))
             # diss.append(nse.get_dissipation(j))
-            amplitudes_2d_vilda.append(
-                np.sqrt(vel_2d_x.energy() / E_0 * 180.0)
-            )  # TODO watch out for hardcoded Re_tau!
+            amplitudes_2d_vilda.append(np.sqrt(vel_2d_x.energy() / E_0 * Re_tau))
 
             lambda_y, lambda_z = vel_hat_[0].get_streak_scales()
+            print("lambda_y+:", lambda_y * Re_tau)
+            print("lambda_z+:", lambda_z * Re_tau)
             lambda_y_s.append(lambda_y)
             lambda_z_s.append(lambda_z)
 
@@ -249,7 +249,9 @@ def post_process(
         ax_lambdas.set_ylabel("$\\lambda_y^+$")
         ax_lambdas2.set_ylabel("$\\lambda_z^+$", color="blue")
         ax_lambdas2.tick_params(axis="y", labelcolor="blue")
-        fig_lambdas.legend()
+        ax_lambdas.set_ylim(bottom=0)
+        ax_lambdas2.set_ylim(bottom=0)
+        # fig_lambdas.legend()
         fig_lambdas.tight_layout()
         fig_lambdas.savefig("plots/plot_lambdas" + ".png", bbox_inches="tight")
 
