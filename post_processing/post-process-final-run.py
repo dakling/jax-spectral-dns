@@ -655,11 +655,11 @@ assert (
     len(sys.argv) <= 2
 ), "there is no need to provide further arguments as these are inferred automatically from simulation_settings.yml"
 
-# post_process_pub(
-#     sys.argv[1],
-#     args.get("Lx_over_pi", 2.0),
-#     args.get("Lz_over_pi", 1.0),
-# )
+post_process_pub(
+    sys.argv[1],
+    args.get("Lx_over_pi", 2.0),
+    args.get("Lz_over_pi", 1.0),
+)
 
 post_process(
     sys.argv[1],
