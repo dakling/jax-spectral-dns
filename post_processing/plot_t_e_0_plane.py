@@ -257,6 +257,22 @@ class Case:
             print(self.vel_0_type)
             raise Exception("unknown velocity classification.")
 
+    def get_classification_name(self) -> str:
+        vel_0_type = self.classify_vel_0()
+        if vel_0_type is Case.Vel_0_types["quasilinear"]:
+            print_verb("lin", verbosity_level=3)
+            return "quasi-linear regime"
+        elif vel_0_type is Case.Vel_0_types["nonlinear_global"]:
+            print_verb("nl glob", verbosity_level=3)
+            return "nonlinear global regime"
+        elif vel_0_type is Case.Vel_0_types["nonlinear_localised"]:
+            print_verb("nl loc", verbosity_level=3)
+            return "nonlinear localised regime"
+        else:
+            print(self)
+            print(self.vel_0_type)
+            raise Exception("unknown velocity classification.")
+
     def append_to(self, cases: "List[Self]") -> "List[Self]":
         if self.successfully_read:
             assert self.gain is not None
@@ -375,18 +391,20 @@ def plot(dirs_and_names: List[str]) -> None:
     e_0_nl_lower_loc_boundary = []
     e_0_nl_upper_loc_boundary = []
     Ts = []
+    all_cases = []
     for base_path, name, _ in dirs_and_names:
         print_verb("collecting cases in", base_path)
         cases = Case.collect(base_path)
         cases = Case.prune_times(cases)  # TODO why is this necessary?
+        all_cases += cases
         print_verb(
             "collected cases:",
             "; ".join([case.directory.split("/")[-1] for case in cases]),
         )
         Ts.append(cases[0].T)
-        max_i = (
-            np.argmax([cast(float, case.gain) for case in cases[1:]]) + 1
-        )  # TODO exclude truly laminar case?
+        # max_i = (
+        #     np.argmax([cast(float, case.gain) for case in cases[1:]]) + 1
+        # )  # TODO exclude truly laminar case?
         e_0_lam_boundary.append(Case.get_e_0_lam_upper_boundary(cases))
         e_0_nl_lower_glob_boundary.append(Case.get_e_0_nl_glob_lower_boundary(cases))
         e_0_nl_upper_glob_boundary.append(Case.get_e_0_nl_glob_upper_boundary(cases))
@@ -395,11 +413,44 @@ def plot(dirs_and_names: List[str]) -> None:
         for i in range(len(cases)):
             print_verb(cases[i], verbosity_level=3)
             marker = cases[i].get_marker()
-            color = "r" if i == max_i else "k"
-            ax.plot(cast(float, cases[i].T), cast(float, cases[i].e_0), color + marker)
+            name = cases[i].get_classification_name()
+            # color = "r" if i == max_i else "k"
+            color = "k"
+            ax.plot(
+                cast(float, cases[i].T),
+                cast(float, cases[i].e_0),
+                color + marker,
+                label=name,
+            )
 
-    # TODO plot intermediate range to show lack of confidence
-    # paint linear regime dark grey
+    # plot isosurfaces of gain
+    try:
+        tcf = ax.tricontourf(
+            np.array([c.T for c in all_cases]),
+            np.array([c.e_0 for c in all_cases]),
+            np.array([c.gain for c in all_cases]),
+            20,
+            shading="gouraud",
+            locator=matplotlib.ticker.LogLocator(),
+        )
+    except Exception as e:
+        print("plotting with gouraud failed:")
+        print(e)
+        tcf = ax.tricontourf(
+            np.array([c.T for c in all_cases]),
+            np.array([c.e_0 for c in all_cases]),
+            np.array([c.gain for c in all_cases]),
+            20,
+            locator=matplotlib.ticker.LogLocator(),
+        )
+    fig.colorbar(tcf)
+    handles, labels = ax.get_legend_handles_labels()
+    unique = [
+        (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
+    ]
+    ax.legend(*zip(*unique))
+    fig.savefig("plots/T_e_0_space.png")
+    # # paint linear regime dark grey
     try:
         ax.fill_between(
             Ts,
@@ -496,15 +547,16 @@ def plot(dirs_and_names: List[str]) -> None:
     ax.text(0.5, 2.0e-6, "quasi-linear regime")
     ax.text(1.95, 1.6e-5, "nonlinear global regime")
     ax.text(1.6, 7.0e-5, "nonlinear \n localised \n regime")
-    ax.text(
-        1.4,
-        6.0e-4,
-        "no convergence due to \n turbulent end state",
-        backgroundcolor="white",
-    )
-    red_patch = mpatches.Patch(color="red", label="maximum gain at each $T$")
-    fig.legend(handles=[red_patch])
-    fig.savefig("plots/T_e_0_space.png")
+    # ax.text(
+    #     1.4,
+    #     6.0e-4,
+    #     "no convergence due to \n turbulent end state",
+    #     backgroundcolor="white",
+    # )
+    # handles, labels = ax.get_legend_handles_labels()
+    # unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+    # ax.legend(*zip(*unique))
+    fig.savefig("plots/T_e_0_space_with_regimes.png")
 
 
 e_base_turb = 1.0
