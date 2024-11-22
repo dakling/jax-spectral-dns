@@ -1660,8 +1660,8 @@ class PhysicalField(Field):
                     )
                 else:
                     ax.plot(
+                        self.physical_domain.grid[dimension],
                         self.data.take(indices=N_cs[1], axis=other_dims[1]).take(
-                            self.physical_domain.grid[dimension],
                             indices=N_cs[0],
                             axis=other_dims[0],
                         ),
