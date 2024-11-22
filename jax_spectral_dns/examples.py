@@ -2382,6 +2382,10 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             vel_pert_3d.set_name("velocity_pert")
             vel_pert_3d.save_to_file("velocity_pert_3d" + str(i))
 
+        vel_pert = vel - vel_base_lam
+        lambda_y, lambda_z = vel_pert[0].hat().get_streak_scales()
+        print_verb("lambda_y+:", lambda_y * Re_tau, "lambda_z+:", lambda_z * Re_tau)
+
         vel[0].plot_3d(2)
         vel[0].plot_3d(0, rotate=True)
         vel[0].plot_isosurfaces()
