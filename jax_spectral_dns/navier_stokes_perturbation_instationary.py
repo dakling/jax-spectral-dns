@@ -34,7 +34,7 @@ class NavierStokesVelVortPerturbationInstationary(NavierStokesVelVortPerturbatio
         super().__init__(velocity_field, **params)
         self.kappa = params.get("kappa", 1.0)
         self.accelerate = params.get("accelerate", True)
-        self.n_max = params.get("n_max", 1000)  # TODO
+        self.n_max = params.get("n_max", 100)  # TODO
 
     def vel_base_fn(self, time_step: int) -> "VectorField[FourierField]":
         time_steps = jnp.arange(0, self.end_time, self.get_dt())

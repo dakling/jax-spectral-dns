@@ -3853,16 +3853,6 @@ def run_transition_instationary(**params: Any) -> None:
     nse_dual = NavierStokesVelVortPerturbationInstationaryDual.FromNavierStokesVelVortPerturbation(
         nse
     )
-    # n = 10000
-    # for i in range(n):
-    #     try:
-    #         vel_base = nse.vel_base_fn(i).no_hat()
-    #         vel_base.set_name("velocity_base")
-    #         vel_base.set_time_step(i)
-    #         vel_base[0].plot_center(1)
-    #     except Exception:
-    #         print(n)
-    #         break
     optimiser = ConjugateGradientDescentSolver(
         nse_dual,
         max_iterations=number_of_steps,
