@@ -35,6 +35,7 @@ class NavierStokesVelVortPerturbationInstationary(NavierStokesVelVortPerturbatio
         self.kappa = params.get("kappa", 1.0)
         self.accelerate = params.get("accelerate", True)
         self.n_max = params.get("n_max", 100)  # TODO
+        print(self.accelerate)
 
     def vel_base_fn(self, time_step: int) -> "VectorField[FourierField]":
         time_steps = jnp.arange(0, self.end_time, self.get_dt())
@@ -51,8 +52,13 @@ class NavierStokesVelVortPerturbationInstationary(NavierStokesVelVortPerturbatio
             d_g_w = jax.grad(g_w)
             out = g_w(t) * y
             out += Re / 6 * d_g_w(t) * (y**3 - y)
-            c_1_n = 0.0
             for n in range(1, self.n_max):
+                if self.accelerate:
+                    c_1_n = (-2 * Re * (-1) ** n / (jnp.pi * n) ** 3) * d_g_w(t) + (
+                        2 * jnp.sin(jnp.pi * n) - 2 * jnp.pi * n * jnp.cos(jnp.pi * n)
+                    ) / (jnp.pi * n) ** 2
+                else:
+                    c_1_n = 0.0
                 a_n = (jnp.pi * n) ** 2 / Re
                 coeff = -1.0 if self.accelerate else 1.0
                 int = self.kappa**2 * coeff / (a_n - self.kappa)

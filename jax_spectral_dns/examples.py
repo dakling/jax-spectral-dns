@@ -3847,11 +3847,7 @@ def run_transition_instationary(**params: Any) -> None:
         domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time
     )
     nse = NavierStokesVelVortPerturbationInstationary(
-        v0_hat,
-        Re_tau=Re,
-        dt=dt,
-        end_time=end_time,
-        linearise=linearise,
+        v0_hat, Re_tau=Re, dt=dt, **params
     )
     # nse.set_post_process_fn(post_process)
     nse_dual = NavierStokesVelVortPerturbationInstationaryDual.FromNavierStokesVelVortPerturbation(
