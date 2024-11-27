@@ -4,7 +4,7 @@
 make_video_mp4(){
     mkdir img &> /dev/null
     scfmt="640:480"
-    ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4" &> /dev/null
+    ffmpeg -y -f image2 -r 3 -pattern_type glob -i "plots/plot_$1_t_*.png" -vcodec libx264 -crf 22 "img/$2.mp4" #&> /dev/null
 }
 
 combine_two_mp4(){
@@ -35,7 +35,7 @@ combine_six_mp4(){
     scfmt="640:480"
     layout="0_0|w0_0|w0+w1_0|0_h0|w0_h0|w0+w1_h0"
     scale="[0:v] scale=$scfmt [a0]; [1:v] scale=$scfmt [a1]; [2:v] scale=$scfmt [a2]; [3:v] scale=$scfmt [a3]; [4:v] scale=$scfmt [a4]; [5:v] scale=$scfmt [a5]; [a0][a1][a2][a3][a4][a5]xstack=inputs=6:layout=$layout[v]"
-    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" &> /dev/null
+    ffmpeg -i "img/$2.mp4" -i "img/$3.mp4" -i "img/$4.mp4" -i "img/$5.mp4" -i "img/$6.mp4" -i "img/$7.mp4" -filter_complex "$scale" -map "[v]" "img/$1.mp4" #&> /dev/null
 }
 
 make_video_gif(){
@@ -143,27 +143,30 @@ make_video isosurfaces_velocity_x __isosurfaces_velocity_x
 make_video isosurfaces_velocity_y __isosurfaces_velocity_y
 make_video isosurfaces_velocity_z __isosurfaces_velocity_z
 make_video energy __energy
-make_video amplitudes __amplitudes
+# make_video amplitudes __amplitudes
 # make_video 3d_y_velocity_magnitude_avg __3d_y_velocity_y_avg
 # make_video amplitudes_over_wns __amplitudes_over_wns
-make_video amplitudes_kx __amplitudes_kx
-make_video amplitudes_kz __amplitudes_kz
+# make_video amplitudes_kx __amplitudes_kx
+# make_video amplitudes_kz __amplitudes_kz
+make_video energy_spectrum_kx __energy_spectrum_kx
+make_video energy_spectrum_kz __energy_spectrum_kz
 # combine_six final_run_isosurfaces __isosurfaces_velocity_x __isosurfaces_velocity_y __isosurfaces_velocity_z __energy __amplitudes __3d_y_velocity_y_avg
-combine_six final_run_isosurfaces __isosurfaces_velocity_x __isosurfaces_velocity_y __isosurfaces_velocity_z __energy __amplitudes __amplitudes_over_wns
+# combine_six final_run_isosurfaces __isosurfaces_velocity_x __isosurfaces_velocity_y __isosurfaces_velocity_z __energy __amplitudes __amplitudes_over_wns
+combine_six final_run_isosurfaces __isosurfaces_velocity_x __isosurfaces_velocity_y __isosurfaces_velocity_z __energy __energy_spectrum_kx __energy_spectrum_kz
 
 make_video 3d_z_velocity_x __3d_z_velocity_x
 make_video 3d_z_velocity_y __3d_z_velocity_y
 make_video 3d_z_velocity_z __3d_z_velocity_z
 # combine_six final_run_z __3d_z_velocity_x __3d_z_velocity_y __3d_z_velocity_z __energy __amplitudes __3d_y_velocity_y_avg
-combine_six final_run_z __3d_z_velocity_x __3d_z_velocity_y __3d_z_velocity_z __energy __amplitudes __amplitudes_over_wns
+combine_six final_run_z __3d_z_velocity_x __3d_z_velocity_y __3d_z_velocity_z __energy __energy_spectrum_kx __energy_spectrum_kz
 
 make_video 3d_x_velocity_x __3d_x_velocity_x
 make_video 3d_x_velocity_y __3d_x_velocity_y
 make_video 3d_x_velocity_z __3d_x_velocity_z
 # combine_six final_run_x __3d_x_velocity_x __3d_x_velocity_y __3d_x_velocity_z __energy __amplitudes __3d_y_velocity_y_avg
-combine_six final_run_x __3d_x_velocity_x __3d_x_velocity_y __3d_x_velocity_z __energy __amplitudes __amplitudes_over_wns
+combine_six final_run_x __3d_x_velocity_x __3d_x_velocity_y __3d_x_velocity_z __energy __energy_spectrum_kx __energy_spectrum_kz
 
-combine_six final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x __energy __amplitudes_kx __amplitudes_kz
+combine_six final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x __energy __energy_spectrum_kx __energy_spectrum_kz
 
 ffmpeg -i img/final_run_vel_x.mp4 -vf "select=eq(n\,0)" -vframes 1 img/final_run_vel_x.png &> /dev/null
 
@@ -191,4 +194,4 @@ combine_six initial_condition_evolution_x __3d_x_vel_0_x __3d_x_vel_0_y __3d_x_v
 
 combine_three initial_condition_evolution_vel_x __isosurfaces_vel_0_x __3d_z_vel_0_x __3d_x_vel_0_x
 
-cleanup
+#cleanup

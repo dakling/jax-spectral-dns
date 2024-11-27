@@ -385,6 +385,7 @@ def plot(dirs_and_names: List[str]) -> None:
     ax.set_xlabel("$T h  / u_\\tau$")
     ax.set_ylabel("$e_0/E_0$")
     ax.set_yscale("log")
+    ax.set_xlim(left=0.0)
     e_0_lam_boundary = []
     e_0_nl_lower_glob_boundary = []
     e_0_nl_upper_glob_boundary = []
@@ -431,7 +432,7 @@ def plot(dirs_and_names: List[str]) -> None:
             np.array([c.gain for c in all_cases]),
             20,
             shading="gouraud",
-            locator=matplotlib.ticker.LogLocator(),
+            locator=matplotlib.ticker.LogLocator(1.01),
         )
     except Exception as e:
         print("plotting with gouraud failed:")
@@ -441,7 +442,7 @@ def plot(dirs_and_names: List[str]) -> None:
             np.array([c.e_0 for c in all_cases]),
             np.array([c.gain for c in all_cases]),
             20,
-            locator=matplotlib.ticker.LogLocator(),
+            locator=matplotlib.ticker.LogLocator(1.01),
         )
     fig.colorbar(tcf)
     handles, labels = ax.get_legend_handles_labels()

@@ -371,23 +371,23 @@ def post_process(
             )
             ax.set_xlabel("$t h / u_\\tau$")
             ax.set_ylabel("$G$")
-            # ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
-            ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
+            ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
+            # ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
             # ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
             # ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
-            # ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
-            ax.plot(ts, energy_x_3d_arr / energy_x_3d_arr[0], "g.")
+            ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
+            # ax.plot(ts, energy_x_3d_arr / energy_x_3d_arr[0], "g.")
             ax.plot(
                 ts[: i + 1],
-                # energy_x_2d_arr[: i + 1] / energy_t_arr[0],
-                energy_x_2d_arr[: i + 1] / energy_x_2d_arr[0],
+                energy_x_2d_arr[: i + 1] / energy_t_arr[0],
+                # energy_x_2d_arr[: i + 1] / energy_x_2d_arr[0],
                 "bo",
                 label="$G_{k_x = 0}$",
             )
             ax.plot(
                 ts[: i + 1],
-                # energy_x_3d_arr[: i + 1] / energy_t_arr[0],
-                energy_x_3d_arr[: i + 1] / energy_x_3d_arr[0],
+                energy_x_3d_arr[: i + 1] / energy_t_arr[0],
+                # energy_x_3d_arr[: i + 1] / energy_x_3d_arr[0],
                 "go",
                 label="$G_{3d}$",
             )
@@ -575,6 +575,43 @@ def post_process(
             #     + "{:06}".format(time_step)
             #     + ".png"
             # )
+
+            # if i in [0, n_steps // 2, n_steps]:
+            if True:
+                fig_kx = figure.Figure()
+                ax_kx = fig_kx.subplots(1, 1)
+                fig_kz = figure.Figure()
+                ax_kz = fig_kz.subplots(1, 1)
+                ax_kx.set_xscale("log")
+                ax_kz.set_xscale("log")
+                ax_kx.set_xlabel("$k_x$")
+                ax_kz.set_xlabel("$k_z$")
+                ax_kx.set_ylabel("$E$")
+                ax_kz.set_ylabel("$E$")
+                kxs = vel_hat.get_fourier_domain().grid[0]
+                kzs = vel_hat.get_fourier_domain().grid[2]
+                energy_kx = []
+                energy_kz = []
+
+                for kx in range((len(kxs) - 1) // 2):
+                    vel_2d_kx = vel_hat.field_2d(0, kx).no_hat()
+                    energy_kx.append(vel_2d_kx.energy())
+
+                for kz in range((len(kzs) - 1) // 2):
+                    vel_2d_kz = vel_hat.field_2d(2, kz).no_hat()
+                    energy_kz.append(vel_2d_kz.energy())
+
+                ax_kx.plot(energy_kx, "ko")
+                ax_kz.plot(energy_kz, "ko")
+
+                fig_kx.savefig(
+                    "plots/plot_energy_spectrum_kx_t_" + "{:06}".format(i) + ".png",
+                    bbox_inches="tight",
+                )
+                fig_kz.savefig(
+                    "plots/plot_energy_spectrum_kz_t_" + "{:06}".format(i) + ".png",
+                    bbox_inches="tight",
+                )
 
 
 def post_process_pub(

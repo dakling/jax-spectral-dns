@@ -59,6 +59,12 @@ from jax_spectral_dns.navier_stokes_perturbation import (
     NavierStokesVelVortPerturbation,
     solve_navier_stokes_perturbation,
 )
+from jax_spectral_dns.navier_stokes_perturbation_instationary import (
+    NavierStokesVelVortPerturbationInstationary,
+)
+from jax_spectral_dns.navier_stokes_perturbation_instationary_dual import (
+    NavierStokesVelVortPerturbationInstationaryDual,
+)
 from jax_spectral_dns.linear_stability_calculation import (
     LinearStabilityCalculation,
 )
@@ -3677,6 +3683,197 @@ def run_optimisation_farano_2015(**params: Any) -> None:
         max_step_size=max_step_size,
         min_step_size=min_step_size,
         post_process_function=post_process,
+        start_iteration=start_iteration,
+    )
+    optimiser.optimise()
+
+
+def run_transition_instationary(**params: Any) -> None:
+    Re = params.get("Re", 50.0)
+    Nx = params.get("Nx", 1)
+    Ny = params.get("Ny", 1)
+    Nz = params.get("Nz", 1)
+    Lx_over_pi = params.get("Lx_over_pi", 2.0)
+    Lz_over_pi = params.get("Lz_over_pi", 1.0)
+    number_of_steps = params.get("number_of_steps", -1)
+    aliasing = 3 / 2
+    e_0_over_E_0 = params.get("e_0", 1.0e-1)
+    max_cfl = params.get("max_cfl", 0.7)
+    end_time = params.get("end_time", 0.35)
+    start_iteration = params.get("start_iteration", 0)
+    linearise = params.get("linearise")  # whether to linearise the equations
+
+    optimisation_mode = params.get("optimisation_mode", "gain")
+
+    init_file = params.get("init_file")
+    alpha = params.get("alpha", 1.0)
+    beta = params.get("beta", 2.0)
+
+    initial_step_size = params.get("initial_step_size", 1.0e-1)
+    min_step_size = params.get("min_step_size", 1.0e-4)
+    max_step_size = params.get("max_step_size", 9.0e-1)
+
+    initial_condition_localisation = params.get("initial_condition_localisation", 0.0)
+
+    use_linesearch = params.get("use_linesearch", False)
+    linesearch_increase_interval = params.get("linesearch_increase_interval", 3)
+
+    if start_iteration == 0:
+        Equation.initialize()
+
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
+        aliasing=aliasing,
+        dealias_nonperiodic=False,
+    )
+    E_0 = 1.0
+    e_0 = e_0_over_E_0 * E_0
+
+    if init_file is None:
+        number_of_modes = params.get("number_of_modes", 60)
+        n = 64
+        lsc_domain = PhysicalDomain.create(
+            (2, n, 2),
+            (True, False, True),
+            scale_factors=domain.scale_factors,
+            aliasing=1,
+        )
+        vel_base_y_slice = lsc_domain.grid[1]
+        if params.get("linear_study_only", False):
+            for alpha in range(10):
+                for beta in range(20):
+                    lsc_xz = LinearStabilityCalculation(
+                        Re=Re,
+                        alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
+                        beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
+                        n=n,
+                        U_base=vel_base_y_slice,
+                    )
+
+                    T = end_time
+                    Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
+                    v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
+                        domain,
+                        end_time,
+                        number_of_modes,
+                        recompute_full=True,
+                        save_final=False,
+                        Ts=Ts,
+                    )
+            raise Exception("break")
+        else:
+            lsc_xz = LinearStabilityCalculation(
+                Re=Re,
+                alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
+                beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
+                n=n,
+                U_base=vel_base_y_slice,
+            )
+
+            v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
+                domain,
+                end_time,
+                number_of_modes,
+                recompute_full=True,
+                save_final=False,
+            )
+        print_verb(
+            "expected gain (stationary case):",
+            lsc_xz.calculate_transient_growth_max_energy(end_time, number_of_modes),
+        )
+        # gaussian_filter_field = PhysicalField.FromFunc(
+        #     domain,
+        #     lambda X: jnp.exp(
+        #         -initial_condition_localisation
+        #         * (
+        #             (X[0] / domain.scale_factors[0] - 0.5) ** 2
+        #             + (X[2] / domain.scale_factors[2] - 0.5) ** 2
+        #         )
+        #     )
+        #     + 0.0 * X[2],
+        # )
+        # vort_0_hat = (v0_0.curl()[1] * gaussian_filter_field).hat()
+        # v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
+        # v0_00 = (v0_0[0] * gaussian_filter_field).hat()[0, :, 0]
+        # v2_00 = (v0_0[2] * gaussian_filter_field).hat()[0, :, 0]
+        # v1_0 = v1_0_hat.no_hat()
+        # v1_0.set_name("initial_guess_pre")
+        # vort_0 = vort_0_hat.no_hat()
+        # vort_0.set_name("initial_guess_pre_vort")
+        # v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
+        #     domain,
+        #     vort_0_hat.get_data(),
+        #     v1_0_hat.get_data(),
+        #     v0_00,
+        #     v2_00,
+        #     two_d=False,
+        # )
+        # v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
+        v0_0.normalize_by_energy()
+        v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
+        v0_0.set_time_step(-1)
+        v0_0.set_name("vel_0_initial_guess")
+        vel_shape = v0_0[0].get_data().shape
+        max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
+        x_max = max_inds[0] / Nx * domain.grid[0][-1]
+        z_max = max_inds[2] / Nz * domain.grid[2][-1]
+        # v0_0.plot_3d(0, x_max)
+        # v0_0.plot_3d(2, z_max, rotate=True)
+        # v1_0.plot_3d(0, x_max)
+        # v1_0.plot_3d(2, z_max, rotate=True)
+        # vort_0.plot_3d(0, x_max)
+        # vort_0.plot_3d(2, z_max, rotate=True)
+        vel_hat: VectorField[FourierField] = v0_0.hat()
+        vel_hat.set_name("velocity_hat")
+    if init_file is None:
+        v0_hat = vel_hat
+    else:
+        v0 = VectorField.FromFile(domain, init_file, "velocity")
+        v0 = v0.normalize_by_energy()
+        v0 *= jnp.sqrt(e_0)
+        v0_hat = v0.hat()
+    v0_hat.set_name("velocity_hat")
+    vel_base_stat = VectorField(
+        [
+            PhysicalField.FromFunc(domain, lambda X: X[1] + 0.0 * X[2]),
+            PhysicalField.Zeros(domain),
+            PhysicalField.Zeros(domain),
+        ]
+    )
+    v_total = v0_hat.no_hat() + vel_base_stat
+    dt = Equation.find_suitable_dt(
+        domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time
+    )
+    nse = NavierStokesVelVortPerturbationInstationary(
+        v0_hat,
+        Re_tau=Re,
+        dt=dt,
+        end_time=end_time,
+        linearise=linearise,
+    )
+    # nse.set_post_process_fn(post_process)
+    nse_dual = NavierStokesVelVortPerturbationInstationaryDual.FromNavierStokesVelVortPerturbation(
+        nse
+    )
+    n = 10000
+    for i in range(n):
+        try:
+            vel_base = nse.vel_base_fn(i).no_hat()
+            vel_base.set_name("velocity_base")
+            vel_base.set_time_step(i)
+            vel_base[0].plot_center(1)
+        except Exception:
+            print(n)
+            break
+    optimiser = ConjugateGradientDescentSolver(
+        nse_dual,
+        max_iterations=number_of_steps,
+        step_size=initial_step_size,
+        max_step_size=max_step_size,
+        min_step_size=min_step_size,
+        # post_process_function=post_process,
         start_iteration=start_iteration,
     )
     optimiser.optimise()
