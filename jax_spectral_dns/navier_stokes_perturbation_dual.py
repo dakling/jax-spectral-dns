@@ -670,7 +670,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     #     return vel_new_hat_field, dPdx
 
-    @partial(jax.jit, static_argnums=(0))
+    # @partial(jax.jit, static_argnums=(0))
     def solve_scan(
         self,
     ) -> Tuple["jnp_array", "List[jsd_float]", int]:

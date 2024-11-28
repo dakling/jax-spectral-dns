@@ -1797,17 +1797,17 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_, dPdx_
 
-    def __hash__(self):
-        return len(self.get_fields("velocity_hat"))
+    # def __hash__(self):
+    #     return len(self.get_fields("velocity_hat"))
 
-    def __eq__(self, other):
+    # def __eq__(self, other):
 
-        return isinstance(other, Equation) and (
-            self.get_initial_field("velocity_hat").no_hat().energy()
-            == other.get_initial_field("velocity_hat").no_hat().energy()
-        )
+    #     return isinstance(other, Equation) and (
+    #         self.get_initial_field("velocity_hat").no_hat().energy()
+    #         == other.get_initial_field("velocity_hat").no_hat().energy()
+    #     )
 
-    @partial(jax.jit, static_argnums=(0))
+    # @partial(jax.jit, static_argnums=(0))
     def solve_scan(
         self,
     ) -> Tuple["jnp_array", "List[jsd_float]", int]:
