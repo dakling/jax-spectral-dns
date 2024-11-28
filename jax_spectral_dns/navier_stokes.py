@@ -1798,13 +1798,13 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_, dPdx_
 
     def __hash__(self):
-        return hash((self.get_initial_field("velocity_hat").get_data()))
+        return self.get_initial_field("velocity_hat").no_hat().energy()
 
     def __eq__(self, other):
 
         return isinstance(other, Equation) and (
-            self.get_initial_field("velocity_hat").get_data(),
-        ) == (other.get_initial_field("velocity_hat").get_data(),)
+            self.get_initial_field("velocity_hat").no_hat().energy(),
+        ) == (other.get_initial_field("velocity_hat").no_hat().energy(),)
 
     @partial(jax.jit, static_argnums=(0))
     def solve_scan(
