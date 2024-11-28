@@ -289,6 +289,7 @@ class NavierStokesEDAC(Equation):
         # return self.perform_explicit_euler_step(U, i)
         return self.perform_rk_step(U, i)
 
+    @partial(jax.jit, static_argnums=(0))
     def solve_scan(self) -> Tuple[Union["jnp_array", VectorField[PhysicalField]], int]:
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True)

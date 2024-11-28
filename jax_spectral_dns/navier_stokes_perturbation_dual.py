@@ -670,13 +670,21 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
     #     return vel_new_hat_field, dPdx
 
+    @partial(jax.jit, static_argnums=(0))
     def solve_scan(
         self,
     ) -> Tuple[Union["jnp_array", VectorField[FourierField]], List["jsd_float"], int]:
         jax.clear_caches()  # type: ignore
         gc.collect()
         if not self.checkpointing:
-            return super().solve_scan()
+            return cast(
+                Tuple[
+                    Union["jnp_array", VectorField[FourierField]],
+                    List["jsd_float"],
+                    int,
+                ],
+                super().solve_scan(),
+            )
         else:
             nse = self.forward_equation
             self.number_of_time_steps = nse.number_of_time_steps

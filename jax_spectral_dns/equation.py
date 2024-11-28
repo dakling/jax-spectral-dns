@@ -41,7 +41,7 @@ except ModuleNotFoundError:
 
 
 from jax_spectral_dns.domain import Domain, PhysicalDomain
-from jax_spectral_dns.field import Field, FourierField, PhysicalField
+from jax_spectral_dns.field import Field, FourierField, PhysicalField, VectorField
 from jax_spectral_dns.fixed_parameters import FixedParameters
 
 if TYPE_CHECKING:
@@ -172,6 +172,9 @@ class Equation:
 
     def get_domain(self) -> Domain:
         return self.fixed_parameters.domain
+
+    def get_physical_domain(self) -> PhysicalDomain:
+        raise NotImplementedError
 
     def get_field(self, name: str, index: int) -> "AnyField":
         try:
@@ -349,6 +352,18 @@ class Equation:
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
             trajectory, _, number_of_time_steps = self.solve_scan()
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.get_physical_domain(),
+                        trajectory[0][-1][i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            velocity_final.set_time_step(len(trajectory) - 1)
+            self.append_field("velocity_hat", velocity_final, in_place=False)
 
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 try:
