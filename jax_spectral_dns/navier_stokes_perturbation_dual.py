@@ -757,6 +757,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     (u0, cast("jsd_float", dPdx), 0),
                     xs=None,
                     length=self.number_of_outer_steps,
+                    unroll=True,
                 )
                 for u in trajectory[0]:
                     velocity = VectorField(
@@ -782,6 +783,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     (u0, cast("jsd_float", dPdx), 0),
                     xs=None,
                     length=self.number_of_outer_steps,
+                    unroll=True,
                 )
                 velocity_final = VectorField(
                     [
@@ -803,6 +805,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     (u0, cast("jsd_float", dPdx), 0),
                     xs=None,
                     length=self.number_of_outer_steps,
+                    unroll=True,
                 )
                 velocity_final = VectorField(
                     [
