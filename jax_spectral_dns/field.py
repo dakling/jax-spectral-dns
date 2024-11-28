@@ -2867,8 +2867,11 @@ class FourierField(Field):
         #     (Nx, Ny, 20), domain.periodic_directions, domain.scale_factors
         # )
 
+        # max_inds = np.unravel_index(
+        #     vel_x_0.get_data().argmax(axis=None), vel_x_0.get_data().shape
+        # )
         max_inds = np.unravel_index(
-            vel_x_0.get_data().argmax(axis=None), vel_x_0.get_data().shape
+            (vel_x_0.get_data() ** 2).argmax(axis=None), vel_x_0.get_data().shape
         )
         # x_max = max_inds[0] / Nx * vel_x_0.physical_domain.grid[0][-1]
         # z_max = max_inds[2] / Nz * vel_x_0.physical_domain.grid[2][-1]
@@ -2878,8 +2881,13 @@ class FourierField(Field):
         lambda_y = 1 - abs(vel_x_0.physical_domain.grid[1][max_inds[1]])
         # print("max_inds", max_inds)
         # print("lambda_y:", lambda_y)
+        # max_inds_hat = np.unravel_index(
+        #     abs(vel_x_0_hat.get_data()[:, :, 1:]).argmax(axis=None),
+        #     vel_x_0_hat.get_data()[:, :, 1:].shape,
+        # )
+        v = (vel_x_0**2).hat()
         max_inds_hat = np.unravel_index(
-            abs(vel_x_0_hat.get_data()[:, :, 1:]).argmax(axis=None),
+            v.get_data()[:, :, 1:].argmax(axis=None),
             vel_x_0_hat.get_data()[:, :, 1:].shape,
         )
         lambda_z = abs(

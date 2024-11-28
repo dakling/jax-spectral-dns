@@ -121,7 +121,10 @@ def post_process(
         amplitudes_2d_vilda = []
         lambda_y_s = []
         lambda_z_s = []
-        E_0 = get_vel_field_minimal_channel(domain).energy()
+        try:
+            E_0 = get_vel_field_minimal_channel(domain).energy()
+        except FileNotFoundError:
+            E_0 = 1.0
         # prod = []
         # diss = []
         print("preparing")
@@ -255,7 +258,10 @@ def post_process(
         fig_lambdas.tight_layout()
         fig_lambdas.savefig("plots/plot_lambdas" + ".png", bbox_inches="tight")
 
-        vel_base = get_vel_field_minimal_channel(domain)
+        try:
+            vel_base = get_vel_field_minimal_channel(domain)
+        except FileNotFoundError:
+            vel_base = vel_ * 0.0
 
         print("main post-processing loop")
         for i in range(n_steps):
@@ -580,29 +586,47 @@ def post_process(
             if True:
                 fig_kx = figure.Figure()
                 ax_kx = fig_kx.subplots(1, 1)
+                ax_kx_2 = ax_kx.twinx()
                 fig_kz = figure.Figure()
                 ax_kz = fig_kz.subplots(1, 1)
+                ax_kz_2 = ax_kz.twinx()
                 ax_kx.set_xscale("log")
                 ax_kz.set_xscale("log")
+                ax_kx_2.set_xscale("log")
+                ax_kz_2.set_xscale("log")
                 ax_kx.set_xlabel("$k_x$")
                 ax_kz.set_xlabel("$k_z$")
                 ax_kx.set_ylabel("$E$")
                 ax_kz.set_ylabel("$E$")
+                ax_kx_2.set_ylabel("$A$")
+                ax_kz_2.set_ylabel("$A$")
                 kxs = vel_hat.get_fourier_domain().grid[0]
                 kzs = vel_hat.get_fourier_domain().grid[2]
                 energy_kx = []
                 energy_kz = []
+                energy_x_kx = []
+                energy_x_kz = []
+                amp_kx = []
+                amp_kz = []
 
                 for kx in range((len(kxs) - 1) // 2):
                     vel_2d_kx = vel_hat.field_2d(0, kx).no_hat()
                     energy_kx.append(vel_2d_kx.energy())
+                    energy_x_kx.append(vel_2d_kx[0].energy())
+                    amp_kx.append(vel_2d_kx[0].max() - vel_2d_kx[0].min())
 
                 for kz in range((len(kzs) - 1) // 2):
                     vel_2d_kz = vel_hat.field_2d(2, kz).no_hat()
                     energy_kz.append(vel_2d_kz.energy())
+                    energy_x_kz.append(vel_2d_kz[0].energy())
+                    amp_kz.append(vel_2d_kz[0].max() - vel_2d_kz[0].min())
 
                 ax_kx.plot(energy_kx, "ko")
                 ax_kz.plot(energy_kz, "ko")
+                ax_kx.plot(energy_x_kx, "bo")
+                ax_kz.plot(energy_x_kz, "bo")
+                ax_kx_2.plot(amp_kx, "ro")
+                ax_kz_2.plot(amp_kz, "ro")
 
                 fig_kx.savefig(
                     "plots/plot_energy_spectrum_kx_t_" + "{:06}".format(i) + ".png",
