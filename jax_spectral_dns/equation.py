@@ -356,7 +356,7 @@ class Equation:
                 [
                     FourierField(
                         self.get_physical_domain(),
-                        trajectory[0][-1][i],
+                        trajectory[-1][i],
                         name="velocity_hat_" + "xyz"[i],
                     )
                     for i in self.all_dimensions()

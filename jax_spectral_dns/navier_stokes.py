@@ -1800,7 +1800,7 @@ class NavierStokesVelVort(Equation):
     @partial(jax.jit, static_argnums=(0))
     def solve_scan(
         self,
-    ) -> Tuple[Union["jnp_array", VectorField[FourierField]], "List[jsd_float]", int]:
+    ) -> Tuple["jnp_array", "List[jsd_float]", int]:
         cfl_initial = self.get_cfl()
         print_verb("initial cfl:", cfl_initial, debug=True, verbosity_level=2)
 
@@ -1938,21 +1938,22 @@ class NavierStokesVelVort(Equation):
             u_final, _ = jax.lax.scan(
                 step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
-            velocity_final = VectorField(
-                [
-                    FourierField(
-                        self.get_physical_domain(),
-                        u_final[0][i],
-                        name="velocity_hat_" + "xyz"[i],
-                    )
-                    for i in self.all_dimensions()
-                ]
-            )
-            velocity_final.set_time_step(start_step + number_of_outer_steps)
-            # self.append_field("velocity_hat", velocity_final, in_place=False)
+            # velocity_final = VectorField(
+            #     [
+            #         FourierField(
+            #             self.get_physical_domain(),
+            #             u_final[0][i],
+            #             name="velocity_hat_" + "xyz"[i],
+            #         )
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
+            # velocity_final.set_time_step(start_step + number_of_outer_steps)
+            # # self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-            return (velocity_final, [u_final[1]], len(ts))
+            # return (velocity_final, [u_final[1]], len(ts))
+            return (u_final[0], [u_final[1]], len(ts))
 
     def post_process(self: E) -> None:
         if type(self.post_process_fn) != NoneType:

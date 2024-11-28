@@ -673,18 +673,19 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
     @partial(jax.jit, static_argnums=(0))
     def solve_scan(
         self,
-    ) -> Tuple[Union["jnp_array", VectorField[FourierField]], List["jsd_float"], int]:
+    ) -> Tuple["jnp_array", "List[jsd_float]", int]:
         jax.clear_caches()  # type: ignore
         gc.collect()
         if not self.checkpointing:
-            return cast(
-                Tuple[
-                    Union["jnp_array", VectorField[FourierField]],
-                    List["jsd_float"],
-                    int,
-                ],
-                super().solve_scan(),
-            )
+            return super().solve_scan()
+            # return cast(
+            #     Tuple[
+            #         Union["jnp_array", VectorField[FourierField]],
+            #         List["jsd_float"],
+            #         int,
+            #     ],
+            #     super().solve_scan(),
+            # )
         else:
             nse = self.forward_equation
             self.number_of_time_steps = nse.number_of_time_steps
@@ -841,6 +842,18 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if not self.is_forward_calculation_done():
             start_time = time.time()
             velocity_u_hat_history_, dPdx_history, _ = nse.solve_scan()
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.get_physical_domain(),
+                        velocity_u_hat_history_[-1][i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            velocity_final.set_time_step(len(velocity_u_hat_history_) - 1)
+            nse.append_field("velocity_hat", velocity_final, in_place=False)
             iteration_duration = time.time() - start_time
             if (
                 os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None
@@ -973,6 +986,18 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         self.dPdx_fwd = dPdx
         nse.end_time = -1 * self.get_dt() * self.number_of_inner_steps
         velocity_u_hat_history, current_dPdx_history, _ = nse.solve_scan()
+        velocity_final = VectorField(
+            [
+                FourierField(
+                    self.get_physical_domain(),
+                    velocity_u_hat_history[-1][i],
+                    name="velocity_hat_" + "xyz"[i],
+                )
+                for i in self.all_dimensions()
+            ]
+        )
+        velocity_final.set_time_step(len(velocity_u_hat_history) - 1)
+        nse.append_field("velocity_hat", velocity_final, in_place=False)
         current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history)
         jax.clear_caches()  # type: ignore
         gc.collect()
