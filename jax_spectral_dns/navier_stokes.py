@@ -1798,7 +1798,7 @@ class NavierStokesVelVort(Equation):
         return vel_hat_data_new_, dPdx_
 
     def __hash__(self):
-        return self.get_initial_field("velocity_hat").no_hat().energy()
+        return len(self.get_fields("velocity_hat"))
 
     def __eq__(self, other):
 
