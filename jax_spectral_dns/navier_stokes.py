@@ -1803,8 +1803,9 @@ class NavierStokesVelVort(Equation):
     def __eq__(self, other):
 
         return isinstance(other, Equation) and (
-            self.get_initial_field("velocity_hat").no_hat().energy(),
-        ) == (other.get_initial_field("velocity_hat").no_hat().energy(),)
+            self.get_initial_field("velocity_hat").no_hat().energy()
+            == other.get_initial_field("velocity_hat").no_hat().energy()
+        )
 
     @partial(jax.jit, static_argnums=(0))
     def solve_scan(
