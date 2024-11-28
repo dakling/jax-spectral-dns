@@ -1797,6 +1797,7 @@ class NavierStokesVelVort(Equation):
             self.append_field("velocity_hat", vel_hat_new)
         return vel_hat_data_new_, dPdx_
 
+    @partial(jax.jit, static_argnums=(0))
     def solve_scan(
         self,
     ) -> Tuple[Union["jnp_array", VectorField[FourierField]], "List[jsd_float]", int]:

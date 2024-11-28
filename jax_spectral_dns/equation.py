@@ -330,6 +330,7 @@ class Equation:
         # for _, field in self.fields.items():
         #     field[-1].time_step = self.time_step
 
+    @partial(jax.jit, static_argnums=(0))
     def solve_scan(self) -> Any:
         raise NotImplementedError()
 
