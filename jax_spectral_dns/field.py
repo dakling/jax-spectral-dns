@@ -2884,7 +2884,7 @@ class FourierField(Field):
         # )
         v = (vel_x_0**2).hat()
         max_inds_hat = np.unravel_index(
-            v.get_data()[:, :, 1:].argmax(axis=None),
+            abs(v.get_data()[:, :, 1:]).argmax(axis=None),
             vel_x_0_hat.get_data()[:, :, 1:].shape,
         )
 
