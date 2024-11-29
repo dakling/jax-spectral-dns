@@ -320,7 +320,6 @@ def post_process_averages() -> None:
                 vel_pert_3d = vel_pert - vel_pert_00
                 print("perturbation energy:", vel_pert.energy())
                 print("perturbation energy (no spatial mean):", vel_pert_3d.energy())
-                lambda_y, lambda_z = vel_pert.hat()[0].get_streak_scales()
                 Re_tau = 180  # TODO watch out for hardcoded Re
                 vel_pert.set_time_step(i)
                 vel_pert[0].plot_3d(0)
@@ -329,7 +328,8 @@ def post_process_averages() -> None:
                 vel_pert_kx.set_time_step(i)
                 vel_pert_kx.set_name("velocity_pert_kx")
                 vel_pert_kx[0].plot_3d(0)
-                vel_pert_kx[0].save_to_file("velocity_pert_kx_" + i)
+                vel_pert_kx[0].save_to_file("velocity_pert_kx_" + str(i))
+                lambda_y, lambda_z = vel_pert.hat()[0].get_streak_scales()
                 print("lambda_y:", lambda_y)
                 print("lambda_y+:", lambda_y * Re_tau)
                 print("lambda_z:", lambda_z)

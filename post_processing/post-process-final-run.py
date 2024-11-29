@@ -258,6 +258,39 @@ def post_process(
         fig_lambdas.tight_layout()
         fig_lambdas.savefig("plots/plot_lambdas" + ".png", bbox_inches="tight")
 
+        fig_lambda_z = figure.Figure()
+        ax_lambda_z = fig_lambda_z.subplots(1, 1)
+        ax_lambda_z.plot(
+            ts, Re_tau * np.array(lambda_z_s), "bo", label="$\\lambda_z^+$"
+        )
+        ax_lambda_z.plot(
+            ts, [100.0 for _ in ts], "k-", label="$\\lambda_z^+_\\text{mean}$"
+        )
+        ax_lambda_z.plot(
+            ts,
+            [60.0 for _ in ts],
+            "k--",
+            label="$\\lambda_z^+_\\text{mean} - \\lambda_z^+_\\text{std}$",
+        )
+        ax_lambda_z.plot(
+            ts,
+            [140.0 for _ in ts],
+            "k--",
+            label="$\\lambda_z^+_\\text{mean} + \\lambda_z^+_\\text{std}$",
+        )
+        ax_lambda_z.axvline(x=0.1, linestyle="--", color="k")
+        ax_lambda_z.axvline(x=0.7, linestyle="--", color="k")
+        ax_lambda_z.set_xlabel("$t$")
+        ax_lambda_z.set_ylim(bottom=0)
+        # fig_lambda_z.legend()
+        fig_lambda_z.tight_layout()
+        fig_lambda_z.savefig("plots/plot_lambda_z" + ".png", bbox_inches="tight")
+
+        lambda_arr = np.vstack(
+            [np.array(ts), np.array(lambda_y_s), np.array(lambda_z_s)]
+        )
+        np.savetxt("plots/lambdas.txt", lambda_arr.T)
+
         try:
             vel_base = get_vel_field_minimal_channel(domain)
         except FileNotFoundError:
