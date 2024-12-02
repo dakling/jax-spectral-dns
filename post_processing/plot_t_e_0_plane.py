@@ -103,6 +103,13 @@ class Case:
         cases.sort(key=lambda x: x.e_0)
         return cases
 
+    def get_lambdas_over_t(self) -> Optional[Tuple["np_float_array", "np_float_array"]]:
+        lambda_file = self.STORE_DIR_BASE + self.directory + "/plots/lambdas.txt"
+        lambdas = np.loadtxt(lambda_file).T
+        ts = lambdas[0, :]
+        lambda_z = lambdas[2, :]
+        return (ts, lambda_z)
+
     def get_domain(self) -> "PhysicalDomain":
         Nx = cast(int, self.get_property_from_settings("Nx", 48))
         Ny = cast(int, self.get_property_from_settings("Ny", 129))
@@ -385,7 +392,7 @@ def plot(dirs_and_names: List[str]) -> None:
     ax.set_xlabel("$T h  / u_\\tau$")
     ax.set_ylabel("$e_0/E_0$")
     ax.set_yscale("log")
-    ax.set_xlim(left=0.0)
+    ax.set_xlim(left=0.0, right=3.0)
     e_0_lam_boundary = []
     e_0_nl_lower_glob_boundary = []
     e_0_nl_upper_glob_boundary = []

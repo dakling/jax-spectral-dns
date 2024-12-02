@@ -323,7 +323,7 @@ def post_process_averages() -> None:
                 Re_tau = 180  # TODO watch out for hardcoded Re
                 vel_pert.set_time_step(i)
                 vel_pert[0].plot_3d(0)
-                vel_pert[0].save_to_file("velocity_pert_" + i)
+                vel_pert[0].save_to_file("velocity_pert_" + str(i))
                 vel_pert_kx = vel_pert.hat().field_2d(0).no_hat()
                 vel_pert_kx.set_time_step(i)
                 vel_pert_kx.set_name("velocity_pert_kx")
