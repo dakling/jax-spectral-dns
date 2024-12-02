@@ -2882,7 +2882,7 @@ class FourierField(Field):
         #     abs(vel_x_0_hat.get_data()[:, :, 1:]).argmax(axis=None),
         #     vel_x_0_hat.get_data()[:, :, 1:].shape,
         # )
-        v = (vel_x_0**2).hat()
+        v = vel_x_0_hat
         max_inds_hat = np.unravel_index(
             abs(v.get_data()[:, :, 1:]).argmax(axis=None),
             vel_x_0_hat.get_data()[:, :, 1:].shape,
@@ -2891,6 +2891,16 @@ class FourierField(Field):
         lambda_z = abs(
             2 * np.pi / vel_x_0_hat.fourier_domain.grid[2][max_inds_hat[2] + 1]
         )
+        # slice_field_data = vel_x_0[0, max_inds[1], :]
+        # slice_field_data_sq = (vel_x_0**2)[0, max_inds[1], :]
+        # slice_grid_data = self.get_physical_domain().grid[2]
+        # fig = figure.Figure()
+        # ax = fig.subplots(1, 1)
+        # ax.plot(slice_grid_data, slice_field_data)
+        # ax.plot(slice_grid_data, slice_field_data_sq)
+        # fig.savefig(self.plotting_dir + "/plot_" + str(self.get_time_step()) + ".png")
+        # self.plot_3d(0, coord=x_max)
+
         return (cast("float", lambda_y), cast("float", lambda_z))
 
     def plot_3d(
