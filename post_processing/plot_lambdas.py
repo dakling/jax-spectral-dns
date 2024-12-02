@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 
+from matplotlib import pyplot as plt
 from matplotlib import figure
 from plot_t_e_0_plane import Case, dirs_and_names
+
+
+plt.rc("text.latex", preamble="\\usepackage{amsmath} \n \\usepackage{siunitx}")
 
 
 def make_plot(dirs):
@@ -13,8 +17,11 @@ def make_plot(dirs):
         case = Case(dir)
         ts, lambda_z = case.get_lambdas_over_t()
         lambda_z_plus = lambda_z * Re_tau
-        label = "$T = " + str(case.T) + ", e_0 = " + str(float(case.e_0)) + "$"
-        ax.plot(ts, lambda_z_plus, "o", label=label)
+        # label = "$T = " + str(case.T) + ", e_0/E_0 = " + str(float(case.e_0)) + "$"
+        label = "$T={:.2f} h / u_\\tau, e_0/E_0 = \\num{{{:.1g}}}$".format(
+            case.T, case.e_0
+        )
+        ax.plot(ts, lambda_z_plus, ".", label=label)
 
     assert ts is not None
     ax.plot(
@@ -47,9 +54,10 @@ def make_plot(dirs):
 
 
 dirs = [
-    "smaller_channel_one_pt_five_t_e_0_study/3eminus5",
+    "smaller_channel_one_pt_five_t_0_e_0_study/3eminus5",
     "smaller_channel_two_t_e_0_study/3eminus5",
     "smaller_channel_two_t_e_0_study/1eminus4_sweep_down",
+    "smaller_channel_two_t_e_0_study/1eminus4",
     "smaller_channel_four_t_e_0_study/3eminus5",
     "smaller_channel_four_t_e_0_study/1eminus4",
     "smaller_channel_six_t_e_0_study/1eminus4",
