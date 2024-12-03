@@ -432,6 +432,10 @@ def plot(dirs_and_names: List[str]) -> None:
             )
 
     # plot isosurfaces of gain
+
+    prepend_e_0 = list(set([c.e_0 for c in all_cases]))
+    prepend_ts = [0.0 for _ in prepend_e_0]
+    prepend_gains = [1.0 for _ in prepend_e_0]
     try:
         tcf = ax.tricontourf(
             np.array([c.T for c in all_cases]),
@@ -445,13 +449,13 @@ def plot(dirs_and_names: List[str]) -> None:
         print("plotting with gouraud failed:")
         print(e)
         tcf = ax.tricontourf(
-            np.array([c.T for c in all_cases]),
-            np.array([c.e_0 for c in all_cases]),
-            np.array([c.gain for c in all_cases]),
+            np.array(prepend_ts + [c.T for c in all_cases]),
+            np.array(prepend_e_0 + [c.e_0 for c in all_cases]),
+            np.array(prepend_gains + [c.gain for c in all_cases]),
             20,
             locator=matplotlib.ticker.LogLocator(1.01),
         )
-    fig.colorbar(tcf)
+    fig.colorbar(tcf, format=matplotlib.ticker.LogFormatter(10, labelOnlyBase=False))
     handles, labels = ax.get_legend_handles_labels()
     unique = [
         (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
