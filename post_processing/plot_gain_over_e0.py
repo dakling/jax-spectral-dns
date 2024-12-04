@@ -30,6 +30,7 @@ def plot_single(
     try:
         print_verb("collecting cases in", base_path)
         cases = Case.collect(base_path)
+        cases = Case.sort_by_e_0(cases)
         cases = Case.prune_times(cases)
         print_verb(
             "collected cases:",

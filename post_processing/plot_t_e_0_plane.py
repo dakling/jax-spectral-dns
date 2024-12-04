@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import time
+from types import NoneType
 import jax
 
 from jax_spectral_dns.equation import Equation, print_verb
@@ -54,6 +55,7 @@ class Case:
         self.T = self.get_T()
         self.e_0 = self.get_e0()
         self.gain = self.get_gain()
+        self.vel_base_max = None
         self.successfully_read = (
             self.T is not None and self.e_0 is not None and self.gain is not None
         )
@@ -98,9 +100,48 @@ class Case:
         except Exception:
             return None
 
+    def get_base_velocity(self) -> "PhysicalField":
+        base_path = self.STORE_DIR_BASE
+        hist_bin = self.directory[-1:]
+        base_velocity_file_name = (
+            base_path + "/" + self.directory + "/fields/vel_hist_bin_" + hist_bin
+        )
+        try:
+            domain = self.get_domain()
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            vel_base_turb_slice = PhysicalField.FromFile(
+                slice_domain,
+                base_velocity_file_name,
+                "hist_bin_" + hist_bin + "_x",
+                time_step=0,
+            )
+            return vel_base_turb_slice
+        except Exception as e:
+            raise e
+
+    def get_base_velocity_max(self) -> "float":
+        if self.vel_base_max is None:
+            self.vel_base_max = self.get_base_velocity().max()
+        return self.vel_base_max
+
     @classmethod
     def sort_by_e_0(cls, cases: "List[Self]") -> "List[Self]":
         cases.sort(key=lambda x: x.e_0)
+        return cases
+
+    @classmethod
+    def sort_by_u_base_max(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.get_base_velocity_max())
+        return cases
+
+    @classmethod
+    def sort_by_dir_name(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.directory)
         return cases
 
     def get_lambdas_over_t(self) -> Optional[Tuple["np_float_array", "np_float_array"]]:
@@ -280,13 +321,15 @@ class Case:
             print(self.vel_0_type)
             raise Exception("unknown velocity classification.")
 
-    def append_to(self, cases: "List[Self]") -> "List[Self]":
+    def append_to(
+        self, cases: "List[Self]", prune_duplicates: bool = True
+    ) -> "List[Self]":
         if self.successfully_read:
             assert self.gain is not None
             Ts = [case.T for case in cases]
             e_0s = [case.e_0 for case in cases]
             gains = [case.gain for case in cases]
-            if (self.T in Ts) and (self.e_0 in e_0s):
+            if prune_duplicates and (self.T in Ts) and (self.e_0 in e_0s):
                 ind = e_0s.index(self.e_0)
                 other_gain = gains[ind]
                 assert other_gain is not None
@@ -303,19 +346,29 @@ class Case:
         return [case for case in cases if abs(case.T - dominant_time) < 1.0e-10]
 
     @classmethod
-    def collect(cls, base_path: str) -> "List[Case]":
+    def collect(
+        cls,
+        base_path: str,
+        prune_duplicates: bool = True,
+        with_linear: bool = True,
+        legal_names: List[str] = [
+            "[0-9]eminus[0-9]",
+            "[0-9]eminus[0-9]_sweep_*",
+            "[0-9]eminus[0-9]_from_*",
+        ],
+    ) -> "List[Case]":
         home_path = Case.HOME_DIR_BASE + "/" + base_path
-        dirs = glob("[0-9]eminus[0-9]", root_dir=home_path)
-        dirs += glob("[0-9]eminus[0-9]_sweep_*", root_dir=home_path)
-        dirs += glob("[0-9]eminus[0-9]_from_*", root_dir=home_path)
+        dirs = glob(legal_names[0], root_dir=home_path)
+        for legal_name in legal_names[1:]:
+            dirs += glob(legal_name, root_dir=home_path)
         cases = []
         for dir in dirs:
             case = Case(base_path + "/" + dir)
+            cases = case.append_to(cases, prune_duplicates)
+        if with_linear:
+            case = Case(base_path + "/" + "linear")
+            case.e_0 = 0.0
             cases = case.append_to(cases)
-        case = Case(base_path + "/" + "linear")
-        case.e_0 = 0.0
-        cases = case.append_to(cases)
-        Case.sort_by_e_0(cases)
         return cases
 
     @classmethod
@@ -436,11 +489,14 @@ def plot(dirs_and_names: List[str]) -> None:
     prepend_e_0 = list(set([c.e_0 for c in all_cases]))
     prepend_ts = [0.0 for _ in prepend_e_0]
     prepend_gains = [1.0 for _ in prepend_e_0]
+    print(prepend_e_0)
+    print(prepend_ts)
+    print(prepend_gains)
     try:
         tcf = ax.tricontourf(
-            np.array([c.T for c in all_cases]),
-            np.array([c.e_0 for c in all_cases]),
-            np.array([c.gain for c in all_cases]),
+            np.array(prepend_ts + [c.T for c in all_cases]),
+            np.array(prepend_e_0 + [c.e_0 for c in all_cases]),
+            np.array(prepend_gains + [c.gain for c in all_cases]),
             20,
             shading="gouraud",
             locator=matplotlib.ticker.LogLocator(1.01),
@@ -455,7 +511,11 @@ def plot(dirs_and_names: List[str]) -> None:
             20,
             locator=matplotlib.ticker.LogLocator(1.01),
         )
-    fig.colorbar(tcf, format=matplotlib.ticker.LogFormatter(10, labelOnlyBase=False))
+    fig.colorbar(
+        tcf,
+        ticks=[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
+        format=matplotlib.ticker.LogFormatter(10, labelOnlyBase=False),
+    )
     handles, labels = ax.get_legend_handles_labels()
     unique = [
         (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]

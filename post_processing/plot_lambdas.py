@@ -80,9 +80,8 @@ dirs = [
 other_dirs = [
     "smaller_channel_two_t_e_0_study/1eminus6",
     "smaller_channel_three_t_e_0_study/1eminus6",
-    # "smaller_channel_four_t_e_0_study/1eminus6",
-    # "smaller_channel_six_t_e_0_study/1eminus6",
-    # "smaller_channel_eight_t_e_0_study/1eminus5",
+    "smaller_channel_four_t_e_0_study/1eminus6",
+    # "smaller_channel_eight_t_e_0_study/1eminus4",
 ]
 
 make_plots(dirs, other_dirs)
