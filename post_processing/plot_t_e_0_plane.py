@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import h5py
 import time
 from types import NoneType
 import jax
@@ -9,11 +10,12 @@ from jax_spectral_dns.equation import Equation, print_verb
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
 from enum import Enum
-from typing import Any, Tuple, Optional, List, Self, cast
+from typing import Any, Tuple, Optional, List, Self, cast, Callable
 import numpy as np
 import numpy.typing as npt
 import yaml
 import os
+import socket
 from glob import glob
 from PIL import Image
 import matplotlib
@@ -22,12 +24,12 @@ import matplotlib.figure as figure
 import matplotlib.patches as mpatches
 
 from jax_spectral_dns.domain import PhysicalDomain
-from jax_spectral_dns.field import VectorField, PhysicalField
+from jax_spectral_dns.field import FourierField, PhysicalField, VectorField
 
 matplotlib.set_loglevel("error")
 matplotlib.use("ps")
 
-plt.rcParams.update(
+matplotlib.rcParams.update(
     {
         "text.usetex": True,
         "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
@@ -38,12 +40,12 @@ plt.rcParams.update(
 class Case:
     STORE_DIR_BASE = (
         "/store/DAMTP/dsk34/"
-        if os.getenv("HOSTNAME") and "maths.cam.ac.uk" in os.getenv("HOSTNAME")
+        if "maths.cam.ac.uk" in socket.gethostname()
         else "/home/klingenberg/mnt/maths_store/"
     )
     HOME_DIR_BASE = (
         "/home/dsk34/jax-optim/run/"
-        if os.getenv("HOSTNAME") and "maths.cam.ac.uk" in os.getenv("HOSTNAME")
+        if "maths.cam.ac.uk" in socket.gethostname()
         else "/home/klingenberg/mnt/maths/jax-optim/run/"
     )
     Vel_0_types = Enum(
@@ -55,7 +57,11 @@ class Case:
         self.T = self.get_T()
         self.e_0 = self.get_e0()
         self.gain = self.get_gain()
+        self.Re_tau = self.get_Re_tau()
+        self.vel_0 = None
         self.vel_base_max = None
+        self.inf_norm = None
+        self.dominant_lambda_z = None
         self.successfully_read = (
             self.T is not None and self.e_0 is not None and self.gain is not None
         )
@@ -83,6 +89,9 @@ class Case:
 
     def get_T(self) -> Optional[float]:
         return self.get_property_from_settings("end_time")
+
+    def get_Re_tau(self) -> Optional[float]:
+        return self.get_property_from_settings("Re_tau")
 
     def get_gain(self) -> Optional[float]:
         base_path = self.STORE_DIR_BASE
@@ -158,34 +167,31 @@ class Case:
         sc_x = cast(float, self.get_property_from_settings("Lx_over_pi", 2.0))
         sc_z = cast(float, self.get_property_from_settings("Lx_over_pi", 2.0))
         domain = PhysicalDomain.create(
-            (Nx, Ny, Nz), (True, False, True), (sc_x, 1.0, sc_z)
+            (Nx, Ny, Nz), (True, False, True), (sc_x * np.pi, 1.0, sc_z * np.pi)
         )
         return domain
 
     def get_vel_0(self) -> "VectorField[PhysicalField]":
-        path = self.STORE_DIR_BASE + "/" + self.directory + "/" + "fields/"
-        file = "velocity_latest"
-        domain = self.get_domain()
-        success = False
-        retries = 0
-        vel_0 = None
-        while not success:
-            try:
-                vel_0 = VectorField.FromFile(
-                    domain, path + file, name="vel_0", allow_projection=True
-                )
-                success = True
-            except Exception:
+        if type(self.vel_0) is NoneType:
+            path = self.STORE_DIR_BASE + "/" + self.directory + "/" + "fields/"
+            file = "velocity_latest"
+            domain = self.get_domain()
+            success = False
+            retries = 0
+            vel_0 = None
+            while not success:
                 try:
                     vel_0 = VectorField.FromFile(
-                        domain, path + file, name="velocity_pert", allow_projection=True
+                        domain, path + file, name="vel_0", allow_projection=True
                     )
                     success = True
                 except Exception:
                     try:
-                        bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
                         vel_0 = VectorField.FromFile(
-                            domain, path + bak_file, name="vel_0", allow_projection=True
+                            domain,
+                            path + file,
+                            name="velocity_pert",
+                            allow_projection=True,
                         )
                         success = True
                     except Exception:
@@ -194,23 +200,84 @@ class Case:
                             vel_0 = VectorField.FromFile(
                                 domain,
                                 path + bak_file,
-                                name="velocity_pert",
+                                name="vel_0",
                                 allow_projection=True,
                             )
                             success = True
-                        except Exception as e:
-                            if retries < 10:
-                                print_verb(
-                                    "issues with opening velocity file for case",
-                                    self,
-                                    "; trying again in 20 seconds.",
+                        except Exception:
+                            try:
+                                bak_file = glob("velocity_latest_bak_*", root_dir=path)[
+                                    0
+                                ]
+                                vel_0 = VectorField.FromFile(
+                                    domain,
+                                    path + bak_file,
+                                    name="velocity_pert",
+                                    allow_projection=True,
                                 )
-                                time.sleep(20)
-                                retries += 1
-                            else:
-                                raise e
-        assert vel_0 is not None
-        return vel_0
+                                success = True
+                            except Exception as e:
+                                if retries < 10:
+                                    print_verb(
+                                        "issues with opening velocity file for case",
+                                        self,
+                                        "; trying again in 20 seconds.",
+                                    )
+                                    time.sleep(20)
+                                    retries += 1
+                                else:
+                                    raise e
+            assert vel_0 is not None
+            self.vel_0 = vel_0
+        return self.vel_0
+
+    def get_velocity_snapshot(
+        self, target_time: float
+    ) -> Optional["VectorField[FourierField]"]:
+        base_path = self.STORE_DIR_BASE
+        velocity_trajectory_file_name = (
+            base_path + "/" + self.directory + "/fields/trajectory"
+        )
+
+        retries = 0
+        while retries < 10:
+            try:
+                with h5py.File(velocity_trajectory_file_name, "r") as f:
+                    velocity_trajectory = f["trajectory"]
+                    domain = self.get_domain()
+                    n_steps = velocity_trajectory.shape[0]
+                    end_time = self.T
+                    index = int(n_steps * target_time / end_time)
+                    vel_hat = VectorField.FromData(
+                        FourierField,
+                        domain,
+                        velocity_trajectory[index],
+                        name="velocity_hat",
+                        allow_projection=True,
+                    )
+                    vel_hat.set_time_step(index)
+                    return vel_hat
+            except Exception:
+                print_verb("unable to open trajectory file for", self.directory)
+                retries += 1
+                time.sleep(20)
+
+    def get_inf_norm(self) -> "float":
+        if self.inf_norm is None:
+            vel_field = self.get_vel_0()
+            self.inf_norm = max(abs(vel_field[0].get_data().flatten()))
+        return self.inf_norm
+
+    def get_dominant_lambda_z(self) -> "float":
+        if self.dominant_lambda_z is None:
+            target_time = 0.3
+            vel_hat = self.get_velocity_snapshot(target_time)
+            if vel_hat is not None:
+                _, lambda_z = vel_hat[0].get_streak_scales()
+                self.dominant_lambda_z = lambda_z * self.Re_tau
+            else:
+                self.dominant_lambda_z = np.nan
+        return self.dominant_lambda_z
 
     def classify_vel_0(self) -> "Vel_0_types":
         if self.vel_0_type is not None:
@@ -304,6 +371,34 @@ class Case:
             print(self)
             print(self.vel_0_type)
             raise Exception("unknown velocity classification.")
+
+    def get_color(self) -> str:
+        e_0_min = 1.0e-6
+        e_0_max = 1.0e-3
+        alpha_min = 0.0
+        alpha_max = 1.0
+        if self.e_0 < e_0_min:
+            out = alpha_min
+        else:
+            out = (np.log(self.e_0) - np.log(e_0_min)) / (
+                np.log(e_0_max) - np.log(e_0_min)
+            ) * (alpha_max - alpha_min) + alpha_min
+        cmap = matplotlib.colormaps["gist_heat"]
+        rgba = cmap(out)
+        return rgba
+
+    def get_alpha(self) -> float:
+        return 1.0
+        e_0_min = 1.0e-6
+        e_0_max = 1.0e-3
+        alpha_min = 0.1
+        alpha_max = 1.0
+        if self.e_0 < e_0_min:
+            return alpha_min
+        else:
+            return (np.log(self.e_0) - np.log(e_0_min)) / (
+                np.log(e_0_max) - np.log(e_0_min)
+            ) * (alpha_max - alpha_min) + alpha_min
 
     def get_classification_name(self) -> str:
         vel_0_type = self.classify_vel_0()
@@ -439,102 +534,143 @@ class Case:
         return None
 
 
-def plot(dirs_and_names: List[str]) -> None:
-    fig = figure.Figure()
-    ax = fig.subplots(1, 1)
-    ax.set_xlabel("$T h  / u_\\tau$")
-    ax.set_ylabel("$e_0/E_0$")
-    ax.set_yscale("log")
-    ax.set_xlim(left=0.0, right=3.0)
-    e_0_lam_boundary = []
-    e_0_nl_lower_glob_boundary = []
-    e_0_nl_upper_glob_boundary = []
-    e_0_nl_lower_loc_boundary = []
-    e_0_nl_upper_loc_boundary = []
-    Ts = []
+def collect(dirs_and_names: Any) -> List["Case"]:
     all_cases = []
-    for base_path, name, _ in dirs_and_names:
+    for base_path, _, _ in dirs_and_names:
         print_verb("collecting cases in", base_path)
-        cases = Case.collect(base_path)
+        cases = Case.collect(base_path, with_linear=False)
         cases = Case.prune_times(cases)  # TODO why is this necessary?
         all_cases += cases
         print_verb(
             "collected cases:",
             "; ".join([case.directory.split("/")[-1] for case in cases]),
         )
-        Ts.append(cases[0].T)
-        # max_i = (
-        #     np.argmax([cast(float, case.gain) for case in cases[1:]]) + 1
-        # )  # TODO exclude truly laminar case?
-        e_0_lam_boundary.append(Case.get_e_0_lam_upper_boundary(cases))
-        e_0_nl_lower_glob_boundary.append(Case.get_e_0_nl_glob_lower_boundary(cases))
-        e_0_nl_upper_glob_boundary.append(Case.get_e_0_nl_glob_upper_boundary(cases))
-        e_0_nl_lower_loc_boundary.append(Case.get_e_0_nl_loc_lower_boundary(cases))
-        e_0_nl_upper_loc_boundary.append(Case.get_e_0_nl_loc_upper_boundary(cases))
-        for i in range(len(cases)):
-            print_verb(cases[i], verbosity_level=3)
-            marker = cases[i].get_marker()
-            name = cases[i].get_classification_name()
-            # color = "r" if i == max_i else "k"
-            color = "k"
-            ax.plot(
-                cast(float, cases[i].T),
-                cast(float, cases[i].e_0),
-                color + marker,
-                label=name,
-            )
+    return all_cases
 
-    # plot isosurfaces of gain
 
-    prepend_e_0 = list(set([c.e_0 for c in all_cases]))
-    prepend_ts = [0.0 for _ in prepend_e_0]
-    prepend_gains = [1.0 for _ in prepend_e_0]
-    print(prepend_e_0)
-    print(prepend_ts)
-    print(prepend_gains)
-    try:
-        tcf = ax.tricontourf(
-            np.array(prepend_ts + [c.T for c in all_cases]),
-            np.array(prepend_e_0 + [c.e_0 for c in all_cases]),
-            np.array(prepend_gains + [c.gain for c in all_cases]),
-            20,
-            shading="gouraud",
-            locator=matplotlib.ticker.LogLocator(1.01),
+def plot(
+    all_cases: List["Case"],
+    target_property: Tuple[str, str, Callable[[Case], float]],
+    include_gain_isoplot: bool = True,
+    log_y_axis: bool = True,
+) -> None:
+    fig = figure.Figure()
+    ax = fig.subplots(1, 1)
+    ax.set_xlabel("$T h  / u_\\tau$")
+    # ax.set_ylabel("$e_0/E_0$")
+    ax.set_ylabel(target_property[1])
+    if log_y_axis:
+        ax.set_yscale("log")
+    ax.set_xlim(left=0.0, right=3.0)
+    # e_0_lam_boundary = []
+    # e_0_nl_lower_glob_boundary = []
+    # e_0_nl_upper_glob_boundary = []
+    # e_0_nl_lower_loc_boundary = []
+    # e_0_nl_upper_loc_boundary = []
+    # Ts = []
+    for case in all_cases:
+        # Ts.append(cases[0].T)
+        # # max_i = (
+        # #     np.argmax([cast(float, case.gain) for case in cases[1:]]) + 1
+        # # )  # TODO exclude truly laminar case?
+        # e_0_lam_boundary.append(Case.get_e_0_lam_upper_boundary(cases))
+        # e_0_nl_lower_glob_boundary.append(Case.get_e_0_nl_glob_lower_boundary(cases))
+        # e_0_nl_upper_glob_boundary.append(Case.get_e_0_nl_glob_upper_boundary(cases))
+        # e_0_nl_lower_loc_boundary.append(Case.get_e_0_nl_loc_lower_boundary(cases))
+        # e_0_nl_upper_loc_boundary.append(Case.get_e_0_nl_loc_upper_boundary(cases))
+        # for i in range(len(cases)):
+        print_verb(case, verbosity_level=3)
+        marker = case.get_marker()
+        name = case.get_classification_name()
+        # color = "r" if i == max_i else "k"
+        color = case.get_color()
+        alpha = case.get_alpha()
+        ax.plot(
+            cast(float, case.T),
+            cast(float, target_property[2](case)),
+            marker,
+            color=color,
+            alpha=alpha,
+            label=name,
         )
-    except Exception as e:
-        print("plotting with gouraud failed:")
-        print(e)
-        tcf = ax.tricontourf(
-            np.array(prepend_ts + [c.T for c in all_cases]),
-            np.array(prepend_e_0 + [c.e_0 for c in all_cases]),
-            np.array(prepend_gains + [c.gain for c in all_cases]),
-            20,
-            locator=matplotlib.ticker.LogLocator(1.01),
+
+    if target_property[0] == "dominant_lambda_z":
+        ax.set_ylim(bottom=0.0)
+        ts = list(set([0.0] + [case.T for case in all_cases]))
+        ax.plot(ts, [100.0 for _ in ts], "k-", label="$\\lambda^+_{z_\\text{mean}}$")
+        ax.plot(
+            ts,
+            [60.0 for _ in ts],
+            "k--",
+            label="$\\lambda^+_{z_\\text{mean}} - \\lambda^+_{z_\\text{std}}$",
         )
-    fig.colorbar(
-        tcf,
-        ticks=[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
-        format=matplotlib.ticker.LogFormatter(10, labelOnlyBase=False),
-    )
+        ax.plot(
+            ts,
+            [140.0 for _ in ts],
+            "k--",
+            label="$\\lambda^+_{z_\\text{mean}} + \\lambda^+_{z_\\text{std}}$",
+        )
+
     handles, labels = ax.get_legend_handles_labels()
     unique = [
         (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
     ]
-    ax.legend(*zip(*unique))
-    fig.savefig("plots/T_e_0_space.png")
-    # # paint linear regime dark grey
-    try:
-        ax.fill_between(
-            Ts,
-            [0 for _ in range(len(e_0_lam_boundary))],
-            e_0_lam_boundary,
-            color="grey",
-            alpha=0.7,
-            interpolate=True,
-        )
-    except Exception:
-        print("drawing linear regime did not work")
-        pass
+    ax.legend(*zip(*unique), loc=target_property[3])
+    fig.savefig("plots/T_" + target_property[0] + "_space.png")
+    # plot isosurfaces of gain
+    if include_gain_isoplot:
+        try:
+            prepend_y = list(set([target_property[2](c) for c in all_cases]))
+        except TypeError:
+            prepend_y = list([target_property[2](c) for c in all_cases])
+        prepend_ts = [0.0 for _ in prepend_y]
+        prepend_gains = [1.0 for _ in prepend_y]
+        try:
+            tcf = ax.tricontourf(
+                np.array(prepend_ts + [c.T for c in all_cases]),
+                np.array(prepend_y + [target_property[2](c) for c in all_cases]),
+                np.array(prepend_gains + [c.gain for c in all_cases]),
+                20,
+                shading="gouraud",
+                locator=matplotlib.ticker.LogLocator(1.01),
+            )
+        except Exception as e:
+            print("plotting with gouraud failed:")
+            print(e)
+            try:
+                tcf = ax.tricontourf(
+                    np.array(prepend_ts + [c.T for c in all_cases]),
+                    np.array(prepend_y + [target_property[2](c) for c in all_cases]),
+                    np.array(prepend_gains + [c.gain for c in all_cases]),
+                    20,
+                    locator=matplotlib.ticker.LogLocator(1.01),
+                )
+            except Exception as ee:
+                print("plotting  failed due to")
+                print(ee)
+        try:
+            fig.colorbar(
+                tcf,
+                ticks=[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
+                format=matplotlib.ticker.LogFormatter(10, labelOnlyBase=False),
+            )
+        except Exception as eee:
+            print("plotting  failed due to")
+            print(eee)
+        fig.savefig("plots/T_" + target_property[0] + "_space_with_gain.png")
+    # # # paint linear regime dark grey
+    # try:
+    #     ax.fill_between(
+    #         Ts,
+    #         [0 for _ in range(len(e_0_lam_boundary))],
+    #         e_0_lam_boundary,
+    #         color="grey",
+    #         alpha=0.7,
+    #         interpolate=True,
+    #     )
+    # except Exception:
+    #     print("drawing linear regime did not work")
+    #     pass
     # try:
     #     ax.fill_between(
     #         [
@@ -560,75 +696,100 @@ def plot(dirs_and_names: List[str]) -> None:
     #     print("drawing intermediate regime did not work")
     #     pass
     # paint nonlinear global regime light grey
-    try:
-        ax.fill_between(
-            [
-                Ts[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_glob_boundary[i] is not None
-            ],
-            [
-                e_0_nl_lower_glob_boundary[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_glob_boundary[i] is not None
-            ],
-            [
-                e_0_nl_upper_glob_boundary[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_glob_boundary[i] is not None
-            ],
-            color="grey",
-            alpha=0.5,
-            interpolate=True,
-        )
-    except Exception:
-        print("drawing nonlinear global regime did not work")
-        pass
-    [
-        e_0_nl_lower_loc_boundary[i]
-        for i in range(len(Ts))
-        if e_0_nl_upper_loc_boundary[i] is not None
-    ],
-    [
-        e_0_nl_upper_loc_boundary[i]
-        for i in range(len(Ts))
-        if e_0_nl_upper_loc_boundary[i] is not None
-    ],
-    try:
-        ax.fill_between(
-            [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
-            [
-                e_0_nl_lower_loc_boundary[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_loc_boundary[i] is not None
-            ],
-            [
-                e_0_nl_upper_loc_boundary[i]
-                for i in range(len(Ts))
-                if e_0_nl_upper_loc_boundary[i] is not None
-            ],
-            color="grey",
-            alpha=0.3,
-            interpolate=True,
-        )
-    except Exception:
-        print("drawing nonlinear localised regime did not work")
-        pass
-    ax.text(1.35, 3.0e-6, "unexplored")
-    ax.text(1.25, 1.7e-5, "unexplored")
-    ax.text(0.5, 2.0e-6, "quasi-linear regime")
-    ax.text(1.95, 1.6e-5, "nonlinear global regime")
-    ax.text(1.6, 7.0e-5, "nonlinear \n localised \n regime")
-    # ax.text(
-    #     1.4,
-    #     6.0e-4,
-    #     "no convergence due to \n turbulent end state",
-    #     backgroundcolor="white",
-    # )
-    # handles, labels = ax.get_legend_handles_labels()
-    # unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-    # ax.legend(*zip(*unique))
-    fig.savefig("plots/T_e_0_space_with_regimes.png")
+    # try:
+    #     ax.fill_between(
+    #         [
+    #             Ts[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_glob_boundary[i] is not None
+    #         ],
+    #         [
+    #             e_0_nl_lower_glob_boundary[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_glob_boundary[i] is not None
+    #         ],
+    #         [
+    #             e_0_nl_upper_glob_boundary[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_glob_boundary[i] is not None
+    #         ],
+    #         color="grey",
+    #         alpha=0.5,
+    #         interpolate=True,
+    #     )
+    # except Exception:
+    #     print("drawing nonlinear global regime did not work")
+    #     pass
+    # [
+    #     e_0_nl_lower_loc_boundary[i]
+    #     for i in range(len(Ts))
+    #     if e_0_nl_upper_loc_boundary[i] is not None
+    # ],
+    # [
+    #     e_0_nl_upper_loc_boundary[i]
+    #     for i in range(len(Ts))
+    #     if e_0_nl_upper_loc_boundary[i] is not None
+    # ],
+    # try:
+    #     ax.fill_between(
+    #         [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
+    #         [
+    #             e_0_nl_lower_loc_boundary[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_loc_boundary[i] is not None
+    #         ],
+    #         [
+    #             e_0_nl_upper_loc_boundary[i]
+    #             for i in range(len(Ts))
+    #             if e_0_nl_upper_loc_boundary[i] is not None
+    #         ],
+    #         color="grey",
+    #         alpha=0.3,
+    #         interpolate=True,
+    #     )
+    # except Exception:
+    #     print("drawing nonlinear localised regime did not work")
+    #     pass
+    # ax.text(1.35, 3.0e-6, "unexplored")
+    # ax.text(1.25, 1.7e-5, "unexplored")
+    # ax.text(0.5, 2.0e-6, "quasi-linear regime")
+    # ax.text(1.95, 1.6e-5, "nonlinear global regime")
+    # ax.text(1.6, 7.0e-5, "nonlinear \n localised \n regime")
+    # # ax.text(
+    # #     1.4,
+    # #     6.0e-4,
+    # #     "no convergence due to \n turbulent end state",
+    # #     backgroundcolor="white",
+    # # )
+    # # handles, labels = ax.get_legend_handles_labels()
+    # # unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
+    # # ax.legend(*zip(*unique))
+    # fig.savefig("plots/T_e_0_space_with_regimes.png")
+
+
+def plot_e_0(all_cases: List["Case"]) -> None:
+    plot(all_cases, ("e_0", "$e_0/E_0$", lambda c: c.e_0, "upper center"))
+
+
+def plot_infnorm(all_cases: List["Case"]) -> None:
+    plot(
+        all_cases,
+        ("infnorm", "$|u|_\\text{inf}$", lambda c: c.get_inf_norm(), "lower right"),
+    )
+
+
+def plot_dominant_lambda_z(all_cases: List["Case"]) -> None:
+    plot(
+        all_cases,
+        (
+            "dominant_lambda_z",
+            "$\\lambda^+_z$",
+            lambda c: c.get_dominant_lambda_z(),
+            "upper left",
+        ),
+        include_gain_isoplot=False,
+        log_y_axis=False,
+    )
 
 
 e_base_turb = 1.0
@@ -679,5 +840,27 @@ dirs_and_names = [
     ),
 ]
 
+dirs_and_names_debug = [
+    (
+        "smaller_channel_two_t_e_0_study",
+        # "minimal channel mean (short channel)",
+        "$T=0.7 h / u_\\tau$",
+        e_base_turb,
+    ),
+]
+
 if __name__ == "__main__":
-    plot(dirs_and_names)
+    # all_cases = collect(dirs_and_names_debug)
+    # test_case = [c for c in all_cases if c.e_0 == 7.2e-5]
+    # print(test_case)
+    # for tc in test_case:
+    #     print(tc)
+    #     print(tc.directory)
+    #     print(tc.get_dominant_lambda_z())
+    all_cases = collect(dirs_and_names)
+    print_verb("plotting dominant lambda z")
+    plot_dominant_lambda_z(all_cases)
+    print_verb("plotting infnorm")
+    plot_infnorm(all_cases)
+    print_verb("plotting e_0")
+    plot_e_0(all_cases)

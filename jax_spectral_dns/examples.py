@@ -2022,14 +2022,16 @@ def run_optimisation_transient_growth_dual(**params: Any) -> GradientDescentSolv
 
 def run_ld_2021_get_mean(**params: Any) -> None:
     Re_tau = params.get("Re_tau", 180.0)
-    Nx = params.get("Nx", 1)
+    Nx = params.get("Nx", 337.0 / (Re_tau * np.pi))
     Ny = params.get("Ny", 1)
-    Nz = params.get("Nz", 1)
+    Nz = params.get("Nz", 168.0 / (Re_tau * np.pi))
+    Lx_over_pi = params.get("Lx_over_pi", 2.0)
+    Lz_over_pi = params.get("Lz_over_pi", 1.0)
     max_cfl = params.get("max_cfl", 0.7)
     end_time = params.get("end_time", 1.0e-1)
     init_file = params.get("init_file")
 
-    scale_factors = (337.0 / Re_tau, 1.0, 168.0 / Re_tau)
+    scale_factors = (Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi)
 
     if init_file is None:
         Equation.initialize()
