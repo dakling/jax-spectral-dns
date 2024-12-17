@@ -206,7 +206,7 @@ def post_process(
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
         ax.plot(amplitude_t, amplitudes_2d_vilda, "k.")
-        ax.set_xlabel("$t h / u_\\tau$")
+        ax.set_xlabel("$t u_\\tau / h$")
         ax.set_ylabel("$A \\sqrt{\\text{Re}_\\tau} $")
         fig.tight_layout()
         fig.savefig(
@@ -408,7 +408,7 @@ def post_process(
                 "ko",
                 label="$G$",
             )
-            ax.set_xlabel("$t h / u_\\tau$")
+            ax.set_xlabel("$t u_\\tau / h$")
             ax.set_ylabel("$G$")
             ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
             # ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
@@ -496,7 +496,7 @@ def post_process(
                 "go",
                 label="perturbation amplitude w/o streak (x-velocity)",
             )
-            ax_amplitudes.set_xlabel("$t h / u_\\tau$")
+            ax_amplitudes.set_xlabel("$t u_\\tau / h$")
             ax_amplitudes.set_ylabel("$A$")
             fig_amplitudes.legend()
             fig_amplitudes.tight_layout()
@@ -512,13 +512,13 @@ def post_process(
             ax_kx = fig_kx.subplots(1, 1)
             fig_kz = figure.Figure()
             ax_kz = fig_kz.subplots(1, 1)
-            ax_kx.set_xlabel("$t h / u_\\tau$")
+            ax_kx.set_xlabel("$t u_\\tau / h$")
             ax_kx.set_ylabel(
                 "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
             )
             # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kx.yaxis.label.set_color("red")
-            ax_kz.set_xlabel("$t h / u_\\tau$")
+            ax_kz.set_xlabel("$t u_\\tau / h$")
             # ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
             ax_kz.set_ylabel(
                 "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"

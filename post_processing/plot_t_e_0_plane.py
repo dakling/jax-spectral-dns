@@ -40,12 +40,12 @@ matplotlib.rcParams.update(
 class Case:
     STORE_DIR_BASE = (
         "/store/DAMTP/dsk34/"
-        if "maths.cam.ac.uk" in socket.gethostname()
+        if "cam.ac.uk" in socket.gethostname()
         else "/home/klingenberg/mnt/maths_store/"
     )
     HOME_DIR_BASE = (
         "/home/dsk34/jax-optim/run/"
-        if "maths.cam.ac.uk" in socket.gethostname()
+        if "cam.ac.uk" in socket.gethostname()
         else "/home/klingenberg/mnt/maths/jax-optim/run/"
     )
     Vel_0_types = Enum(
@@ -372,7 +372,7 @@ class Case:
             print(self.vel_0_type)
             raise Exception("unknown velocity classification.")
 
-    def get_color(self) -> str:
+    def get_color(self) -> Tuple[str, Any]:
         e_0_min = 1.0e-6
         e_0_max = 1.0e-3
         alpha_min = 0.0
@@ -383,9 +383,9 @@ class Case:
             out = (np.log(self.e_0) - np.log(e_0_min)) / (
                 np.log(e_0_max) - np.log(e_0_min)
             ) * (alpha_max - alpha_min) + alpha_min
-        cmap = matplotlib.colormaps["gist_heat"]
+        cmap = matplotlib.colormaps["copper"]
         rgba = cmap(out)
-        return rgba
+        return rgba, cmap
 
     def get_alpha(self) -> float:
         return 1.0
@@ -556,7 +556,7 @@ def plot(
 ) -> None:
     fig = figure.Figure()
     ax = fig.subplots(1, 1)
-    ax.set_xlabel("$T h  / u_\\tau$")
+    ax.set_xlabel("$T u_\\tau  / h$")
     # ax.set_ylabel("$e_0/E_0$")
     ax.set_ylabel(target_property[1])
     if log_y_axis:
@@ -583,7 +583,7 @@ def plot(
         marker = case.get_marker()
         name = case.get_classification_name()
         # color = "r" if i == max_i else "k"
-        color = case.get_color()
+        color, _ = case.get_color()
         alpha = case.get_alpha()
         ax.plot(
             cast(float, case.T),
@@ -597,7 +597,13 @@ def plot(
     if target_property[0] == "dominant_lambda_z":
         ax.set_ylim(bottom=0.0)
         ts = list(set([0.0] + [case.T for case in all_cases]))
-        ax.plot(ts, [100.0 for _ in ts], "k-", label="$\\lambda^+_{z_\\text{mean}}$")
+        ts.sort()
+        ax.plot(
+            ts,
+            [100.0 for _ in ts],
+            "k-",
+            label="$\\lambda^+_{z_\\text{mean}}$ (BF1993)",
+        )
         ax.plot(
             ts,
             [60.0 for _ in ts],
@@ -615,6 +621,8 @@ def plot(
     unique = [
         (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
     ]
+    for h, l in unique:
+        h.set(color="black")
     ax.legend(*zip(*unique), loc=target_property[3])
     fig.savefig("plots/T_" + target_property[0] + "_space.png")
     # plot isosurfaces of gain
@@ -651,6 +659,7 @@ def plot(
         try:
             fig.colorbar(
                 tcf,
+                label="$G$",
                 ticks=[1, 2, 5, 10, 20, 50, 100, 200, 500, 1000],
                 format=matplotlib.ticker.LogFormatter(10, labelOnlyBase=False),
             )
