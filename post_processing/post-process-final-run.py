@@ -322,17 +322,23 @@ def post_process(
             vel_total_x = vel[0] + vel_base[0]
             vel_total_x.set_name("velocity_total_x")
             vel_total_x.plot_3d(2, z_max, name="$U_x$")
-            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
+            # vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
+            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$")
             vel[1].plot_3d(2, z_max)
             vel[2].plot_3d(2, z_max)
             vel[0].plot_3d(
-                0, x_max, rotate=True, name="$\\tilde{u}_x$", name_color="red"
+                # 0, x_max, rotate=True, name="$\\tilde{u}_x$", name_color="red"
+                0,
+                x_max,
+                rotate=True,
+                name="$\\tilde{u}_x$",
             )
             vel[1].plot_3d(0, x_max, rotate=True)
             vel[2].plot_3d(0, x_max, rotate=True)
             vel.plot_streamlines(2)
             vel[1].plot_isolines(2)
-            vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
+            # vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
+            vel[0].plot_isosurfaces(name="$u_x$")
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
 
@@ -514,14 +520,16 @@ def post_process(
             ax_kz = fig_kz.subplots(1, 1)
             ax_kx.set_xlabel("$t u_\\tau / h$")
             ax_kx.set_ylabel(
-                "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+                # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+                "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
             )
             # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kx.yaxis.label.set_color("red")
             ax_kz.set_xlabel("$t u_\\tau / h$")
             # ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
             ax_kz.set_ylabel(
-                "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+                # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+                "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
             )
             # ax_kz.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kz.yaxis.label.set_color("red")

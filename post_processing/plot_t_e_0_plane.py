@@ -2,8 +2,11 @@
 
 import h5py
 import time
+from copy import deepcopy
 from types import NoneType
 import jax
+import jax.numpy as jnp
+from jax_spectral_dns.cheb import cheby
 
 from jax_spectral_dns.equation import Equation, print_verb
 
@@ -92,6 +95,38 @@ class Case:
 
     def get_Re_tau(self) -> Optional[float]:
         return self.get_property_from_settings("Re_tau")
+
+    def get_vel_field_minimal_channel(self):
+
+        domain = self.get_domain()
+
+        cheb_coeffs = np.loadtxt(
+            self.HOME_DIR_BASE
+            + "/"
+            + self.directory
+            + "/profiles/Re_tau_180_90_small_channel.csv",
+            dtype=np.float64,
+        )
+
+        Ny = domain.number_of_cells(1)
+        U_mat = np.zeros((Ny, len(cheb_coeffs)))
+        for i in range(Ny):
+            for j in range(len(cheb_coeffs)):
+                U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+        U_y_slice = U_mat @ cheb_coeffs
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(
+            np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+        )
+        vel_base = VectorField(
+            [
+                PhysicalField(domain, jnp.asarray(u_data)),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+        vel_base.set_name("velocity_base")
+        return vel_base
 
     def get_gain(self) -> Optional[float]:
         base_path = self.STORE_DIR_BASE
@@ -268,6 +303,19 @@ class Case:
             self.inf_norm = max(abs(vel_field[0].get_data().flatten()))
         return self.inf_norm
 
+    def get_inf_norm_over_local_base(self) -> "float":
+        if self.inf_norm is None:
+            self.inf_norm = self.get_inf_norm()
+        u_base = self.get_vel_field_minimal_channel()
+        u_0 = self.get_vel_0()
+
+        u_0_shape = u_0[0].get_data().shape
+        max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
+        print(max_inds)
+        u_base_max_loc = u_base[0][*max_inds]
+        print(u_base_max_loc)
+        return self.inf_norm / u_base_max_loc
+
     def get_dominant_lambda_z(self) -> "float":
         if self.dominant_lambda_z is None:
             target_time = 0.3
@@ -389,16 +437,16 @@ class Case:
 
     def get_alpha(self) -> float:
         return 1.0
-        e_0_min = 1.0e-6
-        e_0_max = 1.0e-3
-        alpha_min = 0.1
-        alpha_max = 1.0
-        if self.e_0 < e_0_min:
-            return alpha_min
-        else:
-            return (np.log(self.e_0) - np.log(e_0_min)) / (
-                np.log(e_0_max) - np.log(e_0_min)
-            ) * (alpha_max - alpha_min) + alpha_min
+        # e_0_min = 1.0e-6
+        # e_0_max = 1.0e-3
+        # alpha_min = 0.1
+        # alpha_max = 1.0
+        # if self.e_0 < e_0_min:
+        #     return alpha_min
+        # else:
+        #     return (np.log(self.e_0) - np.log(e_0_min)) / (
+        #         np.log(e_0_max) - np.log(e_0_min)
+        #     ) * (alpha_max - alpha_min) + alpha_min
 
     def get_classification_name(self) -> str:
         vel_0_type = self.classify_vel_0()
@@ -618,9 +666,10 @@ def plot(
         )
 
     handles, labels = ax.get_legend_handles_labels()
-    unique = [
+    unique_ = [
         (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
     ]
+    unique = deepcopy(unique_)
     for h, l in unique:
         h.set(color="black")
     ax.legend(*zip(*unique), loc=target_property[3])
@@ -787,6 +836,18 @@ def plot_infnorm(all_cases: List["Case"]) -> None:
     )
 
 
+def plot_infnorm_over_u_max(all_cases: List["Case"]) -> None:
+    plot(
+        all_cases,
+        (
+            "infnorm_over_base",
+            "$|u|_\\text{inf} / u_\\text{base, local}$",
+            lambda c: c.get_inf_norm_over_local_base(),
+            "lower right",
+        ),
+    )
+
+
 def plot_dominant_lambda_z(all_cases: List["Case"]) -> None:
     plot(
         all_cases,
@@ -867,9 +928,11 @@ if __name__ == "__main__":
     #     print(tc.directory)
     #     print(tc.get_dominant_lambda_z())
     all_cases = collect(dirs_and_names)
+    print_verb("plotting e_0")
+    plot_e_0(all_cases)
     print_verb("plotting dominant lambda z")
     plot_dominant_lambda_z(all_cases)
     print_verb("plotting infnorm")
     plot_infnorm(all_cases)
-    print_verb("plotting e_0")
-    plot_e_0(all_cases)
+    print_verb("plotting infnorm (divided)")
+    plot_infnorm_over_u_max(all_cases)
