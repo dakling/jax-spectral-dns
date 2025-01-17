@@ -315,7 +315,8 @@ def post_process_averages() -> None:
             vel_pert.set_name("velocity_pert")
 
             vel_pert_s.append(vel_pert)
-            if i in [0, n_steps // 4, n_steps // 2, 3 * n_steps // 4, n_steps]:
+            # if i in [0, n_steps // 4, n_steps // 2, 3 * n_steps // 4, n_steps]:
+            if i in range(n_steps):
                 vel_pert_00 = vel_pert.hat().field_2d(0).field_2d(2).no_hat()
                 vel_pert_3d = vel_pert - vel_pert_00
                 print("perturbation energy:", vel_pert.energy())
@@ -334,6 +335,10 @@ def post_process_averages() -> None:
                 print("lambda_y+:", lambda_y * Re_tau)
                 print("lambda_z:", lambda_z)
                 print("lambda_z+:", lambda_z * Re_tau)
+
+                streak_amplitude = max(abs(vel_pert_kx.get_data().flatten()))
+                print("streak_amplitude", streak_amplitude)
+
         uu = (
             avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))
             .hat()

@@ -205,7 +205,7 @@ def post_process(
 
         fig = figure.Figure()
         ax = fig.subplots(1, 1)
-        ax.plot(amplitude_t, amplitudes_2d_vilda, "k.")
+        ax.plot(ts, amplitudes_2d_vilda, "k.")
         ax.set_xlabel("$t u_\\tau / h$")
         ax.set_ylabel("$A \\sqrt{\\text{Re}_\\tau} $")
         fig.tight_layout()
@@ -342,49 +342,49 @@ def post_process(
             vel[1].plot_isosurfaces()
             vel[2].plot_isosurfaces()
 
-            # pressure
-            pressure_poisson_source = PhysicalField.Zeros(domain)
-            for k in range(3):
-                for j in range(3):
-                    pressure_poisson_source += -(vel[k] * vel[j]).diff(j).diff(k)
-                    pressure_poisson_source += -(vel_base[k] * vel[j]).diff(j).diff(k)
-                    pressure_poisson_source += -(vel[k] * vel_base[j]).diff(j).diff(k)
-            pressure_poisson_source.set_name("pressure_poisson_source")
-            pressure_poisson_source.plot_3d(0)
-            pressure_poisson_source.plot_3d(2)
-            pressure = pressure_poisson_source.hat().solve_poisson().no_hat()
-            # filter_field = PhysicalField.FromFunc(domain, lambda X: jnp.exp(1.0)**(- 20.0 * X[1]**10) + 0.0 * X[2])
-            # filter_field = PhysicalField.FromFunc(
-            #     domain, lambda X: jnp.exp(-((1.03 * X[1]) ** 40)) + 0.0 * X[2]
-            # )  # make sure that we are not messing with the boundary conditions
-            # pressure *= filter_field
-            pressure.update_boundary_conditions()
-            pressure.set_name("pressure")
-            pressure.set_time_step(vel.get_time_step())
-            if i == 0:
-                vel_shape = vel[0].get_data().shape
-                max_inds = np.unravel_index(
-                    pressure.get_data().argmax(axis=None), vel_shape
-                )
-                Nx, _, Nz = vel_shape
-                x_max_pres = max_inds[0] / Nx * domain.grid[0][-1]
-                z_max_pres = max_inds[2] / Nz * domain.grid[2][-1]
-            pressure.plot_3d(0, x_max_pres, rotate=True)
-            pressure.plot_3d(2, z_max_pres)
-            dp_dy = pressure.diff(1)
-            dp_dy.update_boundary_conditions()
-            dp_dy.set_name("dp_dy")
-            dp_dy.set_time_step(vel.get_time_step())
-            if i == 0:
-                vel_shape = vel[0].get_data().shape
-                max_inds = np.unravel_index(
-                    dp_dy.get_data().argmax(axis=None), vel_shape
-                )
-                Nx, _, Nz = vel_shape
-                x_max_dpdy = max_inds[0] / Nx * domain.grid[0][-1]
-                z_max_dpdy = max_inds[2] / Nz * domain.grid[2][-1]
-            dp_dy.plot_3d(0, x_max_dpdy, rotate=True)
-            dp_dy.plot_3d(2, z_max_dpdy)
+            # # pressure
+            # pressure_poisson_source = PhysicalField.Zeros(domain)
+            # for k in range(3):
+            #     for j in range(3):
+            #         pressure_poisson_source += -(vel[k] * vel[j]).diff(j).diff(k)
+            #         pressure_poisson_source += -(vel_base[k] * vel[j]).diff(j).diff(k)
+            #         pressure_poisson_source += -(vel[k] * vel_base[j]).diff(j).diff(k)
+            # pressure_poisson_source.set_name("pressure_poisson_source")
+            # pressure_poisson_source.plot_3d(0)
+            # pressure_poisson_source.plot_3d(2)
+            # pressure = pressure_poisson_source.hat().solve_poisson().no_hat()
+            # # filter_field = PhysicalField.FromFunc(domain, lambda X: jnp.exp(1.0)**(- 20.0 * X[1]**10) + 0.0 * X[2])
+            # # filter_field = PhysicalField.FromFunc(
+            # #     domain, lambda X: jnp.exp(-((1.03 * X[1]) ** 40)) + 0.0 * X[2]
+            # # )  # make sure that we are not messing with the boundary conditions
+            # # pressure *= filter_field
+            # pressure.update_boundary_conditions()
+            # pressure.set_name("pressure")
+            # pressure.set_time_step(vel.get_time_step())
+            # if i == 0:
+            #     vel_shape = vel[0].get_data().shape
+            #     max_inds = np.unravel_index(
+            #         pressure.get_data().argmax(axis=None), vel_shape
+            #     )
+            #     Nx, _, Nz = vel_shape
+            #     x_max_pres = max_inds[0] / Nx * domain.grid[0][-1]
+            #     z_max_pres = max_inds[2] / Nz * domain.grid[2][-1]
+            # pressure.plot_3d(0, x_max_pres, rotate=True)
+            # pressure.plot_3d(2, z_max_pres)
+            # dp_dy = pressure.diff(1)
+            # dp_dy.update_boundary_conditions()
+            # dp_dy.set_name("dp_dy")
+            # dp_dy.set_time_step(vel.get_time_step())
+            # if i == 0:
+            #     vel_shape = vel[0].get_data().shape
+            #     max_inds = np.unravel_index(
+            #         dp_dy.get_data().argmax(axis=None), vel_shape
+            #     )
+            #     Nx, _, Nz = vel_shape
+            #     x_max_dpdy = max_inds[0] / Nx * domain.grid[0][-1]
+            #     z_max_dpdy = max_inds[2] / Nz * domain.grid[2][-1]
+            # dp_dy.plot_3d(0, x_max_dpdy, rotate=True)
+            # dp_dy.plot_3d(2, z_max_dpdy)
 
             q_crit = vel.get_q_criterion()
             q_crit.set_time_step(vel.get_time_step())

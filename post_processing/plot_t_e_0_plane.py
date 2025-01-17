@@ -65,6 +65,7 @@ class Case:
         self.vel_base_max = None
         self.inf_norm = None
         self.dominant_lambda_z = None
+        self.dominant_streak_amplitude = None
         self.successfully_read = (
             self.T is not None and self.e_0 is not None and self.gain is not None
         )
@@ -311,9 +312,7 @@ class Case:
 
         u_0_shape = u_0[0].get_data().shape
         max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
-        print(max_inds)
         u_base_max_loc = u_base[0][*max_inds]
-        print(u_base_max_loc)
         return self.inf_norm / u_base_max_loc
 
     def get_dominant_lambda_z(self) -> "float":
@@ -326,6 +325,18 @@ class Case:
             else:
                 self.dominant_lambda_z = np.nan
         return self.dominant_lambda_z
+
+    def get_dominant_streak_amplitude(self) -> "float":
+        if self.dominant_streak_amplitude is None:
+            target_time = 0.3
+            vel_hat = self.get_velocity_snapshot(target_time)
+            if vel_hat is not None:
+                self.dominant_streak_amplitude = max(
+                    abs(vel_hat[0].field_2d(0).no_hat().get_data().flatten())
+                )
+            else:
+                self.dominant_streak_amplitude = np.nan
+        return self.dominant_streak_amplitude
 
     def classify_vel_0(self) -> "Vel_0_types":
         if self.vel_0_type is not None:
@@ -665,6 +676,26 @@ def plot(
             label="$\\lambda^+_{z_\\text{mean}} + \\lambda^+_{z_\\text{std}}$",
         )
 
+    if target_property[0] == "e_0":
+        from scipy.interpolate import interp1d
+
+        # 1st line
+        x1 = [1.2, 1.4, 2.1, 2.8]
+        y1 = [1.5e-5, 1.7e-5, 4.0e-5, 8.5e-5]
+        # 2nd line
+        x2 = [0.35, 0.5, 0.7, 0.8, 0.9, 1.00, 1.05, 1.2]
+        y2 = [3.8e-5, 2.8e-5, 1.417e-5, 1.42e-5, 1.44e-5, 1.46e-5, 1.48e-5, 1.5e-5]
+        # 3rd line
+        x3 = [1.2, 1.4, 1.5, 1.6, 1.7]
+        y3 = [1.5e-5, 3.0e-6, 1.9e-6, 1.3e-6, 1.0e-6]
+
+        for x, y in [(x1, y1), (x2, y2), (x3, y3)]:
+            x_fine = np.linspace(x[0], x[-1], num=50, endpoint=True)
+            y_fine = interp1d(x, y, kind="cubic")(x_fine)
+            ax.plot(x_fine, y_fine, "--", color="gray")
+        #     ax.plot(x, y, 'k.')
+        # fig.savefig("test.png")
+
     handles, labels = ax.get_legend_handles_labels()
     unique_ = [
         (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
@@ -715,114 +746,27 @@ def plot(
         except Exception as eee:
             print("plotting  failed due to")
             print(eee)
+        if target_property[0] == "e_0":
+            from scipy.interpolate import interp1d
+
+            # 1st line
+            x1 = [1.2, 1.4, 2.1, 2.8]
+            y1 = [1.5e-5, 1.7e-5, 4.0e-5, 8.5e-5]
+            # 2nd line
+            x2 = [0.35, 0.5, 0.7, 0.8, 0.9, 1.00, 1.05, 1.2]
+            y2 = [3.8e-5, 2.8e-5, 1.417e-5, 1.42e-5, 1.44e-5, 1.46e-5, 1.48e-5, 1.5e-5]
+            # 3rd line
+            x3 = [1.2, 1.4, 1.5, 1.6, 1.7]
+            y3 = [1.5e-5, 3.0e-6, 1.9e-6, 1.3e-6, 1.0e-6]
+
+            for x, y in [(x1, y1), (x2, y2), (x3, y3)]:
+                x_fine = np.linspace(x[0], x[-1], num=50, endpoint=True)
+                y_fine = interp1d(x, y, kind="cubic")(x_fine)
+                ax.plot(x_fine, y_fine, "--", color="gray")
+            #     ax.plot(x, y, 'k.')
+            # fig.savefig("test.png")
+
         fig.savefig("plots/T_" + target_property[0] + "_space_with_gain.png")
-    # # # paint linear regime dark grey
-    # try:
-    #     ax.fill_between(
-    #         Ts,
-    #         [0 for _ in range(len(e_0_lam_boundary))],
-    #         e_0_lam_boundary,
-    #         color="grey",
-    #         alpha=0.7,
-    #         interpolate=True,
-    #     )
-    # except Exception:
-    #     print("drawing linear regime did not work")
-    #     pass
-    # try:
-    #     ax.fill_between(
-    #         [
-    #             Ts[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_glob_boundary[i] is not None
-    #         ],
-    #         [
-    #             e_0_lam_boundary[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_glob_boundary[i] is not None
-    #         ],
-    #         [
-    #             e_0_nl_lower_glob_boundary[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_glob_boundary[i] is not None
-    #         ],
-    #         color="grey",
-    #         alpha=0.55,
-    #         interpolate=True,
-    #     )
-    # except Exception:
-    #     print("drawing intermediate regime did not work")
-    #     pass
-    # paint nonlinear global regime light grey
-    # try:
-    #     ax.fill_between(
-    #         [
-    #             Ts[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_glob_boundary[i] is not None
-    #         ],
-    #         [
-    #             e_0_nl_lower_glob_boundary[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_glob_boundary[i] is not None
-    #         ],
-    #         [
-    #             e_0_nl_upper_glob_boundary[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_glob_boundary[i] is not None
-    #         ],
-    #         color="grey",
-    #         alpha=0.5,
-    #         interpolate=True,
-    #     )
-    # except Exception:
-    #     print("drawing nonlinear global regime did not work")
-    #     pass
-    # [
-    #     e_0_nl_lower_loc_boundary[i]
-    #     for i in range(len(Ts))
-    #     if e_0_nl_upper_loc_boundary[i] is not None
-    # ],
-    # [
-    #     e_0_nl_upper_loc_boundary[i]
-    #     for i in range(len(Ts))
-    #     if e_0_nl_upper_loc_boundary[i] is not None
-    # ],
-    # try:
-    #     ax.fill_between(
-    #         [Ts[i] for i in range(len(Ts)) if e_0_nl_upper_loc_boundary[i] is not None],
-    #         [
-    #             e_0_nl_lower_loc_boundary[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_loc_boundary[i] is not None
-    #         ],
-    #         [
-    #             e_0_nl_upper_loc_boundary[i]
-    #             for i in range(len(Ts))
-    #             if e_0_nl_upper_loc_boundary[i] is not None
-    #         ],
-    #         color="grey",
-    #         alpha=0.3,
-    #         interpolate=True,
-    #     )
-    # except Exception:
-    #     print("drawing nonlinear localised regime did not work")
-    #     pass
-    # ax.text(1.35, 3.0e-6, "unexplored")
-    # ax.text(1.25, 1.7e-5, "unexplored")
-    # ax.text(0.5, 2.0e-6, "quasi-linear regime")
-    # ax.text(1.95, 1.6e-5, "nonlinear global regime")
-    # ax.text(1.6, 7.0e-5, "nonlinear \n localised \n regime")
-    # # ax.text(
-    # #     1.4,
-    # #     6.0e-4,
-    # #     "no convergence due to \n turbulent end state",
-    # #     backgroundcolor="white",
-    # # )
-    # # handles, labels = ax.get_legend_handles_labels()
-    # # unique = [(h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]]
-    # # ax.legend(*zip(*unique))
-    # fig.savefig("plots/T_e_0_space_with_regimes.png")
 
 
 def plot_e_0(all_cases: List["Case"]) -> None:
@@ -858,6 +802,20 @@ def plot_dominant_lambda_z(all_cases: List["Case"]) -> None:
             "upper left",
         ),
         include_gain_isoplot=False,
+        log_y_axis=False,
+    )
+
+
+def plot_dominant_streak_amplitude(all_cases: List["Case"]) -> None:
+    plot(
+        all_cases,
+        (
+            "dominant_streak_amplitude",
+            "$|u_{k_{x}=0}|_\\text{inf}$",
+            lambda c: c.get_dominant_streak_amplitude(),
+            "upper left",
+        ),
+        include_gain_isoplot=True,
         log_y_axis=False,
     )
 
@@ -928,6 +886,8 @@ if __name__ == "__main__":
     #     print(tc.directory)
     #     print(tc.get_dominant_lambda_z())
     all_cases = collect(dirs_and_names)
+    print_verb("plotting dominant streak amplitude")
+    plot_dominant_streak_amplitude(all_cases)
     print_verb("plotting e_0")
     plot_e_0(all_cases)
     print_verb("plotting dominant lambda z")

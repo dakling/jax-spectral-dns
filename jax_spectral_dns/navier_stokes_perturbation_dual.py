@@ -1157,7 +1157,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 .energy()
             )
 
-        print_verb("optimising lambda...")
+        print_verb("optimising lambda...", verbosity_level=2)
         i = 0
         max_iter = 100
         tol = 1e-25  # can be fairly high as we normalize the result anyway
