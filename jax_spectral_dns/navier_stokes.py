@@ -1905,7 +1905,7 @@ class NavierStokesVelVort(Equation):
                 )
                 velocity.set_time_step(start_step + t)
                 t += 1
-            self.append_field("velocity_hat", velocity, in_place=False)
+                self.append_field("velocity_hat", velocity, in_place=False)
             if Equation.verbosity_level >= 3:
                 for i in range(self.get_number_of_fields("velocity_hat")):
                     cfl_s = self.get_cfl(i)
