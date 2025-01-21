@@ -2302,7 +2302,14 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                     vel_spatial_means = []
                     for j in range(n_steps):
                         time = (j / (n_steps - 1)) * end_time + last_end_time
-                        vel_hat = nse.get_field("velocity_hat", j)
+                        # vel_hat = nse.get_field("velocity_hat", j)
+                        vel_hat = VectorField.FromData(
+                            FourierField,
+                            domain,
+                            velocity_trajectory[j],
+                            name="velocity_hat",
+                        )
+                        vel_hat.set_time_step(j)
                         vel = vel_hat.no_hat()
                         ts.append(time)
                         energy_t.append(vel.energy())

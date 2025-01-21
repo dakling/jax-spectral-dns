@@ -1912,12 +1912,12 @@ class NavierStokesVelVort(Equation):
             #         print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=3)
             # cfl_final = self.get_cfl()
             # print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-            out = jnp.insert(
-                trajectory[0],
-                0,
-                self.get_initial_field("velocity_hat").get_data(),
-                axis=0,
-            )
+            # out = jnp.insert( # TODO better version than insert to prevent OOMß
+            #     trajectory[0],
+            #     0,
+            #     self.get_initial_field("velocity_hat").get_data(),
+            #     axis=0,
+            # )
             return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
