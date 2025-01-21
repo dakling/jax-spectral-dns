@@ -2249,7 +2249,7 @@ class PhysicalField(Field):
             X, Y = jnp.meshgrid(x, y)
             N_c = self.physical_domain.number_of_cells(normal_direction) // 2
             f = self.data.take(indices=N_c, axis=normal_direction).T
-            cmap = colors.ListedColormap((("gray", 0.3), "white"))  # type: ignore[arg-type]
+            cmap = colors.ListedColormap((("gray", 0.3), "white"))
             bounds = [-1e10, 0, 1e10]
             norm = colors.BoundaryNorm(bounds, cmap.N)
             ax.imshow(

@@ -1891,27 +1891,27 @@ class NavierStokesVelVort(Equation):
             u_final, trajectory = jax.lax.scan(
                 jax.checkpoint(step_fn), (u0, dPdx, 0), xs=None, length=number_of_outer_steps  # type: ignore
             )
-            t = 0
-            for u in trajectory[0]:
-                velocity = VectorField(
-                    [
-                        FourierField(
-                            self.get_physical_domain(),
-                            u[i],
-                            name="velocity_hat_" + "xyz"[i],
-                        )
-                        for i in self.all_dimensions()
-                    ]
-                )
-                velocity.set_time_step(start_step + t)
-                t += 1
-                self.append_field("velocity_hat", velocity, in_place=False)
-            if Equation.verbosity_level >= 3:
-                for i in range(self.get_number_of_fields("velocity_hat")):
-                    cfl_s = self.get_cfl(i)
-                    print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=3)
-            cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
+            # t = 0
+            # for u in trajectory[0]:
+            #     velocity = VectorField(
+            #         [
+            #             FourierField(
+            #                 self.get_physical_domain(),
+            #                 u[i],
+            #                 name="velocity_hat_" + "xyz"[i],
+            #             )
+            #             for i in self.all_dimensions()
+            #         ]
+            #     )
+            #     velocity.set_time_step(start_step + t)
+            #     t += 1
+            #     self.append_field("velocity_hat", velocity, in_place=False)
+            # if Equation.verbosity_level >= 3:
+            #     for i in range(self.get_number_of_fields("velocity_hat")):
+            #         cfl_s = self.get_cfl(i)
+            #         print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=3)
+            # cfl_final = self.get_cfl()
+            # print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             out = jnp.insert(
                 trajectory[0],
                 0,
@@ -1923,20 +1923,20 @@ class NavierStokesVelVort(Equation):
             u_final, trajectory = jax.lax.scan(
                 step_fn, (u0, dPdx, 0), xs=None, length=number_of_outer_steps
             )
-            velocity_final = VectorField(
-                [
-                    FourierField(
-                        self.get_physical_domain(),
-                        trajectory[0][-1][i],
-                        name="velocity_hat_" + "xyz"[i],
-                    )
-                    for i in self.all_dimensions()
-                ]
-            )
-            velocity_final.set_time_step(start_step + number_of_outer_steps)
-            self.append_field("velocity_hat", velocity_final, in_place=False)
-            cfl_final = self.get_cfl()
-            print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
+            # velocity_final = VectorField(
+            #     [
+            #         FourierField(
+            #             self.get_physical_domain(),
+            #             trajectory[0][-1][i],
+            #             name="velocity_hat_" + "xyz"[i],
+            #         )
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
+            # velocity_final.set_time_step(start_step + number_of_outer_steps)
+            # self.append_field("velocity_hat", velocity_final, in_place=False)
+            # cfl_final = self.get_cfl()
+            # print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             out = jnp.insert(
                 trajectory[0],
                 0,

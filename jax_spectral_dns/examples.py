@@ -2208,320 +2208,354 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 "Unable to determine the latest time step of the previous calculation"
             )
 
-    def post_process(nse: NavierStokesVelVort, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-        if i == 0:
-            energy_t = []
-            ts = []
-            slice_domain = PhysicalDomain.create(
-                (domain.get_shape_aliasing()[1],),
-                (False,),
-                scale_factors=(1.0,),
-                aliasing=1,
-            )
+    # def post_process(nse: NavierStokesVelVort, i: int) -> None:
+    def post_process(nse: NavierStokesVelVort, trajectory_file: str) -> None:
 
-            def average_y_symm(
-                vel: VectorField[PhysicalField],
-            ) -> VectorField[PhysicalField]:
-                y_axis = 1
-                vel_flip = VectorField(
-                    [
-                        PhysicalField(
-                            vel.get_physical_domain(),
-                            jnp.flip(v.get_data(), axis=y_axis),
-                        )
-                        for v in vel
-                    ]
+        with h5py.File(Field.field_dir + "/" + trajectory_file, "r") as f:
+            velocity_trajectory = f["trajectory"]
+            n_steps = velocity_trajectory.shape[0]
+            # n_steps = nse.get_number_of_fields("velocity_hat")
+            for i in range(n_steps):
+                # vel_hat = nse.get_field("velocity_hat", i)
+
+                vel_hat = VectorField.FromData(
+                    FourierField, domain, velocity_trajectory[i], name="velocity_hat"
                 )
-                out = 0.5 * (vel_flip + vel)
-                out.set_name(vel.get_name() + "_y_symm")
-                return out
-
-            try:
-                avg_vel_coeffs = np.loadtxt(
-                    "./profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
-                )
-
-                def get_vel_field(
-                    domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-                ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
-                    Ny = domain.number_of_cells(1)
-                    U_mat = np.zeros((Ny, len(cheb_coeffs)))
-                    for k in range(Ny):
-                        for j in range(len(cheb_coeffs)):
-                            U_mat[k, j] = cheby(j, 0)(domain.grid[1][k])
-                    U_y_slice = U_mat @ cheb_coeffs
-                    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-                    u_data = np.moveaxis(
-                        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
-                    )
-                    max = np.max(u_data)
-                    vel_base = VectorField(
-                        [
-                            PhysicalField(domain, jnp.asarray(u_data)),
-                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                        ]
-                    )
-                    return vel_base, U_y_slice, max
-
-                vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
-                vel_base_turb_slice = PhysicalField(
-                    slice_domain, vel_base_turb[0][0, :, 0]
-                )
-                vel_base_turb_slice.set_name("velocity_base_x")
-            except Exception:
-                print_verb("plotting of reference profile failed.")
-                vel_base_turb = None
-                vel_base_turb_slice = None
-            avg_vel = VectorField([PhysicalField.Zeros(slice_domain) for _ in range(3)])
-            vel_spatial_means = []
-            for j in range(n_steps):
-                time = (j / (n_steps - 1)) * end_time + last_end_time
-                vel_hat = nse.get_field("velocity_hat", j)
+                vel_hat.set_time_step(i)
                 vel = vel_hat.no_hat()
-                ts.append(time)
-                energy_t.append(vel.energy())
-                print_verb("time:", ts[-1], "energy:", energy_t[-1])
-                vel_spatial_mean = vel_hat.field_2d(2).field_2d(0).no_hat()
-                vel_spatial_mean.set_name("velocity_spatial_average")
-                vel_spatial_mean.set_time_step(time_step + j)
-                vel_spatial_mean_ysymm = average_y_symm(vel_spatial_mean)
-                if vel_base_turb is not None:
-                    vel_spatial_mean[0].plot_center(1, vel_base_turb[0])
-                    vel_spatial_mean_ysymm[0].plot_center(1, vel_base_turb[0])
-                else:
-                    vel_spatial_mean[0].plot_center(1)
-                vel_spatial_means.append(vel_spatial_mean.get_data()[:, 0, :, 0])
-                avg_vel += vel_spatial_mean_ysymm.get_data()[:, 0, :, 0] / n_steps
+                if i == 0:
+                    energy_t = []
+                    ts = []
+                    slice_domain = PhysicalDomain.create(
+                        (domain.get_shape_aliasing()[1],),
+                        (False,),
+                        scale_factors=(1.0,),
+                        aliasing=1,
+                    )
 
-            with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
-                f.create_dataset(
-                    "trajectory_00",
-                    data=jnp.array(vel_spatial_means),
-                    compression="gzip",
-                    compression_opts=9,
+                    def average_y_symm(
+                        vel: VectorField[PhysicalField],
+                    ) -> VectorField[PhysicalField]:
+                        y_axis = 1
+                        vel_flip = VectorField(
+                            [
+                                PhysicalField(
+                                    vel.get_physical_domain(),
+                                    jnp.flip(v.get_data(), axis=y_axis),
+                                )
+                                for v in vel
+                            ]
+                        )
+                        out = 0.5 * (vel_flip + vel)
+                        out.set_name(vel.get_name() + "_y_symm")
+                        return out
+
+                    try:
+                        avg_vel_coeffs = np.loadtxt(
+                            "./profiles/Re_tau_180_90_small_channel.csv",
+                            dtype=np.float64,
+                        )
+
+                        def get_vel_field(
+                            domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
+                        ) -> Tuple[
+                            VectorField[PhysicalField], "np_jnp_array", "jsd_float"
+                        ]:
+                            Ny = domain.number_of_cells(1)
+                            U_mat = np.zeros((Ny, len(cheb_coeffs)))
+                            for k in range(Ny):
+                                for j in range(len(cheb_coeffs)):
+                                    U_mat[k, j] = cheby(j, 0)(domain.grid[1][k])
+                            U_y_slice = U_mat @ cheb_coeffs
+                            nx, nz = domain.number_of_cells(0), domain.number_of_cells(
+                                2
+                            )
+                            u_data = np.moveaxis(
+                                np.tile(
+                                    np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)
+                                ),
+                                1,
+                                2,
+                            )
+                            max = np.max(u_data)
+                            vel_base = VectorField(
+                                [
+                                    PhysicalField(domain, jnp.asarray(u_data)),
+                                    PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                                    PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                                ]
+                            )
+                            return vel_base, U_y_slice, max
+
+                        vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
+                        vel_base_turb_slice = PhysicalField(
+                            slice_domain, vel_base_turb[0][0, :, 0]
+                        )
+                        vel_base_turb_slice.set_name("velocity_base_x")
+                    except Exception:
+                        print_verb("plotting of reference profile failed.")
+                        vel_base_turb = None
+                        vel_base_turb_slice = None
+                    avg_vel = VectorField(
+                        [PhysicalField.Zeros(slice_domain) for _ in range(3)]
+                    )
+                    vel_spatial_means = []
+                    for j in range(n_steps):
+                        time = (j / (n_steps - 1)) * end_time + last_end_time
+                        vel_hat = nse.get_field("velocity_hat", j)
+                        vel = vel_hat.no_hat()
+                        ts.append(time)
+                        energy_t.append(vel.energy())
+                        print_verb("time:", ts[-1], "energy:", energy_t[-1])
+                        vel_spatial_mean = vel_hat.field_2d(2).field_2d(0).no_hat()
+                        vel_spatial_mean.set_name("velocity_spatial_average")
+                        vel_spatial_mean.set_time_step(time_step + j)
+                        vel_spatial_mean_ysymm = average_y_symm(vel_spatial_mean)
+                        if vel_base_turb is not None:
+                            vel_spatial_mean[0].plot_center(1, vel_base_turb[0])
+                            vel_spatial_mean_ysymm[0].plot_center(1, vel_base_turb[0])
+                        else:
+                            vel_spatial_mean[0].plot_center(1)
+                        vel_spatial_means.append(
+                            vel_spatial_mean.get_data()[:, 0, :, 0]
+                        )
+                        avg_vel += (
+                            vel_spatial_mean_ysymm.get_data()[:, 0, :, 0] / n_steps
+                        )
+
+                    with h5py.File(Field.field_dir + "/trajectory_00", "w") as f:
+                        f.create_dataset(
+                            "trajectory_00",
+                            data=jnp.array(vel_spatial_means),
+                            compression="gzip",
+                            compression_opts=9,
+                        )
+                    print_verb("max value (avg):", jnp.max(avg_vel[0].get_data()))
+                    # avg_vel = avg_vel.normalize_by_max_value()
+                    avg_vel.set_time_step(time_step)
+                    avg_vel.set_name("average_velocity")
+                    avg_vel.save_to_file("avg_vel")
+                    avg_vel[0].plot_center(0)
+
+                    energy_t_arr = np.array(energy_t)
+                    fig = figure.Figure()
+                    ax = fig.subplots(1, 1)
+                    assert type(ax) is Axes
+                    print_verb("energy_0:", energy_t_arr[0])
+                    ax.set_xlabel("$t$")
+                    ax.set_ylabel("$G$")
+                    try:
+                        dedalus_data = np.genfromtxt(
+                            "./energy.txt",
+                            delimiter=",",
+                        ).T
+                        ax.plot(
+                            dedalus_data[0],
+                            dedalus_data[1] / dedalus_data[1][0],
+                            "--",
+                            label="dedalus",
+                        )
+                    except FileNotFoundError:
+                        print_verb(
+                            "No dedalus data to compare results with were found."
+                        )
+                    try:
+                        out_arr = np.array(
+                            [[ts[k], energy_t_arr[k]] for k in range(len(ts))]
+                        )
+                        with open(Field.plotting_dir + "/energy-jax.txt", "a") as f:
+                            np.savetxt(f, out_arr, delimiter=",")
+                    except Exception:
+                        pass
+                    try:
+                        jax_data = np.genfromtxt(
+                            Field.plotting_dir + "/energy-jax.txt",
+                            delimiter=",",
+                        ).T
+                        ax.plot(
+                            jax_data[0],
+                            jax_data[1] / jax_data[1][0],
+                            "--",
+                            label="jax-spectral-dns",
+                        )
+                    except FileNotFoundError:
+                        print_verb("No jax data to compare results with were found.")
+                    fig.legend()
+                    fig.savefig(Field.plotting_dir + "/energy.png")
+
+                    try:
+                        assert vel_base_turb is not None
+                        avg_vel[0].plot_center(
+                            0,
+                            PhysicalField(
+                                slice_domain,
+                                vel_base_turb[0][0, :, 0],
+                                name="mean (Vilda)",
+                            ),
+                        )
+                    except Exception:
+                        print_verb("plotting of reference profile failed.")
+                        avg_vel[0].plot_center(0)
+                    # avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
+                    # for i_x in range(Nx):
+                    #     for i_z in range(Nz):
+                    #         avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
+                    # avg_vel_x_slice.set_time_step(time_step)
+                    # avg_vel_x_slice.set_name("average_velocity_x_slice")
+                    # avg_vel_x_slice.save_to_file("avg_vel_x_slice")
+                    # avg_vel_x_slice.plot()
+
+                vel.set_time_step(i + time_step)
+                vel.set_name("velocity")
+
+                if i == n_steps // 2:  # just save some random snapshot
+                    vel.save_to_file("velocity_" + str(i))
+
+                    vel_pert = vel - vel_base_lam
+                    vel_pert.set_time_step(i + time_step)
+                    vel_pert.set_name("velocity_pert")
+                    vel_pert.save_to_file("velocity_pert" + str(i))
+
+                    vel_pert_00 = vel_pert.hat().field_2d(0).field_2d(2).no_hat()
+                    vel_pert_3d = vel_pert - vel_pert_00
+                    vel_pert_3d.set_time_step(i + time_step)
+                    vel_pert_3d.set_name("velocity_pert")
+                    vel_pert_3d.save_to_file("velocity_pert_3d" + str(i))
+
+                vel_pert = vel - vel_base_lam
+                lambda_y, lambda_z = vel_pert[0].hat().get_streak_scales()
+                print_verb(
+                    "lambda_y+:", lambda_y * Re_tau, "lambda_z+:", lambda_z * Re_tau
                 )
-            print_verb("max value (avg):", jnp.max(avg_vel[0].get_data()))
-            # avg_vel = avg_vel.normalize_by_max_value()
-            avg_vel.set_time_step(time_step)
-            avg_vel.set_name("average_velocity")
-            avg_vel.save_to_file("avg_vel")
-            avg_vel[0].plot_center(0)
 
-            energy_t_arr = np.array(energy_t)
-            fig = figure.Figure()
-            ax = fig.subplots(1, 1)
-            assert type(ax) is Axes
-            print_verb("energy_0:", energy_t_arr[0])
-            ax.set_xlabel("$t$")
-            ax.set_ylabel("$G$")
-            try:
-                dedalus_data = np.genfromtxt(
-                    "./energy.txt",
-                    delimiter=",",
-                ).T
-                ax.plot(
-                    dedalus_data[0],
-                    dedalus_data[1] / dedalus_data[1][0],
-                    "--",
-                    label="dedalus",
-                )
-            except FileNotFoundError:
-                print_verb("No dedalus data to compare results with were found.")
-            try:
-                out_arr = np.array([[ts[k], energy_t_arr[k]] for k in range(len(ts))])
-                with open(Field.plotting_dir + "/energy-jax.txt", "a") as f:
-                    np.savetxt(f, out_arr, delimiter=",")
-            except Exception:
-                pass
-            try:
-                jax_data = np.genfromtxt(
-                    Field.plotting_dir + "/energy-jax.txt",
-                    delimiter=",",
-                ).T
-                ax.plot(
-                    jax_data[0],
-                    jax_data[1] / jax_data[1][0],
-                    "--",
-                    label="jax-spectral-dns",
-                )
-            except FileNotFoundError:
-                print_verb("No jax data to compare results with were found.")
-            fig.legend()
-            fig.savefig(Field.plotting_dir + "/energy.png")
+                vel[0].plot_3d(2)
+                vel[0].plot_3d(0, rotate=True)
+                vel[0].plot_isosurfaces()
+                vel[1].plot_3d(2)
+                vel[2].plot_3d(2)
+                vel.plot_q_criterion_isosurfaces(iso_vals=[0.05, 0.1, 0.5])
 
-            try:
-                assert vel_base_turb is not None
-                avg_vel[0].plot_center(
-                    0,
-                    PhysicalField(
-                        slice_domain, vel_base_turb[0][0, :, 0], name="mean (Vilda)"
-                    ),
-                )
-            except Exception:
-                print_verb("plotting of reference profile failed.")
-                avg_vel[0].plot_center(0)
-            # avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
-            # for i_x in range(Nx):
-            #     for i_z in range(Nz):
-            #         avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
-            # avg_vel_x_slice.set_time_step(time_step)
-            # avg_vel_x_slice.set_name("average_velocity_x_slice")
-            # avg_vel_x_slice.save_to_file("avg_vel_x_slice")
-            # avg_vel_x_slice.plot()
+                if i >= n_steps - 1:
+                    vel.set_time_step(i + time_step)
+                    vel.set_name("velocity")
+                    vel.save_to_file("vel_latest")
+                    with open(time_step_file, "w") as file:
+                        file.write(str(i + time_step))
+                        file.write("\n")
+                        file.write(str(end_time + last_end_time))
 
-        vel.set_time_step(i + time_step)
-        vel.set_name("velocity")
+                # T = TypeVar("T", bound="Field")
 
-        if i == n_steps // 2:  # just save some random snapshot
-            vel.save_to_file("velocity_" + str(i))
+                # def avg_fields(fs: List[T]) -> T:
+                #     out = fs[0] * 0.0
+                #     for f in fs:
+                #         out += f
+                #     return out / len(fs)
 
-            vel_pert = vel - vel_base_lam
-            vel_pert.set_time_step(i + time_step)
-            vel_pert.set_name("velocity_pert")
-            vel_pert.save_to_file("velocity_pert" + str(i))
+                # with h5py.File(Field.field_dir + "trajectory", "r") as f:
+                #     vel_pert_s: "List[VectorField[PhysicalField]]" = []
 
-            vel_pert_00 = vel_pert.hat().field_2d(0).field_2d(2).no_hat()
-            vel_pert_3d = vel_pert - vel_pert_00
-            vel_pert_3d.set_time_step(i + time_step)
-            vel_pert_3d.set_name("velocity_pert")
-            vel_pert_3d.save_to_file("velocity_pert_3d" + str(i))
+                #     slice_domain = PhysicalDomain.create(
+                #         (domain.get_shape_aliasing()[1],),
+                #         (False,),
+                #         scale_factors=(1.0,),
+                #         aliasing=1,
+                #     )
+                #     vel_base_turb_slice = PhysicalField.FromFile(
+                #         slice_domain, "average_velocity", name="average_velocity_x"
+                #     )
+                #     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+                #     u_data = np.moveaxis(
+                #         np.tile(
+                #             np.tile(vel_base_turb_slice.get_data(), reps=(nz, 1)),
+                #             reps=(nx, 1, 1),
+                #         ),
+                #         1,
+                #         2,
+                #     )
+                #     avg = VectorField(
+                #         [
+                #             PhysicalField(domain, jnp.asarray(u_data)),
+                #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                #         ]
+                #     )
 
-        vel_pert = vel - vel_base_lam
-        lambda_y, lambda_z = vel_pert[0].hat().get_streak_scales()
-        print_verb("lambda_y+:", lambda_y * Re_tau, "lambda_z+:", lambda_z * Re_tau)
+                #     velocity_trajectory = cast("jnp_array", f["trajectory"])
+                # n_steps_ = velocity_trajectory.shape[0]
+                # for i in range(n_steps_):
+                #     vel_pert = (
+                #         VectorField.FromData(
+                #             FourierField, domain, velocity_trajectory[i], name="velocity"
+                #         ).no_hat()
+                #         - avg
+                #     )
+                #     vel_pert.set_name("velocity_pert")
 
-        vel[0].plot_3d(2)
-        vel[0].plot_3d(0, rotate=True)
-        vel[0].plot_isosurfaces()
-        vel[1].plot_3d(2)
-        vel[2].plot_3d(2)
-        vel.plot_q_criterion_isosurfaces(iso_vals=[0.05, 0.1, 0.5])
-
-        if i >= n_steps - 1:
-            vel.set_time_step(i + time_step)
-            vel.set_name("velocity")
-            vel.save_to_file("vel_latest")
-            with open(time_step_file, "w") as file:
-                file.write(str(i + time_step))
-                file.write("\n")
-                file.write(str(end_time + last_end_time))
-
-        # T = TypeVar("T", bound="Field")
-
-        # def avg_fields(fs: List[T]) -> T:
-        #     out = fs[0] * 0.0
-        #     for f in fs:
-        #         out += f
-        #     return out / len(fs)
-
-        # with h5py.File(Field.field_dir + "trajectory", "r") as f:
-        #     vel_pert_s: "List[VectorField[PhysicalField]]" = []
-
-        #     slice_domain = PhysicalDomain.create(
-        #         (domain.get_shape_aliasing()[1],),
-        #         (False,),
-        #         scale_factors=(1.0,),
-        #         aliasing=1,
-        #     )
-        #     vel_base_turb_slice = PhysicalField.FromFile(
-        #         slice_domain, "average_velocity", name="average_velocity_x"
-        #     )
-        #     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-        #     u_data = np.moveaxis(
-        #         np.tile(
-        #             np.tile(vel_base_turb_slice.get_data(), reps=(nz, 1)),
-        #             reps=(nx, 1, 1),
-        #         ),
-        #         1,
-        #         2,
-        #     )
-        #     avg = VectorField(
-        #         [
-        #             PhysicalField(domain, jnp.asarray(u_data)),
-        #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-        #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-        #         ]
-        #     )
-
-        #     velocity_trajectory = cast("jnp_array", f["trajectory"])
-        # n_steps_ = velocity_trajectory.shape[0]
-        # for i in range(n_steps_):
-        #     vel_pert = (
-        #         VectorField.FromData(
-        #             FourierField, domain, velocity_trajectory[i], name="velocity"
-        #         ).no_hat()
-        #         - avg
-        #     )
-        #     vel_pert.set_name("velocity_pert")
-
-        #     vel_pert_s.append(vel_pert)
-        # uu = (
-        #     avg_fields([vel_pert[0] ** 2 for vel_pert in vel_pert_s])
-        #     .hat()
-        #     .field_2d(2)
-        #     .field_2d(0)
-        #     .no_hat()
-        # )
-        # uu.set_name("uu")
-        # vv = (
-        #     avg_fields([vel_pert[1] ** 2 for vel_pert in vel_pert_s])
-        #     .hat()
-        #     .field_2d(2)
-        #     .field_2d(0)
-        #     .no_hat()
-        # )
-        # vv.set_name("vv")
-        # ww = (
-        #     avg_fields([vel_pert[2] ** 2 for vel_pert in vel_pert_s])
-        #     .hat()
-        #     .field_2d(2)
-        #     .field_2d(0)
-        #     .no_hat()
-        # )
-        # ww.set_name("ww")
-        # uv = (
-        #     avg_fields([vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s])
-        #     .hat()
-        #     .field_2d(2)
-        #     .field_2d(0)
-        #     .no_hat()
-        # )
-        # uv.set_name("uv")
-        # uw = (
-        #     avg_fields([vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s])
-        #     .hat()
-        #     .field_2d(2)
-        #     .field_2d(0)
-        #     .no_hat()
-        # )
-        # uw.set_name("uw")
-        # vw = (
-        #     avg_fields([vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s])
-        #     .hat()
-        #     .field_2d(2)
-        #     .field_2d(0)
-        #     .no_hat()
-        # )
-        # vw.set_name("vw")
-        # fig_stat = figure.Figure()
-        # ax_stat = fig_stat.subplots(1, 1, squeeze=False)
-        # uu.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-        # vv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-        # ww.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-        # uv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-        # uw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-        # vw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-        # fig_stat.savefig(Field.plotting_dir + "reystresses.png")
-        # uu.plot_center(1)
-        # vv.plot_center(1)
-        # ww.plot_center(1)
-        # uv.plot_center(1)
-        # uw.plot_center(1)
-        # vw.plot_center(1)
+                #     vel_pert_s.append(vel_pert)
+                # uu = (
+                #     avg_fields([vel_pert[0] ** 2 for vel_pert in vel_pert_s])
+                #     .hat()
+                #     .field_2d(2)
+                #     .field_2d(0)
+                #     .no_hat()
+                # )
+                # uu.set_name("uu")
+                # vv = (
+                #     avg_fields([vel_pert[1] ** 2 for vel_pert in vel_pert_s])
+                #     .hat()
+                #     .field_2d(2)
+                #     .field_2d(0)
+                #     .no_hat()
+                # )
+                # vv.set_name("vv")
+                # ww = (
+                #     avg_fields([vel_pert[2] ** 2 for vel_pert in vel_pert_s])
+                #     .hat()
+                #     .field_2d(2)
+                #     .field_2d(0)
+                #     .no_hat()
+                # )
+                # ww.set_name("ww")
+                # uv = (
+                #     avg_fields([vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s])
+                #     .hat()
+                #     .field_2d(2)
+                #     .field_2d(0)
+                #     .no_hat()
+                # )
+                # uv.set_name("uv")
+                # uw = (
+                #     avg_fields([vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s])
+                #     .hat()
+                #     .field_2d(2)
+                #     .field_2d(0)
+                #     .no_hat()
+                # )
+                # uw.set_name("uw")
+                # vw = (
+                #     avg_fields([vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s])
+                #     .hat()
+                #     .field_2d(2)
+                #     .field_2d(0)
+                #     .no_hat()
+                # )
+                # vw.set_name("vw")
+                # fig_stat = figure.Figure()
+                # ax_stat = fig_stat.subplots(1, 1, squeeze=False)
+                # uu.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+                # vv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+                # ww.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+                # uv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+                # uw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+                # vw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
+                # fig_stat.savefig(Field.plotting_dir + "reystresses.png")
+                # uu.plot_center(1)
+                # vv.plot_center(1)
+                # ww.plot_center(1)
+                # uv.plot_center(1)
+                # uw.plot_center(1)
+                # vw.plot_center(1)
 
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time
@@ -2533,8 +2567,9 @@ def run_ld_2021_get_mean(**params: Any) -> None:
     nse.write_intermediate_output = True
     nse.solve()
 
-    nse.set_post_process_fn(post_process)
-    nse.post_process()
+    # nse.set_post_process_fn(post_process)
+    # nse.post_process()
+    post_process(nse, "trajectory")
 
 
 def run_ld_2021(**params: Any) -> None:

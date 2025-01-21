@@ -882,7 +882,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 )
             except Exception:
                 print_verb("forward calculation took", iteration_duration, "seconds")
-            self.velocity_field_u_history = cast("jnp_array", velocity_u_hat_history_)
+            self.velocity_field_u_history = velocity_u_hat_history_
             self.dPdx_history = dPdx_history
             self.current_dPdx_history = dPdx_history
         if self.optimisation_mode == self.optimisation_modes.gain:
@@ -1001,7 +1001,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         )
         velocity_final.set_time_step(len(velocity_u_hat_history) - 1)
         nse.append_field("velocity_hat", velocity_final, in_place=False)
-        current_velocity_field_u_history = cast("jnp_array", velocity_u_hat_history)
+        current_velocity_field_u_history = velocity_u_hat_history
         jax.clear_caches()  # type: ignore
         gc.collect()
         return current_velocity_field_u_history, current_dPdx_history

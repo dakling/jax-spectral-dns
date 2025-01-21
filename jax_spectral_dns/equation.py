@@ -302,13 +302,13 @@ class Equation:
         raise NotImplementedError()
 
     def set_before_time_step_fn(self: E, fn: Optional[Callable[[E], None]]) -> None:
-        self.before_time_step_fn = fn
+        self.before_time_step_fn = fn  # type: ignore[assignment]
 
     def set_after_time_step_fn(self: E, fn: Optional[Callable[[E], None]]) -> None:
-        self.after_time_step_fn = fn
+        self.after_time_step_fn = fn  # type: ignore[assignment]
 
     def set_post_process_fn(self: E, fn: Optional[Callable[[E, int], None]]) -> None:
-        self.post_process_fn = fn
+        self.post_process_fn = fn  # type: ignore[assignment]
 
     def before_time_step(self: E) -> None:
         if type(self.before_time_step_fn) != NoneType:
@@ -352,18 +352,18 @@ class Equation:
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
             trajectory, _, number_of_time_steps = self.solve_scan()
-            # velocity_final = VectorField(
-            #     [
-            #         FourierField(
-            #             self.get_physical_domain(),
-            #             trajectory[-1][i],
-            #             name="velocity_hat_" + "xyz"[i],
-            #         )
-            #         for i in self.all_dimensions()
-            #     ]
-            # )
-            # velocity_final.set_time_step(len(trajectory) - 1)
-            # self.append_field("velocity_hat", velocity_final, in_place=False)
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.get_physical_domain(),
+                        trajectory[-1][i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            velocity_final.set_time_step(len(trajectory) - 1)
+            self.append_field("velocity_hat", velocity_final, in_place=False)
 
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 try:
