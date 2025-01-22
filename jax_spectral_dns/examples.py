@@ -2215,6 +2215,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             velocity_trajectory = f["trajectory"]
             n_steps = velocity_trajectory.shape[0]
             # n_steps = nse.get_number_of_fields("velocity_hat")
+            vel_2d_yz_trajectory = []
             for i in range(n_steps):
                 # vel_hat = nse.get_field("velocity_hat", i)
 
@@ -2223,6 +2224,19 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 )
                 vel_hat.set_time_step(i)
                 vel = vel_hat.no_hat()
+                vel_2d = vel_hat[0].field_2d(0).no_hat()
+                yz_domain = PhysicalDomain.create(
+                    domain.get_shape()[1:],
+                    (False, True),
+                    scale_factors=(1.0, Lz_over_pi * np.pi),
+                    aliasing=3 / 2,
+                    dealias_nonperiodic=False,
+                )
+                vel_2d_yz = PhysicalField(yz_domain, vel_2d[0, :, :])
+                vel_2d.set_name("vel_2d")
+                vel_2d_yz.set_name("vel_2d_yz")
+                vel_2d_yz_trajectory.append(vel_2d_yz.get_data())
+
                 if i == 0:
                     energy_t = []
                     ts = []
@@ -2563,6 +2577,16 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 # uv.plot_center(1)
                 # uw.plot_center(1)
                 # vw.plot_center(1)
+            # save traj
+
+            vel_2d_yz_trajectory_arr = jnp.array(vel_2d_yz_trajectory)
+            with h5py.File(Field.field_dir + "/trajectory_yz", "w") as f:
+                f.create_dataset(
+                    "trajectory_yz",
+                    data=vel_2d_yz_trajectory_arr,
+                    compression="gzip",
+                    compression_opts=9,
+                )
 
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time

@@ -114,9 +114,10 @@ def post_process_averages() -> None:
             length += 1
         return out / length
 
-    Lx_over_pi = 0.6
-    Lz_over_pi = 0.3
-    Nx, Ny, Nz = (48, 129, 60)
+    # TODO hardcoded stuff
+    Lx_over_pi = 1.0
+    Lz_over_pi = 1.0
+    Nx, Ny, Nz = (64, 129, 80)
     domain = get_domain((Nx, Ny, Nz), Lx_over_pi, Lz_over_pi)
 
     slice_domain = PhysicalDomain.create(
@@ -132,6 +133,7 @@ def post_process_averages() -> None:
     vel_base_turb = get_vel_field_minimal_channel(domain)
     vel_00_s = []
     vel_00_symm_s = []
+    # TODO hardcoded stuff
     time_step = 15138
     for fl in sorted(
         glob.glob("trajectory_00_20*", root_dir="./fields"),
@@ -303,6 +305,9 @@ def post_process_averages() -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
+        avg_.set_name("avg")
+        avg_.plot_3d(0)
+        avg_.plot_3d(2)
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
         for i in range(n_steps):
@@ -337,7 +342,7 @@ def post_process_averages() -> None:
                 print("lambda_z+:", lambda_z * Re_tau)
 
                 streak_amplitude = max(abs(vel_pert_kx.get_data().flatten()))
-                print("streak_amplitude", streak_amplitude)
+                print("streak inf norm", streak_amplitude)
 
         uu = (
             avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))

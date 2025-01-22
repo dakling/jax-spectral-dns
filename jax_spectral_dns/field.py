@@ -1730,7 +1730,7 @@ class PhysicalField(Field):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot(self, *other_fields: PhysicalField) -> None:
+    def plot(self, *other_fields: PhysicalField, **params: Any) -> None:
         try:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
@@ -1772,62 +1772,85 @@ class PhysicalField(Field):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
+                del ax
 
             elif self.physical_domain.number_of_dimensions == 2:
                 fig = figure.Figure(figsize=(15, 5))
-                ax_ = np.array([fig.add_subplot(1, 3, 1), fig.add_subplot(1, 3, 2)])
-                assert type(ax_) is np.ndarray
-                ax3d = fig.add_subplot(1, 3, 3, projection="3d")
-                assert type(ax3d) is Axes3D
-                for dimension in self.all_dimensions():
-                    other_dim = [i for i in self.all_dimensions() if i != dimension][0]
-                    N_c = self.physical_domain.number_of_cells(other_dim) // 2
-                    ax_[dimension].plot(
-                        self.physical_domain.grid[dimension],
-                        self.data.take(indices=N_c, axis=other_dim),
-                        label=self.name,
+                ax_ = fig.subplots(1, 1)
+                # assert type(ax_) is np.ndarray
+                assert type(ax_) is Axes
+                ims = []
+                data = self.data
+                rotate = params.get("rotate", False)
+                other_dim = list(self.all_dimensions())
+                if rotate:
+                    other_dim.reverse()
+                    data = data.T
+
+                extent = (
+                    self.physical_domain.grid[other_dim[0]][0],
+                    self.physical_domain.grid[other_dim[0]][-1],
+                    self.physical_domain.grid[other_dim[1]][0],
+                    self.physical_domain.grid[other_dim[1]][-1],
+                )
+                x = self.physical_domain.grid[other_dim[0]]
+                y = jnp.flip(self.physical_domain.grid[other_dim[1]])
+                Nx = self.physical_domain.get_shape()[other_dim[0]]
+                Ny = self.physical_domain.get_shape()[other_dim[1]]
+                xi = np.linspace(x[0], x[-1], Nx)
+                yi = np.linspace(y[0], y[-1], Ny)
+                interp = RegularGridInterpolator((x, y), data, method="cubic")
+                interp_data = np.array(
+                    [[interp([[x_, y_]])[0] for x_ in xi] for y_ in yi]
+                )
+                ims.append(
+                    ax_.imshow(
+                        interp_data,
+                        interpolation=None,
+                        extent=extent,
                     )
-                    ax3d.plot_surface(
-                        self.physical_domain.mgrid[0],
-                        (self.physical_domain.mgrid[1]),
-                        self.data,
+                )
+                ax_.set_xlabel("$" + "xyz"[other_dim[0]] + "$")
+                ax_.set_ylabel("$" + "xyz"[other_dim[1]] + "$")
+                # Find the min and max of all colors for use in setting the color scale.
+                vmin = min(image.get_array().min() for image in ims)  # type: ignore[union-attr]
+                vmax = max(image.get_array().max() for image in ims)  # type: ignore[union-attr]
+                norm = colors.Normalize(vmin=vmin, vmax=vmax)
+                for im in ims:
+                    im.set_norm(norm)
+                    name = params.get("name", self.name)
+                    name_color = params.get("name_color", "black")
+                    divider = make_axes_locatable(ax_)
+                    cax = divider.append_axes("right", size="5%", pad=0.05)
+                    cbar = fig.colorbar(
+                        ims[0], cax=cax, label=name, orientation="vertical"
                     )
-                    for other_field in other_fields:
-                        ax_[dimension].plot(
-                            other_field.physical_domain.grid[dimension],
-                            other_field.data.take(indices=N_c, axis=other_dim),
-                            "--",
-                            label=other_field.name,
-                        )
-                        ax3d.plot_surface(
-                            self.physical_domain.mgrid[0],
-                            (self.physical_domain.mgrid[1]),
-                            other_field.data,
-                        )
+                    cbar.ax.yaxis.label.set_color(name_color)
                     fig.legend()
 
-                    def save() -> None:
-                        fig.savefig(
-                            self.plotting_dir
-                            + "plot_"
-                            + self.name
-                            + "_latest"
-                            + self.plotting_format
-                        )
-                        fig.savefig(
-                            self.plotting_dir
-                            + "plot_"
-                            + self.name
-                            + "_t_"
-                            + "{:06}".format(self.time_step)
-                            + self.plotting_format
-                        )
+                def save() -> None:
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_latest"
+                        + self.plotting_format
+                    )
+                    fig.savefig(
+                        self.plotting_dir
+                        + "plot_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
+                    )
 
-                    try:
-                        save()
-                    except FileNotFoundError:
-                        Field.initialize(False)
-                        save()
+                try:
+                    save()
+                except FileNotFoundError:
+                    Field.initialize(False)
+                    save()
+                    del ax_
             elif self.physical_domain.number_of_dimensions == 3:
                 fig = figure.Figure()
                 # ax = fig.subplots(1, 3, figsize=(15, 5))
@@ -1879,10 +1902,12 @@ class PhysicalField(Field):
                 except FileNotFoundError:
                     Field.initialize(False)
                     save()
+                del ax__
             else:
                 raise Exception("Not implemented yet")
-            del fig, ax
+            del fig
         except Exception as e:
+            raise e
             print("plot failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
@@ -2087,7 +2112,8 @@ class PhysicalField(Field):
                 self.physical_domain.grid[other_dim[1]][-1],
             )
             x = self.physical_domain.grid[other_dim[0]]
-            y = jnp.flip(self.physical_domain.grid[other_dim[1]])
+            # y = jnp.flip(self.physical_domain.grid[other_dim[1]])
+            y = self.physical_domain.grid[other_dim[1]]
             Nx = self.physical_domain.get_shape()[other_dim[0]]
             Ny = self.physical_domain.get_shape()[other_dim[1]]
             xi = np.linspace(x[0], x[-1], Nx)
