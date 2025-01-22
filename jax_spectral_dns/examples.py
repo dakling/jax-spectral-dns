@@ -2209,7 +2209,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             )
 
     # def post_process(nse: NavierStokesVelVort, i: int) -> None:
-    def post_process(nse: NavierStokesVelVort, trajectory_file: str) -> None:
+    def post_process(trajectory_file: str) -> None:
 
         with h5py.File(Field.field_dir + "/" + trajectory_file, "r") as f:
             velocity_trajectory = f["trajectory"]
@@ -2576,7 +2576,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
 
     # nse.set_post_process_fn(post_process)
     # nse.post_process()
-    post_process(nse, "trajectory")
+    post_process("trajectory")
 
 
 def run_ld_2021(**params: Any) -> None:
