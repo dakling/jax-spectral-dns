@@ -270,12 +270,15 @@ def post_process_averages() -> None:
         profile_hist_avg.append(avg_fields(interval))
     for interval in profile_hist_mf:
         profile_hist_avg_mf.append(avg_fields(interval))
-    fig_hist_profiles = figure.Figure(layout="tight", figsize=(3 * n_bins, 5))
+    # fig_hist_profiles = figure.Figure(layout="tight", figsize=(3 * n_bins, 5))
+    fig_hist_profiles = figure.Figure(layout="tight", figsize=(9, 9))
     # ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
-    ax_hist_profiles = fig_hist_profiles.subplots(1, len(profile_hist_avg))
+    ax_hist_profiles = fig_hist_profiles.subplots(3, 3)
     for ax_hist_profile in ax_hist_profiles:
         ax_hist_profile.set_xlabel("$y$")
-    ax_hist_profiles[0].set_ylabel("$\\bar U$")
+    ax_hist_profiles[0][0].set_ylabel("$\\bar U$")
+    ax_hist_profiles[1][0].set_ylabel("$\\bar U$")
+    ax_hist_profiles[2][0].set_ylabel("$\\bar U$")
 
     def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
         return ((vel[0].diff(0)) ** 2).volume_integral()
@@ -283,19 +286,23 @@ def post_process_averages() -> None:
     def get_mass_flux(vel: "VectorField[PhysicalField]") -> float:
         return vel[0].volume_integral()
 
-    for i in range(len(profile_hist_avg)):
-        profile_hist_avg[i].set_name("hist_bin_" + str(i))
-        print("n:", len(profile_hist[i]))
-        print("dissipation:", get_dissipation(profile_hist_avg[i]))
-        print("mass flux:", get_mass_flux(profile_hist_avg[i]))
-        profile_hist_avg[i].set_time_step(0)
-        profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
-        profile_hist_avg[i][0].plot_center(
-            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i]
-        )
-        # profile_hist_avg_mf[i][0].plot_center(
-        #     0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
-        # )
+    # for i in range(len(profile_hist_avg)):
+    i = 0
+    for j in range(3):
+        for k in range(3):
+            profile_hist_avg[i].set_name("hist_bin_" + str(i))
+            print("n:", len(profile_hist[i]))
+            print("dissipation:", get_dissipation(profile_hist_avg[i]))
+            print("mass flux:", get_mass_flux(profile_hist_avg[i]))
+            profile_hist_avg[i].set_time_step(0)
+            profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
+            profile_hist_avg[i][0].plot_center(
+                0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[j][k]
+            )
+            # profile_hist_avg_mf[i][0].plot_center(
+            #     0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
+            # )
+            i += 1
     fig_hist_profiles.savefig("plots/vel_hist_avg_profiles.png")
 
     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
@@ -392,12 +399,12 @@ def post_process_averages() -> None:
                 Re_tau = args.get("Re_tau", 180)
                 vel_pert.set_time_step(i)
                 vel_pert[0].plot_3d(0)
-                vel_pert[0].save_to_file("velocity_pert_" + str(i))
+                vel_pert.save_to_file("velocity_pert_" + str(i))
                 vel_pert_kx = vel_pert.hat().field_2d(0).no_hat()
                 vel_pert_kx.set_time_step(i)
                 vel_pert_kx.set_name("velocity_pert_kx")
                 vel_pert_kx[0].plot_3d(0)
-                vel_pert_kx[0].save_to_file("velocity_pert_kx_" + str(i))
+                vel_pert_kx.save_to_file("velocity_pert_kx_" + str(i))
                 lambda_y, lambda_z = vel_pert.hat()[0].get_streak_scales()
                 print("lambda_y:", lambda_y)
                 print("lambda_y+:", lambda_y * Re_tau)

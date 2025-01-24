@@ -2949,6 +2949,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     mean_perturbation = params.get("mean_perturbation", 0.0)
 
     full_channel_mean = params.get("full_channel_mean", False)
+    custom_channel_mean = params.get("custom_channel_mean", False)
     cess_mean = params.get("cess_mean", False)
     hist_mean = params.get("hist_mean", False)
     A = params.get("cess_mean_a")
@@ -3232,6 +3233,29 @@ def run_ld_2021_dual(**params: Any) -> None:
         flow_rate_turb = vel_base_turb[0].volume_integral()
         max_turb = 19.5  # TODO rough estimate is fine here
         vel_base_turb.set_name("velocity_base")
+    elif custom_channel_mean:
+
+        slice_domain = PhysicalDomain.create(
+            (domain.get_shape_aliasing()[1],),
+            (False,),
+            scale_factors=(1.0,),
+            aliasing=1,
+        )
+        avg_slice = PhysicalField.FromFile(slice_domain, "average_velocity")
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(
+            np.tile(np.tile(avg_slice.get_data(), reps=(nz, 1)), reps=(nx, 1, 1)),
+            1,
+            2,
+        )
+        vel_base_turb = VectorField(
+            [
+                PhysicalField(domain, jnp.asarray(u_data)),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+
     else:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
             domain, avg_vel_coeffs
@@ -3525,8 +3549,8 @@ def run_ld_2021_dual(**params: Any) -> None:
                 v0 = VectorField.FromFile(
                     domain, init_file, name, allow_projection=True
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                print(e)
         assert v0 is not None
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
