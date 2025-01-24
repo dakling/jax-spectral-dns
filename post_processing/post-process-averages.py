@@ -51,12 +51,17 @@ HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
 
+args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
+print(args)
+
 
 def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
     return PhysicalDomain.create(
         shape,
         (True, False, True),
         scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
+        aliasing=3 / 2,
+        dealias_nonperiodic=False,
     )
 
 
@@ -114,10 +119,11 @@ def post_process_averages() -> None:
             length += 1
         return out / length
 
-    # TODO hardcoded stuff
-    Lx_over_pi = 1.0
-    Lz_over_pi = 1.0
-    Nx, Ny, Nz = (64, 129, 80)
+    Lx_over_pi = args.get("Lx_over_pi", 2.0)
+    Lz_over_pi = args.get("Lz_over_pi", 1.0)
+    Nx = args.get("Nx", 64)
+    Ny = args.get("Ny", 129)
+    Nz = args.get("Nz", 80)
     domain = get_domain((Nx, Ny, Nz), Lx_over_pi, Lz_over_pi)
 
     slice_domain = PhysicalDomain.create(
@@ -264,8 +270,12 @@ def post_process_averages() -> None:
         profile_hist_avg.append(avg_fields(interval))
     for interval in profile_hist_mf:
         profile_hist_avg_mf.append(avg_fields(interval))
-    fig_hist_profiles = figure.Figure(layout="tight", figsize=(10, 3 * n_bins))
-    ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
+    fig_hist_profiles = figure.Figure(layout="tight", figsize=(3 * n_bins, 5))
+    # ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
+    ax_hist_profiles = fig_hist_profiles.subplots(1, len(profile_hist_avg))
+    for ax_hist_profile in ax_hist_profiles:
+        ax_hist_profile.set_xlabel("$y$")
+    ax_hist_profiles[0].set_ylabel("$\\bar U$")
 
     def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
         return ((vel[0].diff(0)) ** 2).volume_integral()
@@ -281,30 +291,83 @@ def post_process_averages() -> None:
         profile_hist_avg[i].set_time_step(0)
         profile_hist_avg[i][0].save_to_file("vel_hist_bin_" + str(i))
         profile_hist_avg[i][0].plot_center(
-            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][0]
+            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i]
         )
-        profile_hist_avg_mf[i][0].plot_center(
-            0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
-        )
+        # profile_hist_avg_mf[i][0].plot_center(
+        #     0, avg[0], fig=fig_hist_profiles, ax=ax_hist_profiles[i][1]
+        # )
     fig_hist_profiles.savefig("plots/vel_hist_avg_profiles.png")
+
+    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+    u_data = np.moveaxis(
+        np.tile(np.tile(avg[0].get_data(), reps=(nz, 1)), reps=(nx, 1, 1)),
+        1,
+        2,
+    )
+    avg_ = VectorField(
+        [
+            PhysicalField(domain, jnp.asarray(u_data)),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+        ]
+    )
+    vel_yz_s = []
+    try:
+        for fl in sorted(
+            glob.glob("trajectory_yz_20*", root_dir="./fields"),
+            key=lambda f: os.path.getmtime("fields/" + f),
+        ):
+            with h5py.File("fields/" + fl, "r") as f:
+                velocity_yz_trajectory = f["trajectory_yz"]
+                n_steps = velocity_yz_trajectory.shape[0]
+                for i in range(n_steps):
+                    vel_yz_s.append(velocity_yz_trajectory[i])
+                    vel_yz = vel_yz_s[-1]
+        time_step = 0
+        # ts = []
+        # lambda_y_s = []
+        # lambda_z_s = []
+        # streak_inf_norm_s = []
+        out = []
+
+        for vel_yz in vel_yz_s:
+            u_data = np.tile(vel_yz, reps=(nx, 1, 1))
+            vel_yz_3d = (
+                PhysicalField(domain, np.tile(vel_yz, reps=(nx, 1, 1)), name="vel_pert")
+                - avg_[0]
+            )
+            vel_yz_3d.set_time_step(time_step)
+            vel_yz_3d.set_name("velocity_yz")
+            vel_yz_3d.plot_3d(0)
+            vel_yz_3d.plot_3d(2)
+
+            Re_tau = args.get("Re_tau", 180)
+            lambda_y, lambda_z = vel_yz_3d.hat().get_streak_scales()
+            # print("lambda_y:", lambda_y)
+            # print("lambda_y+:", lambda_y * Re_tau)
+            # print("lambda_z:", lambda_z)
+            # print("lambda_z+:", lambda_z * Re_tau)
+            streak_amplitude = max(abs(vel_yz_3d.get_data().flatten()))
+            # print("streak inf norm", streak_amplitude)
+            # ts.append(time_step)
+            # lambda_y_s.append(lambda_y)
+            # lambda_z_s.append(lambda_z)
+            # streak_inf_norm_s.append(streak_amplitude)
+            out.append([time_step, lambda_y, lambda_z, streak_amplitude])
+            time_step += 1
+        # out_arr = np.array([[ts[k], lambda_y_s[k], lambda_z_s[k], streak_inf_norm_s[k]] for k in range(len(ts))])
+        out_arr = np.array(out)
+        print(out_arr.shape)
+        with open(Field.field_dir + "/streak_data.txt", "w") as f:
+            np.savetxt(f, out_arr, delimiter=",")
+
+    except Exception as e:
+        # print(e)
+        raise e
 
     print_verb("calculating statistics")
     with h5py.File("fields/" + "trajectory", "r") as f:
         vel_pert_s = []
-
-        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-        u_data = np.moveaxis(
-            np.tile(np.tile(avg[0].get_data(), reps=(nz, 1)), reps=(nx, 1, 1)),
-            1,
-            2,
-        )
-        avg_ = VectorField(
-            [
-                PhysicalField(domain, jnp.asarray(u_data)),
-                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-            ]
-        )
         avg_.set_name("avg")
         avg_.plot_3d(0)
         avg_.plot_3d(2)
@@ -326,7 +389,7 @@ def post_process_averages() -> None:
                 vel_pert_3d = vel_pert - vel_pert_00
                 print("perturbation energy:", vel_pert.energy())
                 print("perturbation energy (no spatial mean):", vel_pert_3d.energy())
-                Re_tau = 180  # TODO watch out for hardcoded Re
+                Re_tau = args.get("Re_tau", 180)
                 vel_pert.set_time_step(i)
                 vel_pert[0].plot_3d(0)
                 vel_pert[0].save_to_file("velocity_pert_" + str(i))
