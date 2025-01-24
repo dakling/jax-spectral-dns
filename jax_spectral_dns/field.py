@@ -2105,18 +2105,18 @@ class PhysicalField(Field):
                 other_dim.reverse()
                 data = data.T
 
-            extent = (
-                self.physical_domain.grid[other_dim[0]][0],
-                self.physical_domain.grid[other_dim[0]][-1],
-                self.physical_domain.grid[other_dim[1]][-1],
-                self.physical_domain.grid[other_dim[1]][0],
-            )
             # extent = (
-            #     min(self.physical_domain.grid[other_dim[0]]),
-            #     max(self.physical_domain.grid[other_dim[0]]),
-            #     max(self.physical_domain.grid[other_dim[1]]),
-            #     min(self.physical_domain.grid[other_dim[1]]),
+            #     self.physical_domain.grid[other_dim[0]][0],
+            #     self.physical_domain.grid[other_dim[0]][-1],
+            #     self.physical_domain.grid[other_dim[1]][0],
+            #     self.physical_domain.grid[other_dim[1]][-1],
             # )
+            extent = (
+                min(self.physical_domain.grid[other_dim[0]]),
+                max(self.physical_domain.grid[other_dim[0]]),
+                max(self.physical_domain.grid[other_dim[1]]),
+                min(self.physical_domain.grid[other_dim[1]]),
+            )
             x = self.physical_domain.grid[other_dim[0]]
             y = jnp.flip(self.physical_domain.grid[other_dim[1]])
             # y = self.physical_domain.grid[other_dim[1]]
