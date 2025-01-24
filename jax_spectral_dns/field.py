@@ -2114,8 +2114,8 @@ class PhysicalField(Field):
             extent = (
                 min(self.physical_domain.grid[other_dim[0]]),
                 max(self.physical_domain.grid[other_dim[0]]),
-                max(self.physical_domain.grid[other_dim[1]]),
                 min(self.physical_domain.grid[other_dim[1]]),
+                max(self.physical_domain.grid[other_dim[1]]),
             )
             x = self.physical_domain.grid[other_dim[0]]
             y = jnp.flip(self.physical_domain.grid[other_dim[1]])

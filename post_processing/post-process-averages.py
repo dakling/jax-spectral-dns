@@ -274,11 +274,14 @@ def post_process_averages() -> None:
     fig_hist_profiles = figure.Figure(layout="tight", figsize=(9, 9))
     # ax_hist_profiles = fig_hist_profiles.subplots(len(profile_hist_avg), 2)
     ax_hist_profiles = fig_hist_profiles.subplots(3, 3)
-    for ax_hist_profile in ax_hist_profiles:
-        ax_hist_profile.set_xlabel("$y$")
-    ax_hist_profiles[0][0].set_ylabel("$\\bar U$")
-    ax_hist_profiles[1][0].set_ylabel("$\\bar U$")
-    ax_hist_profiles[2][0].set_ylabel("$\\bar U$")
+    # for ax_hist_profile in ax_hist_profiles:
+    for i in range(3):
+        ax_hist_profiles[0][i].set_ylabel("$\\bar U$")
+        for j in range(3):
+            ax_hist_profiles[j][i].set_xlabel("$y$")
+    # ax_hist_profiles[0][0].set_ylabel("$\\bar U$")
+    # ax_hist_profiles[1][0].set_ylabel("$\\bar U$")
+    # ax_hist_profiles[2][0].set_ylabel("$\\bar U$")
 
     def get_dissipation(vel: "VectorField[PhysicalField]") -> float:
         return ((vel[0].diff(0)) ** 2).volume_integral()
