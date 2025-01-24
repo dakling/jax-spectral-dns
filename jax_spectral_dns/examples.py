@@ -3241,7 +3241,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=(1.0,),
             aliasing=1,
         )
-        avg_slice = PhysicalField.FromFile(slice_domain, "average_velocity_x")
+        avg_slice = PhysicalField.FromFile(
+            slice_domain, "average_velocity", name="average_velocity_x"
+        )
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(
             np.tile(np.tile(avg_slice.get_data(), reps=(nz, 1)), reps=(nx, 1, 1)),
