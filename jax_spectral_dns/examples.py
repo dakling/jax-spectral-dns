@@ -3257,6 +3257,8 @@ def run_ld_2021_dual(**params: Any) -> None:
                 PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
             ]
         )
+        flow_rate_turb = vel_base_turb[0].volume_integral()
+        max_turb = np.max(u_data)
 
     else:
         vel_base_turb, _, max_turb, flow_rate_turb = get_vel_field_minimal_channel(
