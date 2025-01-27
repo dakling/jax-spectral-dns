@@ -276,9 +276,10 @@ def post_process_averages() -> None:
     ax_hist_profiles = fig_hist_profiles.subplots(3, 3)
     # for ax_hist_profile in ax_hist_profiles:
     for i in range(3):
-        ax_hist_profiles[0][i].set_ylabel("$\\bar U$")
-        for j in range(3):
-            ax_hist_profiles[j][i].set_xlabel("$y$")
+        ax_hist_profiles[i][0].set_ylabel("$\\bar U$")
+        ax_hist_profiles[-1][i].set_ylabel("$y$")
+        # for j in range(3):
+        #     ax_hist_profiles[i][j].set_xlabel("$y$")
     # ax_hist_profiles[0][0].set_ylabel("$\\bar U$")
     # ax_hist_profiles[1][0].set_ylabel("$\\bar U$")
     # ax_hist_profiles[2][0].set_ylabel("$\\bar U$")
@@ -321,59 +322,6 @@ def post_process_averages() -> None:
             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
         ]
     )
-    vel_yz_s = []
-    try:
-        for fl in sorted(
-            glob.glob("trajectory_yz_20*", root_dir="./fields"),
-            key=lambda f: os.path.getmtime("fields/" + f),
-        ):
-            with h5py.File("fields/" + fl, "r") as f:
-                velocity_yz_trajectory = f["trajectory_yz"]
-                n_steps = velocity_yz_trajectory.shape[0]
-                for i in range(n_steps):
-                    vel_yz_s.append(velocity_yz_trajectory[i])
-                    vel_yz = vel_yz_s[-1]
-        time_step = 0
-        # ts = []
-        # lambda_y_s = []
-        # lambda_z_s = []
-        # streak_inf_norm_s = []
-        out = []
-
-        for vel_yz in vel_yz_s:
-            u_data = np.tile(vel_yz, reps=(nx, 1, 1))
-            vel_yz_3d = (
-                PhysicalField(domain, np.tile(vel_yz, reps=(nx, 1, 1)), name="vel_pert")
-                - avg_[0]
-            )
-            vel_yz_3d.set_time_step(time_step)
-            vel_yz_3d.set_name("velocity_yz")
-            vel_yz_3d.plot_3d(0)
-            vel_yz_3d.plot_3d(2)
-
-            Re_tau = args.get("Re_tau", 180)
-            lambda_y, lambda_z = vel_yz_3d.hat().get_streak_scales()
-            # print("lambda_y:", lambda_y)
-            # print("lambda_y+:", lambda_y * Re_tau)
-            # print("lambda_z:", lambda_z)
-            # print("lambda_z+:", lambda_z * Re_tau)
-            streak_amplitude = max(abs(vel_yz_3d.get_data().flatten()))
-            # print("streak inf norm", streak_amplitude)
-            # ts.append(time_step)
-            # lambda_y_s.append(lambda_y)
-            # lambda_z_s.append(lambda_z)
-            # streak_inf_norm_s.append(streak_amplitude)
-            out.append([time_step, lambda_y, lambda_z, streak_amplitude])
-            time_step += 1
-        # out_arr = np.array([[ts[k], lambda_y_s[k], lambda_z_s[k], streak_inf_norm_s[k]] for k in range(len(ts))])
-        out_arr = np.array(out)
-        print(out_arr.shape)
-        with open(Field.field_dir + "/streak_data.txt", "w") as f:
-            np.savetxt(f, out_arr, delimiter=",")
-
-    except Exception as e:
-        # print(e)
-        raise e
 
     print_verb("calculating statistics")
     with h5py.File("fields/" + "trajectory", "r") as f:
