@@ -3884,8 +3884,9 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
             print_verb("initial condition file", file)
             energy = get_final_energy(file, e_0_ov_E_0)
             print_verb("final energy", energy)
+            print_verb("")
             out.append(energy)
-        print(out)
+        print_verb("all final energies", out)
         with open(Field.field_dir + "final_energy.csv", "a") as out_file:
             out_file.write(str(file) + "," + ",".join(str(i) for i in out) + "\n")
         shutil.move(file, Field.field_dir + "done_fields/")
