@@ -24,6 +24,7 @@ import scipy  # type: ignore
 import pickle
 import h5py  # type: ignore
 import glob
+import shutil
 from pathlib import Path
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
@@ -3875,19 +3876,19 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
         v_final = nse.get_latest_field("velocity_hat").no_hat()
         return v_final.energy()
 
-    out = []
+    Path(Field.field_dir + "/done_fields").mkdir(exist_ok=True)
     for file in glob.glob("velocity_pert_*", root_dir=Field.field_dir):
-        out_ = []
+        out = []
         for e_0_ov_E_0 in [1e-2, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5]:
             print_verb("initial energy:", e_0_ov_E_0)
             print_verb("initial condition file", file)
             energy = get_final_energy(file, e_0_ov_E_0)
             print_verb("final energy", energy)
-            out_.append(energy)
-        out.append(out_)
-    print(out)
-    out_arr = np.array(out)
-    np.savetxt(Field.field_dir + "final_energy.csv", out_arr)
+            out.append(energy)
+        print(out)
+        with open(Field.field_dir + "final_energy.csv", "a") as out_file:
+            out_file.write(",".join(str(i) for i in out) + "\n")
+        shutil.move(file, Field.field_dir + "done_fields/")
 
 
 def run_transition_instationary(**params: Any) -> None:
