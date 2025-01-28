@@ -3784,6 +3784,110 @@ def run_optimisation_farano_2015(**params: Any) -> None:
     optimiser.optimise()
 
 
+def run_ld_2021_random_snapshots(**params: Any) -> None:
+    Re_tau = params.get("Re_tau", 180.0)
+    Nx = params.get("Nx", 1)
+    Ny = params.get("Ny", 1)
+    Nz = params.get("Nz", 1)
+    Lx_over_pi = params.get("Lx_over_pi", 2.0)
+    Lz_over_pi = params.get("Lz_over_pi", 1.0)
+    aliasing = 3 / 2
+    max_cfl = params.get("max_cfl", 0.5)
+    end_time = params.get("end_time", 0.35)
+    constant_mass_flux = params.get("constant_mass_flux", False)
+
+    domain = PhysicalDomain.create(
+        (Nx, Ny, Nz),
+        (True, False, True),
+        scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
+        aliasing=aliasing,
+        dealias_nonperiodic=False,
+    )
+
+    slice_domain = PhysicalDomain.create(
+        (domain.get_shape_aliasing()[1],),
+        (False,),
+        scale_factors=(1.0,),
+        aliasing=1,
+    )
+    avg_slice = PhysicalField.FromFile(
+        slice_domain, "average_velocity", name="average_velocity_x"
+    )
+    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+    u_data = np.moveaxis(
+        np.tile(np.tile(avg_slice.get_data(), reps=(nz, 1)), reps=(nx, 1, 1)),
+        1,
+        2,
+    )
+    vel_base = VectorField(
+        [
+            PhysicalField(domain, jnp.asarray(u_data)),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+        ]
+    )
+    E_0 = vel_base.energy()
+
+    def get_final_energy(init_file: str, e_0_over_E_0: float) -> jsd_float:
+        Equation.initialize()
+        possible_names = ["vel_0", "velocity", "velocity_pert"]
+        v0 = None
+        for name in possible_names:
+            try:
+                v0 = VectorField.FromFile(
+                    domain, init_file, name, allow_projection=True
+                )
+            except Exception as e:
+                print(e)
+        assert v0 is not None
+        v0 = v0.normalize_by_energy()
+        v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
+        vort = v0.curl()
+        v0_data = NavierStokesVelVort.vort_yvel_to_vel(
+            domain,
+            vort[1].hat().get_data(),
+            v0[1].hat().get_data(),
+            v0[0].hat()[0, :, 0],
+            v0[2].hat()[0, :, 0],
+            two_d=False,
+        )
+        v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
+        v0_hat.set_name("velocity_hat")
+
+        v_total = v0_hat.no_hat() + vel_base
+        dt = Equation.find_suitable_dt(
+            domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time
+        )
+        nse = NavierStokesVelVortPerturbation(
+            v0_hat,
+            Re=Re_tau,
+            dt=dt,
+            end_time=end_time,
+            velocity_base_hat=vel_base.hat(),
+            constant_mass_flux=constant_mass_flux,
+            linearise=False,
+            coupling_term=False,
+        )
+        nse.activate_jit()
+        nse.solve()
+        v_final = nse.get_latest_field("velocity_hat").no_hat()
+        return v_final.energy()
+
+    out = []
+    for e_0_ov_E_0 in [1e-2, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5]:
+        out_ = []
+        for file in glob.glob("velocity_pert_*", root_dir=Field.field_dir):
+            print_verb("initial energy:", e_0_ov_E_0)
+            print_verb("initial condition file", file)
+            energy = get_final_energy(file, e_0_ov_E_0)
+            print_verb("final energy", energy)
+            out_.append(energy)
+        out.append(out_)
+    print(out)
+    out_arr = np.array(out)
+    np.savetxt(Field.field_dir + "final_energy.csv", out_arr)
+
+
 def run_transition_instationary(**params: Any) -> None:
     Re = params.get("Re", 50.0)
     Nx = params.get("Nx", 1)

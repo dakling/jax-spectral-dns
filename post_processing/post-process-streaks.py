@@ -109,7 +109,6 @@ def post_process():
                 velocity_yz_trajectory = f["trajectory_yz"]
                 n_steps = velocity_yz_trajectory.shape[0]
                 for i in range(n_steps):
-                    print(i)
                     if t >= t_0:
                         vel_yz = velocity_yz_trajectory[i]
 
