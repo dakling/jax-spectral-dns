@@ -3879,7 +3879,7 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
     Path(Field.field_dir + "/done_fields").mkdir(exist_ok=True)
     for file in glob.glob("velocity_pert_*", root_dir=Field.field_dir):
         out = []
-        for e_0_ov_E_0 in [1e-2, 1e-3, 3e-4, 1e-4, 3e-5, 1e-5]:
+        for e_0_ov_E_0 in [1e-2, 1e-3, 1e-4, 1e-5, 1e-6]:
             print_verb("initial energy:", e_0_ov_E_0)
             print_verb("initial condition file", file)
             energy = get_final_energy(file, e_0_ov_E_0)
