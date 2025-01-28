@@ -356,14 +356,14 @@ def post_process_averages() -> None:
                 vel_pert_kx.set_name("velocity_pert_kx")
                 vel_pert_kx[0].plot_3d(0)
                 vel_pert_kx.save_to_file("velocity_pert_kx_" + str(i))
-                lambda_y, lambda_z = vel_pert.hat()[0].get_streak_scales()
-                print("lambda_y:", lambda_y)
-                print("lambda_y+:", lambda_y * Re_tau)
-                print("lambda_z:", lambda_z)
-                print("lambda_z+:", lambda_z * Re_tau)
+                # lambda_y, lambda_z = vel_pert.hat()[0].get_streak_scales()
+                # print("lambda_y:", lambda_y)
+                # print("lambda_y+:", lambda_y * Re_tau)
+                # print("lambda_z:", lambda_z)
+                # print("lambda_z+:", lambda_z * Re_tau)
 
-                streak_amplitude = max(abs(vel_pert_kx.get_data().flatten()))
-                print("streak inf norm", streak_amplitude)
+                # streak_amplitude = max(abs(vel_pert_kx.get_data().flatten()))
+                # print("streak inf norm", streak_amplitude)
 
         uu = (
             avg_fields((vel_pert[0] ** 2 for vel_pert in vel_pert_s))
