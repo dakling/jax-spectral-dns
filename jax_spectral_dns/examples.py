@@ -3890,7 +3890,7 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
         print_verb("all final energies", out)
         with open(Field.field_dir + "final_energy.csv", "a") as out_file:
             out_file.write(str(file) + "," + ",".join(str(i) for i in out) + "\n")
-        shutil.move(file, Field.field_dir + "done_fields/")
+        shutil.move(Field.field_dir + "/" + file, Field.field_dir + "done_fields/")
 
 
 def run_transition_instationary(**params: Any) -> None:
