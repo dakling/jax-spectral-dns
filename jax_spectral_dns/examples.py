@@ -3870,6 +3870,8 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
         )
         nse.activate_jit()
         nse.solve()
+        v_final_hat = nse.get_latest_field("velocity_hat")
+        print(v_final_hat.get_data().shape)
         v_final = nse.get_latest_field("velocity_hat").no_hat()
         return v_final.energy()
 

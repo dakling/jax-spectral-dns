@@ -98,7 +98,7 @@ def post_process():
                 t_0 = int(last_line.split(",")[0])
         except Exception as e:
             print(e)
-            t_0 = 0
+            t_0 = -1
             print(t_0)
         for fl in sorted(
             glob.glob("trajectory_yz_20*", root_dir="./fields"),
@@ -109,7 +109,7 @@ def post_process():
                 velocity_yz_trajectory = f["trajectory_yz"]
                 n_steps = velocity_yz_trajectory.shape[0]
                 for i in range(n_steps):
-                    if t >= t_0:
+                    if t > t_0:
                         vel_yz = velocity_yz_trajectory[i]
 
                         u_data = np.tile(vel_yz, reps=(nx, 1, 1))
