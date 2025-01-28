@@ -3814,7 +3814,6 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
         slice_domain,
         "average_velocity",
         name="average_velocity_x",
-        allow_projection=True,
     )
     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
     u_data = np.moveaxis(
@@ -3873,8 +3872,6 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
         )
         nse.activate_jit()
         nse.solve()
-        v_final_hat = nse.get_latest_field("velocity_hat")
-        print(v_final_hat.get_data().shape)
         v_final = nse.get_latest_field("velocity_hat").no_hat()
         return v_final.energy()
 
