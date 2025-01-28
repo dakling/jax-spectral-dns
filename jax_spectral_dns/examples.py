@@ -3811,7 +3811,10 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
         aliasing=1,
     )
     avg_slice = PhysicalField.FromFile(
-        slice_domain, "average_velocity", name="average_velocity_x"
+        slice_domain,
+        "average_velocity",
+        name="average_velocity_x",
+        allow_projection=True,
     )
     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
     u_data = np.moveaxis(
