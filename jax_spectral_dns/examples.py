@@ -3884,6 +3884,7 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
             print_verb("initial condition file", file)
             energy = get_final_energy(file, e_0_ov_E_0)
             print_verb("final energy", energy)
+            print_verb("gain", energy / e_0_ov_E_0)
             print_verb("")
             out.append(energy)
         print_verb("all final energies", out)
