@@ -1963,7 +1963,7 @@ class NavierStokesVelVort(Equation):
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             # return (velocity_final, [u_final[1]], len(ts))
-            return (u_final[0], [u_final[1]], len(ts))
+            return (jnp.array([u_final[0]]), [u_final[1]], len(ts))
 
     def post_process(self: E) -> None:
         if type(self.post_process_fn) != NoneType:
