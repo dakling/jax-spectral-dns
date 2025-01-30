@@ -179,6 +179,17 @@ def post_process(
             amplitudes_2d_kxs.append(amplitudes_2d_kx)
             amplitudes_2d_kzs.append(amplitudes_2d_kz)
 
+            kx_max = np.argmax(amplitudes_2d_kx)
+            kz_max = np.argmax(amplitudes_2d_kz)
+            vel_0_hat_2d = vel_hat_.field_2d(0, kx_max).field_2d(2, kz_max)
+            energy_of_highest_mode_ratio = abs(
+                (vel_0_hat_2d.no_hat().energy() - vel_energy_) / vel_energy_
+            )
+            print("energy_of_highest_mode_ratio:", energy_of_highest_mode_ratio)
+
+            energy_arr = np.vstack([np.array(ts), np.array(energy_t)])
+            np.savetxt("plots/energy.txt", energy_arr.T)
+
             fig = figure.Figure()
             ax = fig.subplots(2, 1)
             ax[0].plot(amplitudes_2d_kx, "k.")
@@ -324,6 +335,7 @@ def post_process(
             vel_total_x.plot_3d(2, z_max, name="$U_x$")
             # vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
             vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$")
+            vel[0].plot_3d(2, z_max, no_cb=True)
             vel[1].plot_3d(2, z_max)
             vel[2].plot_3d(2, z_max)
             vel[0].plot_3d(

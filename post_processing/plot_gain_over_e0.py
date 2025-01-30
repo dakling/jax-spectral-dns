@@ -9,6 +9,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 import matplotlib
+from matplotlib.offsetbox import TextArea, DrawingArea, OffsetImage, AnnotationBbox
 
 from jax_spectral_dns.equation import print_verb
 from plot_t_e_0_plane import Case, dirs_and_names
@@ -73,8 +74,37 @@ def plot_single(
         )
         ax_.plot([1, 1], [0, 1], transform=ax_.transAxes, **kwargs)
         ax.plot([0, 0], [1, 0], transform=ax.transAxes, **kwargs)
-    except Exception:
-        pass
+        snapshots = [
+            ("linear", (0, gain[0]), (-2.2e-20, 34), ax_),
+            ("1eminus5", (e_0[2], gain[2]), (2.0e-6, 31.3), ax),
+            ("2eminus5", (e_0[3], gain[3]), (2.7e-4, 30.3), ax),
+            ("7eminus5", (e_0[7], gain[7]), (6.9e-4, 36.3), ax),
+        ]
+        for directory, xy, xy_box, axis_ in snapshots:
+            arr_img = plt.imread(
+                directory + "/plot_3d_x_velocity_x_t_000000.png", format="png"
+            )
+
+            imagebox = OffsetImage(arr_img, zoom=0.2)
+            imagebox.image.axes = axis_
+
+            ab = AnnotationBbox(
+                imagebox,
+                xy,
+                xybox=xy_box,
+                xycoords="data",
+                # boxcoords="offset points",
+                pad=0.02,
+                arrowprops=dict(
+                    arrowstyle="->",
+                    # connectionstyle="angle,angleA=0,angleB=90,rad=3"
+                    # connectionstyle="angle,rad=3"
+                ),
+            )
+
+            axis_.add_artist(ab)
+    except Exception as e:
+        raise e
 
 
 def plot(dirs_and_names):
@@ -89,14 +119,15 @@ def plot(dirs_and_names):
         if len(dirs_and_names) > 1:
             fig.legend(loc="upper left")
         fname = ("relative_" if rel else "") + "gain_over_e0"
-        fig.savefig(fname + ".ps")
-        psimage = Image.open(fname + ".ps")
-        psimage.load(scale=10, transparency=True)
-        psimage.save(fname + ".png", optimize=True)
-        image = Image.open(fname + ".png")
-        imageBox = image.getbbox()
-        cropped = image.crop(imageBox)
-        cropped.save(fname + ".png")
+        fig.savefig(fname + ".png", bbox_inches="tight")
+        # fig.savefig(fname + ".ps")
+        # psimage = Image.open(fname + ".ps")
+        # psimage.load(scale=10, transparency=True)
+        # psimage.save(fname + ".png", optimize=True)
+        # image = Image.open(fname + ".png")
+        # imageBox = image.getbbox()
+        # cropped = image.crop(imageBox)
+        # cropped.save(fname + ".png")
 
 
 e_base_turb = 1.0

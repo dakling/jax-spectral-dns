@@ -328,7 +328,8 @@ class Case:
 
     def get_dominant_streak_amplitude(self) -> "float":
         if self.dominant_streak_amplitude is None:
-            target_time = 0.3
+            # target_time = -0.2 # should take from the end
+            target_time = 0.8 * self.T
             vel_hat = self.get_velocity_snapshot(target_time)
             if vel_hat is not None:
                 self.dominant_streak_amplitude = max(
@@ -674,6 +675,31 @@ def plot(
             [140.0 for _ in ts],
             "k--",
             label="$\\lambda^+_{z_\\text{mean}} + \\lambda^+_{z_\\text{std}}$",
+        )
+
+    if target_property[0] == "dominant_streak_amplitude":
+        ax.set_ylim(bottom=0.0, top=11.0)
+        ts = list(set([0.0] + [case.T for case in all_cases]))
+        ts.sort()
+        mean = 5.853
+        std = 0.685
+        ax.plot(
+            ts,
+            [mean for _ in ts],
+            "k-",
+            label="$|u_{k_{x}=0}|_\\text{inf_\\text{mean}}$ (DNS)",
+        )
+        ax.plot(
+            ts,
+            [mean - std for _ in ts],
+            "k--",
+            label="$|u_{k_{x}=0}|_\\text{inf_\\text{mean}} - |u_{k_{x}=0}|_\\text{inf_\\text{std}}$",
+        )
+        ax.plot(
+            ts,
+            [mean + std for _ in ts],
+            "k--",
+            label="$|u_{k_{x}=0}|_\\text{inf_\\text{mean}} + |u_{k_{x}=0}|_\\text{inf_\\text{std}}$",
         )
 
     if target_property[0] == "e_0":

@@ -2145,9 +2145,11 @@ class PhysicalField(Field):
             name_color = params.get("name_color", "black")
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="5%", pad=0.05)
-            cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
-            cbar.ax.yaxis.label.set_color(name_color)
-            ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
+            no_cb = params.get("no_cb", False)
+            if no_cb is False:
+                cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
+                cbar.ax.yaxis.label.set_color(name_color)
+                ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
 
             def save() -> None:
                 if params.get("ax") is None:
