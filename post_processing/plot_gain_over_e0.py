@@ -21,6 +21,7 @@ plt.rcParams.update(
     {
         "text.usetex": True,
         "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
+        "font.size": 20,
     }
 )
 
@@ -85,7 +86,7 @@ def plot_single(
                 directory + "/plot_3d_x_velocity_x_t_000000.png", format="png"
             )
 
-            imagebox = OffsetImage(arr_img, zoom=0.2)
+            imagebox = OffsetImage(arr_img, zoom=0.3)
             imagebox.image.axes = axis_
 
             ab = AnnotationBbox(
@@ -110,7 +111,8 @@ def plot_single(
 def plot(dirs_and_names):
     # for rel in [True, False]:
     for rel in [False]:
-        fig, (ax_, ax) = plt.subplots(
+        fig = matplotlib.pyplot.figure(figsize=(8, 6))
+        (ax_, ax) = fig.subplots(
             1, 2, sharey=True, gridspec_kw={"width_ratios": [1, 8]}
         )
         fig.subplots_adjust(wspace=0.05)  # adjust space between Axes

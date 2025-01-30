@@ -2162,9 +2162,8 @@ class PhysicalField(Field):
                             + "_"
                             + self.name
                             + "_latest"
-                            + "_no_cb_"
-                            if no_cb
-                            else "" + self.plotting_format
+                            + ("_no_cb_" if no_cb else "")
+                            + self.plotting_format
                         ),
                         bbox_inches="tight",
                     )
@@ -2177,9 +2176,8 @@ class PhysicalField(Field):
                             + self.name
                             + "_t_"
                             + "{:06}".format(self.time_step)
-                            + "_no_cb_"
-                            if no_cb
-                            else "" + self.plotting_format
+                            + ("_no_cb_" if no_cb else "")
+                            + self.plotting_format
                         ),
                         bbox_inches="tight",
                     )
