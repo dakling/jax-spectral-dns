@@ -2155,24 +2155,32 @@ class PhysicalField(Field):
                 if params.get("ax") is None:
                     assert fig is not None
                     fig.savefig(
-                        self.plotting_dir
-                        + "plot_3d_"
-                        + "xyz"[dim]
-                        + "_"
-                        + self.name
-                        + "_latest"
-                        + self.plotting_format,
+                        (
+                            self.plotting_dir
+                            + "plot_3d_"
+                            + "xyz"[dim]
+                            + "_"
+                            + self.name
+                            + "_latest"
+                            + "_no_cb_"
+                            if no_cb
+                            else "" + self.plotting_format
+                        ),
                         bbox_inches="tight",
                     )
                     fig.savefig(
-                        self.plotting_dir
-                        + "plot_3d_"
-                        + "xyz"[dim]
-                        + "_"
-                        + self.name
-                        + "_t_"
-                        + "{:06}".format(self.time_step)
-                        + self.plotting_format,
+                        (
+                            self.plotting_dir
+                            + "plot_3d_"
+                            + "xyz"[dim]
+                            + "_"
+                            + self.name
+                            + "_t_"
+                            + "{:06}".format(self.time_step)
+                            + "_no_cb_"
+                            if no_cb
+                            else "" + self.plotting_format
+                        ),
                         bbox_inches="tight",
                     )
 
