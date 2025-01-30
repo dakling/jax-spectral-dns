@@ -34,7 +34,7 @@ matplotlib.set_loglevel("error")
 from PIL import Image
 
 # matplotlib.rcParams['axes.color_cycle'] = ['blue', 'green', 'red', 'cyan', 'magenta', 'yellow', 'black', 'purple', 'pink', 'brown', 'orange', 'teal', 'coral', 'lightblue', 'lime', 'lavender', 'turquoise', 'darkgreen', 'tan', 'salmon', 'gold']
-font_size = 18
+font_size = 24
 matplotlib.rcParams.update(
     {
         "font.size": font_size,

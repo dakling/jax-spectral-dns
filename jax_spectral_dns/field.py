@@ -2141,9 +2141,9 @@ class PhysicalField(Field):
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
+            name = params.get("name", self.name)
             no_cb = params.get("no_cb", False)
             if no_cb is False:
-                name = params.get("name", self.name)
                 name_color = params.get("name_color", "black")
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size="5%", pad=0.05)
