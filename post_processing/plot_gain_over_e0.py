@@ -83,7 +83,7 @@ def plot_single(
         ]
         for directory, xy, xy_box, axis_ in snapshots:
             arr_img = plt.imread(
-                directory + "/plot_3d_x_velocity_x_t_000000.png", format="png"
+                directory + "/plot_3d_x_no_cb_velocity_x_t_000000.png", format="png"
             )
 
             imagebox = OffsetImage(arr_img, zoom=0.25)

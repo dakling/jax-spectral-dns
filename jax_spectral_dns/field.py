@@ -2141,12 +2141,12 @@ class PhysicalField(Field):
             norm = colors.Normalize(vmin=vmin, vmax=vmax)
             for im in ims:
                 im.set_norm(norm)
-            name = params.get("name", self.name)
-            name_color = params.get("name_color", "black")
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="5%", pad=0.05)
             no_cb = params.get("no_cb", False)
             if no_cb is False:
+                name = params.get("name", self.name)
+                name_color = params.get("name_color", "black")
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="5%", pad=0.05)
                 cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
                 cbar.ax.yaxis.label.set_color(name_color)
                 ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
