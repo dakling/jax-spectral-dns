@@ -335,7 +335,9 @@ def post_process(
             vel_total_x.plot_3d(2, z_max, name="$U_x$")
             # vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
             vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$")
+            print("hello")
             vel[0].plot_3d(2, z_max, no_cb=True)
+            print("endhello")
             vel[1].plot_3d(2, z_max)
             vel[2].plot_3d(2, z_max)
             vel[0].plot_3d(

@@ -76,7 +76,7 @@ def plot_single(
         ax_.plot([1, 1], [0, 1], transform=ax_.transAxes, **kwargs)
         ax.plot([0, 0], [1, 0], transform=ax.transAxes, **kwargs)
         snapshots = [
-            ("linear", (0, gain[0]), (-2.2e-20, 34), ax_),
+            ("linear", (0, gain[0]), (-2.5e-20, 34), ax_),
             ("1eminus5", (e_0[2], gain[2]), (2.0e-6, 31.3), ax),
             ("2eminus5", (e_0[3], gain[3]), (2.7e-4, 30.3), ax),
             ("7eminus5", (e_0[7], gain[7]), (6.9e-4, 36.3), ax),
@@ -86,7 +86,7 @@ def plot_single(
                 directory + "/plot_3d_x_velocity_x_t_000000.png", format="png"
             )
 
-            imagebox = OffsetImage(arr_img, zoom=0.3)
+            imagebox = OffsetImage(arr_img, zoom=0.25)
             imagebox.image.axes = axis_
 
             ab = AnnotationBbox(
