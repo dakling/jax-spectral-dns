@@ -70,6 +70,8 @@ NoneType = type(None)
 
 T = TypeVar("T", bound="Field")
 
+pv.global_theme.transparent_background = True
+
 
 class Field(ABC):
     """Class that holds the information needed to describe a dependent variable
@@ -2388,9 +2390,7 @@ class PhysicalField(Field):
                 font_size = int(matplotlib.rcParams["font.size"])
             except Exception:
                 font_size = 18
-            # pv.global_theme.font.size = font_size
             p = pv.Plotter(off_screen=(not interactive))
-            pv.global_theme.transparent_background = True
             p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
                 wall_mesh,
@@ -2421,7 +2421,7 @@ class PhysicalField(Field):
             p.camera.elevation = 20
             p.camera.roll = 0
             p.camera.azimuth = -40
-            p.camera.zoom(0.9)
+            p.camera.zoom(1.0)
             p.add_axes(
                 line_width=5.0,
                 xlabel="$x$",
