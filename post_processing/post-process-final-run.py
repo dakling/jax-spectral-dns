@@ -136,6 +136,7 @@ def post_process(
             vel_hat_.set_time_step(j + time_step_0)
             vel_ = vel_hat_.no_hat()
             vel_.set_time_step(j + time_step_0)
+
             vel_energy_ = vel_.energy()
             time_ = (vel_.get_time_step() / (n_steps - 1)) * end_time
             ts.append(time_)

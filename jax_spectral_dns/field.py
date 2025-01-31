@@ -2352,7 +2352,7 @@ class PhysicalField(Field):
             name = params.get("name", self.name)
             grid = pv.RectilinearGrid(*domain.grid)
             wall_grid = pv.RectilinearGrid(*domain.grid)
-            grid.point_data[name] = self.get_data().T.flatten()
+            grid.point_data[name] = jnp.flip(self.get_data().T, axis=1).flatten()
             wall_grid.point_data["wall"] = domain.mgrid[1].T.flatten()
             wall_mesh = wall_grid.contour(
                 [-0.99999, 0.99999], wall_grid.point_data["wall"]
@@ -2404,9 +2404,12 @@ class PhysicalField(Field):
                 # opacity=dist,
             )
             p.camera_position = "xy"
-            p.camera.elevation = 5
-            p.camera.roll = 170
-            p.camera.azimuth = 140
+            # p.camera.elevation = 5
+            # p.camera.roll = 170
+            # p.camera.azimuth = 140
+            p.camera.elevation = 20
+            p.camera.roll = 0
+            p.camera.azimuth = -40
             p.camera.zoom(0.9)
             p.add_axes(
                 line_width=5.0,
@@ -2417,7 +2420,7 @@ class PhysicalField(Field):
                 # shaft_length=1.0,
                 # tip_length=0.3,
                 # ambient=0.6,
-                label_size=(0.12, 0.12),
+                label_size=(0.11, 0.11),
                 viewport=(-0.0, -0.0, 0.42, 0.42),
             )
 
@@ -3135,6 +3138,7 @@ class FourierField(Field):
             if rotate:
                 other_dim.reverse()
                 data = data.T
+            data = jnp.flip(data, axis=1)
             ims.append(
                 ax.imshow(
                     np.fft.fftshift(abs(data)),
