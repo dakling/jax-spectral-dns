@@ -2346,6 +2346,7 @@ class PhysicalField(Field):
         try:
             vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
             # print(vtk_mathtext.MathTextIsSupported())
+            pv.rcParams["transparent_background"] = True
             min_val = self.min()
             max_val = self.max()
             domain = self.get_physical_domain()
