@@ -213,7 +213,10 @@ class Field(ABC):
         return cast(float, jnp.min(self.data.flatten()))
 
     def absmax(self) -> "jnp_array":
-        return max(abs(self.get_data().flatten()))
+        max = jnp.max(self.data.flatten())
+        min = jnp.min(self.data.flatten())
+        return jnp.max(jnp.array([abs(max), abs(min)]))
+        # return max(abs(self.get_data().flatten()))
 
     def __neg__(self) -> Field:
         ret = self * (-1.0)
@@ -2368,6 +2371,7 @@ class PhysicalField(Field):
             except Exception:
                 font_size = 18
             p = pv.Plotter(off_screen=(not interactive))
+            p.add_mesh(mesh.outline(), color="k")
             p.add_mesh(
                 mesh,
                 opacity=params.get("opacity", 0.6),
