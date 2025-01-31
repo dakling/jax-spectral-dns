@@ -2348,7 +2348,10 @@ class PhysicalField(Field):
             domain = self.get_physical_domain()
             name = params.get("name", self.name)
             grid = pv.RectilinearGrid(*domain.grid)
+            wall_grid = pv.RectilinearGrid(*domain.grid)
             grid.point_data[name] = self.get_data().T.flatten()
+            wall_grid.point_data[name] = domain.mgrid[1]
+            wall_mesh = wall_grid.contour(1, -1)
             values = grid.point_data[name]
             other_values = params.get("other_values", [])
             if plot_min_and_max:
@@ -2371,7 +2374,11 @@ class PhysicalField(Field):
             except Exception:
                 font_size = 18
             p = pv.Plotter(off_screen=(not interactive))
-            p.add_mesh(mesh.outline(), color="k")
+            # p.add_mesh(mesh.outline(), color="k")
+            p.add_mesh(
+                wall_mesh,
+                opacity=params.get("opacity", 0.3),
+            )
             p.add_mesh(
                 mesh,
                 opacity=params.get("opacity", 0.6),
