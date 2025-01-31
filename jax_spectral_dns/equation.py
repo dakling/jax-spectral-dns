@@ -365,6 +365,7 @@ class Equation:
             velocity_final.set_time_step(len(trajectory) - 1)
             self.append_field("velocity_hat", velocity_final, in_place=False)
 
+            print("error (eq):", jnp.linalg.norm(trajectory[0] - trajectory[1]))
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 try:
                     print_verb("writing trajectory to file...", verbosity_level=2)
