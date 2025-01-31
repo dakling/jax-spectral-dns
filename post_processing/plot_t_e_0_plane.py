@@ -301,7 +301,8 @@ class Case:
     def get_inf_norm(self) -> "float":
         if self.inf_norm is None:
             vel_field = self.get_vel_0()
-            self.inf_norm = max(abs(vel_field[0].get_data().flatten()))
+            # self.inf_norm = max(abs(vel_field[0].get_data().flatten()))
+            self.inf_norm = vel_field[0].inf_norm()
         return self.inf_norm
 
     def get_inf_norm_over_local_base(self) -> "float":
