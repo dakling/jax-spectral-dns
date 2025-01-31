@@ -255,11 +255,15 @@ def post_process(
         ax_kz.plot(ts, amplitude_t, "k--", label="full")
         for kx in range((Nx - 1) // 2 + 1)[:10]:
             kx_ = int(kx * 2 / Lx_over_pi)
-            ax_kx.plot(ts, amplitudes_2d_kxs_arr[:, kx], label="kx = " + str(kx_))
+            ax_kx.plot(
+                ts, amplitudes_2d_kxs_arr[:, kx], label="$k_x = " + str(kx_) + "$"
+            )
             # ax_kx_pub.plot(amplitudes_2d_kxs_arr[:, kx], "-" label="kx = " + str(kx_))
         for kz in range((Nz - 1) // 2 + 1)[:10]:
             kz_ = int(kz * 2 / Lz_over_pi)
-            ax_kz.plot(ts, amplitudes_2d_kzs_arr[:, kz], label="kz = " + str(kz_))
+            ax_kz.plot(
+                ts, amplitudes_2d_kzs_arr[:, kz], label="$k_z = " + str(kz_) + "$"
+            )
         # fig_kx.legend()
         ax_kx.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         fig_kx.tight_layout()

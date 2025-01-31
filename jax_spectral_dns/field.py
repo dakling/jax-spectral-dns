@@ -2351,7 +2351,9 @@ class PhysicalField(Field):
             wall_grid = pv.RectilinearGrid(*domain.grid)
             grid.point_data[name] = self.get_data().T.flatten()
             wall_grid.point_data["wall"] = domain.mgrid[1].T.flatten()
-            wall_mesh = wall_grid.contour([1.0, -1.0], wall_grid.point_data["wall"])
+            wall_mesh = wall_grid.contour(
+                [-0.99999, 0.99999], wall_grid.point_data["wall"]
+            )
             values = grid.point_data[name]
             other_values = params.get("other_values", [])
             if plot_min_and_max:
@@ -2378,6 +2380,7 @@ class PhysicalField(Field):
             p.add_mesh(
                 wall_mesh,
                 opacity=params.get("opacity", 0.3),
+                # show_scalar_bar=False,
             )
             p.add_mesh(
                 mesh,
