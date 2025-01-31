@@ -1918,7 +1918,6 @@ class NavierStokesVelVort(Equation):
                 self.get_initial_field("velocity_hat").get_data(),
                 axis=0,
             )
-            print("error:", jnp.linalg.norm(out[0] - out[1]))
             return (out, cast("List[jsd_float]", trajectory[1]), len(ts))
         elif self.write_entire_output:
             u_final, trajectory = jax.lax.scan(
