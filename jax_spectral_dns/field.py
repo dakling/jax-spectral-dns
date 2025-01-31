@@ -12,7 +12,8 @@ import matplotlib
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 import pyvista as pv
-import vtk
+
+# import vtk
 import h5py  # type: ignore
 
 try:
@@ -2350,7 +2351,7 @@ class PhysicalField(Field):
         self, iso_val: float = 0.6, plot_min_and_max: bool = True, **params: Any
     ) -> None:
         try:
-            vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
+            # vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
             # print(vtk_mathtext.MathTextIsSupported())
             min_val = self.min()
             max_val = self.max()
