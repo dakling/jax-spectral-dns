@@ -12,6 +12,7 @@ import matplotlib
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 import pyvista as pv
+import vtk
 import h5py  # type: ignore
 
 try:
@@ -2343,8 +2344,6 @@ class PhysicalField(Field):
         self, iso_val: float = 0.6, plot_min_and_max: bool = True, **params: Any
     ) -> None:
         try:
-            import vtk
-
             vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
             # print(vtk_mathtext.MathTextIsSupported())
             min_val = self.min()
@@ -2379,7 +2378,7 @@ class PhysicalField(Field):
                 font_size = int(matplotlib.rcParams["font.size"])
             except Exception:
                 font_size = 18
-            pv.global_theme.font.size = font_size
+            # pv.global_theme.font.size = font_size
             p = pv.Plotter(off_screen=(not interactive))
             p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
@@ -2404,11 +2403,17 @@ class PhysicalField(Field):
                 # opacity=dist,
             )
             p.camera_position = "xy"
-            p.camera.elevation = 7
-            p.camera.roll = 180
+            p.camera.elevation = 5
+            p.camera.roll = 170
             p.camera.azimuth = 140
             p.camera.zoom(0.9)
-            p.add_axes(line_width=5.0, xlabel="$x$", ylabel="$y$", zlabel="$z$")
+            p.add_axes(
+                line_width=7.0,
+                xlabel="$x$",
+                ylabel="$y$",
+                zlabel="$z$",
+                label_size=(0.2, 0.2),
+            )
 
             def save() -> None:
                 out_name = (
