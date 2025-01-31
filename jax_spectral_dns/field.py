@@ -213,9 +213,7 @@ class Field(ABC):
         return cast(float, jnp.min(self.data.flatten()))
 
     def absmax(self) -> "jnp_array":
-        max = jnp.max(self.data.flatten())
-        min = jnp.min(self.data.flatten())
-        return jnp.max(jnp.array([max, -min]))
+        return max(abs(self.get_data().flatten()))
 
     def __neg__(self) -> Field:
         ret = self * (-1.0)
@@ -1439,6 +1437,9 @@ class PhysicalField(Field):
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1
         return cast(float, ((energy_p.volume_integral()) / domain_volume) ** (1 / p))
+
+    def inf_norm(self) -> float:
+        return cast(float, self.absmax())
 
     def get_localisation(self: PhysicalField, p: int = 3) -> float:
         return self.energy_p(p) / self.energy()

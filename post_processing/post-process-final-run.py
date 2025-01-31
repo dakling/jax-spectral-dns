@@ -171,11 +171,13 @@ def post_process(
             amplitudes_2d_kx = []
             for kx in range((Nx - 1) // 2 + 1):
                 vel_2d_kx = vel_hat_[0].field_2d(0, kx).no_hat()
-                amplitudes_2d_kx.append(vel_2d_kx.max() - vel_2d_kx.min())
+                # amplitudes_2d_kx.append(vel_2d_kx.max() - vel_2d_kx.min())
+                amplitudes_2d_kx.append(vel_2d_kx.inf_norm())
             amplitudes_2d_kz = []
             for kz in range((Nz - 1) // 2 + 1):
                 vel_2d_kz = vel_hat_[0].field_2d(2, kz).no_hat()
-                amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
+                # amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
+                amplitudes_2d_kz.append(vel_2d_kz.inf_norm())
             amplitudes_2d_kxs.append(amplitudes_2d_kx)
             amplitudes_2d_kzs.append(amplitudes_2d_kz)
 
@@ -233,16 +235,29 @@ def post_process(
 
         amplitudes_2d_kxs_arr = np.array(amplitudes_2d_kxs)
         amplitudes_2d_kzs_arr = np.array(amplitudes_2d_kzs)
-        fig_kx = figure.Figure()
+        # fig_kx_pub = figure.Figure()
+        # ax_kx_pub = fig_kx_pub.subplots(1, 1)
+        fig_k_size = (16, 12)
+        fig_kx = figure.Figure(figsize=fig_k_size)
         ax_kx = fig_kx.subplots(1, 1)
-        fig_kz = figure.Figure()
+        fig_kz = figure.Figure(figsize=fig_k_size)
         ax_kz = fig_kz.subplots(1, 1)
-        ax_kx.plot(amplitude_t, "k--", label="full")
-        ax_kz.plot(amplitude_t, "k--", label="full")
+        ax_kx.set_yscale("log")
+        ax_kz.set_yscale("log")
+        ax_kx.set_xlabel("$t u_\\tau / h$")
+        ax_kz.set_xlabel("$t u_\\tau / h$")
+        ax_kx.set_ylabel("|u|_\\text{inf}")
+        ax_kz.set_ylabel("|u|_\\text{inf}")
+        # ax_kx_pub.plot(amplitude_t, "k--", label="full")
+        ax_kx.plot(ts, amplitude_t, "k--", label="full")
+        ax_kz.plot(ts, amplitude_t, "k--", label="full")
         for kx in range((Nx - 1) // 2 + 1)[:10]:
-            ax_kx.plot(amplitudes_2d_kxs_arr[:, kx], label="kx = " + str(kx))
+            kx_ = int(kx * 2 / Lx_over_pi)
+            ax_kx.plot(ts, amplitudes_2d_kxs_arr[:, kx], label="kx = " + str(kx_))
+            # ax_kx_pub.plot(amplitudes_2d_kxs_arr[:, kx], "-" label="kx = " + str(kx_))
         for kz in range((Nz - 1) // 2 + 1)[:10]:
-            ax_kz.plot(amplitudes_2d_kzs_arr[:, kz], label="kz = " + str(kz))
+            kz_ = int(kz * 2 / Lz_over_pi)
+            ax_kz.plot(ts, amplitudes_2d_kzs_arr[:, kz], label="kz = " + str(kz_))
         # fig_kx.legend()
         ax_kx.legend(loc="center left", bbox_to_anchor=(1, 0.5))
         fig_kx.tight_layout()
