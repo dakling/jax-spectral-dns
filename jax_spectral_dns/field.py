@@ -2343,6 +2343,10 @@ class PhysicalField(Field):
         self, iso_val: float = 0.6, plot_min_and_max: bool = True, **params: Any
     ) -> None:
         try:
+            import vtk
+
+            vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
+            # print(vtk_mathtext.MathTextIsSupported())
             min_val = self.min()
             max_val = self.max()
             domain = self.get_physical_domain()
@@ -2375,6 +2379,7 @@ class PhysicalField(Field):
                 font_size = int(matplotlib.rcParams["font.size"])
             except Exception:
                 font_size = 18
+            pv.global_theme.font.size = font_size
             p = pv.Plotter(off_screen=(not interactive))
             p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
@@ -2403,7 +2408,7 @@ class PhysicalField(Field):
             p.camera.roll = 180
             p.camera.azimuth = 140
             p.camera.zoom(0.9)
-            p.show_axes()
+            p.add_axes(line_width=5.0, xlabel="$x$", ylabel="$y$", zlabel="$z$")
 
             def save() -> None:
                 out_name = (
@@ -2436,7 +2441,6 @@ class PhysicalField(Field):
             p.deep_clean()
             del p
         except Exception as e:
-            raise e
             print("plot_isosurfaces failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
