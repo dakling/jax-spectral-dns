@@ -229,15 +229,15 @@ def post_process(
         #     "plots/plot_amplitudes_vilda.png",
         #     bbox_inches="tight",
         # )
-        energy_t_arr = np.array(energy_t)
+        energy_t_arr = np.array(energy_t)[1:]
         # energy_x_2d_arr = np.array(energy_x_2d)
         # energy_x_2d_1_arr = np.array(energy_x_2d_1)
         # energy_x_2d_2_arr = np.array(energy_x_2d_2)
         # energy_x_3d_arr = np.array(energy_x_3d)
         print(max(energy_t_arr) / energy_t_arr[0])
 
-        amplitudes_2d_kxs_arr = np.array(amplitudes_2d_kxs)
-        amplitudes_2d_kzs_arr = np.array(amplitudes_2d_kzs)
+        amplitudes_2d_kxs_arr = np.array(amplitudes_2d_kxs)[1:]
+        amplitudes_2d_kzs_arr = np.array(amplitudes_2d_kzs)[1:]
         # fig_kx_pub = figure.Figure()
         # ax_kx_pub = fig_kx_pub.subplots(1, 1)
         fig_k_size = (12, 9)
@@ -252,18 +252,18 @@ def post_process(
         ax_kx.set_ylabel("$|u|_\\text{inf}$")
         ax_kz.set_ylabel("$|u|_\\text{inf}$")
         # ax_kx_pub.plot(amplitude_t, "k--", label="full")
-        ax_kx.plot(ts, amplitude_t, "k--", label="full")
-        ax_kz.plot(ts, amplitude_t, "k--", label="full")
+        ax_kx.plot(ts[1:], amplitude_t, "k--", label="full")
+        ax_kz.plot(ts[1:], amplitude_t, "k--", label="full")
         for kx in range((Nx - 1) // 2 + 1)[:10]:
             kx_ = int(kx * 2 / Lx_over_pi)
             ax_kx.plot(
-                ts, amplitudes_2d_kxs_arr[:, kx], label="$k_x = " + str(kx_) + "$"
+                ts[1:], amplitudes_2d_kxs_arr[:, kx], label="$k_x = " + str(kx_) + "$"
             )
             # ax_kx_pub.plot(amplitudes_2d_kxs_arr[:, kx], "-" label="kx = " + str(kx_))
         for kz in range((Nz - 1) // 2 + 1)[:10]:
             kz_ = int(kz * 2 / Lz_over_pi)
             ax_kz.plot(
-                ts, amplitudes_2d_kzs_arr[:, kz], label="$k_z = " + str(kz_) + "$"
+                ts[1:], amplitudes_2d_kzs_arr[:, kz], label="$k_z = " + str(kz_) + "$"
             )
         # fig_kx.legend()
         ax_kx.legend(loc="center left", bbox_to_anchor=(1, 0.5))
@@ -342,7 +342,6 @@ def post_process(
             # vort = vel.curl()
             vel.set_name("velocity")
             # vort.set_name("vorticity")
-            time_step = vel.get_time_step()
 
             if i == 0:
                 vel_shape = vel[0].get_data().shape
