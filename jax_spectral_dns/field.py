@@ -2350,7 +2350,7 @@ class PhysicalField(Field):
             grid = pv.RectilinearGrid(*domain.grid)
             wall_grid = pv.RectilinearGrid(*domain.grid)
             grid.point_data[name] = self.get_data().T.flatten()
-            wall_grid.point_data[name] = domain.mgrid[1]
+            wall_grid.point_data[name] = domain.mgrid[1].T.flatten()
             wall_mesh = wall_grid.contour(1, -1)
             values = grid.point_data[name]
             other_values = params.get("other_values", [])

@@ -239,7 +239,7 @@ def post_process(
         amplitudes_2d_kzs_arr = np.array(amplitudes_2d_kzs)
         # fig_kx_pub = figure.Figure()
         # ax_kx_pub = fig_kx_pub.subplots(1, 1)
-        fig_k_size = (8, 6)
+        fig_k_size = (12, 9)
         fig_kx = figure.Figure(figsize=fig_k_size)
         ax_kx = fig_kx.subplots(1, 1)
         fig_kz = figure.Figure(figsize=fig_k_size)
