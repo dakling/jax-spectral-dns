@@ -2376,11 +2376,12 @@ class PhysicalField(Field):
             except Exception:
                 font_size = 18
             p = pv.Plotter(off_screen=(not interactive))
-            # p.add_mesh(mesh.outline(), color="k")
+            p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
                 wall_mesh,
                 opacity=params.get("opacity", 0.3),
-                # show_scalar_bar=False,
+                color="black",
+                show_scalar_bar=False,
             )
             p.add_mesh(
                 mesh,
@@ -2398,9 +2399,9 @@ class PhysicalField(Field):
                 # opacity=dist,
             )
             p.camera_position = "xy"
-            p.camera.elevation = 20
-            p.camera.roll = -0
-            p.camera.azimuth = -45
+            p.camera.elevation = 7
+            p.camera.roll = 180
+            p.camera.azimuth = 140
             p.camera.zoom(0.9)
             p.show_axes()
 
