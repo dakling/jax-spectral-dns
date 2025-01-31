@@ -2392,14 +2392,15 @@ class PhysicalField(Field):
                 opacity=params.get("opacity", 0.6),
                 smooth_shading=True,
                 cmap="viridis",
-                scalar_bar_args={
-                    "title_font_size": font_size,
-                    "label_font_size": font_size,
-                    "title": name,
-                    "vertical": params.get("vertical_cbar", True),
-                    "position_x": params.get("cbar_position_x", 0.85),
-                    "position_y": params.get("cbar_position_y"),
-                },
+                show_scalar_bar=False,
+                # scalar_bar_args={
+                #     "title_font_size": font_size,
+                #     "label_font_size": font_size,
+                #     "title": name,
+                #     "vertical": params.get("vertical_cbar", True),
+                #     "position_x": params.get("cbar_position_x", 0.85),
+                #     "position_y": params.get("cbar_position_y"),
+                # },
                 # opacity=dist,
             )
             p.camera_position = "xy"
