@@ -2408,11 +2408,16 @@ class PhysicalField(Field):
             p.camera.azimuth = 140
             p.camera.zoom(0.9)
             p.add_axes(
-                line_width=7.0,
+                line_width=5.0,
                 xlabel="$x$",
                 ylabel="$y$",
                 zlabel="$z$",
-                label_size=(0.2, 0.2),
+                # cone_radius=0.6,
+                # shaft_length=1.0,
+                # tip_length=0.3,
+                # ambient=0.6,
+                label_size=(0.12, 0.12),
+                viewport=(-0.0, -0.0, 0.42, 0.42),
             )
 
             def save() -> None:
