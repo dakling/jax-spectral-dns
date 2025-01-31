@@ -145,7 +145,8 @@ def post_process(
             e_x_3d = vel_energy_ - e_x_2d
             energy_x_2d.append(e_x_2d)
             energy_x_3d.append(e_x_3d)
-            amplitude_t.append(vel_[0].max() - vel_[0].min())
+            # amplitude_t.append(vel_[0].max() - vel_[0].min())
+            amplitude_t.append(vel_[0].inf_norm())
             vel_2d_x = vel_hat_[0].field_2d(0).no_hat()
             vel_2d_x_1 = vel_hat_[0].field_2d(0, 1).no_hat()
             vel_2d_x_2 = vel_hat_[0].field_2d(0, 2).no_hat()
@@ -160,12 +161,12 @@ def post_process(
             vel_2d_x.set_time_step(j)
             vel_2d_x.plot_3d(0, rotate=True)
             vel_2d_x.plot_3d(2)
-            amplitude_x_2d_t.append(vel_2d_x.max() - vel_2d_x.min())
-            amplitude_x_2d_t_1.append(vel_2d_x_1.max() - vel_2d_x_1.min())
-            amplitude_x_2d_t_2.append(vel_2d_x_2.max() - vel_2d_x_2.min())
-            amplitude_z_2d_t.append(vel_2d_z.max() - vel_2d_z.min())
-            amplitude_z_2d_t_1.append(vel_2d_z_1.max() - vel_2d_z_1.min())
-            amplitude_z_2d_t_2.append(vel_2d_z_2.max() - vel_2d_z_2.min())
+            amplitude_x_2d_t.append(vel_2d_x.inf_norm())
+            amplitude_x_2d_t_1.append(vel_2d_x_1.inf_norm())
+            amplitude_x_2d_t_2.append(vel_2d_x_2.inf_norm())
+            amplitude_z_2d_t.append(vel_2d_z.inf_norm())
+            amplitude_z_2d_t_1.append(vel_2d_z_1.inf_norm())
+            amplitude_z_2d_t_2.append(vel_2d_z_2.inf_norm())
             Nx = domain.get_shape()[0]
             Nz = domain.get_shape()[2]
             amplitudes_2d_kx = []
@@ -205,7 +206,8 @@ def post_process(
                 [vel_2d_x, PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)]
             )
             # amplitude_3d_t.append(vel_3d.max() - vel_3d.min())
-            amplitude_3d_t.append(vel_3d[0].max() - vel_3d[0].min())
+            # amplitude_3d_t.append(vel_3d[0].max() - vel_3d[0].min())
+            amplitude_3d_t.append(vel_3d[0].inf_norm())
             # prod.append(nse.get_production(j))
             # diss.append(nse.get_dissipation(j))
             amplitudes_2d_vilda.append(np.sqrt(vel_2d_x.energy() / E_0 * Re_tau))
@@ -548,7 +550,9 @@ def post_process(
             ax_kx.set_xlabel("$t u_\\tau / h$")
             ax_kx.set_ylabel(
                 # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
-                "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
+                # "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
+                # "$\\tilde{u}_{x_\\text{maax}} - \\tilde{u}_{x_\\text{min}}$"
+                "$|\\tilde{u}_{x}|_\\text{inf}$",
             )
             # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kx.yaxis.label.set_color("red")
@@ -556,7 +560,8 @@ def post_process(
             # ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
             ax_kz.set_ylabel(
                 # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
-                "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
+                # "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
+                "$|\\tilde{u}_{x}|_\\text{inf}$",
             )
             # ax_kz.set_ylabel("${\\tilde{u}_x}$ amplitude")
             # ax_kz.yaxis.label.set_color("red")
@@ -681,13 +686,15 @@ def post_process(
                     vel_2d_kx = vel_hat.field_2d(0, kx).no_hat()
                     energy_kx.append(vel_2d_kx.energy())
                     energy_x_kx.append(vel_2d_kx[0].energy())
-                    amp_kx.append(vel_2d_kx[0].max() - vel_2d_kx[0].min())
+                    # amp_kx.append(vel_2d_kx[0].max() - vel_2d_kx[0].min())
+                    amp_kx.append(vel_2d_kx[0].inf_norm())
 
                 for kz in range((len(kzs) - 1) // 2):
                     vel_2d_kz = vel_hat.field_2d(2, kz).no_hat()
                     energy_kz.append(vel_2d_kz.energy())
                     energy_x_kz.append(vel_2d_kz[0].energy())
-                    amp_kz.append(vel_2d_kz[0].max() - vel_2d_kz[0].min())
+                    # amp_kz.append(vel_2d_kz[0].max() - vel_2d_kz[0].min())
+                    amp_kz.append(vel_2d_kz[0].inf_norm())
 
                 ax_kx.plot(energy_kx, "ko")
                 ax_kz.plot(energy_kz, "ko")
