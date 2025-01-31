@@ -2110,6 +2110,10 @@ class PhysicalField(Field):
                 other_dim.reverse()
                 data = data.T
 
+            flip_axis = params.get("flip_axis", None)
+            if flip_axis is not None:
+                data = jnp.flip(data, axis=flip_axis)
+
             # extent = (
             #     self.physical_domain.grid[other_dim[0]][0],
             #     self.physical_domain.grid[other_dim[0]][-1],
@@ -2346,14 +2350,19 @@ class PhysicalField(Field):
         try:
             vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
             # print(vtk_mathtext.MathTextIsSupported())
-            pv.rcParams["transparent_background"] = True
             min_val = self.min()
             max_val = self.max()
             domain = self.get_physical_domain()
             name = params.get("name", self.name)
             grid = pv.RectilinearGrid(*domain.grid)
             wall_grid = pv.RectilinearGrid(*domain.grid)
-            grid.point_data[name] = jnp.flip(self.get_data().T, axis=1).flatten()
+
+            flip_axis = params.get("flip_axis", None)
+            if flip_axis is not None:
+                data = jnp.flip(self.get_data().T, axis=flip_axis).flatten()
+            else:
+                data = self.get_data().T.flatten()
+            grid.point_data[name] = data
             wall_grid.point_data["wall"] = domain.mgrid[1].T.flatten()
             wall_mesh = wall_grid.contour(
                 [-0.99999, 0.99999], wall_grid.point_data["wall"]
@@ -2381,6 +2390,7 @@ class PhysicalField(Field):
                 font_size = 18
             # pv.global_theme.font.size = font_size
             p = pv.Plotter(off_screen=(not interactive))
+            pv.global_theme.transparent_background = True
             p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
                 wall_mesh,
@@ -3139,7 +3149,9 @@ class FourierField(Field):
             if rotate:
                 other_dim.reverse()
                 data = data.T
-            data = jnp.flip(data, axis=1)
+            flip_axis = params.get("flip_axis", None)
+            if flip_axis is not None:
+                data = jnp.flip(data, axis=flip_axis)
             ims.append(
                 ax.imshow(
                     np.fft.fftshift(abs(data)),

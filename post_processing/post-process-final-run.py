@@ -356,7 +356,7 @@ def post_process(
             # vel_total_x.set_name("velocity_total_x")
             # vel_total_x.plot_3d(2, z_max, name="$U_x$")
             # vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", name_color="red")
-            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$")
+            vel[0].plot_3d(2, z_max, name="$\\tilde{u}_x$", flip_axis=1)
             # vel[1].plot_3d(2, z_max)
             # vel[2].plot_3d(2, z_max)
             vel[0].plot_3d(
@@ -365,14 +365,17 @@ def post_process(
                 x_max,
                 rotate=True,
                 name="$\\tilde{u}_x$",
+                flip_axis=1,
             )
-            vel[0].plot_3d(0, x_max, rotate=True, name="$\\tilde{u}_x$", no_cb=True)
+            vel[0].plot_3d(
+                0, x_max, rotate=True, name="$\\tilde{u}_x$", no_cb=True, flip_axis=1
+            )
             # vel[1].plot_3d(0, x_max, rotate=True)
             # vel[2].plot_3d(0, x_max, rotate=True)
             # vel.plot_streamlines(2)
             # vel[1].plot_isolines(2)
             # vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
-            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$")
+            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$", flip_axis=1)
             # vel[1].plot_isosurfaces()
             # vel[2].plot_isosurfaces()
 
