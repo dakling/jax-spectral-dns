@@ -34,6 +34,7 @@ matplotlib.use("ps")
 
 matplotlib.rcParams.update(
     {
+        "font.size": 28,
         "text.usetex": True,
         "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
     }
@@ -615,7 +616,8 @@ def plot(
     include_gain_isoplot: bool = True,
     log_y_axis: bool = True,
 ) -> None:
-    fig = figure.Figure()
+    fig_k_size = (16, 12)
+    fig = figure.Figure(figsize=fig_k_size)
     ax = fig.subplots(1, 1)
     ax.set_xlabel("$T u_\\tau  / h$")
     # ax.set_ylabel("$e_0/E_0$")
@@ -688,19 +690,19 @@ def plot(
             ts,
             [mean for _ in ts],
             "k-",
-            label="$|u_{k_{x}=0}|_\\text{inf_\\text{mean}}$ (DNS)",
+            label="$|u_{k_{x}=0}|_{\\infty_\\text{mean}}$ (DNS)",
         )
         ax.plot(
             ts,
             [mean - std for _ in ts],
             "k--",
-            label="$|u_{k_{x}=0}|_\\text{inf_\\text{mean}} - |u_{k_{x}=0}|_\\text{inf_\\text{std}}$",
+            label="$|u_{k_{x}=0}|_{\\infty_\\text{mean}} - |u_{k_{x}=0}|_{\\infty_\\text{std}}$",
         )
         ax.plot(
             ts,
             [mean + std for _ in ts],
             "k--",
-            label="$|u_{k_{x}=0}|_\\text{inf_\\text{mean}} + |u_{k_{x}=0}|_\\text{inf_\\text{std}}$",
+            label="$|u_{k_{x}=0}|_{\\infty_\\text{mean}} + |u_{k_{x}=0}|_{\\infty_\\text{std}}$",
         )
 
     if target_property[0] == "e_0":
@@ -803,7 +805,7 @@ def plot_e_0(all_cases: List["Case"]) -> None:
 def plot_infnorm(all_cases: List["Case"]) -> None:
     plot(
         all_cases,
-        ("infnorm", "$|u|_\\text{inf}$", lambda c: c.get_inf_norm(), "lower right"),
+        ("infnorm", "$|u|_{\\infty}$", lambda c: c.get_inf_norm(), "lower right"),
     )
 
 
@@ -812,7 +814,7 @@ def plot_infnorm_over_u_max(all_cases: List["Case"]) -> None:
         all_cases,
         (
             "infnorm_over_base",
-            "$|u|_\\text{inf} / u_\\text{base, local}$",
+            "$|u|_{\\infty} / u_\\text{base, local}$",
             lambda c: c.get_inf_norm_over_local_base(),
             "lower right",
         ),
@@ -838,7 +840,7 @@ def plot_dominant_streak_amplitude(all_cases: List["Case"]) -> None:
         all_cases,
         (
             "dominant_streak_amplitude",
-            "$|u_{k_{x}=0}|_\\text{inf}$",
+            "$|u_{k_{x}=0}|_{\\infty}$",
             lambda c: c.get_dominant_streak_amplitude(),
             "upper left",
         ),

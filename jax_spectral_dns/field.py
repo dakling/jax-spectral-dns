@@ -2423,21 +2423,23 @@ class PhysicalField(Field):
             p.camera.roll = 0
             p.camera.azimuth = -40
             p.camera.zoom(1.0)
-            p.add_axes(
-                line_width=5.0,
-                # xlabel="$x$",
-                # ylabel="$y$",
-                # zlabel="$z$",
-                xlabel="x",
-                ylabel="y",
-                zlabel="z",
-                # cone_radius=0.6,
-                # shaft_length=1.0,
-                # tip_length=0.3,
-                # ambient=0.6,
-                label_size=(0.11, 0.11),
-                viewport=(-0.0, -0.0, 0.42, 0.42),
-            )
+            add_axes = params.get("add_axes", True)
+            if add_axes:
+                p.add_axes(
+                    line_width=5.0,
+                    # xlabel="$x$",
+                    # ylabel="$y$",
+                    # zlabel="$z$",
+                    xlabel="x",
+                    ylabel="y",
+                    zlabel="z",
+                    # cone_radius=0.6,
+                    # shaft_length=1.0,
+                    # tip_length=0.3,
+                    # ambient=0.6,
+                    label_size=(0.11, 0.11),
+                    viewport=(-0.0, -0.0, 0.42, 0.42),
+                )
 
             def save() -> None:
                 out_name = (
