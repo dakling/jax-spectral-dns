@@ -377,11 +377,11 @@ def post_process(
             # vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
             if i == 0:
                 vel[0].plot_isosurfaces(
-                    name="$\\tilde{u}_x$", flip_axis=1, show_axes=False
+                    name="$\\tilde{u}_x$", flip_axis=1, add_axes=False
                 )
             else:
                 vel[0].plot_isosurfaces(
-                    name="$\\tilde{u}_x$", flip_axis=1, show_axes=False
+                    name="$\\tilde{u}_x$", flip_axis=1, add_axes=False
                 )
             # vel[1].plot_isosurfaces()
             # vel[2].plot_isosurfaces()
