@@ -375,7 +375,14 @@ def post_process(
             # vel.plot_streamlines(2)
             # vel[1].plot_isolines(2)
             # vel[0].plot_isosurfaces(name="$u_x$", name_color="red")
-            vel[0].plot_isosurfaces(name="$\\tilde{u}_x$", flip_axis=1)
+            if i == 0:
+                vel[0].plot_isosurfaces(
+                    name="$\\tilde{u}_x$", flip_axis=1, show_axes=False
+                )
+            else:
+                vel[0].plot_isosurfaces(
+                    name="$\\tilde{u}_x$", flip_axis=1, show_axes=False
+                )
             # vel[1].plot_isosurfaces()
             # vel[2].plot_isosurfaces()
 

@@ -2392,7 +2392,9 @@ class PhysicalField(Field):
             except Exception:
                 font_size = 18
             p = pv.Plotter(off_screen=(not interactive))
-            p.add_mesh(wall_mesh.outline(), color="k")
+            add_outline = params.get("add_outline", True)
+            if add_outline:
+                p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
                 wall_mesh,
                 opacity=params.get("opacity", 0.3),
