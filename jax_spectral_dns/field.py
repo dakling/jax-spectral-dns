@@ -2425,9 +2425,12 @@ class PhysicalField(Field):
             p.camera.zoom(1.0)
             p.add_axes(
                 line_width=5.0,
-                xlabel="$x$",
-                ylabel="$y$",
-                zlabel="$z$",
+                # xlabel="$x$",
+                # ylabel="$y$",
+                # zlabel="$z$",
+                xlabel="x",
+                ylabel="y",
+                zlabel="z",
                 # cone_radius=0.6,
                 # shaft_length=1.0,
                 # tip_length=0.3,

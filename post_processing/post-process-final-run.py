@@ -432,49 +432,54 @@ def post_process(
             # vel.plot_wavenumbers(1)
             # vel.magnitude().plot_wavenumbers(1)
 
-            # fig = figure.Figure()
-            # ax = fig.subplots(1, 1)
-            # assert type(ax) is Axes
-            # fig_amplitudes = figure.Figure()
-            # ax_amplitudes = fig_amplitudes.subplots(1, 1)
-            # assert type(ax_amplitudes) is Axes
-            # # fig_pd = figure.Figure()
-            # # ax_pd = fig_pd.subplots(1, 1)
-            # # assert type(ax_pd) is Axes
+            if i == 0:
+                fig = figure.Figure()
+                ax = fig.subplots(1, 1)
+                assert type(ax) is Axes
+                fig_amplitudes = figure.Figure()
+                ax_amplitudes = fig_amplitudes.subplots(1, 1)
+                assert type(ax_amplitudes) is Axes
+                # fig_pd = figure.Figure()
+                # ax_pd = fig_pd.subplots(1, 1)
+                # assert type(ax_pd) is Axes
 
-            # # prod_arr = np.array(prod)
-            # # diss_arr = np.array(diss)
-            # ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-            # ax.plot(
-            #     ts[: i + 1],
-            #     energy_t_arr[: i + 1] / energy_t_arr[0],
-            #     "ko",
-            #     label="$G$",
-            # )
-            # ax.set_xlabel("$t u_\\tau / h$")
-            # ax.set_ylabel("$G$")
-            # ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
-            # # ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
-            # # ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
-            # # ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
-            # ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
-            # # ax.plot(ts, energy_x_3d_arr / energy_x_3d_arr[0], "g.")
-            # ax.plot(
-            #     ts[: i + 1],
-            #     energy_x_2d_arr[: i + 1] / energy_t_arr[0],
-            #     # energy_x_2d_arr[: i + 1] / energy_x_2d_arr[0],
-            #     "bo",
-            #     label="$G_{k_x = 0}$",
-            # )
-            # ax.plot(
-            #     ts[: i + 1],
-            #     energy_x_3d_arr[: i + 1] / energy_t_arr[0],
-            #     # energy_x_3d_arr[: i + 1] / energy_x_3d_arr[0],
-            #     "go",
-            #     label="$G_{3d}$",
-            # )
-            # ax.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
-            # ax.set_box_aspect(1)
+                # prod_arr = np.array(prod)
+                # diss_arr = np.array(diss)
+                ax.plot(ts, energy_t_arr / energy_t_arr[0], "k-")
+                # ax.plot(
+                #     ts[: i + 1],
+                #     energy_t_arr[: i + 1] / energy_t_arr[0],
+                #     "ko",
+                #     label="$G$",
+                # )
+                ax.set_xlabel("$t u_\\tau / h$")
+                ax.set_ylabel("$G$")
+                # ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
+                # # ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
+                # # ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
+                # # ax.plot(ts, energy_x_2d_2_arr / energy_t_arr[0], "m.")
+                # ax.plot(ts, energy_x_3d_arr / energy_t_arr[0], "g.")
+                # # ax.plot(ts, energy_x_3d_arr / energy_x_3d_arr[0], "g.")
+                # ax.plot(
+                #     ts[: i + 1],
+                #     energy_x_2d_arr[: i + 1] / energy_t_arr[0],
+                #     # energy_x_2d_arr[: i + 1] / energy_x_2d_arr[0],
+                #     "bo",
+                #     label="$G_{k_x = 0}$",
+                # )
+                # ax.plot(
+                #     ts[: i + 1],
+                #     energy_x_3d_arr[: i + 1] / energy_t_arr[0],
+                #     # energy_x_3d_arr[: i + 1] / energy_x_3d_arr[0],
+                #     "go",
+                #     label="$G_{3d}$",
+                # )
+                # ax.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
+                ax.set_box_aspect(1)
+                fig.savefig(
+                    Field.plotting_dir + "/plot_energy" + ".png",
+                    bbox_inches="tight",
+                )
             # fig.savefig(
             #     Field.plotting_dir
             #     + "/plot_energy_t_"
