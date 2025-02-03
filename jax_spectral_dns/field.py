@@ -2397,7 +2397,7 @@ class PhysicalField(Field):
                 p.add_mesh(wall_mesh.outline(), color="k")
             p.add_mesh(
                 wall_mesh,
-                opacity=params.get("opacity", 0.8),
+                opacity=params.get("opacity", 0.5),
                 color="black",
                 show_scalar_bar=False,
             )
