@@ -3555,7 +3555,8 @@ def run_ld_2021_dual(**params: Any) -> None:
                     domain, init_file, name, allow_projection=True
                 )
             except Exception as e:
-                print(e)
+                pass
+                # print(e)
         assert v0 is not None
         v0 = v0.normalize_by_energy()
         v0 *= jnp.sqrt(e_0_over_E_0 * E_0)

@@ -34,7 +34,7 @@ matplotlib.use("ps")
 
 matplotlib.rcParams.update(
     {
-        "font.size": 28,
+        "font.size": 14,
         "text.usetex": True,
         "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
     }
@@ -616,8 +616,9 @@ def plot(
     include_gain_isoplot: bool = True,
     log_y_axis: bool = True,
 ) -> None:
-    fig_k_size = (16, 12)
-    fig = figure.Figure(figsize=fig_k_size)
+    # fig_k_size = (12, 9)
+    # fig = figure.Figure(figsize=fig_k_size)
+    fig = figure.Figure()
     ax = fig.subplots(1, 1)
     ax.set_xlabel("$T u_\\tau  / h$")
     # ax.set_ylabel("$e_0/E_0$")
@@ -658,7 +659,7 @@ def plot(
         )
 
     if target_property[0] == "dominant_lambda_z":
-        ax.set_ylim(bottom=0.0)
+        ax.set_ylim(bottom=0.0, top=370.0)
         ts = list(set([0.0] + [case.T for case in all_cases]))
         ts.sort()
         ax.plot(
@@ -681,7 +682,7 @@ def plot(
         )
 
     if target_property[0] == "dominant_streak_amplitude":
-        ax.set_ylim(bottom=0.0, top=11.0)
+        ax.set_ylim(bottom=0.0, top=16.0)
         ts = list(set([0.0] + [case.T for case in all_cases]))
         ts.sort()
         mean = 5.853
@@ -705,7 +706,11 @@ def plot(
             label="$|u_{k_{x}=0}|_{\\infty_\\text{mean}} + |u_{k_{x}=0}|_{\\infty_\\text{std}}$",
         )
 
+    if target_property[0] == "infnorm":
+        ax.set_ylim(bottom=1.0e-4)
+
     if target_property[0] == "e_0":
+        ax.set_ylim(top=7.0e-3)
         from scipy.interpolate import interp1d
 
         # 1st line
@@ -733,7 +738,7 @@ def plot(
     for h, l in unique:
         h.set(color="black")
     ax.legend(*zip(*unique), loc=target_property[3])
-    fig.savefig("plots/T_" + target_property[0] + "_space.png")
+    fig.savefig("plots/T_" + target_property[0] + "_space.png", bbox_inches="tight")
     # plot isosurfaces of gain
     if include_gain_isoplot:
         try:
@@ -795,7 +800,10 @@ def plot(
             #     ax.plot(x, y, 'k.')
             # fig.savefig("test.png")
 
-        fig.savefig("plots/T_" + target_property[0] + "_space_with_gain.png")
+        fig.savefig(
+            "plots/T_" + target_property[0] + "_space_with_gain.png",
+            bbox_inches="tight",
+        )
 
 
 def plot_e_0(all_cases: List["Case"]) -> None:
