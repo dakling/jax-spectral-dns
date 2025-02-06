@@ -313,12 +313,12 @@ class Equation:
     def before_time_step(self: E) -> None:
         if type(self.before_time_step_fn) != NoneType:
             assert self.before_time_step_fn is not None
-            self.before_time_step_fn(self)
+            self.before_time_step_fn(self)  # type: ignore[arg-type]
 
     def after_time_step(self: E) -> None:
         if type(self.after_time_step_fn) != NoneType:
             assert self.after_time_step_fn is not None
-            self.after_time_step_fn(self)
+            self.after_time_step_fn(self)  # type: ignore[arg-type]
 
     def post_process(self: E) -> None:
         if type(self.post_process_fn) != NoneType:

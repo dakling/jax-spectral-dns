@@ -1269,7 +1269,7 @@ class TestProject(unittest.TestCase):
             use_antialiasing: bool = True,
             dealias_nonperiodic: bool = False,
         ) -> "pseudo_2d_perturbation_return_type":
-            end_time = 2e-1
+            end_time = 6e-1
             if use_antialiasing:
                 N = 4
                 aliasing = 3 / 2
@@ -1333,7 +1333,8 @@ class TestProject(unittest.TestCase):
         def calculate_growth_rates(
             ts: List[List[float]], energy: jnp_array, energy_ana: jnp_array
         ) -> None:
-            start_index = 1  # don't start at 0 to allow for some initial transient
+            # start_index = 1  # don't start at 0 to allow for some initial transient
+            start_index = 0
             time = ts[0][-1] - ts[0][start_index]
             print_verb("Re = 5500:")
             growth_rate = (energy[0][-1] - energy[0][start_index]) / (
@@ -1520,6 +1521,7 @@ class TestProject(unittest.TestCase):
                 get_nse(), checkpointing=True
             )
         )
+        print(nse_dual_cp.get_number_of_fields("velocity_hat"))
         nse_dual_cp.run_backward_calculation()
         v0_cp = nse_dual_cp.get_latest_field("velocity_hat")
 

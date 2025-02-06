@@ -820,7 +820,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 self.append_field("velocity_hat", velocity_final, in_place=False)
                 cfl_final = self.get_cfl()
                 print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
-                return (velocity_final, [u_final[1]], len(ts))
+                return (u_final[0], [u_final[1]], len(ts))
 
     def is_forward_calculation_done(self) -> bool:
         return (

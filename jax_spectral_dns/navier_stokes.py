@@ -1912,6 +1912,18 @@ class NavierStokesVelVort(Equation):
             #         print_verb("i: ", i, "cfl:", cfl_s, verbosity_level=3)
             # cfl_final = self.get_cfl()
             # print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.get_physical_domain(),
+                        u_final[0][i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            velocity_final.set_time_step(start_step + number_of_outer_steps)
+            self.append_field("velocity_hat", velocity_final, in_place=False)
             out = jnp.insert(
                 trajectory[0],
                 0,
@@ -1937,6 +1949,18 @@ class NavierStokesVelVort(Equation):
             # self.append_field("velocity_hat", velocity_final, in_place=False)
             # cfl_final = self.get_cfl()
             # print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
+            velocity_final = VectorField(
+                [
+                    FourierField(
+                        self.get_physical_domain(),
+                        u_final[0][i],
+                        name="velocity_hat_" + "xyz"[i],
+                    )
+                    for i in self.all_dimensions()
+                ]
+            )
+            velocity_final.set_time_step(start_step + number_of_outer_steps)
+            self.append_field("velocity_hat", velocity_final, in_place=False)
             out = jnp.insert(
                 trajectory[0],
                 0,
@@ -1959,7 +1983,7 @@ class NavierStokesVelVort(Equation):
                 ]
             )
             velocity_final.set_time_step(start_step + number_of_outer_steps)
-            # self.append_field("velocity_hat", velocity_final, in_place=False)
+            self.append_field("velocity_hat", velocity_final, in_place=False)
             cfl_final = self.get_cfl()
             print_verb("final cfl:", cfl_final, debug=True, verbosity_level=2)
             # return (velocity_final, [u_final[1]], len(ts))
@@ -1969,7 +1993,7 @@ class NavierStokesVelVort(Equation):
         if type(self.post_process_fn) != NoneType:
             assert self.post_process_fn is not None
             for i in range(self.get_number_of_fields("velocity_hat")):
-                self.post_process_fn(self, i)
+                self.post_process_fn(self, i)  # type: ignore[arg-type]
 
 
 def solve_navier_stokes_laminar(

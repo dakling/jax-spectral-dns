@@ -421,4 +421,4 @@ class NavierStokesEDAC(Equation):
         if type(self.post_process_fn) != NoneType:
             assert self.post_process_fn is not None
             for i in range(self.get_number_of_fields("velocity")):
-                self.post_process_fn(self, i)
+                self.post_process_fn(self, i)  # type: ignore[arg-type]

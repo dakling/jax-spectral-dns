@@ -2220,7 +2220,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             for i in range(n_steps):
                 # vel_hat = nse.get_field("velocity_hat", i)
 
-                vel_hat = VectorField.FromData(
+                vel_hat: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, velocity_trajectory[i], name="velocity_hat"
                 )
                 vel_hat.set_time_step(i)
@@ -3855,7 +3855,9 @@ def run_ld_2021_random_snapshots(**params: Any) -> None:
             v0[2].hat()[0, :, 0],
             two_d=False,
         )
-        v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
+        v0_hat: VectorField[FourierField] = VectorField.FromData(
+            FourierField, domain, v0_data, v0.get_name()
+        )
         v0_hat.set_name("velocity_hat")
 
         v_total = v0_hat.no_hat() + vel_base

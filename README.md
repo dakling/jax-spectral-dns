@@ -11,7 +11,7 @@ Navier-Stokes DNS solver.
 
 - clone the gitlab repository:
 ```
-git clone https://gitlab.com/dakling/jax-spectral-dns.git .
+git clone https://gitlab.com/dakling/jax-spectral-dns.git
 ```
 
 - install using pip:
