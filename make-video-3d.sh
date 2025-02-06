@@ -166,6 +166,8 @@ make_video 3d_x_velocity_z __3d_x_velocity_z
 # combine_six final_run_x __3d_x_velocity_x __3d_x_velocity_y __3d_x_velocity_z __energy __amplitudes __3d_y_velocity_y_avg
 combine_six final_run_x __3d_x_velocity_x __3d_x_velocity_y __3d_x_velocity_z __energy __energy_spectrum_kx __energy_spectrum_kz
 
+combine_three final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x
+combine_four final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x __energy
 combine_six final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x __energy __energy_spectrum_kx __energy_spectrum_kz
 
 ffmpeg -i img/final_run_vel_x.mp4 -vf "select=eq(n\,0)" -vframes 1 img/final_run_vel_x.png &> /dev/null

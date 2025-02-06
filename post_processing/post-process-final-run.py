@@ -213,11 +213,11 @@ def post_process(
             # # diss.append(nse.get_dissipation(j))
             # amplitudes_2d_vilda.append(np.sqrt(vel_2d_x.energy() / E_0 * Re_tau))
 
-            # lambda_y, lambda_z = vel_hat_[0].get_streak_scales()
-            # print("lambda_y+:", lambda_y * Re_tau)
-            # print("lambda_z+:", lambda_z * Re_tau)
-            # lambda_y_s.append(lambda_y)
-            # lambda_z_s.append(lambda_z)
+            lambda_y, lambda_z = vel_hat_[0].get_streak_scales()
+            print("lambda_y+:", lambda_y * Re_tau)
+            print("lambda_z+:", lambda_z * Re_tau)
+            lambda_y_s.append(lambda_y)
+            lambda_z_s.append(lambda_z)
 
         # fig = figure.Figure()
         # ax = fig.subplots(1, 1)
@@ -439,10 +439,10 @@ def post_process(
             # vel.plot_wavenumbers(1)
             # vel.magnitude().plot_wavenumbers(1)
 
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
             if i == 0:
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                assert type(ax) is Axes
                 fig_amplitudes = figure.Figure()
                 ax_amplitudes = fig_amplitudes.subplots(1, 1)
                 assert type(ax_amplitudes) is Axes
@@ -487,13 +487,19 @@ def post_process(
                     Field.plotting_dir + "/plot_energy" + ".png",
                     bbox_inches="tight",
                 )
-            # fig.savefig(
-            #     Field.plotting_dir
-            #     + "/plot_energy_t_"
-            #     + "{:06}".format(time_step)
-            #     + ".png",
-            #     bbox_inches="tight",
-            # )
+            ax.plot(
+                ts[: i + 1],
+                energy_t_arr[: i + 1] / energy_t_arr[0],
+                "ko",
+                label="$G$",
+            )
+            fig.savefig(
+                Field.plotting_dir
+                + "/plot_energy_t_"
+                + "{:06}".format(time_step)
+                + ".png",
+                bbox_inches="tight",
+            )
             # # ax_2d_over_3d.set_yscale("log")
             # ax_amplitudes.plot(ts, amplitude_t, "k.")
             # ax_amplitudes.plot(
