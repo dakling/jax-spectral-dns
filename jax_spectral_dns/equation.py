@@ -173,7 +173,7 @@ class Equation:
             print(number_of_outer_steps)
             print(bad_n_step_division)
 
-        dt = end_time / (number_of_time_steps + 1)
+        dt = end_time / (number_of_time_steps - 1)
         return dt
 
     def get_dt(self) -> "float":
