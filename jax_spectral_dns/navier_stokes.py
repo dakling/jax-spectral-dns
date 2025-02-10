@@ -1848,7 +1848,9 @@ class NavierStokesVelVort(Equation):
         u0 = self.get_initial_field("velocity_hat").get_data()
         dPdx = self.dPdx
         self.dPdx = 0.0
-        ts = jnp.arange(0, self.end_time, self.get_dt())
+        number_of_time_steps = max(0, int(self.end_time / self.get_dt()))
+        ts = jnp.arange(0, number_of_time_steps) / number_of_time_steps * self.end_time
+        # ts = jnp.arange(0, self.end_time, self.get_dt())
         number_of_time_steps = len(ts)
 
         vb = 2
