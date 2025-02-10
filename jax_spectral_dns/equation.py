@@ -148,17 +148,13 @@ class Equation:
             number_of_factors = len(factors)  # should always be divisible by 2
             return factors[number_of_factors // 2]
 
-        number_of_time_steps = max(0, int(end_time / dt))
+        number_of_time_steps = max(0, int(end_time / dt) + 1)
         number_of_inner_steps = median_factor(number_of_time_steps)
         number_of_outer_steps = number_of_time_steps // number_of_inner_steps
         bad_n_step_division = (
             abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
             > number_of_outer_steps
         )
-        print(number_of_time_steps)
-        print(number_of_inner_steps)
-        print(number_of_outer_steps)
-        print(bad_n_step_division)
         while bad_n_step_division:
             number_of_time_steps += 1
             number_of_inner_steps = median_factor(number_of_time_steps)
@@ -167,11 +163,6 @@ class Equation:
                 abs(np.sqrt(number_of_time_steps)) - number_of_outer_steps
                 > number_of_outer_steps
             )
-            print("hello")
-            print(number_of_time_steps)
-            print(number_of_inner_steps)
-            print(number_of_outer_steps)
-            print(bad_n_step_division)
 
         dt = end_time / number_of_time_steps
         return dt
