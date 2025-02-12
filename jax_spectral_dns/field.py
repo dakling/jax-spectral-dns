@@ -1123,6 +1123,9 @@ class VectorField(Generic[T]):
 # @register_pytree_node_class
 @dataclasses.dataclass(init=False, frozen=False)
 class PhysicalField(Field):
+    """Class that holds the information needed to describe a dependent variable living in physical space (as opposed to Fourier space)
+    and to perform operations on it."""
+
     # def tree_flatten(self):
     #     children = (self.data, self.time_step)
     #     aux_data = (self.physical_domain, self.name)
@@ -1525,6 +1528,7 @@ class PhysicalField(Field):
     def plot_center(
         self, dimension: int, *other_fields: PhysicalField, **params: Any
     ) -> None:
+        """Create a plot across the centreline in direction dimension, optionally comparing with other_fields."""
         try:
             ax = params.get("ax")
             if ax is None:
@@ -1739,6 +1743,7 @@ class PhysicalField(Field):
             print("ignoring this and carrying on.")
 
     def plot(self, *other_fields: PhysicalField, **params: Any) -> None:
+        """Create a plot, optionally comparing with other_fields. The plotting method chosen depends on the dimensionality of the problem."""
         try:
             if self.physical_domain.number_of_dimensions == 1:
                 fig = figure.Figure()
@@ -1927,6 +1932,7 @@ class PhysicalField(Field):
         rotate: bool = False,
         **params: Any,
     ) -> None:
+        """Create a three-dimensional plot with direction as the normal, cutting through coord. Optionally rotate."""
         try:
             if direction is not None:
                 self.plot_3d_single(direction, coord, rotate, **params)
@@ -2081,6 +2087,7 @@ class PhysicalField(Field):
         rotate: bool = False,
         **params: Any,
     ) -> None:
+        """Create a single three-dimensional plot with direction as the normal, cutting through coord. Optionally rotate."""
         try:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -2208,6 +2215,7 @@ class PhysicalField(Field):
             print("ignoring this and carrying on.")
 
     def plot_wavenumbers(self, normal_direction: int) -> None:
+        """Create wavenumber plot with normal_direction as the normal."""
         try:
             assert (
                 self.physical_domain.number_of_dimensions == 3
@@ -2284,6 +2292,7 @@ class PhysicalField(Field):
     def plot_isolines(
         self, normal_direction: int, isolines: Optional[List["jsd_float"]] = None
     ) -> None:
+        """Create isoline plot with normal_direction as the normal. Optionally, isoline levels can be given."""
         try:
             if type(isolines) == NoneType:
                 isolines = [0, 1.5, 2.5, 3.5]
@@ -2350,6 +2359,7 @@ class PhysicalField(Field):
     def plot_isosurfaces(
         self, iso_val: float = 0.6, plot_min_and_max: bool = True, **params: Any
     ) -> None:
+        """Create three-dimensional isosurface plot. Optionally, isosurface levels can be given. The option plot_min_and_max determines whether only the a factor of the maximum value or also a factor of the minimum value is plotted."""
         try:
             # vtk_mathtext = vtk.vtkMathTextFreeTypeTextRenderer()
             # print(vtk_mathtext.MathTextIsSupported())
@@ -2479,11 +2489,13 @@ class PhysicalField(Field):
             print("ignoring this and carrying on.")
 
     def hat(self) -> FourierField:
+        """Calculate the Fourier transform."""
         out = FourierField.FromField(self)
         out.time_step = self.time_step
         return out
 
     def diff(self, direction: int, order: int = 1) -> PhysicalField:
+        """Calculate the derivative in direction direction and order order."""
         name_suffix = "".join([["x", "y", "z"][direction] for _ in jnp.arange(order)])
         if self.physical_domain.is_periodic(direction):
             return self.hat().diff(direction, order).no_hat()
@@ -2501,6 +2513,7 @@ class PhysicalField(Field):
         bc_left: Optional[float] = None,
         bc_right: Optional[float] = None,
     ) -> PhysicalField:
+        """Calculate the integral in direction direction and order order. Optionally, boundary conditions may be given, depending on the order."""
         out_bc = self.physical_domain.integrate(
             self.data, direction, order, bc_left, bc_right
         )
@@ -2510,6 +2523,8 @@ class PhysicalField(Field):
     def definite_integral(
         self, direction: int
     ) -> Union[float, "jsd_array", PhysicalField]:
+        """Calculate the first-order definite integral in direction direction."""
+
         def reduce_add_along_axis(arr: "jsd_array", axis: int) -> "jnp_array":
             # return np.add.reduce(arr, axis=axis)
             arr = jnp.moveaxis(arr, axis, 0)
@@ -2603,6 +2618,9 @@ class PhysicalField(Field):
 # @register_pytree_node_class
 @dataclasses.dataclass(init=False, frozen=False)
 class FourierField(Field):
+    """Class that holds the information needed to describe a dependent variable living in Fourier space
+    and to perform operations on it."""
+
     # def tree_flatten(self):
     #     children = (self.data, self.time_step)
     #     aux_data = (self.physical_domain, self.name, self.fourier_domain)
