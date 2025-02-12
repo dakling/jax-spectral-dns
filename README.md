@@ -92,7 +92,9 @@ Each parameters has a default value and is thus optional. Superfluous parameters
 #### test_growth_rates_quantitatively
 
 This test checks the growth rates of the most unstable modes for $\text{Re}=5500$,
-$\text{Re}=5772.22$ (the neutral case) and $\text{Re}=6000$ with $\alpha=1.02056$. A plot of the growth rates and a video for Re=6000 are shown below.
+$\text{Re}=5772.22$ (the neutral case) and $\text{Re}=6000$ with
+$\alpha=1.02056$. A plot of the growth rates and a video for Re=6000 are shown
+below.
 
 |![Growth rates]( ./img/energy_growth_rates.png )|
 |:--:| 
