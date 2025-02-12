@@ -26,6 +26,7 @@ import h5py  # type: ignore
 import glob
 import shutil
 from pathlib import Path
+import matplotlib
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 from typing import (
@@ -92,6 +93,15 @@ if TYPE_CHECKING:
     )
 
 NoneType = type(None)
+
+font_size = 18
+matplotlib.rcParams.update(
+    {
+        "font.size": font_size,
+        "text.usetex": True,
+        "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
+    }
+)
 
 
 def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
@@ -223,33 +233,11 @@ def run_navier_stokes_turbulent_pseudo_2d(**params: Any) -> None:
         ax[0].plot(dedalus_data[0], dedalus_data[1], label="dedalus")
     except FileNotFoundError:
         print_verb("No dedalus data to compare results with were found.")
-    # try:
-    #     dedalus_data_small_dt = np.genfromtxt(
-    #         # "./energy-dedalus.txt",
-    #         "./energy_dedalus_highre_small_dt.txt",
-    #         delimiter=",",
-    #     ).T
-    #     ax[0].plot(
-    #         dedalus_data_small_dt[0],
-    #         dedalus_data_small_dt[1],
-    #         "--",
-    #         label="dedalus (small dt)",
-    #     )
-    # except FileNotFoundError:
-    #     print_verb("No dedalus small dt data to compare results with were found.")
     ax[0].plot(ts, energy_t_arr, "--", label="jax")
     try:
         ax[1].plot(dedalus_data[0], dedalus_data[1] / dedalus_data[1][0])
     except Exception:
         print_verb("No dedalus data to compare results with were found.")
-    # try:
-    #     ax[1].plot(
-    #         dedalus_data_small_dt[0],
-    #         dedalus_data_small_dt[1] / dedalus_data_small_dt[1][0],
-    #         "--",
-    #     )
-    # except Exception:
-    #     print_verb("No dedalus small dt data to compare results with were found.")
     ax[1].plot(ts, energy_t_arr / energy_t_arr[0], "--")
     ax[1].set_xlabel("$t$")
     ax[0].set_ylabel("$E$")
@@ -480,7 +468,6 @@ def run_pseudo_2d(**params: Any) -> None:
     def before_time_step(nse: NavierStokesVelVort) -> None:
         i = nse.time_step
         if i % plot_interval == 0:
-            # vel_hat = nse.get_field("velocity_hat", i)
             vel_hat = nse.get_latest_field("velocity_hat")
             vel = vel_hat.no_hat()
             vel_x_max = vel[0].max()
@@ -491,21 +478,7 @@ def run_pseudo_2d(**params: Any) -> None:
             vel_x_ana = PhysicalField.FromFunc(
                 nse.get_physical_domain(), vel_x_fn_ana, name="vel_x_ana"
             )
-            # vel_1_lap_a = nse.get_field("v_1_lap_hat_a", i).no_hat()
-            # vel_1_lap_a.plot_3d()
             vel_pert = VectorField([vel[0] - vel_x_ana, vel[1], vel[2]])
-            # vel_hat_old = nse.get_field("velocity_hat", max(0, i - 1))
-            # vel_old = vel_hat_old.no_hat()
-            # vel_x_max_old = vel_old[0].max()
-            # vel_x_fn_ana_old = (
-            #     lambda X: -vel_x_max_old * (X[1] + 1) * (X[1] - 1) + 0.0 * X[0] * X[2]
-            # )
-            # vel_x_ana_old = PhysicalField.FromFunc(
-            #     nse.get_physical_domain(), vel_x_fn_ana_old, name="vel_x_ana_old"
-            # )
-            # vel_pert_old = VectorField(
-            #     [vel_old[0] - vel_x_ana_old, vel_old[1], vel_old[2]]
-            # )
             vel_pert_energy: "jsd_float" = 0.0
             v_1_lap_p = nse.get_latest_field("v_1_lap_hat_p").no_hat()
             v_1_lap_p.time_step = i
@@ -515,17 +488,13 @@ def run_pseudo_2d(**params: Any) -> None:
                 vel_pert[j].time_step = i
                 vel[j].name = "velocity_" + "xyz"[j]
                 vel[j].plot_3d(2)
-                # vel[j].plot_center(0)
                 if j == 0:
                     vel[j].plot_center(1, vel_x_ana)
                 elif j == 1:
                     vel[j].plot_center(1, vel_pert_0)
-                # vel_hat[j].plot_3d()
                 vel_pert[j].name = "velocity_perturbation_" + "xyz"[j]
                 vel_pert[j].plot_3d()
                 vel_pert[j].plot_3d(2)
-                # vel_pert[j].plot_center(0)
-                # vel_pert[j].plot_center(1)
             vel_pert_energy = vel_pert.energy()
             print_verb(
                 "analytical velocity perturbation energy: ",
@@ -543,23 +512,6 @@ def run_pseudo_2d(**params: Any) -> None:
                 energy_y_over_time_fn(nse.time),
             )
             print_verb("velocity perturbation energy z: ", vel_pert[1].energy())
-            # vel_pert_energy_old = vel_pert_old.energy()
-            # print_verb(
-            #     "velocity perturbation energy change: ",
-            #     vel_pert_energy - vel_pert_energy_old,
-            # )
-            # print_verb(
-            #     "velocity perturbation energy x change: ",
-            #     vel_pert[0].energy() - vel_pert_old[0].energy(),
-            # )
-            # print_verb(
-            #     "velocity perturbation energy y change: ",
-            #     vel_pert[1].energy() - vel_pert_old[1].energy(),
-            # )
-            # print_verb(
-            #     "velocity perturbation energy z change: ",
-            #     vel_pert[2].energy() - vel_pert_old[2].energy(),
-            # )
             ts.append(float(nse.time))
             energy_t.append(float(vel_pert_energy))
             energy_x_t.append(float(vel_pert[0].energy()))
@@ -567,27 +519,24 @@ def run_pseudo_2d(**params: Any) -> None:
             energy_t_ana.append(float(energy_over_time_fn(nse.time)))
             energy_x_t_ana.append(float(energy_x_over_time_fn(nse.time)))
             energy_y_t_ana.append(float(energy_y_over_time_fn(nse.time)))
-            # if i > plot_interval * 3:
-            if True:
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                assert type(ax) is Axes
-                ax.plot(ts, energy_t_ana)
-                ax.plot(ts, energy_t, ".")
-                fig.savefig(Field.plotting_dir + "energy_t.png")
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                assert type(ax) is Axes
-                ax.plot(ts, energy_x_t_ana)
-                ax.plot(ts, energy_x_t, ".")
-                fig.savefig(Field.plotting_dir + "/energy_x_t.png")
-                fig = figure.Figure()
-                ax = fig.subplots(1, 1)
-                assert type(ax) is Axes
-                ax.plot(ts, energy_y_t_ana)
-                ax.plot(ts, energy_y_t, ".")
-                fig.savefig(Field.plotting_dir + "/energy_y_t.png")
-        # input("carry on?")
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
+            ax.plot(ts, energy_t_ana)
+            ax.plot(ts, energy_t, ".")
+            fig.savefig(Field.plotting_dir + "energy_t.png")
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
+            ax.plot(ts, energy_x_t_ana)
+            ax.plot(ts, energy_x_t, ".")
+            fig.savefig(Field.plotting_dir + "/energy_x_t.png")
+            fig = figure.Figure()
+            ax = fig.subplots(1, 1)
+            assert type(ax) is Axes
+            ax.plot(ts, energy_y_t_ana)
+            ax.plot(ts, energy_y_t, ".")
+            fig.savefig(Field.plotting_dir + "/energy_y_t.png")
 
     nse.set_before_time_step_fn(before_time_step)
     nse.set_after_time_step_fn(None)
@@ -616,10 +565,8 @@ def run_dummy_velocity_field(**params: Any) -> None:
         + jnp.cos(X[0] * 2 * jnp.pi / sc_x)
         + jnp.cos(X[1] * 2 * jnp.pi / 1.0)
     )
-    vel_y_fn = (
-        # lambda X: 0.0 * X[0] * X[1] * X[2] + X[0] * X[2] * (1 - X[1] ** 2) ** 2
-        lambda X: 0.0 * X[0] * X[1] * X[2]
-        + jnp.cos(X[1] * 2 * jnp.pi / 1.0)
+    vel_y_fn = lambda X: 0.0 * X[0] * X[1] * X[2] + jnp.cos(
+        X[1] * 2 * jnp.pi / 1.0
     )  # fulfills bcs but breaks conti
     vel_z_fn = lambda X: 0.0 * X[0] * X[1] * X[2]
     vel_x = PhysicalField.FromFunc(
@@ -727,13 +674,10 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
             linearise=linearise,
         )
 
-    # nse.initialize()
-
     if type(v0) == NoneType:
         U = lsc.velocity_field_single_mode(nse.get_physical_domain(), save=save)
     else:
         assert v0 is not None
-        # U = VectorField([Field(nse.get_physical_domain(), v0[i]) for i in range(3)]).normalize()
         U = VectorField(
             [PhysicalField(nse.get_physical_domain(), v0[i]) for i in range(3)]
         )
@@ -789,6 +733,7 @@ def run_pseudo_2d_perturbation(**params: Any) -> "pseudo_2d_perturbation_return_
     else:
         nse.deactivate_jit()
     nse.write_intermediate_output = plot
+    nse.write_entire_output = False
     nse.solve()
     nse.deactivate_jit()
 
@@ -933,9 +878,6 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux(**params: Any) -> N
         vel_pert = vel - vel_base
         vel_pert.set_name("velocity_pert")
         vel_pert.set_time_step(i)
-        # vort_hat, _ = nse.get_vorticity_and_helicity()
-        # vort = vort_hat.no_hat()
-        # vort.set_time_step(i)
         if i % 125 == 0:
             vel[0].plot_3d(2)
             vel[1].plot_3d(2)
@@ -943,9 +885,6 @@ def run_navier_stokes_turbulent_pseudo_2d_constant_mass_flux(**params: Any) -> N
             vel_pert[0].plot_3d(2)
             vel_pert[1].plot_3d(2)
             vel_pert[2].plot_3d(2)
-            # vort[0].plot_3d(2)
-            # vort[1].plot_3d(2)
-            # vort[2].plot_3d(2)
             vel[0].plot_center(1)
             vel[1].plot_center(1)
             vel[2].plot_center(1)
@@ -1115,7 +1054,6 @@ def run_jimenez_1990(**params: Any) -> None:
         lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, n=Ny)
         vel_pert = lsc.velocity_field_single_mode(nse.get_physical_domain())
         vort_pert = vel_pert.curl()
-        # eps = 1e0 / jnp.sqrt(vort_pert.energy())
         eps = 1e-2 / jnp.sqrt(vel_pert.energy())
         nse.init_velocity((vel_pert * eps).hat())
     else:
@@ -1173,7 +1111,6 @@ def run_jimenez_1990(**params: Any) -> None:
                 vort[j].plot_3d()
                 vort[j].plot_3d(2)
                 vort[j].plot_isolines(2)
-                # vel_moving_frame[j].plot_3d(2)
 
     nse.set_before_time_step_fn(before_time_step)
     nse.solve()
@@ -1365,10 +1302,8 @@ def run_transient_growth(
         scale_factors=(1 * (2 * jnp.pi / alpha), 1.0, 1.0e-3),
         dt=1e-2,
         aliasing=3 / 2,
-        # aliasing=1,
         linearise=linearise,
     )
-    # nse.initialize()
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=50)
 
@@ -1521,7 +1456,7 @@ def run_transient_growth_time_study(
             ts,
             np.array(energy_t) / energy_t[0],
             ".",
-            label="gain ($T = " + str(T) + "$)",
+            label="$T = " + str(T) + "$",
         )
         ax.plot(
             rh_93_data[0],
@@ -1543,7 +1478,7 @@ def run_transient_growth_time_study(
     ax_final.plot(
         rh_93_data[0],
         rh_93_data[1],
-        "b--",
+        "k--",
         label="upper limit",
     )
     for i in range(len(T_list)):
@@ -1560,7 +1495,7 @@ def run_transient_growth_time_study(
         "k--",
     )
     fig_final.legend()
-    fig_final.savefig(Field.plotting_dir + "/energy_t_final.png")
+    fig_final.savefig(Field.plotting_dir + "/energy_t_final.png", bbox_inches="tight")
 
 
 def run_optimisation_transient_growth(**params: Any) -> None:
@@ -1584,10 +1519,8 @@ def run_optimisation_transient_growth(**params: Any) -> None:
     dt = 1e-2
     end_time = T
     number_of_modes = 20  # deliberately low value so that there is room for improvement
-    # number_of_modes = 60
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi * 1e-3)
     aliasing = 3 / 2
-    # aliasing = 1
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
     domain: PhysicalDomain = PhysicalDomain.create(
@@ -1714,7 +1647,6 @@ def run_optimisation_transient_growth_y_profile(**params: Any) -> None:
     end_time = T
     number_of_modes = 20  # deliberately low value so that there is room for improvement
     scale_factors = (1 * (2 * jnp.pi / alpha), 1.0, 2 * jnp.pi)
-    # aliasing = 3 / 2
     aliasing = 1
 
     lsc = LinearStabilityCalculation(Re=Re, alpha=alpha, beta=beta, n=Ny)
@@ -1897,7 +1829,6 @@ def run_optimisation_transient_growth_dual(**params: Any) -> GradientDescentSolv
     eps = 1e-2  # step size
 
     skip_preparation = True
-    # skip_preparation = False
     if (not skip_preparation) or vel_0_path is None:
         v0_0 = lsc.calculate_transient_growth_initial_condition(
             domain,
@@ -1991,13 +1922,10 @@ def run_optimisation_transient_growth_dual(**params: Any) -> GradientDescentSolv
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,
-        # checkpointing=False,
-        # checkpointing=True,
         **params,
     )
     if use_custom_optimiser:
         print_verb("using custom optimiser")
-        # optimiser = SteepestAdaptiveDescentSolver(nse_dual, max_iterations=number_of_steps, step_size=eps, max_step_size=0.1)
         optimiser: "GradientDescentSolver" = ConjugateGradientDescentSolver(
             nse_dual,
             max_iterations=number_of_steps,
@@ -2057,31 +1985,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
         ]
     )
 
-    # def get_vel_field(
-    #     domain: PhysicalDomain, data: "np_jnp_array"
-    # ) -> VectorField[PhysicalField]:
-    #     def data_fn(y: float) -> float:
-    #         y_data_s = data[0]
-    #         u_mean = data[2]
-    #         y_data = y + 1.0  # shift
-    #         if y_data > 1.0:
-    #             y_data = 2.0 - y_data  # symmetry
-    #         y_sign_change_index = np.argmax(
-    #             (np.diff(np.sign(y_data_s - y_data)) != 0) * 1
-    #         )
-    #         y_0 = y_data_s[y_sign_change_index]
-    #         y_1 = y_data_s[y_sign_change_index + 1]
-    #         u_0 = u_mean[y_sign_change_index]
-    #         u_1 = u_mean[y_sign_change_index + 1]
-    #         return cast(float, u_0 + (u_1 - u_0) * (y_data - y_0) / (y_1 - y_0))
-
-    #     u = PhysicalField.FromFunc(domain, func=lambda X: np.vectorize(data_fn)(X[1]))
-    #     v = PhysicalField.Zeros(domain)
-    #     w = PhysicalField.Zeros(domain)
-    #     return VectorField([u, v, w])
-
-    # data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-
     def get_vel_field_minimal_channel(
         domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
     ) -> VectorField[PhysicalField]:
@@ -2110,32 +2013,12 @@ def run_ld_2021_get_mean(**params: Any) -> None:
     )
     vel_base_turb = get_vel_field_minimal_channel(domain, avg_vel_coeffs)
 
-    # number_of_modes = 60
-    # n = 64
-    # lsc = LinearStabilityCalculation(
-    #     # Re=Re_tau * 18.5,
-    #     Re=Re_tau,
-    #     alpha=0 * (2 * jnp.pi / scale_factors[0]),
-    #     beta=2 * (2 * jnp.pi / scale_factors[2]),
-    #     n=n,
-    #     U_base=18.5 * (1 - get_cheb_grid(n) ** 2),
-    # )
-
     time_step_file = Field.plotting_dir + "/time_step.txt"
 
     time_step = 0
     last_end_time = 0.0
 
     if init_file is None:
-        # v0_0 = lsc.calculate_transient_growth_initial_condition(
-        #     domain,
-        #     1,
-        #     number_of_modes,
-        #     recompute_full=True,
-        #     save_final=False,
-        # )
-        # v0_0.normalize_by_energy()
-        # v0_0 *= e_0
         omega = params.get("omega", 1.00)
         Lx, Ly, Lz = domain.scale_factors
 
@@ -2156,21 +2039,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             * np.cos(2 * np.pi * X[1])
             * np.cos(2 * np.pi * X[2] / Lz)
         )
-
-        # my attempt
-        # u_fn = lambda X: 0.1 * np.sin(
-        #     2 * np.pi * X[2] / domain.scale_factors[2] * omega
-        # )
-        # v_fn = (
-        #     lambda X: 0.1
-        #     * np.sin(2 * np.pi * X[2] / domain.scale_factors[2] * omega)
-        #     * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
-        # )
-        # w_fn = (
-        #     lambda X: 0.1
-        #     * np.sin(2 * np.pi * X[1] / domain.scale_factors[1] * omega)
-        #     * np.sin(2 * np.pi * X[0] / domain.scale_factors[0] * omega)
-        # )
 
         v0_0 = VectorField(
             [
@@ -2209,17 +2077,13 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 "Unable to determine the latest time step of the previous calculation"
             )
 
-    # def post_process(nse: NavierStokesVelVort, i: int) -> None:
     def post_process(trajectory_file: str) -> None:
 
         with h5py.File(Field.field_dir + "/" + trajectory_file, "r") as f:
             velocity_trajectory = f["trajectory"]
             n_steps = velocity_trajectory.shape[0]
-            # n_steps = nse.get_number_of_fields("velocity_hat")
             vel_2d_yz_trajectory = []
             for i in range(n_steps):
-                # vel_hat = nse.get_field("velocity_hat", i)
-
                 vel_hat: VectorField[FourierField] = VectorField.FromData(
                     FourierField, domain, velocity_trajectory[i], name="velocity_hat"
                 )
@@ -2317,7 +2181,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                     vel_spatial_means = []
                     for j in range(n_steps):
                         time = (j / (n_steps - 1)) * end_time + last_end_time
-                        # vel_hat = nse.get_field("velocity_hat", j)
                         vel_hat = VectorField.FromData(
                             FourierField,
                             domain,
@@ -2353,7 +2216,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                             compression_opts=9,
                         )
                     print_verb("max value (avg):", jnp.max(avg_vel[0].get_data()))
-                    # avg_vel = avg_vel.normalize_by_max_value()
                     avg_vel.set_time_step(time_step)
                     avg_vel.set_name("average_velocity")
                     avg_vel.save_to_file("avg_vel")
@@ -2418,14 +2280,6 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                     except Exception:
                         print_verb("plotting of reference profile failed.")
                         avg_vel[0].plot_center(0)
-                    # avg_vel_x_slice = PhysicalField.Zeros(slice_domain)
-                    # for i_x in range(Nx):
-                    #     for i_z in range(Nz):
-                    #         avg_vel_x_slice += avg_vel[0][i_x, :, i_z] / (Nx * Nz)
-                    # avg_vel_x_slice.set_time_step(time_step)
-                    # avg_vel_x_slice.set_name("average_velocity_x_slice")
-                    # avg_vel_x_slice.save_to_file("avg_vel_x_slice")
-                    # avg_vel_x_slice.plot()
 
                 vel.set_time_step(i + time_step)
                 vel.set_name("velocity")
@@ -2465,121 +2319,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                         file.write(str(i + time_step))
                         file.write("\n")
                         file.write(str(end_time + last_end_time))
-
-                # T = TypeVar("T", bound="Field")
-
-                # def avg_fields(fs: List[T]) -> T:
-                #     out = fs[0] * 0.0
-                #     for f in fs:
-                #         out += f
-                #     return out / len(fs)
-
-                # with h5py.File(Field.field_dir + "trajectory", "r") as f:
-                #     vel_pert_s: "List[VectorField[PhysicalField]]" = []
-
-                #     slice_domain = PhysicalDomain.create(
-                #         (domain.get_shape_aliasing()[1],),
-                #         (False,),
-                #         scale_factors=(1.0,),
-                #         aliasing=1,
-                #     )
-                #     vel_base_turb_slice = PhysicalField.FromFile(
-                #         slice_domain, "average_velocity", name="average_velocity_x"
-                #     )
-                #     nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-                #     u_data = np.moveaxis(
-                #         np.tile(
-                #             np.tile(vel_base_turb_slice.get_data(), reps=(nz, 1)),
-                #             reps=(nx, 1, 1),
-                #         ),
-                #         1,
-                #         2,
-                #     )
-                #     avg = VectorField(
-                #         [
-                #             PhysicalField(domain, jnp.asarray(u_data)),
-                #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                #             PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-                #         ]
-                #     )
-
-                #     velocity_trajectory = cast("jnp_array", f["trajectory"])
-                # n_steps_ = velocity_trajectory.shape[0]
-                # for i in range(n_steps_):
-                #     vel_pert = (
-                #         VectorField.FromData(
-                #             FourierField, domain, velocity_trajectory[i], name="velocity"
-                #         ).no_hat()
-                #         - avg
-                #     )
-                #     vel_pert.set_name("velocity_pert")
-
-                #     vel_pert_s.append(vel_pert)
-                # uu = (
-                #     avg_fields([vel_pert[0] ** 2 for vel_pert in vel_pert_s])
-                #     .hat()
-                #     .field_2d(2)
-                #     .field_2d(0)
-                #     .no_hat()
-                # )
-                # uu.set_name("uu")
-                # vv = (
-                #     avg_fields([vel_pert[1] ** 2 for vel_pert in vel_pert_s])
-                #     .hat()
-                #     .field_2d(2)
-                #     .field_2d(0)
-                #     .no_hat()
-                # )
-                # vv.set_name("vv")
-                # ww = (
-                #     avg_fields([vel_pert[2] ** 2 for vel_pert in vel_pert_s])
-                #     .hat()
-                #     .field_2d(2)
-                #     .field_2d(0)
-                #     .no_hat()
-                # )
-                # ww.set_name("ww")
-                # uv = (
-                #     avg_fields([vel_pert[0] * vel_pert[1] for vel_pert in vel_pert_s])
-                #     .hat()
-                #     .field_2d(2)
-                #     .field_2d(0)
-                #     .no_hat()
-                # )
-                # uv.set_name("uv")
-                # uw = (
-                #     avg_fields([vel_pert[0] * vel_pert[2] for vel_pert in vel_pert_s])
-                #     .hat()
-                #     .field_2d(2)
-                #     .field_2d(0)
-                #     .no_hat()
-                # )
-                # uw.set_name("uw")
-                # vw = (
-                #     avg_fields([vel_pert[1] * vel_pert[2] for vel_pert in vel_pert_s])
-                #     .hat()
-                #     .field_2d(2)
-                #     .field_2d(0)
-                #     .no_hat()
-                # )
-                # vw.set_name("vw")
-                # fig_stat = figure.Figure()
-                # ax_stat = fig_stat.subplots(1, 1, squeeze=False)
-                # uu.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-                # vv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-                # ww.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-                # uv.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-                # uw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-                # vw.plot_center(1, fig=fig_stat, ax=ax_stat[0][0])
-                # fig_stat.savefig(Field.plotting_dir + "reystresses.png")
-                # uu.plot_center(1)
-                # vv.plot_center(1)
-                # ww.plot_center(1)
-                # uv.plot_center(1)
-                # uw.plot_center(1)
-                # vw.plot_center(1)
             # save traj
-
             vel_2d_yz_trajectory_arr = jnp.array(vel_2d_yz_trajectory)
             with h5py.File(Field.field_dir + "/trajectory_yz", "w") as f:
                 f.create_dataset(
@@ -2592,15 +2332,12 @@ def run_ld_2021_get_mean(**params: Any) -> None:
     nse = NavierStokesVelVort.FromVelocityField(
         U, Re_tau=Re_tau, dt=dt, end_time=end_time
     )
-    # nse = NavierStokesVelVortPerturbation.FromVelocityField(v0_0, Re_tau=Re_tau, dt=dt, end_time=end_time, velocity_base_hat=vel_base_lam.hat())
     print_verb("Re_tau:", nse.get_Re_tau())
 
     nse.activate_jit()
     nse.write_intermediate_output = True
     nse.solve()
 
-    # nse.set_post_process_fn(post_process)
-    # nse.post_process()
     post_process("trajectory")
 
 
@@ -2723,9 +2460,7 @@ def run_ld_2021(**params: Any) -> None:
     vel_base.set_name("velocity_base")
 
     Re = Re_tau * u_max_over_u_tau / h_over_delta
-    # end_time_ = round(end_time * h_over_delta * u_max_over_u_tau)
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
-    # end_time_ = end_time
 
     dt = Equation.find_suitable_dt(domain, max_cfl, (1.0, 1e-5, 1e-5), end_time_)
 
@@ -2746,9 +2481,6 @@ def run_ld_2021(**params: Any) -> None:
         )
         _, U_base, _, flow_rate = get_vel_field(lsc_domain, avg_vel_coeffs)
         U_base = U_base / flow_rate
-        # vel_base_y_slice = turb * U_base + (1 - turb) * Re_tau / 2 * (
-        #     1 - lsc_domain.grid[1] ** 2
-        # )  # continuously blend from turbulent to laminar mean profile
         vel_base_y_slice = turb * U_base + (1 - turb) * 3.0 / 4.0 * (
             1 - lsc_domain.grid[1] ** 2
         )  # continuously blend from turbulent to laminar mean profile
@@ -2784,7 +2516,6 @@ def run_ld_2021(**params: Any) -> None:
 
     def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
         n_steps = nse.get_number_of_fields("velocity_hat")
-        # time = (i / (n_steps - 1)) * end_time
         vel_hat = nse.get_field("velocity_hat", i)
         vel = vel_hat.no_hat()
 
@@ -2843,8 +2574,6 @@ def run_ld_2021(**params: Any) -> None:
         U.update_boundary_conditions()
         U_norm = U.normalize_by_energy()
         U_norm *= jnp.sqrt(e_0)
-        # U_norm.set_name("vel_norm")
-        # U_norm.plot_3d(2)
         nse = NavierStokesVelVortPerturbation.FromVelocityField(
             U_norm,
             Re=Re,
@@ -3572,9 +3301,6 @@ def run_ld_2021_dual(**params: Any) -> None:
         v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
     v0_hat.set_name("velocity_hat")
 
-    # dt = Equation.find_suitable_dt(
-    #     domain, max_cfl, (u_max_over_u_tau, 1e-3, 1e-3), end_time__
-    # )
     v_total = v0_hat.no_hat() + vel_base
     dt = Equation.find_suitable_dt(
         domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time__
@@ -3605,183 +3331,6 @@ def run_ld_2021_dual(**params: Any) -> None:
         start_iteration=start_iteration,
         use_linesearch=use_linesearch,
         linesearch_increase_interval=linesearch_increase_interval,
-    )
-    # optimiser = OptimiserWrapper(
-    #     nse_dual,
-    #     max_iterations=number_of_steps,
-    #     step_size=initial_step_size,
-    #     max_step_size=max_step_size,
-    #     min_step_size=min_step_size,
-    #     start_iteration=start_iteration,
-    # )
-    optimiser.optimise()
-
-
-def run_optimisation_farano_2015(**params: Any) -> None:
-    Re: float = params.get("Re", 2000)
-    Nx: int = params.get("Nx", 300)
-    Ny: int = params.get("Ny", 100)
-    Nz: int = params.get("Nz", 120)
-    number_of_steps: int = params.get("number_of_steps", 10)
-    e_0: float = params.get("e_0", 1.1e-5)
-    end_time: float = params.get("end_time", 10.0)
-    linearise: bool = params.get("linearise", False)
-    start_iteration: int = params.get("start_iteration", 0)
-    init_file: Optional[str] = params.get("init_file")
-    aliasing = params.get("aliasing", 3 / 2)
-
-    initial_step_size = params.get("initial_step_size", 1.0e-3)
-    min_step_size = params.get("min_step_size", 1.0e-4)
-    max_step_size = params.get("max_step_size", 1.0e-1)
-
-    if start_iteration <= 0:
-        Equation.initialize()
-
-    max_cfl = params.get("max_cfl", 0.7)
-
-    domain = PhysicalDomain.create(
-        (Nx, Ny, Nz),
-        (True, False, True),
-        scale_factors=(2.0 * np.pi, 1.0, np.pi),
-        aliasing=aliasing,
-        dealias_nonperiodic=False,
-    )
-
-    vel_base = VectorField(
-        [
-            PhysicalField.FromFunc(domain, lambda X: 1.0 * (1 - X[1] ** 2) + 0 * X[2]),
-            # PhysicalField.FromFunc(domain, lambda X: Re / 2 * (1 - X[1] ** 2) + 0 * X[2]),
-            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-            PhysicalField.FromFunc(domain, lambda X: 0.0 * (1 - X[1] ** 2) + 0 * X[2]),
-        ]
-    )
-
-    vel_base.set_name("velocity_base")
-
-    end_time_ = end_time
-
-    if init_file is None:
-        number_of_modes = params.get("number_of_modes", 60)
-        n = 64
-        lsc_domain = PhysicalDomain.create(
-            (2, n, 2),
-            (True, False, True),
-            scale_factors=domain.scale_factors,
-            aliasing=1,
-        )
-        vel_base_y_slice = 1.0 * (1 - lsc_domain.grid[1] ** 2)
-        # vel_base_y_slice =  Re / 2 * (1 - lsc_domain.grid[1] ** 2)
-        lsc_xz = LinearStabilityCalculation(
-            Re=Re,
-            alpha=1 * (2 * jnp.pi / domain.scale_factors[0]),
-            beta=2 * (2 * jnp.pi / domain.scale_factors[2]),
-            n=n,
-            U_base=cast("np_float_array", vel_base_y_slice),
-        )
-
-        v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
-            # coarse_domain,
-            domain,
-            end_time_,
-            number_of_modes,
-            recompute_full=True,
-            save_final=False,
-        )
-        print_verb(
-            "expected gain:",
-            lsc_xz.calculate_transient_growth_max_energy(end_time_, number_of_modes),
-        )
-        v0_0.normalize_by_energy()
-        v0_0 *= jnp.sqrt(e_0)
-        vel_hat: VectorField[FourierField] = v0_0.hat()
-        vel_hat.set_name("velocity_hat")
-
-    def post_process(nse: NavierStokesVelVortPerturbation, i: int) -> None:
-        n_steps = nse.get_number_of_fields("velocity_hat")
-        # time = (i / (n_steps - 1)) * end_time
-        vel_hat = nse.get_field("velocity_hat", i)
-        vel = vel_hat.no_hat()
-
-        vel_base_hat = nse.get_initial_field("velocity_base_hat")
-        vel_base = vel_base_hat.no_hat()
-
-        vort = vel.curl()
-        vel.set_time_step(i)
-        vel.set_name("velocity")
-        vort.set_time_step(i)
-        vort.set_name("vorticity")
-
-        vel[0].plot_3d(2)
-        vel[1].plot_3d(2)
-        vel[2].plot_3d(2)
-        vel[0].plot_3d(0)
-        vel[1].plot_3d(0)
-        vel[2].plot_3d(0)
-        vel.plot_streamlines(2)
-        vel[1].plot_isolines(2)
-        vel.plot_isosurfaces()
-
-        vel_total = vel + vel_base
-        vel_total.set_name("velocity_total")
-        vel_total[0].plot_3d(0)
-
-        fig = figure.Figure()
-        ax = fig.subplots(1, 1)
-        assert type(ax) is Axes
-        ts = []
-        energy_t = []
-        for j in range(n_steps):
-            time_ = (j / (n_steps - 1)) * end_time_
-            vel_hat_ = nse.get_field("velocity_hat", j)
-            vel_ = vel_hat_.no_hat()
-            vel_energy_ = vel_.energy()
-            ts.append(time_)
-            energy_t.append(vel_energy_)
-
-        energy_t_arr = np.array(energy_t)
-        ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
-        ax.plot(
-            ts[: i + 1],
-            energy_t_arr[: i + 1] / energy_t_arr[0],
-            "bo",
-            label="energy gain",
-        )
-        fig.legend()
-        fig.savefig(Field.plotting_dir + "/plot_energy_t_" + "{:06}".format(i) + ".png")
-
-    if init_file is None:
-        v0_hat = vel_hat
-    else:
-        v0 = VectorField.FromFile(domain, init_file, "velocity")
-        v0 = v0.normalize_by_energy()
-        v0 *= jnp.sqrt(e_0)
-        v0_hat = v0.hat()
-    v0_hat.set_name("velocity_hat")
-
-    v_total = v0_hat.no_hat() + vel_base
-    dt = Equation.find_suitable_dt(
-        domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time_
-    )
-    nse = NavierStokesVelVortPerturbation(
-        v0_hat,
-        Re_tau=Re,
-        dt=dt,
-        end_time=end_time_,
-        velocity_base_hat=vel_base.hat(),
-        linearise=linearise,
-    )
-    nse.set_post_process_fn(post_process)
-    nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
-        nse
-    )
-    optimiser = ConjugateGradientDescentSolver(
-        nse_dual,
-        max_iterations=number_of_steps,
-        step_size=initial_step_size,
-        max_step_size=max_step_size,
-        min_step_size=min_step_size,
-        post_process_function=post_process,
-        start_iteration=start_iteration,
     )
     optimiser.optimise()
 

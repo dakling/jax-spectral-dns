@@ -352,18 +352,18 @@ class Equation:
             print_verb(msg, verbosity_level=2)
             start_time = time.time()
             trajectory, _, number_of_time_steps = self.solve_scan()
-            velocity_final = VectorField(
-                [
-                    FourierField(
-                        self.get_physical_domain(),
-                        trajectory[-1][i],
-                        name="velocity_hat_" + "xyz"[i],
-                    )
-                    for i in self.all_dimensions()
-                ]
-            )
-            velocity_final.set_time_step(len(trajectory) - 1)
-            self.append_field("velocity_hat", velocity_final, in_place=False)
+            # velocity_final = VectorField(
+            #     [
+            #         FourierField(
+            #             self.get_physical_domain(),
+            #             trajectory[-1][i],
+            #             name="velocity_hat_" + "xyz"[i],
+            #         )
+            #         for i in self.all_dimensions()
+            #     ]
+            # )
+            # velocity_final.set_time_step(len(trajectory) - 1)
+            # self.append_field("velocity_hat", velocity_final, in_place=False)
 
             if os.environ.get("JAX_SPECTRAL_DNS_FIELD_DIR") is not None:
                 try:

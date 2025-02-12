@@ -425,7 +425,7 @@ class Case:
             return "x"
         elif vel_0_type is Case.Vel_0_types["nonlinear_global"]:
             print_verb("nl glob", verbosity_level=3)
-            return "."
+            return "s"
         elif vel_0_type is Case.Vel_0_types["nonlinear_localised"]:
             print_verb("nl loc", verbosity_level=3)
             return "o"
@@ -445,7 +445,7 @@ class Case:
             out = (np.log(self.e_0) - np.log(e_0_min)) / (
                 np.log(e_0_max) - np.log(e_0_min)
             ) * (alpha_max - alpha_min) + alpha_min
-        cmap = matplotlib.colormaps["copper"]
+        cmap = matplotlib.colormaps["magma"]
         rgba = cmap(out)
         return rgba, cmap
 
@@ -626,6 +626,18 @@ def plot(
     if log_y_axis:
         ax.set_yscale("log")
     ax.set_xlim(left=0.0, right=3.0)
+
+    offset = 0.01
+    ypos = 0.92
+    linewd = 0.9 * matplotlib.rcParams["lines.linewidth"]
+    if target_property[0] == "dominant_streak_amplitude":
+        ypos = 0.5
+    elif target_property[0] == "infnorm":
+        ypos = 0.5
+    ax.axvline(0.35, linestyle=":", color="k", linewidth=linewd)
+    fig.text(0.35 + offset, ypos, "$t_p$", transform=ax.get_xaxis_transform())
+    ax.axvline(0.7, linestyle=":", color="k", linewidth=linewd)
+    fig.text(0.7 + offset, ypos, "$2 t_p$", transform=ax.get_xaxis_transform())
     # e_0_lam_boundary = []
     # e_0_nl_lower_glob_boundary = []
     # e_0_nl_upper_glob_boundary = []
@@ -659,7 +671,7 @@ def plot(
         )
 
     if target_property[0] == "dominant_lambda_z":
-        ax.set_ylim(bottom=0.0, top=370.0)
+        # ax.set_ylim(bottom=0.0, top=370.0)
         ts = list(set([0.0] + [case.T for case in all_cases]))
         ts.sort()
         ax.plot(
@@ -682,7 +694,7 @@ def plot(
         )
 
     if target_property[0] == "dominant_streak_amplitude":
-        ax.set_ylim(bottom=0.0, top=16.0)
+        # ax.set_ylim(bottom=0.0, top=16.0)
         ts = list(set([0.0] + [case.T for case in all_cases]))
         ts.sort()
         mean = 5.853
@@ -706,11 +718,11 @@ def plot(
             label="$|u_{k_{x}=0}|_{\\infty_\\text{mean}} + |u_{k_{x}=0}|_{\\infty_\\text{std}}$",
         )
 
-    if target_property[0] == "infnorm":
-        ax.set_ylim(bottom=1.0e-4)
+    # if target_property[0] == "infnorm":
+    # ax.set_ylim(bottom=1.0e-4)
 
     if target_property[0] == "e_0":
-        ax.set_ylim(top=7.0e-3)
+        # ax.set_ylim(top=7.0e-3)
         from scipy.interpolate import interp1d
 
         # 1st line
@@ -726,18 +738,18 @@ def plot(
         for x, y in [(x1, y1), (x2, y2), (x3, y3)]:
             x_fine = np.linspace(x[0], x[-1], num=50, endpoint=True)
             y_fine = interp1d(x, y, kind="cubic")(x_fine)
-            ax.plot(x_fine, y_fine, "--", color="gray")
+            ax.plot(x_fine, y_fine, "--", color="black")
         #     ax.plot(x, y, 'k.')
         # fig.savefig("test.png")
 
-    handles, labels = ax.get_legend_handles_labels()
-    unique_ = [
-        (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
-    ]
-    unique = deepcopy(unique_)
-    for h, l in unique:
-        h.set(color="black")
-    ax.legend(*zip(*unique), loc=target_property[3])
+    # handles, labels = ax.get_legend_handles_labels()
+    # unique_ = [
+    #     (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
+    # ]
+    # unique = deepcopy(unique_)
+    # for h, l in unique:
+    #     h.set(color="black")
+    # ax.legend(*zip(*unique), loc=target_property[3])
     fig.savefig("plots/T_" + target_property[0] + "_space.png", bbox_inches="tight")
     # plot isosurfaces of gain
     if include_gain_isoplot:
@@ -796,7 +808,7 @@ def plot(
             for x, y in [(x1, y1), (x2, y2), (x3, y3)]:
                 x_fine = np.linspace(x[0], x[-1], num=50, endpoint=True)
                 y_fine = interp1d(x, y, kind="cubic")(x_fine)
-                ax.plot(x_fine, y_fine, "--", color="gray")
+                ax.plot(x_fine, y_fine, "--", color="black")
             #     ax.plot(x, y, 'k.')
             # fig.savefig("test.png")
 

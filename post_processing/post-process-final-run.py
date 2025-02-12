@@ -219,6 +219,15 @@ def post_process(
             lambda_y_s.append(lambda_y)
             lambda_z_s.append(lambda_z)
 
+        amplitudes_x_arr = np.vstack(
+            [np.atleast_2d(np.array(ts)), np.atleast_2d(np.array(amplitudes_2d_kxs)).T]
+        )
+        np.savetxt("plots/amplitudes_x.txt", amplitudes_x_arr.T)
+        amplitudes_z_arr = np.vstack(
+            [np.atleast_2d(np.array(ts)), np.atleast_2d(np.array(amplitudes_2d_kzs)).T]
+        )
+        np.savetxt("plots/amplitudes_z.txt", amplitudes_z_arr.T)
+
         # fig = figure.Figure()
         # ax = fig.subplots(1, 1)
         # ax.plot(ts, amplitudes_2d_vilda, "k.")

@@ -6,6 +6,7 @@ import os
 import jax
 import jax.numpy as jnp
 import numpy as np
+import matplotlib
 import matplotlib.figure as figure
 from matplotlib.axes import Axes
 
@@ -41,6 +42,15 @@ if TYPE_CHECKING:
     from jax_spectral_dns._typing import pseudo_2d_perturbation_return_type
 
 NoneType = type(None)
+
+font_size = 18
+matplotlib.rcParams.update(
+    {
+        "font.size": font_size,
+        "text.usetex": True,
+        "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
+    }
+)
 
 
 class TestProject(unittest.TestCase):
@@ -1269,7 +1279,7 @@ class TestProject(unittest.TestCase):
             use_antialiasing: bool = True,
             dealias_nonperiodic: bool = False,
         ) -> "pseudo_2d_perturbation_return_type":
-            end_time = 6e-1
+            end_time = 1e0
             if use_antialiasing:
                 N = 4
                 aliasing = 3 / 2
@@ -1442,7 +1452,8 @@ class TestProject(unittest.TestCase):
                 + ("with" if use_antialiasing else "without")
                 + "_antialiasing"
                 + ("_non_periodic" if dealias_nonperiodic else "")
-                + ".png"
+                + ".png",
+                bbox_inches="tight",
             )
 
         def main() -> None:
