@@ -2979,7 +2979,7 @@ def run_ld_2021_dual(**params: Any) -> None:
             fname = glob.glob("vel_00_*", root_dir=Field.field_dir)
             assert len(fname) == 1, "Exactly one base profile must be present."
             avg_slice = VectorField.FromFile(
-                PhysicalField, slice_domain, fname[0], name="velocity_spatial_average"
+                slice_domain, fname[0], name="velocity_spatial_average"
             )[0]
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(
