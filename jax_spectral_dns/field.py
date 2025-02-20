@@ -1368,6 +1368,8 @@ class PhysicalField(Field):
             data = cls.read_pickle(filename, name)
         data_matches_domain = data.shape == domain.get_shape_aliasing()
         if not allow_projection:
+            print(data.shape)
+            print(domain.get_shape_aliasing())
             assert (
                 data_matches_domain
             ), "Data in provided file does not match domain. Call with allow_projection=True if you would like to automatically project the data onto the provided domain."
