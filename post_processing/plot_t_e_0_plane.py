@@ -64,6 +64,7 @@ class Case:
         self.Re_tau = self.get_Re_tau()
         self.vel_0 = None
         self.vel_base_max = None
+        self.vel_base_wall = None
         self.inf_norm = None
         self.dominant_lambda_z = None
         self.dominant_streak_amplitude = None
@@ -175,6 +176,17 @@ class Case:
             self.vel_base_max = self.get_base_velocity().max()
         return self.vel_base_max
 
+    def get_base_velocity_wall(self) -> "float":
+        if self.vel_base_wall is None:
+            Re_tau = self.Re_tau
+            y_wall = 1 - 10.0 / Re_tau
+            grd = self.get_domain().grid
+            n_y_wall = jnp.argmin(
+                (grd[1] - y_wall)[:-1] * (jnp.roll(grd[1], -1) - y_wall)[:-1]
+            )
+            self.vel_base_wall = self.get_base_velocity()[n_y_wall]
+        return self.vel_base_wall
+
     @classmethod
     def sort_by_e_0(cls, cases: "List[Self]") -> "List[Self]":
         cases.sort(key=lambda x: x.e_0)
@@ -183,6 +195,11 @@ class Case:
     @classmethod
     def sort_by_u_base_max(cls, cases: "List[Self]") -> "List[Self]":
         cases.sort(key=lambda x: x.get_base_velocity_max())
+        return cases
+
+    @classmethod
+    def sort_by_u_wall(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.get_base_velocity_wall())
         return cases
 
     @classmethod

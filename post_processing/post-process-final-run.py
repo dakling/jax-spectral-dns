@@ -390,7 +390,10 @@ def post_process(
                 )
             else:
                 vel[0].plot_isosurfaces(
-                    name="$\\tilde{u}_x$", flip_axis=1, add_axes=False
+                    # name="$\\tilde{u}_x$", flip_axis=1, add_axes=False
+                    name="$\\tilde{u}_x$",
+                    flip_axis=1,
+                    add_axes=True,
                 )
             # vel[1].plot_isosurfaces()
             # vel[2].plot_isosurfaces()
@@ -451,6 +454,8 @@ def post_process(
             fig = figure.Figure()
             ax = fig.subplots(1, 1)
             assert type(ax) is Axes
+            ax.set_xlabel("$t u_\\tau / h$")
+            ax.set_ylabel("$G$")
             if i == 0:
                 fig_amplitudes = figure.Figure()
                 ax_amplitudes = fig_amplitudes.subplots(1, 1)
@@ -461,15 +466,14 @@ def post_process(
 
                 # prod_arr = np.array(prod)
                 # diss_arr = np.array(diss)
-                ax.plot(ts, energy_t_arr / energy_t_arr[0], "k-")
+                # ax.plot(ts, energy_t_arr / energy_t_arr[0], "k-")
+                # ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
                 # ax.plot(
                 #     ts[: i + 1],
                 #     energy_t_arr[: i + 1] / energy_t_arr[0],
                 #     "ko",
                 #     label="$G$",
                 # )
-                ax.set_xlabel("$t u_\\tau / h$")
-                ax.set_ylabel("$G$")
                 # ax.plot(ts, energy_x_2d_arr / energy_t_arr[0], "b.")
                 # # ax.plot(ts, energy_x_2d_arr / energy_x_2d_arr[0], "b.")
                 # # ax.plot(ts, energy_x_2d_1_arr / energy_t_arr[0], "y.")
@@ -491,11 +495,12 @@ def post_process(
                 #     label="$G_{3d}$",
                 # )
                 # ax.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
-                ax.set_box_aspect(1)
+                # ax.set_box_aspect(1)
                 fig.savefig(
                     Field.plotting_dir + "/plot_energy" + ".png",
                     bbox_inches="tight",
                 )
+            ax.plot(ts, energy_t_arr / energy_t_arr[0], "k.")
             ax.plot(
                 ts[: i + 1],
                 energy_t_arr[: i + 1] / energy_t_arr[0],

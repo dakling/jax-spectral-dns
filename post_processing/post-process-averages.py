@@ -166,6 +166,7 @@ def post_process_averages() -> None:
                 #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
                 #     ),
                 # )
+                vel_00.save_to_file("vel_00_" + str(time_step))
                 vel_00_symm = average_y_symm(vel_00_s[-1])
                 vel_00_symm.set_time_step(time_step)
                 # vel_00_symm[0].plot_center(
@@ -234,7 +235,8 @@ def post_process_averages() -> None:
     vel_wall = []
     n_bins = 9
     Re_tau = args.get("Re_tau", 180)
-    y_wall = 10.0 / Re_tau
+    y_wall = 1 - 10.0 / Re_tau
+    grd = domain.grid
     n_y_wall = jnp.argmin((grd[1] - y_wall)[:-1] * (jnp.roll(grd[1], -1) - y_wall)[:-1])
     print("n_y_wall")
     print(n_y_wall)
@@ -254,6 +256,14 @@ def post_process_averages() -> None:
     vel_cl_hist, vel_cl_bin_edges = np.histogram(vel_cl, bins=n_bins)
     vel_wall_hist, vel_wall_bin_edges = np.histogram(vel_wall, bins=n_bins)
     mass_flux_hist, mass_flux_bin_edges = np.histogram(mass_flux, bins=n_bins)
+    try:
+        print(vel_wall_hist.shape)
+    except Exception:
+        pass
+    try:
+        print(len(vel_wall_hist))
+    except Exception:
+        pass
     profile_hist = [[] for _ in range(len(vel_cl_hist))]
     profile_hist_wall = [[] for _ in range(len(vel_wall_hist))]
     profile_hist_mf = [[] for _ in range(len(mass_flux_hist))]
@@ -261,27 +271,27 @@ def post_process_averages() -> None:
         vel_cl_current = vel_cl[i]
         vel_wall_current = vel_wall[i]
         mass_flux_current = mass_flux[i]
-        for j in range(len(vel_cl_bin_edges) - 1):
-            if (
-                vel_cl_current >= vel_cl_bin_edges[j]
-                and vel_cl_current < vel_cl_bin_edges[j + 1]
-            ):
-                profile_hist[j].append(vel_00_symm_s[i])
-                break
+        # for j in range(len(vel_cl_bin_edges) - 1):
+        #     if (
+        #         vel_cl_current >= vel_cl_bin_edges[j]
+        #         and vel_cl_current < vel_cl_bin_edges[j + 1]
+        #     ):
+        #         profile_hist[j].append(vel_00_symm_s[i])
+        #         break
         for n in range(len(vel_cl_bin_edges) - 1):
             if (
-                vel_wall_current >= vel_wall_bin_edges[j]
-                and vel_wall_current < vel_wall_bin_edges[j + 1]
+                vel_wall_current >= vel_wall_bin_edges[n]
+                and vel_wall_current < vel_wall_bin_edges[n + 1]
             ):
-                profile_hist[j].append(vel_00_symm_s[i])
+                profile_hist_wall[n].append(vel_00_symm_s[i])
                 break
-        for k in range(len(vel_cl_bin_edges) - 1):
-            if (
-                mass_flux_current >= mass_flux_bin_edges[k]
-                and mass_flux_current < mass_flux_bin_edges[k + 1]
-            ):
-                profile_hist_mf[k].append(vel_00_symm_s[i])
-                break
+        # for k in range(len(vel_cl_bin_edges) - 1):
+        #     if (
+        #         mass_flux_current >= mass_flux_bin_edges[k]
+        #         and mass_flux_current < mass_flux_bin_edges[k + 1]
+        #     ):
+        #         profile_hist_mf[k].append(vel_00_symm_s[i])
+        #         break
     profile_hist_avg = []
     profile_hist_avg_wall = []
     profile_hist_avg_mf = []
@@ -299,8 +309,8 @@ def post_process_averages() -> None:
     for i in range(3):
         # ax_hist_profiles[i][0].set_ylabel("$\\bar U$")
         # ax_hist_profiles[-1][i].set_ylabel("$y$")
-        ax_hist_profiles_wall[i][0].set_ylabel("$\\bar U$")
-        ax_hist_profiles_wall[-1][i].set_ylabel("$y$")
+        ax_hist_profiles[i][0].set_ylabel("$\\bar U$")
+        ax_hist_profiles[-1][i].set_ylabel("$y$")
         # for j in range(3):
         #     ax_hist_profiles[i][j].set_xlabel("$y$")
     # ax_hist_profiles[0][0].set_ylabel("$\\bar U$")

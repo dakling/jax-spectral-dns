@@ -2971,9 +2971,16 @@ def run_ld_2021_dual(**params: Any) -> None:
             scale_factors=(1.0,),
             aliasing=1,
         )
-        avg_slice = PhysicalField.FromFile(
-            slice_domain, "average_velocity", name="average_velocity_x"
-        )
+        try:
+            avg_slice = PhysicalField.FromFile(
+                slice_domain, "average_velocity", name="average_velocity_x"
+            )
+        except FileNotFoundError:
+            fname = glob.glob("vel_00_*", root_dir=Field.field_dir)
+            assert len(fname) == 1, "Exactly one base profile must be present."
+            avg_slice = PhysicalField.FromFile(
+                slice_domain, fname[0], name="velocity_spatial_average"
+            )
         nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
         u_data = np.moveaxis(
             np.tile(np.tile(avg_slice.get_data(), reps=(nz, 1)), reps=(nx, 1, 1)),
@@ -3265,6 +3272,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         x_max = max_inds[0] / Nx * domain.grid[0][-1]
         z_max = max_inds[2] / Nz * domain.grid[2][-1]
         v0_0.plot_3d(0, x_max)
+        v0_0.plot_3d(1, 0)
+        v0_0.plot_isosurfaces()
         v0_0.plot_3d(2, z_max, rotate=True)
         v1_0.plot_3d(0, x_max)
         v1_0.plot_3d(2, z_max, rotate=True)
