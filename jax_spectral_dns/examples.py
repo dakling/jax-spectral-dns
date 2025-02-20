@@ -98,7 +98,7 @@ font_size = 18
 matplotlib.rcParams.update(
     {
         "font.size": font_size,
-        "text.usetex": True,
+        # "text.usetex": True,
         "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
     }
 )
@@ -3104,7 +3104,7 @@ def run_ld_2021_dual(**params: Any) -> None:
     vel_base.set_name("velocity_base")
 
     vel_base_turb.set_name("velocity_base (unperturbed)")
-    if hist_mean:
+    if hist_mean or custom_channel_mean:
         vel_base_turb_minimal, _, max_turb, flow_rate_turb = (
             get_vel_field_minimal_channel(domain, avg_vel_coeffs)
         )

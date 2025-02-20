@@ -1920,7 +1920,6 @@ class PhysicalField(Field):
                 raise Exception("Not implemented yet")
             del fig
         except Exception as e:
-            raise e
             print("plot failed with the following exception:")
             print(e)
             print("ignoring this and carrying on.")
