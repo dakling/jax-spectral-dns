@@ -530,7 +530,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         ].flatten()
         tau = 0.5
         tau_inv = 1.5
-        c = 0.5
+        c = 0.1
         j = 1
         m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
             self.e_0 / old_value**2

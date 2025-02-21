@@ -233,7 +233,7 @@ def post_process_averages() -> None:
     mass_flux = []
     vel_cl = []
     vel_wall = []
-    n_bins = 9
+    n_bins = 18
     Re_tau = args.get("Re_tau", 180)
     y_wall = 1 - 10.0 / Re_tau
     grd = domain.grid
