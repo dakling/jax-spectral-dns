@@ -2941,7 +2941,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         ), "Exactly one base profile called vel_hist_bin_[0-..] must be present in fields folder, found {0}.".format(
             len(filenames)
         )
-        i = filenames[0][-1]  # TODO generalize
+        i = filenames[0].split("_")[-1]
         vel_base_turb_slice = PhysicalField.FromFile(
             slice_domain, filenames[0], "hist_bin_" + i + "_x", time_step=0
         )
