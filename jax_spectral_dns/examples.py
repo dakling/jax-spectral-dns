@@ -2680,6 +2680,7 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     full_channel_mean = params.get("full_channel_mean", False)
     custom_channel_mean = params.get("custom_channel_mean", False)
+    flip_mean = params.get("flip_mean", False)
     cess_mean = params.get("cess_mean", False)
     hist_mean = params.get("hist_mean", False)
     A = params.get("cess_mean_a")
@@ -3102,6 +3103,9 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     flow_rate = turb * flow_rate_turb + (1 - turb) * flow_rate_lam
     vel_base.set_name("velocity_base")
+
+    if flip_mean:
+        vel_base = vel_base.flip(1)
 
     vel_base_turb.set_name("velocity_base (unperturbed)")
     if hist_mean or custom_channel_mean:

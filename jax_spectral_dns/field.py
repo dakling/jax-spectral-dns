@@ -156,6 +156,7 @@ class Field(ABC):
         try:
             self.save_to_hdf_file(filename)
         except Exception as e:
+            raise e
             print("unable to save as hdf due to the following exception:")
             print(e)
             self.save_to_pickle_file(filename)
@@ -447,7 +448,10 @@ class VectorField(Generic[T]):
             # print("unable to load hdf due to the following exception:")
             # print(e)
             # print("trying to interpret file as pickle instead")
-            field_array = cls.read_pickle(filename, name)
+            try:
+                field_array = cls.read_pickle(filename, name)
+            except Exception:
+                raise e
         out: VectorField[PhysicalField] = VectorField.FromData(
             PhysicalField, domain, field_array, name, allow_projection
         )
@@ -465,6 +469,9 @@ class VectorField(Generic[T]):
         self: VectorField[FourierField], domain: PhysicalDomain
     ) -> VectorField[FourierField]:
         return VectorField([f.filter() for f in self], name=self.name)
+
+    def flip(self: VectorField[PhysicalField], axis) -> VectorField[PhysicalField]:
+        return VectorField([f.flip(axis) for f in self])
 
     def __getitem__(self, index: int) -> T:
         return self.elements[index]
@@ -1365,7 +1372,10 @@ class PhysicalField(Field):
             # print("unable to load hdf due to the following exception:")
             # print(e)
             # print("trying to interpret file as pickle instead")
-            data = cls.read_pickle(filename, name)
+            try:
+                data = cls.read_pickle(filename, name)
+            except Exception:
+                raise e
         data_matches_domain = data.shape == domain.get_shape_aliasing()
         if not allow_projection:
             assert (
@@ -1493,6 +1503,10 @@ class PhysicalField(Field):
                 mode="constant",
                 constant_values=0.0,
             )
+
+    def flip(self, axis) -> PhysicalField:
+        self.data = jnp.flip(self.get_data(), axis=axis)
+        return self
 
     def eval(self, X: Sequence[float]) -> "jsd_array":
         """Evaluate field at arbitrary point X through linear interpolation. (TODO: This could obviously be improved for Chebyshev dirctions, but this is not yet implemented)"""

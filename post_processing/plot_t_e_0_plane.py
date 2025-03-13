@@ -64,6 +64,7 @@ class Case:
         self.Re_tau = self.get_Re_tau()
         self.vel_0 = None
         self.vel_base_max = None
+        self.vel_base_cl = None
         self.vel_base_wall = None
         self.inf_norm = None
         self.dominant_lambda_z = None
@@ -149,34 +150,65 @@ class Case:
 
     def get_base_velocity(self) -> "PhysicalField":
         base_path = self.STORE_DIR_BASE
-        hist_bin = self.directory[-1:]
-        base_velocity_file_name = (
-            base_path + "/" + self.directory + "/fields/vel_hist_bin_" + hist_bin
+        domain = self.get_domain()
+        slice_domain = PhysicalDomain.create(
+            (domain.get_shape_aliasing()[1],),
+            (False,),
+            scale_factors=(1.0,),
+            aliasing=1,
         )
         try:
-            domain = self.get_domain()
-            slice_domain = PhysicalDomain.create(
-                (domain.get_shape_aliasing()[1],),
-                (False,),
-                scale_factors=(1.0,),
-                aliasing=1,
+            hist_bin = self.directory.split("/")[-1]
+            base_velocity_file_path = (
+                base_path + "/" + self.directory + "/fields/vel_hist_bin_" + hist_bin
             )
             vel_base_turb_slice = PhysicalField.FromFile(
                 slice_domain,
-                base_velocity_file_name,
+                base_velocity_file_path,
                 "hist_bin_" + hist_bin + "_x",
                 time_step=0,
             )
             return vel_base_turb_slice
         except Exception as e:
-            raise e
+            try:
+                base_velocity_file_name = glob(
+                    "vel_00_*", root_dir=base_path + "/" + self.directory + "/fields/"
+                )[0]
+
+                base_velocity_file_path = (
+                    base_path
+                    + "/"
+                    + self.directory
+                    + "/fields/"
+                    + base_velocity_file_name
+                )
+                vel_base_turb_slice = VectorField.FromFile(
+                    slice_domain,
+                    base_velocity_file_path,
+                    "velocity_spatial_average",
+                )[0]
+                return vel_base_turb_slice
+            except Exception as e:
+                raise e
 
     def get_base_velocity_max(self) -> "float":
         if self.vel_base_max is None:
             self.vel_base_max = self.get_base_velocity().max()
         return self.vel_base_max
 
-    def get_base_velocity_wall(self) -> "float":
+    def get_base_velocity_cl(self) -> "float":
+        if self.vel_base_cl is None:
+            y_wall = 0
+            grd = self.get_domain().grid
+            n_y_cl = jnp.argmin(
+                (grd[1] - y_wall)[:-1] * (jnp.roll(grd[1], -1) - y_wall)[:-1]
+            )
+            self.vel_base_cl = self.get_base_velocity()[n_y_cl]
+        return self.vel_base_cl
+
+    def get_base_velocity_wall(
+        self,
+    ) -> "float":  # TODO take into account on which side the perturbation is located
         if self.vel_base_wall is None:
             Re_tau = self.Re_tau
             y_wall = 1 - 10.0 / Re_tau
@@ -195,6 +227,11 @@ class Case:
     @classmethod
     def sort_by_u_base_max(cls, cases: "List[Self]") -> "List[Self]":
         cases.sort(key=lambda x: x.get_base_velocity_max())
+        return cases
+
+    @classmethod
+    def sort_by_u_base_cl(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.get_base_velocity_cl())
         return cases
 
     @classmethod
