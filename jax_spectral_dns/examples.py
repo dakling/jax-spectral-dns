@@ -3101,7 +3101,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         # ) + vel_base_perturbation_constant_mass_flux  # continuously blend from turbulent to laminar mean profile
     ) + vel_base_perturbation  # continuously blend from turbulent to laminar mean profile
 
-    vel_base.plot_center(1, vel_base_turb)
+    vel_base[0].plot_center(1, vel_base_turb[0])
 
     flow_rate = turb * flow_rate_turb + (1 - turb) * flow_rate_lam
     vel_base.set_name("velocity_base")
