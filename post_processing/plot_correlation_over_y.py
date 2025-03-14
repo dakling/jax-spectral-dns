@@ -46,6 +46,8 @@ class CaseGroup:
             return "o"
         elif self.artificial_type is CaseGroup.artificial_types["Cess"]:
             return "x"
+        elif self.artificial_type is CaseGroup.artificial_types["Pert"]:
+            return "x"
         else:
             raise Exception(
                 "unknown case artificiality type " + str(self.artificial_type)
@@ -61,6 +63,13 @@ class CaseGroup:
             )
         elif self.artificial_type is CaseGroup.artificial_types["Cess"]:
             self.cases = CessCase.collect(
+                self.path,
+                prune_duplicates=prune_duplicates,
+                with_linear=with_linear,
+                legal_names=legal_names,
+            )
+        elif self.artificial_type is CaseGroup.artificial_types["Pert"]:
+            self.cases = PertCase.collect(
                 self.path,
                 prune_duplicates=prune_duplicates,
                 with_linear=with_linear,
@@ -107,8 +116,6 @@ def plot(groups):
     for group in groups:
         base_path = group.path
         print_verb("collecting cases in", base_path)
-        # cases += Case.collect(base_path, prune_duplicates=False, with_linear=False, legal_names=["*"])
-        # new_cases = Case.collect(base_path, prune_duplicates=False, with_linear=False, legal_names=["*"])
         group.collect(prune_duplicates=False, with_linear=False, legal_names=["*"])
         cases.append(group)
         print_verb(
@@ -133,7 +140,6 @@ def plot(groups):
         0.9,
         0.95,
     ]
-    # ys = [0, 0.5, 0.53]
     residuals = []
 
     fig_corr, ax_corr = plt.subplots(len(ys), 1, figsize=(6, len(ys) * 4))
@@ -156,6 +162,7 @@ def plot(groups):
                     [0],
                     color=cases[i].color,
                     marker=cases[i].get_marker(),
+                    linestyle="",
                     label=base_paths[i],
                 )
                 for i in range(len(base_paths))
@@ -171,6 +178,7 @@ def plot(groups):
 colors = ["b", "k", "r", "c", "m", "y"]
 base_paths = [
     CaseGroup("cess_three_time_units", colors.pop(), "Cess"),
+    # CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
     CaseGroup("random_mean_snapshot/", colors.pop(), "None"),
     CaseGroup("hist_18_study_three_time_units/", colors.pop(), "None"),
     CaseGroup("hist_9_study_three_time_units/", colors.pop(), "None"),

@@ -1079,3 +1079,30 @@ class CessCase(Case):
 
         vel_base_turb = get_vel_field_cess(self.A, self.K)
         return vel_base_turb
+
+
+class PertCase(Case):
+    def __init__(self, directory: str):
+        super().__init__(directory)
+        self.pert = self.get_property_from_settings("mean_perturbation", 0.0)
+
+    def get_base_velocity(self) -> "PhysicalField":
+
+        domain = self.get_domain()
+        slice_domain = PhysicalDomain.create(
+            (domain.get_shape_aliasing()[1],),
+            (False,),
+            scale_factors=(1.0,),
+            aliasing=1,
+        )
+        vel_base_perturbation = PhysicalField.FromFunc(
+            slice_domain,
+            lambda X: self.pert * (jnp.cos(jnp.pi * X[0]) + jnp.cos(2 * jnp.pi * X[0])),
+        )
+
+        vel_base_turb = super().get_base_velocity()
+        vel_base = (
+            vel_base_turb + vel_base_perturbation
+        )  # continuously blend from turbulent to laminar mean profile
+
+        return vel_base
