@@ -196,14 +196,28 @@ class Case:
             self.vel_base_max = self.get_base_velocity().max()
         return self.vel_base_max
 
+    def get_base_velocity_at_y(
+        self, y: "float"
+    ) -> "float":  # TODO take into account on which side the perturbation is located
+        grd = self.get_domain().grid
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return self.get_base_velocity()[n_y]
+
+    def get_base_velocity_at_pm_y(
+        self, y: "float"
+    ) -> "float":  # TODO take into account on which side the perturbation is located
+        grd = self.get_domain().grid
+        u_0 = self.get_vel_0()
+        u_0_shape = u_0[0].get_data().shape
+        max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
+        if max_inds[1] > u_0_shape[1] // 2:
+            y = -y
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return self.get_base_velocity()[n_y]
+
     def get_base_velocity_cl(self) -> "float":
         if self.vel_base_cl is None:
-            y_wall = 0
-            grd = self.get_domain().grid
-            n_y_cl = jnp.argmin(
-                (grd[1] - y_wall)[:-1] * (jnp.roll(grd[1], -1) - y_wall)[:-1]
-            )
-            self.vel_base_cl = self.get_base_velocity()[n_y_cl]
+            self.vel_base_cl = self.get_base_velocity_at_y(0)
         return self.vel_base_cl
 
     def get_base_velocity_wall(
@@ -212,11 +226,7 @@ class Case:
         if self.vel_base_wall is None:
             Re_tau = self.Re_tau
             y_wall = 1 - 10.0 / Re_tau
-            grd = self.get_domain().grid
-            n_y_wall = jnp.argmin(
-                (grd[1] - y_wall)[:-1] * (jnp.roll(grd[1], -1) - y_wall)[:-1]
-            )
-            self.vel_base_wall = self.get_base_velocity()[n_y_wall]
+            self.vel_base_wall = self.get_base_velocity_at_pm_y(y_wall)
         return self.vel_base_wall
 
     @classmethod
@@ -567,17 +577,17 @@ class Case:
             "[0-9]eminus[0-9]_sweep_*",
             "[0-9]eminus[0-9]_from_*",
         ],
-    ) -> "List[Case]":
+    ) -> "List[Self]":
         home_path = Case.HOME_DIR_BASE + "/" + base_path
         dirs = glob(legal_names[0], root_dir=home_path)
         for legal_name in legal_names[1:]:
             dirs += glob(legal_name, root_dir=home_path)
         cases = []
         for dir in dirs:
-            case = Case(base_path + "/" + dir)
+            case = cls(base_path + "/" + dir)
             cases = case.append_to(cases, prune_duplicates)
         if with_linear:
-            case = Case(base_path + "/" + "linear")
+            case = cls(base_path + "/" + "linear")
             case.e_0 = 0.0
             cases = case.append_to(cases)
         return cases
@@ -999,3 +1009,73 @@ if __name__ == "__main__":
     plot_infnorm(all_cases)
     print_verb("plotting infnorm (divided)")
     plot_infnorm_over_u_max(all_cases)
+
+
+class CessCase(Case):
+    def __init__(self, directory: str):
+        super().__init__(directory)
+        self.A = self.get_property_from_settings("cess_mean_a", 53.516)
+        self.K = self.get_property_from_settings("cess_mean_k", 0.677)
+
+    def get_base_velocity(self) -> "PhysicalField":
+
+        Re_tau = self.get_Re_tau()
+        assert Re_tau is not None
+
+        def get_vel_field_cess(
+            A: float = 25.4,
+            K: float = 0.426,
+        ) -> PhysicalField:
+
+            u_sc: float = 1.0
+            domain = self.get_domain()
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+
+            def nu_t_fn(X: "np_jnp_array") -> "jsd_float":
+                def get_y(y_in: "float") -> "float":
+                    return min((1 - y_in), (1 + y_in))
+
+                y = np.vectorize(get_y)(X[0])
+                B = 1.0  # pressure gradient
+                Re = Re_tau
+                return (
+                    1
+                    / 2
+                    * (
+                        (
+                            1
+                            + K**2
+                            * Re**2
+                            * B**2
+                            / 9
+                            * (2 * y - y**2) ** 2
+                            * (3 - 4 * y + 2 * y**2) ** 2
+                            * (1 - np.exp(-y * Re * B**0.5 / A)) ** 2
+                        )
+                        ** 0.5
+                    )
+                    + 0.5
+                )
+
+            def shear_fn(X: "np_jnp_array") -> "jsd_float":
+                def get_y(y_in: "float") -> Tuple["float", "float"]:
+                    return min((1 - y_in), (1 + y_in)), np.sign(y_in)
+
+                y, sign = np.vectorize(get_y)(X[0])
+                return -sign * Re_tau * (1 - y) / nu_t_fn(X)
+
+            shear = PhysicalField.FromFunc(
+                slice_domain, cast("Vel_fn_type", shear_fn), name="shear"
+            )
+            vel_base = shear.integrate(0, bc_left=0.0) * u_sc
+            vel_base.set_name("velocity_base_x")
+            vel_base.set_name("velocity_base")
+            return vel_base
+
+        vel_base_turb = get_vel_field_cess(self.A, self.K)
+        return vel_base_turb

@@ -3072,9 +3072,9 @@ def run_ld_2021_dual(**params: Any) -> None:
         print_verb("dissipation rel error:", fn(b) / get_dissipation(vel_base_turb))
         return get_base_perturbation(b), b
 
-    vel_base_perturbation_constant_dissipation, b_cd = (
-        get_base_perturbation_constant_dissipation()
-    )
+    # vel_base_perturbation_constant_dissipation, b_cd = (
+    #     get_base_perturbation_constant_dissipation()
+    # )
 
     vel_base_perturbation_constant_mass_flux = VectorField(
         [
@@ -3090,10 +3090,10 @@ def run_ld_2021_dual(**params: Any) -> None:
     )
     b_cmf = 1
 
-    # vel_base_perturbation = vel_base_perturbation_constant_mass_flux
-    # b = b_cmf
-    vel_base_perturbation = vel_base_perturbation_constant_dissipation
-    b = b_cd
+    vel_base_perturbation = vel_base_perturbation_constant_mass_flux
+    b = b_cmf
+    # vel_base_perturbation = vel_base_perturbation_constant_dissipation
+    # b = b_cd
 
     vel_base = (
         turb * vel_base_turb
