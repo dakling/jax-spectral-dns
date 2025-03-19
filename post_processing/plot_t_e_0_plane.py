@@ -63,6 +63,8 @@ class Case:
         self.gain = self.get_gain()
         self.Re_tau = self.get_Re_tau()
         self.vel_0 = None
+        self.vel_base = None
+        self.vel_base_diff_y = None
         self.vel_base_max = None
         self.vel_base_cl = None
         self.vel_base_wall = None
@@ -132,6 +134,19 @@ class Case:
         vel_base.set_name("velocity_base")
         return vel_base
 
+    def get_base_velocity_minimal_channel_slice(self) -> "PhysicalField":
+        domain = self.get_domain()
+        slice_domain = PhysicalDomain.create(
+            (domain.get_shape_aliasing()[1],),
+            (False,),
+            scale_factors=(1.0,),
+            aliasing=1,
+        )
+        vel_base_turb = self.get_vel_field_minimal_channel()
+        vel_base_turb_slice = PhysicalField(slice_domain, vel_base_turb[0][0, :, 0])
+        vel_base_turb_slice.set_name("vel_base_minimal_channel")
+        return vel_base_turb_slice
+
     def get_gain(self) -> Optional[float]:
         base_path = self.STORE_DIR_BASE
         phase_space_data_name = (
@@ -149,47 +164,60 @@ class Case:
             return None
 
     def get_base_velocity(self) -> "PhysicalField":
-        base_path = self.STORE_DIR_BASE
-        domain = self.get_domain()
-        slice_domain = PhysicalDomain.create(
-            (domain.get_shape_aliasing()[1],),
-            (False,),
-            scale_factors=(1.0,),
-            aliasing=1,
-        )
-        try:
-            hist_bin = self.directory.split("/")[-1]
-            base_velocity_file_path = (
-                base_path + "/" + self.directory + "/fields/vel_hist_bin_" + hist_bin
+        if self.vel_base is None:
+            base_path = self.STORE_DIR_BASE
+            domain = self.get_domain()
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
             )
-            vel_base_turb_slice = PhysicalField.FromFile(
-                slice_domain,
-                base_velocity_file_path,
-                "hist_bin_" + hist_bin + "_x",
-                time_step=0,
-            )
-            return vel_base_turb_slice
-        except Exception as e:
             try:
-                base_velocity_file_name = glob(
-                    "vel_00_*", root_dir=base_path + "/" + self.directory + "/fields/"
-                )[0]
-
+                hist_bin = self.directory.split("/")[-1]
                 base_velocity_file_path = (
                     base_path
                     + "/"
                     + self.directory
-                    + "/fields/"
-                    + base_velocity_file_name
+                    + "/fields/vel_hist_bin_"
+                    + hist_bin
                 )
-                vel_base_turb_slice = VectorField.FromFile(
+                vel_base_turb_slice = PhysicalField.FromFile(
                     slice_domain,
                     base_velocity_file_path,
-                    "velocity_spatial_average",
-                )[0]
-                return vel_base_turb_slice
+                    "hist_bin_" + hist_bin + "_x",
+                    time_step=0,
+                )
+                self.vel_base = vel_base_turb_slice
             except Exception as e:
-                raise e
+                try:
+                    base_velocity_file_name = glob(
+                        "vel_00_*",
+                        root_dir=base_path + "/" + self.directory + "/fields/",
+                    )[0]
+
+                    base_velocity_file_path = (
+                        base_path
+                        + "/"
+                        + self.directory
+                        + "/fields/"
+                        + base_velocity_file_name
+                    )
+                    vel_base_turb_slice = VectorField.FromFile(
+                        slice_domain,
+                        base_velocity_file_path,
+                        "velocity_spatial_average",
+                    )[0]
+                    self.vel_base = vel_base_turb_slice
+                except Exception as e:
+                    raise e
+        return self.vel_base
+
+    def get_base_velocity_diff_y(self) -> "PhysicalField":
+        if self.vel_base_diff_y is None:
+            u_base = self.get_base_velocity()
+            self.vel_base_diff_y = u_base.diff(0)
+        return self.vel_base_diff_y
 
     def get_base_velocity_max(self) -> "float":
         if self.vel_base_max is None:
@@ -228,6 +256,23 @@ class Case:
             y_wall = 1 - 10.0 / Re_tau
             self.vel_base_wall = self.get_base_velocity_at_pm_y(y_wall)
         return self.vel_base_wall
+
+    def get_base_velocity_diff_y_at_y(self, y: "float") -> "float":
+        grd = self.get_domain().grid
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return self.get_base_velocity_diff_y()[n_y]
+
+    def get_base_velocity_diff_y_at_pm_y(self, y: "float") -> "float":
+        grd = self.get_domain().grid
+        u_0 = self.get_vel_0()
+        u_0_shape = u_0[0].get_data().shape
+        max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
+        out_factor = 1.0
+        if max_inds[1] > u_0_shape[1] // 2:
+            y = -y
+            out_factor = -1.0
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return out_factor * self.get_base_velocity_diff_y()[n_y]
 
     @classmethod
     def sort_by_e_0(cls, cases: "List[Self]") -> "List[Self]":
@@ -1012,22 +1057,92 @@ if __name__ == "__main__":
 
 
 class CessCase(Case):
-    def __init__(self, directory: str):
+    def __init__(self, directory: str, A=None, K=None):
         super().__init__(directory)
-        self.A = self.get_property_from_settings("cess_mean_a", 53.516)
-        self.K = self.get_property_from_settings("cess_mean_k", 0.677)
+        if A is None:
+            self.A = self.get_property_from_settings("cess_mean_a", 53.516)
+        else:
+            self.A = A
+        if K is None:
+            self.K = self.get_property_from_settings("cess_mean_k", 0.677)
+        else:
+            self.K = K
+
+    def get_base_velocity(self) -> "PhysicalField":
+        if self.vel_base is None:
+            Re_tau = self.get_Re_tau()
+            assert Re_tau is not None
+
+            def get_vel_field_cess(
+                A: float = 25.4,
+                K: float = 0.426,
+            ) -> PhysicalField:
+
+                u_sc: float = 1.0
+                domain = self.get_domain()
+                slice_domain = PhysicalDomain.create(
+                    (domain.get_shape_aliasing()[1],),
+                    (False,),
+                    scale_factors=(1.0,),
+                    aliasing=1,
+                )
+
+                def nu_t_fn(X: "np_jnp_array") -> "jsd_float":
+                    def get_y(y_in: "float") -> "float":
+                        return min((1 - y_in), (1 + y_in))
+
+                    y = np.vectorize(get_y)(X[0])
+                    B = 1.0  # pressure gradient
+                    Re = Re_tau
+                    return (
+                        1
+                        / 2
+                        * (
+                            (
+                                1
+                                + K**2
+                                * Re**2
+                                * B**2
+                                / 9
+                                * (2 * y - y**2) ** 2
+                                * (3 - 4 * y + 2 * y**2) ** 2
+                                * (1 - np.exp(-y * Re * B**0.5 / A)) ** 2
+                            )
+                            ** 0.5
+                        )
+                        + 0.5
+                    )
+
+                def shear_fn(X: "np_jnp_array") -> "jsd_float":
+                    def get_y(y_in: "float") -> Tuple["float", "float"]:
+                        return min((1 - y_in), (1 + y_in)), np.sign(y_in)
+
+                    y, sign = np.vectorize(get_y)(X[0])
+                    return -sign * Re_tau * (1 - y) / nu_t_fn(X)
+
+                shear = PhysicalField.FromFunc(
+                    slice_domain, cast("Vel_fn_type", shear_fn), name="shear"
+                )
+                vel_base = shear.integrate(0, bc_left=0.0) * u_sc
+                vel_base.set_name("velocity_base")
+                return vel_base
+
+            vel_base_turb = get_vel_field_cess(self.A, self.K)
+            self.vel_base = vel_base_turb
+        return self.vel_base
+
+
+class PertCase(Case):
+    def __init__(self, directory: str, mean_perturbation_=None):
+        super().__init__(directory)
+        if mean_perturbation_ is None:
+            self.pert = self.get_property_from_settings("mean_perturbation", 0.0)
+        else:
+            self.pert = mean_perturbation_
 
     def get_base_velocity(self) -> "PhysicalField":
 
-        Re_tau = self.get_Re_tau()
-        assert Re_tau is not None
-
-        def get_vel_field_cess(
-            A: float = 25.4,
-            K: float = 0.426,
-        ) -> PhysicalField:
-
-            u_sc: float = 1.0
+        if self.vel_base is None:
             domain = self.get_domain()
             slice_domain = PhysicalDomain.create(
                 (domain.get_shape_aliasing()[1],),
@@ -1035,74 +1150,16 @@ class CessCase(Case):
                 scale_factors=(1.0,),
                 aliasing=1,
             )
-
-            def nu_t_fn(X: "np_jnp_array") -> "jsd_float":
-                def get_y(y_in: "float") -> "float":
-                    return min((1 - y_in), (1 + y_in))
-
-                y = np.vectorize(get_y)(X[0])
-                B = 1.0  # pressure gradient
-                Re = Re_tau
-                return (
-                    1
-                    / 2
-                    * (
-                        (
-                            1
-                            + K**2
-                            * Re**2
-                            * B**2
-                            / 9
-                            * (2 * y - y**2) ** 2
-                            * (3 - 4 * y + 2 * y**2) ** 2
-                            * (1 - np.exp(-y * Re * B**0.5 / A)) ** 2
-                        )
-                        ** 0.5
-                    )
-                    + 0.5
-                )
-
-            def shear_fn(X: "np_jnp_array") -> "jsd_float":
-                def get_y(y_in: "float") -> Tuple["float", "float"]:
-                    return min((1 - y_in), (1 + y_in)), np.sign(y_in)
-
-                y, sign = np.vectorize(get_y)(X[0])
-                return -sign * Re_tau * (1 - y) / nu_t_fn(X)
-
-            shear = PhysicalField.FromFunc(
-                slice_domain, cast("Vel_fn_type", shear_fn), name="shear"
+            vel_base_perturbation = PhysicalField.FromFunc(
+                slice_domain,
+                lambda X: self.pert
+                * (jnp.cos(jnp.pi * X[0]) + jnp.cos(2 * jnp.pi * X[0])),
             )
-            vel_base = shear.integrate(0, bc_left=0.0) * u_sc
-            vel_base.set_name("velocity_base_x")
-            vel_base.set_name("velocity_base")
-            return vel_base
 
-        vel_base_turb = get_vel_field_cess(self.A, self.K)
-        return vel_base_turb
+            vel_base_turb_slice = self.get_base_velocity_minimal_channel_slice()
+            vel_base = (
+                vel_base_turb_slice + vel_base_perturbation
+            )  # continuously blend from turbulent to laminar mean profile
 
-
-class PertCase(Case):
-    def __init__(self, directory: str):
-        super().__init__(directory)
-        self.pert = self.get_property_from_settings("mean_perturbation", 0.0)
-
-    def get_base_velocity(self) -> "PhysicalField":
-
-        domain = self.get_domain()
-        slice_domain = PhysicalDomain.create(
-            (domain.get_shape_aliasing()[1],),
-            (False,),
-            scale_factors=(1.0,),
-            aliasing=1,
-        )
-        vel_base_perturbation = PhysicalField.FromFunc(
-            slice_domain,
-            lambda X: self.pert * (jnp.cos(jnp.pi * X[0]) + jnp.cos(2 * jnp.pi * X[0])),
-        )
-
-        vel_base_turb = super().get_base_velocity()
-        vel_base = (
-            vel_base_turb + vel_base_perturbation
-        )  # continuously blend from turbulent to laminar mean profile
-
-        return vel_base
+            self.vel_base = vel_base
+        return self.vel_base

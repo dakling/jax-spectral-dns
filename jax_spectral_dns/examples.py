@@ -2336,6 +2336,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
 
     nse.activate_jit()
     nse.write_intermediate_output = True
+    nse.write_entire_output = params.get("write_entire_output", False)
     nse.solve()
 
     post_process("trajectory")

@@ -15,7 +15,7 @@ import matplotlib
 import matplotlib.patches as mpatches
 
 from jax_spectral_dns.equation import print_verb
-from plot_t_e_0_plane import Case, CessCase, dirs_and_names
+from plot_t_e_0_plane import Case, CessCase, PertCase, dirs_and_names
 
 matplotlib.set_loglevel("error")
 matplotlib.use("ps")
@@ -30,7 +30,7 @@ plt.rcParams.update(
 
 class CaseGroup:
 
-    artificial_types = Enum("artificial_types", ["Cess", "None"])
+    artificial_types = Enum("artificial_types", ["Cess", "Pert", "None"])
 
     def __init__(self, path, color, artificial_type):
         self.color = color
@@ -80,28 +80,52 @@ class CaseGroup:
                 "unknown case artificiality type " + str(self.artificial_type)
             )
 
+    def sort_by_u_base_cl(self):
+        self.cases = Case.sort_by_u_base_cl(self.cases)
+
     @classmethod
     def flatten(cls, case_groups):
         return [x for xs in case_groups for x in xs.cases]
 
 
 def get_correlation_quality(case_groups, y, ax):
+    # grad = True
+    grad = False
     cases_flat = CaseGroup.flatten(case_groups)
-    vel_s = np.array([case.get_base_velocity_at_pm_y(y) for case in cases_flat])
+    if not grad:
+        y_s = np.array([case.get_base_velocity_at_pm_y(y) for case in cases_flat])
+    else:
+        y_s = np.array(
+            [case.get_base_velocity_diff_y_at_pm_y(y) for case in cases_flat]
+        )
     gain_s = np.array([case.get_gain() for case in cases_flat])
-    p, residuals, rank, singular_values, rcond = np.polyfit(
-        vel_s, gain_s, deg=1, full=True
-    )
+    if not grad:
+        p, residuals, rank, singular_values, rcond = np.polyfit(
+            y_s, gain_s, deg=1, full=True
+        )
+    else:
+        p, residuals, rank, singular_values, rcond = np.polyfit(
+            y_s, gain_s, deg=1, full=True
+        )
     start_index = 0
-    for i, css in enumerate(case_groups):
+    for css in case_groups:
         end_index = len(css.cases) + start_index
-        vel_s_ = vel_s[start_index:end_index]
+        if not grad:
+            y_s_ = y_s[start_index:end_index]
+        else:
+            y_s_ = y_s[start_index:end_index]
         gain_s_ = gain_s[start_index:end_index]
         start_index = end_index
-        ax.plot(vel_s_, gain_s_, css.color + css.get_marker())
-    ax.plot(vel_s, [vel * p[0] + p[1] for vel in vel_s], "k-")
+        if not grad:
+            ax.plot(y_s_, gain_s_, css.color + css.get_marker())
+        else:
+            ax.plot(y_s_, gain_s_, css.color + css.get_marker())
+    if not grad:
+        ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
+    else:
+        ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
     ax.set_title("y = " + str(y))
-    fname = "plots/plot_corr_y" + str(y)
+    fname = "plots/plot_corr_y" + ("_grad_y" if grad else "") + str(y)
     fname = fname.replace(".", "_dot_")
     fname = fname.replace("-", "_minus_")
     fname = fname + ".png"
@@ -118,6 +142,7 @@ def plot(groups):
         print_verb("collecting cases in", base_path)
         group.collect(prune_duplicates=False, with_linear=False, legal_names=["*"])
         cases.append(group)
+        group.sort_by_u_base_cl()
         print_verb(
             "collected cases:",
             "; ".join([case.directory.split("/")[-1] for case in group.cases]),
@@ -178,7 +203,7 @@ def plot(groups):
 colors = ["b", "k", "r", "c", "m", "y"]
 base_paths = [
     CaseGroup("cess_three_time_units", colors.pop(), "Cess"),
-    # CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
+    CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
     CaseGroup("random_mean_snapshot/", colors.pop(), "None"),
     CaseGroup("hist_18_study_three_time_units/", colors.pop(), "None"),
     CaseGroup("hist_9_study_three_time_units/", colors.pop(), "None"),
