@@ -2203,7 +2203,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 # else:
                 #     vel_spatial_mean[0].plot_center(1)
                 vel_spatial_means.append(vel_spatial_mean.get_data()[:, 0, :, 0])
-                with open("plots/energy_pert.csv", "a") as f:
+                with open(Field.plotting_dir + "/energy_pert.csv", "a") as f:
                     f.write(str(energy_pert) + "\n")
                 # avg_vel += (
                 #     vel_spatial_mean_ysymm.get_data()[:, 0, :, 0] / n_steps
