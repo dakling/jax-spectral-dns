@@ -332,6 +332,8 @@ class NavierStokesVelVort(Equation):
         )
         super().__init__(domain, velocity_field, **params)
 
+        self.enforce_base = False
+
         n_rk_steps = 3
 
         (
@@ -1413,6 +1415,11 @@ class NavierStokesVelVort(Equation):
 
                 # compute velocities in x and z directions
                 def rk_00() -> Tuple["jnp_array", "jnp_array"]:
+                    if self.enforce_base:
+                        return (
+                            jnp.zeros_like(v_0_hat_sw_00),
+                            jnp.zeros_like(v_2_hat_sw_00),
+                        )
                     kx__ = 0
                     kz__ = 0
                     lhs_mat_inv_00 = jnp.asarray(self.get_rk_mats_lhs_inv_ns(step))

@@ -3332,6 +3332,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         linearise_switch=linearise_switch,
         coupling_term=coupling_term,
         coupling_term_switch=coupling_term_switch,
+        enforce_base=params.get("enforce_base", False),
     )
     nse_dual = NavierStokesVelVortPerturbationDual.FromNavierStokesVelVortPerturbation(
         nse,

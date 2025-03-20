@@ -415,6 +415,8 @@ class NavierStokesVelVortPerturbation(NavierStokesVelVort):
             self.coupling_term = lambda _: coupling_term
         self.set_linearise()
 
+        self.enforce_base = params.get("enforce_base", False)
+
     def update_pressure_gradient(
         self,
         vel_new_field_hat: Optional["jnp_array"] = None,
