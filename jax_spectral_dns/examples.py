@@ -2209,7 +2209,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 #     vel_spatial_mean_ysymm.get_data()[:, 0, :, 0] / n_steps
                 # )
                 if j >= n_steps - 1:
-                    vel.set_time_step(i + time_step)
+                    vel.set_time_step(j + time_step)
                     vel.set_name("velocity")
                     vel.save_to_file("vel_latest")
 
