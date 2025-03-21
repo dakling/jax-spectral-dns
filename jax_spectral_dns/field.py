@@ -606,6 +606,14 @@ class VectorField(Generic[T]):
             en += f.energy()
         return en
 
+    def energy_with_other(
+        self: VectorField[PhysicalField], other: VectorField[PhysicalField]
+    ) -> float:
+        en: float = 0.0
+        for i, f in enumerate(self):
+            en += f.energy_with_other(other[i])
+        return en
+
     def energy_p(self: VectorField[PhysicalField], p: float = 1.0) -> float:
         energy_field = PhysicalField.Zeros(self.get_physical_domain())
         for f in self:
@@ -1446,6 +1454,13 @@ class PhysicalField(Field):
 
     def energy(self) -> float:
         energy = 0.5 * self * self
+        domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
+            jnp.array(self.physical_domain.scale_factors)
+        )  # nonperiodic dimensions are size 2, but its scale factor is only 1
+        return cast(float, energy.volume_integral() / domain_volume)
+
+    def energy_with_other(self, other: PhysicalField) -> float:
+        energy = 0.5 * self * other
         domain_volume = 2.0 ** (len(self.all_nonperiodic_dimensions())) * jnp.prod(
             jnp.array(self.physical_domain.scale_factors)
         )  # nonperiodic dimensions are size 2, but its scale factor is only 1

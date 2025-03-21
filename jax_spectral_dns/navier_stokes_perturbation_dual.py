@@ -1085,35 +1085,43 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_hat_0: VectorField["FourierField"],
         v_hat_0: VectorField["FourierField"],
     ) -> Tuple["jnp_array", bool]:
-        e_0 = u_hat_0.no_hat().energy()
-        lam = -1.0
 
-        def get_new_energy_0(l: float) -> float:
-            return (
-                ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
-                .no_hat()
-                .energy()
-            )
+        u_0 = u_hat_0.no_hat()
+        v_0 = v_hat_0.no_hat()
+        e_0 = u_0.energy()
+        e_0_adj = v_0.energy()
+        c_0 = v_0.energy_with_other(u_0)
+        A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)  # TODO plus/minus?
+        lam = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
 
-        print_verb("optimising lambda...", verbosity_level=2)
-        i = 0
-        max_iter = 100
-        tol = 1e-25  # can be fairly high as we normalize the result anyway
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
-            lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
-            i += 1
-        print_verb(
-            "optimising lambda done in",
-            i,
-            "iterations, lambda:",
-            lam,
-            verbosity_level=2,
-        )
-        print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
+        # lam = -1.0
+        # def get_new_energy_0(l: float) -> float:
+        #     return (
+        #         ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
+        #         .no_hat()
+        #         .energy()
+        #     )
+
+        # print_verb("optimising lambda...", verbosity_level=2)
+        # i = 0
+        # max_iter = 100
+        # tol = 1e-25  # can be fairly high as we normalize the result anyway
+        # while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
+        #     lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
+        #     i += 1
+        # print_verb(
+        #     "optimising lambda done in",
+        #     i,
+        #     "iterations, lambda:",
+        #     lam,
+        #     verbosity_level=2,
+        # )
+        # print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
         return (
             (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
-            i < max_iter,
+            True,
+            # i < max_iter,
         )
 
     def get_projected_grad(
@@ -1145,40 +1153,48 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if v_hat_0 is None:
             v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
-        lam = -1.0
+        u_0 = u_hat_0.no_hat()
+        v_0 = v_hat_0.no_hat()
+        e_0 = u_0.energy()
+        e_0_adj = v_0.energy()
+        c_0 = v_0.energy_with_other(u_0)
+        A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)  # TODO plus/minus?
+        lam = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
+        # lam = -1.0
 
-        def get_new_energy_0(l: float) -> float:
-            return (
-                (
-                    (1.0 + step_size * l) * u_hat_0
-                    + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
-                )
-                .no_hat()
-                .energy()
-            )
+        # def get_new_energy_0(l: float) -> float:
+        #     return (
+        #         (
+        #             (1.0 + step_size * l) * u_hat_0
+        #             + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
+        #         )
+        #         .no_hat()
+        #         .energy()
+        #     )
 
-        print_verb("optimising lambda...", verbosity_level=2)
-        i = 0
-        max_iter = 100
-        tol = 1e-25  # can be fairly high as we normalize the result anyway
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
-            lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
-            i += 1
-        print_verb(
-            "optimising lambda done in",
-            i,
-            "iterations, lambda:",
-            lam,
-            verbosity_level=2,
-        )
-        print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
+        # print_verb("optimising lambda...", verbosity_level=2)
+        # i = 0
+        # max_iter = 100
+        # tol = 1e-25  # can be fairly high as we normalize the result anyway
+        # while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
+        #     lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
+        #     i += 1
+        # print_verb(
+        #     "optimising lambda done in",
+        #     i,
+        #     "iterations, lambda:",
+        #     lam,
+        #     verbosity_level=2,
+        # )
+        # print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
 
         return (
             (
                 lam * u_hat_0.get_data()
                 + (-1.0 * v_hat_0.get_data() + beta * old_grad) / self.gain
             ),
-            i < max_iter,
+            # i < max_iter,
+            True,
         )
 
 
