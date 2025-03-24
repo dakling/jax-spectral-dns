@@ -496,6 +496,12 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         self.old_grad: Optional["jnp_array"] = None
         self.old_steepest_grad: Optional["jnp_array"] = None
 
+    def increase_step_size(self, tau: float = 1.5) -> None:
+        if self.use_linesearch:
+            self.step_size = min(self.get_max_step_size_ls(), self.step_size * tau)
+        else:
+            self.step_size = min(self.max_step_size, self.step_size * tau)
+
     def get_max_step_size_ls(self) -> "float":
         u_hat_0 = self.dual_problem.velocity_u_hat_0
         u_0 = u_hat_0.no_hat()
@@ -507,10 +513,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
-        # step_size = self.step_size
+        step_size = self.step_size
 
-        step_size = self.get_max_step_size_ls()
+        # step_size = self.get_max_step_size_ls()
         print_verb("performing line search, step size", step_size)
+        print_verb("max step size:", self.get_max_step_size_ls())
 
         u_hat_0 = self.dual_problem.velocity_u_hat_0
         v_hat_0 = self.dual_problem.get_latest_field("velocity_hat")
