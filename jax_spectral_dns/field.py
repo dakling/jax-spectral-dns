@@ -2030,8 +2030,9 @@ class PhysicalField(Field):
                     y = jnp.flip(self.physical_domain.grid[other_dim[1]])
                     Nx = self.physical_domain.get_shape()[other_dim[0]]
                     Ny = self.physical_domain.get_shape()[other_dim[1]]
-                    xi = np.linspace(x[0], x[-1], Nx)
-                    yi = np.linspace(y[0], y[-1], Ny)
+                    supersampling = params.get("supersampling", 1)
+                    xi = np.linspace(x[0], x[-1], Nx * supersampling)
+                    yi = np.linspace(y[0], y[-1], Ny * supersampling)
                     interp = RegularGridInterpolator((x, y), self.data, method="cubic")
                     interp_data = np.array(
                         [[interp([[x_, y_]])[0] for x_ in xi] for y_ in yi]
@@ -2169,8 +2170,9 @@ class PhysicalField(Field):
             # y = self.physical_domain.grid[other_dim[1]]
             Nx = self.physical_domain.get_shape()[other_dim[0]]
             Ny = self.physical_domain.get_shape()[other_dim[1]]
-            xi = np.linspace(x[0], x[-1], Nx)
-            yi = np.linspace(y[0], y[-1], Ny)
+            supersampling = params.get("supersampling", 1)
+            xi = np.linspace(x[0], x[-1], Nx * supersampling)
+            yi = np.linspace(y[0], y[-1], Ny * supersampling)
             interp = RegularGridInterpolator((x, y), data, method="cubic")
             interp_data = np.array([[interp([[x_, y_]])[0] for x_ in xi] for y_ in yi])
             ims.append(

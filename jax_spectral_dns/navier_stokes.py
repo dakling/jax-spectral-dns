@@ -1415,11 +1415,6 @@ class NavierStokesVelVort(Equation):
 
                 # compute velocities in x and z directions
                 def rk_00() -> Tuple["jnp_array", "jnp_array"]:
-                    if self.enforce_base:
-                        return (
-                            jnp.zeros_like(v_0_hat_sw_00),
-                            jnp.zeros_like(v_2_hat_sw_00),
-                        )
                     kx__ = 0
                     kz__ = 0
                     lhs_mat_inv_00 = jnp.asarray(self.get_rk_mats_lhs_inv_ns(step))
@@ -1501,6 +1496,11 @@ class NavierStokesVelVort(Equation):
                         + (self.get_dt() * gamma[step]) * N_00_new
                         + (self.get_dt() * xi[step]) * N_00_old
                     )
+                    if self.enforce_base:
+                        return (
+                            jnp.zeros_like(v_hat_new[:n]),
+                            jnp.zeros_like(v_hat_new[n:]),
+                        )
                     return (v_hat_new[:n], v_hat_new[n:])
 
                 def rk_not_00(kx: int, kz: int) -> Tuple["jnp_array", "jnp_array"]:
