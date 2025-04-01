@@ -1089,16 +1089,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_0 = u_hat_0.no_hat()
         v_0 = v_hat_0.no_hat()
         e_0 = u_0.energy()
-        e_0_adj = v_0.energy()
+        e_0_adj = v_0.energy() / self.gain**2
         c_0 = v_0.energy_with_other(u_0)
-        A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)  # TODO plus/minus?
+        A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda:", lam)
-        print_verb("A:", A)
-        print_verb("e_0_adj:", e_0_adj)
-        print_verb("c_0:", c_0)
-        print_verb("e_0:", e_0)
-        print_verb("step_size:", step_size)
 
         lam = -1.0  # type: ignore[assignment]
 
@@ -1124,6 +1119,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             verbosity_level=2,
         )
         print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
+        print_verb("lambda (num):", lam)
 
         return (
             (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
@@ -1163,16 +1159,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_0 = u_hat_0.no_hat()
         v_0 = v_hat_0.no_hat()
         e_0 = u_0.energy()
-        e_0_adj = v_0.energy()
+        e_0_adj = v_0.energy() / self.gain**2
         c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda:", lam)
-        print_verb("A:", A)
-        print_verb("e_0_adj:", e_0_adj)
-        print_verb("c_0:", c_0)
-        print_verb("e_0:", e_0)
-        print_verb("step_size:", step_size)
         lam = -1.0
 
         def get_new_energy_0(l: float) -> float:
@@ -1200,6 +1191,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             verbosity_level=2,
         )
         print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
+        print_verb("lambda (num):", lam)
 
         return (
             (
