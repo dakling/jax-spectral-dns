@@ -1095,6 +1095,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda:", lam)
 
+        lam_pl = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
+        print_verb("lambda (plus):", lam_pl)
+
         lam = -1.0  # type: ignore[assignment]
 
         def get_new_energy_0(l: float) -> float:
@@ -1164,6 +1167,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda:", lam)
+        lam_pl = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
+        print_verb("lambda (plus):", lam_pl)
         lam = -1.0
 
         def get_new_energy_0(l: float) -> float:
