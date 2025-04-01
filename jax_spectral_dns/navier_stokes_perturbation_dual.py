@@ -1093,9 +1093,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)  # TODO plus/minus?
         lam = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
-        print(lam)
+        print_verb("lambda:", lam)
 
-        lam = -1.0
+        lam = -1.0  # type: ignore[assignment]
 
         def get_new_energy_0(l: float) -> float:
             return (
@@ -1122,8 +1122,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         return (
             (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
-            True,
-            # i < max_iter,
+            # True,
+            i < max_iter,
         )
 
     def get_projected_grad(
@@ -1162,7 +1162,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)  # TODO plus/minus?
         lam = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
-        print(lam)
+        print_verb("lambda:", lam)
         lam = -1.0
 
         def get_new_energy_0(l: float) -> float:
@@ -1196,8 +1196,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                 lam * u_hat_0.get_data()
                 + (-1.0 * v_hat_0.get_data() + beta * old_grad) / self.gain
             ),
-            # i < max_iter,
-            True,
+            i < max_iter,
+            # True,
         )
 
 
