@@ -1089,8 +1089,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_0 = u_hat_0.no_hat()
         v_0 = v_hat_0.no_hat()
         e_0 = u_0.energy()
-        e_0_adj = v_0.energy() / self.gain**2
-        c_0 = v_0.energy_with_other(u_0) / self.gain
+        # e_0_adj = v_0.energy() / self.gain**2
+        # c_0 = v_0.energy_with_other(u_0) / self.gain
+        e_0_adj = v_0.energy()
+        c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam_min = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda (minus):", lam_min)
@@ -1100,14 +1102,15 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         def get_new_energy_0(l: float) -> float:
             return (
-                ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
+                # ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
+                ((1.0 + step_size * l) * u_hat_0 - step_size * v_hat_0)
                 .no_hat()
                 .energy()
             )
 
         print_verb("optimising lambda...", verbosity_level=2)
 
-        lam = -1.0  # type: ignore[assignment]
+        lam = -100.0  # type: ignore[assignment]
         i = 0
         max_iter = 100
         tol = 1e-25  # can be fairly high as we normalize the result anyway
@@ -1129,7 +1132,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("lambda (minus) resulting energy:", get_new_energy_0(lam_min))
 
         return (
-            (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
+            # (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
+            (lam * u_hat_0.get_data() - v_hat_0.get_data()),
             # True,
             i < max_iter,
         )
@@ -1166,8 +1170,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_0 = u_hat_0.no_hat()
         v_0 = v_hat_0.no_hat()
         e_0 = u_0.energy()
-        e_0_adj = v_0.energy() / self.gain**2
-        c_0 = v_0.energy_with_other(u_0) / self.gain
+        # e_0_adj = v_0.energy() / self.gain**2
+        # c_0 = v_0.energy_with_other(u_0) / self.gain
+        e_0_adj = v_0.energy()
+        c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda:", lam)
@@ -1178,7 +1184,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             return (
                 (
                     (1.0 + step_size * l) * u_hat_0
-                    + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
+                    # + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
+                    + step_size * (-1 * v_hat_0 + beta * old_grad)
                 )
                 .no_hat()
                 .energy()
@@ -1188,7 +1195,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("lambda (plus) resulting energy:", get_new_energy_0(lam_pl))
         print_verb("lambda (minus) resulting energy:", get_new_energy_0(lam))
 
-        lam = -1.0  # type: ignore[assignment]
+        lam = -100.0  # type: ignore[assignment]
         i = 0
         max_iter = 100
         tol = 1e-25  # can be fairly high as we normalize the result anyway
@@ -1208,7 +1215,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         return (
             (
                 lam * u_hat_0.get_data()
-                + (-1.0 * v_hat_0.get_data() + beta * old_grad) / self.gain
+                # + (-1.0 * v_hat_0.get_data() + beta * old_grad) / self.gain
+                + (-1.0 * v_hat_0.get_data() + beta * old_grad)
             ),
             i < max_iter,
             # True,
