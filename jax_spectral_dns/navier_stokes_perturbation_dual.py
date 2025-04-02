@@ -1093,6 +1093,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         # c_0 = v_0.energy_with_other(u_0) / self.gain
         e_0_adj = v_0.energy()
         c_0 = v_0.energy_with_other(u_0)
+        max_step_size = (e_0_adj / e_0 - c_0**2 / (4 * e_0**2)) ** (-1 / 2)
+        step_size = min(step_size, max_step_size)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam_min = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda (minus):", lam_min)
@@ -1173,6 +1175,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         e_0 = u_0.energy()
         # e_0_adj = v_0.energy() / self.gain**2
         # c_0 = v_0.energy_with_other(u_0) / self.gain
+
+        max_step_size = (e_0_adj / e_0 - c_0**2 / (4 * e_0**2)) ** (-1 / 2)
+
+        step_size = min(step_size, max_step_size)
         e_0_adj = v_0.energy()
         c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
