@@ -511,8 +511,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         else:
             v_0 = v_hat_0.no_hat() - self.beta * self.old_grad
         e_0_adj = v_0.energy()
-        c_0 = v_0.energy_with_other(u_0)
-        return (e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)) ** (-1 / 2)
+        c_0 = 2 * v_0.energy_with_other(u_0)
+        return 0.9 * (e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)) ** (-1 / 2)
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
