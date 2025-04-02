@@ -756,7 +756,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.steepest_grad, _ = self.dual_problem.get_projected_grad(self.step_size)
         else:
             self.grad, _ = self.dual_problem.get_projected_grad(
-                self.step_size, self.max_step_size_initial_factor
+                self.step_size, step_size_factor=self.max_step_size_initial_factor
             )
             self.steepest_grad = self.grad
 

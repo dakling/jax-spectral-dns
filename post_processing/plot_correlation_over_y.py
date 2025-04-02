@@ -27,6 +27,9 @@ plt.rcParams.update(
     }
 )
 
+grad = True
+# grad = False
+
 
 class CaseGroup:
 
@@ -89,8 +92,6 @@ class CaseGroup:
 
 
 def get_correlation_quality(case_groups, y, ax):
-    grad = True
-    # grad = False
     cases_flat = CaseGroup.flatten(case_groups)
     if not grad:
         y_s = np.array([case.get_base_velocity_at_pm_y(y) for case in cases_flat])
@@ -178,7 +179,10 @@ def plot(groups):
         print_verb("res =", residuals[-1])
         fig_.tight_layout()
         # fig_.savefig("plots/plot_corrs_" + str(i) + ".png")
-        fig_.savefig("plots/plot_corrs_grad" + str(i) + ".png")
+        if grad:
+            fig_.savefig("plots/plot_corrs_grad_" + str(i) + ".png")
+        else:
+            fig_.savefig("plots/plot_corrs_" + str(i) + ".png")
     print(ys)
     print(residuals)
     ax.set_xlabel("$y$")
@@ -209,12 +213,12 @@ def plot(groups):
     print_verb("done")
 
 
-colors = ["b", "k", "r", "c", "m", "y"]
+colors = ["k", "b", "r", "c", "m", "y"]
 base_paths = [
     # CaseGroup("cess_three_time_units", colors.pop(), "Cess"),
     # CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
-    CaseGroup("random_mean_snapshot/", colors.pop(), "None"),
-    CaseGroup("hist_18_study_three_time_units/", colors.pop(), "None"),
-    CaseGroup("hist_9_study_three_time_units/", colors.pop(), "None"),
+    CaseGroup("random_mean_snapshot/", colors.pop(0), "None"),
+    CaseGroup("hist_18_study_three_time_units/", colors.pop(0), "None"),
+    CaseGroup("hist_9_study_three_time_units/", colors.pop(0), "None"),
 ]
 plot(base_paths)
