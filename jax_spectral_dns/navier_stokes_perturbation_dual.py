@@ -1089,10 +1089,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         u_0 = u_hat_0.no_hat()
         v_0 = v_hat_0.no_hat()
         e_0 = u_0.energy()
-        e_0_adj = v_0.energy() / self.gain**2
-        c_0 = v_0.energy_with_other(u_0) / self.gain
-        # e_0_adj = v_0.energy()
-        # c_0 = v_0.energy_with_other(u_0)
+        # e_0_adj = v_0.energy() / self.gain**2
+        # c_0 = v_0.energy_with_other(u_0) / self.gain
+        e_0_adj = v_0.energy()
+        c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam_min = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda (minus):", lam_min)
@@ -1102,9 +1102,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         def get_new_energy_0(l: float) -> float:
             return (
-                ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
-                # ((1.0 + step_size * l) * u_hat_0 - step_size * v_hat_0)
-                .no_hat().energy()
+                # ((1.0 + step_size * l) * u_hat_0 - step_size / self.gain * v_hat_0)
+                ((1.0 + step_size * l) * u_hat_0 - step_size * v_hat_0)
+                .no_hat()
+                .energy()
             )
 
         print_verb("optimising lambda...", verbosity_level=2)
@@ -1129,12 +1130,13 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("lambda (num) resulting energy:", get_new_energy_0(lam))
         print_verb("lambda (plus) resulting energy:", get_new_energy_0(lam_pl))
         print_verb("lambda (minus) resulting energy:", get_new_energy_0(lam_min))
+        lam = lam_min
 
         return (
-            (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
-            # (lam * u_hat_0.get_data() - v_hat_0.get_data()),
-            # True,
-            i < max_iter,
+            # (lam * u_hat_0.get_data() - v_hat_0.get_data() / self.gain),
+            (lam * u_hat_0.get_data() - v_hat_0.get_data()),
+            True,
+            # i < max_iter,
         )
 
     def get_projected_grad(
@@ -1167,12 +1169,12 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
         u_0 = u_hat_0.no_hat()
-        v_0 = v_hat_0.no_hat()
+        v_0 = v_hat_0.no_hat() - beta * old_grad
         e_0 = u_0.energy()
-        e_0_adj = v_0.energy() / self.gain**2
-        c_0 = v_0.energy_with_other(u_0) / self.gain
-        # e_0_adj = v_0.energy()
-        # c_0 = v_0.energy_with_other(u_0)
+        # e_0_adj = v_0.energy() / self.gain**2
+        # c_0 = v_0.energy_with_other(u_0) / self.gain
+        e_0_adj = v_0.energy()
+        c_0 = v_0.energy_with_other(u_0)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         print_verb("lambda:", lam)
@@ -1183,8 +1185,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             return (
                 (
                     (1.0 + step_size * l) * u_hat_0
-                    + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
-                    # + step_size * (-1 * v_hat_0 + beta * old_grad)
+                    # + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
+                    + step_size * (-1 * v_hat_0 + beta * old_grad)
                 )
                 .no_hat()
                 .energy()
@@ -1211,6 +1213,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
         print_verb("lambda (num):", lam)
 
+        lam = lam_min
         return (
             (
                 lam * u_hat_0.get_data()

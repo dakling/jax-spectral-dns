@@ -506,16 +506,19 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         u_hat_0 = self.dual_problem.velocity_u_hat_0
         u_0 = u_hat_0.no_hat()
         v_hat_0 = self.dual_problem.get_latest_field("velocity_hat")
-        v_0 = v_hat_0.no_hat()
+        if type(self.old_grad) is type(None):
+            v_0 = v_hat_0.no_hat()
+        else:
+            v_0 = v_hat_0.no_hat() - self.beta * self.old_grad
         e_0_adj = v_0.energy()
         c_0 = v_0.energy_with_other(u_0)
-        return e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)
+        return (e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)) ** (-1 / 2)
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
         step_size = self.step_size
 
-        # step_size = self.get_max_step_size_ls()
+        step_size = max(self.step_size, self.get_max_step_size_ls())
         print_verb("performing line search, step size", step_size)
         print_verb("max step size:", self.get_max_step_size_ls())
 
