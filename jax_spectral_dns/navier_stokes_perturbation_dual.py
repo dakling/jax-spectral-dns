@@ -1101,6 +1101,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             e_0_adj / e_0 - c_0**2 / (4 * e_0**2)
         ) ** (-1 / 2)
         step_size = min(step_size, max_step_size)
+        print(step_size)
+        print(step_size_factor)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
         lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
 

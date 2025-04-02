@@ -27,8 +27,8 @@ plt.rcParams.update(
     }
 )
 
-grad = True
-# grad = False
+# grad = True
+grad = False
 
 
 class CaseGroup:
@@ -179,6 +179,24 @@ def plot(groups):
         print_verb("res =", residuals[-1])
         fig_.tight_layout()
         # fig_.savefig("plots/plot_corrs_" + str(i) + ".png")
+
+        try:
+            fig_.legend(
+                loc="upper left",
+                handles=[
+                    Line2D(
+                        [0],
+                        [0],
+                        color=cases[i].color,
+                        marker=cases[i].get_marker(),
+                        linestyle="",
+                        label=base_paths[i],
+                    )
+                    for i in range(len(base_paths))
+                ],
+            )
+        except Exception as e:
+            print(e)
         if grad:
             fig_.savefig("plots/plot_corrs_grad_" + str(i) + ".png")
         else:
@@ -213,7 +231,7 @@ def plot(groups):
     print_verb("done")
 
 
-colors = ["k", "b", "r", "c", "m", "y"]
+colors = ["y", "b", "r", "c", "m", "k"]
 base_paths = [
     # CaseGroup("cess_three_time_units", colors.pop(), "Cess"),
     # CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
