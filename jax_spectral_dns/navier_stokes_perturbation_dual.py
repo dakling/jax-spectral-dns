@@ -1084,53 +1084,29 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         step_size: float,
         u_hat_0: VectorField["FourierField"],
         v_hat_0: VectorField["FourierField"],
+        step_size_factor: Optional[float] = None,
     ) -> Tuple["jnp_array", bool]:
 
+        if step_size_factor is None:
+            step_size_factor = 0.9
+        assert (
+            step_size_factor > 0 and step_size_factor < 1
+        ), "invalid choice of initial step size factor."
         u_0 = u_hat_0.no_hat()
         v_0 = v_hat_0.no_hat()
         e_0 = u_0.energy()
         e_0_adj = v_0.energy()
         c_0 = 2 * v_0.energy_with_other(u_0)
-        max_step_size = 0.9 * (e_0_adj / e_0 - c_0**2 / (4 * e_0**2)) ** (-1 / 2)
+        max_step_size = step_size_factor * (
+            e_0_adj / e_0 - c_0**2 / (4 * e_0**2)
+        ) ** (-1 / 2)
         step_size = min(step_size, max_step_size)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
-        lam_min = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
-        print_verb("lambda (minus):", lam_min)
-
-        lam_pl = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
-        print_verb("lambda (plus):", lam_pl)
-
-        def get_new_energy_0(l: float) -> float:
-            return ((1.0 + step_size * l) * u_0 - step_size * v_0).energy()
-
-        print_verb("optimising lambda...", verbosity_level=2)
-
-        lam = -100.0  # type: ignore[assignment]
-        i = 0
-        max_iter = 100
-        tol = 1e-25  # can be fairly high as we normalize the result anyway
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
-            lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
-            i += 1
-        print_verb(
-            "optimising lambda done in",
-            i,
-            "iterations, lambda:",
-            lam,
-            verbosity_level=2,
-        )
-        print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
-        print_verb("lambda (num):", lam)
-        print_verb("energy_0:", e_0)
-        print_verb("lambda (num) resulting energy:", get_new_energy_0(lam))
-        print_verb("lambda (plus) resulting energy:", get_new_energy_0(lam_pl))
-        print_verb("lambda (minus) resulting energy:", get_new_energy_0(lam_min))
-        lam = lam_min
+        lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
 
         return (
             (lam * u_hat_0.get_data() - v_hat_0.get_data()),
             True,
-            # i < max_iter,
         )
 
     def get_projected_grad(
@@ -1138,6 +1114,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         step_size: float,
         u_hat_0: Optional[VectorField[FourierField]] = None,
         v_hat_0: Optional[VectorField[FourierField]] = None,
+        step_size_factor: Optional[float] = None,
     ) -> Tuple["jnp_array", bool]:
         if u_hat_0 is None and v_hat_0 is None:
             self.run_backward_calculation()
@@ -1145,7 +1122,9 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             u_hat_0 = self.velocity_u_hat_0
         if v_hat_0 is None:
             v_hat_0 = self.get_latest_field("velocity_hat")
-        return self.get_projected_grad_from_u_and_v(step_size, u_hat_0, v_hat_0)
+        return self.get_projected_grad_from_u_and_v(
+            step_size, u_hat_0, v_hat_0, step_size_factor
+        )
 
     def get_projected_cg_grad(
         self,
@@ -1154,7 +1133,10 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         old_grad: "jnp_array",
         u_hat_0: Optional[VectorField[FourierField]] = None,
         v_hat_0: Optional[VectorField[FourierField]] = None,
+        step_size_factor: Optional[float] = None,
     ) -> Tuple["jnp_array", bool]:
+        if step_size_factor is None:
+            step_size_factor = 0.9
         if u_hat_0 is None and v_hat_0 is None:
             self.run_backward_calculation()
         if u_hat_0 is None:
@@ -1167,60 +1149,14 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         e_0 = u_0.energy()
         e_0_adj = v_0.energy()
         c_0 = 2 * v_0.energy_with_other(u_0)
-        max_step_size = 0.9 * (e_0_adj / e_0 - c_0**2 / (4 * e_0**2)) ** (-1 / 2)
+        max_step_size = step_size_factor * (
+            e_0_adj / e_0 - c_0**2 / (4 * e_0**2)
+        ) ** (-1 / 2)
         step_size = min(step_size, max_step_size)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
-        lam_min = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
-        print_verb("e_0", e_0)
-        print_verb("c_0", c_0)
-        print_verb("e_0_adj", e_0_adj)
-        print_verb("max step size", max_step_size)
-        print_verb("step size", step_size)
-        print_verb("lambda (minus):", lam_min)
-        lam_pl = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
-        print_verb("lambda (plus):", lam_pl)
-
-        def get_new_energy_0(l: float) -> float:
-            return (
-                (
-                    (1.0 + step_size * l) * u_hat_0
-                    # + step_size / self.gain * (-1 * v_hat_0 + beta * old_grad)
-                    + step_size * (-1 * v_hat_0 + beta * old_grad)
-                )
-                .no_hat()
-                .energy()
-            )
-
-        print_verb("optimising lambda...", verbosity_level=2)
-
-        lam = -100.0  # type: ignore[assignment]
-        i = 0
-        max_iter = 100
-        tol = 1e-25  # can be fairly high as we normalize the result anyway
-        while abs(get_new_energy_0(lam) - e_0) / e_0 > tol and i < max_iter:
-            lam += -(get_new_energy_0(lam) - e_0) / jax.grad(get_new_energy_0)(lam)
-            i += 1
-        print_verb(
-            "optimising lambda done in",
-            i,
-            "iterations, lambda:",
-            lam,
-            verbosity_level=2,
-        )
-        print_verb("energy:", get_new_energy_0(lam), verbosity_level=2)
-        print_verb("lambda (num):", lam)
-        print_verb("lambda (num) resulting energy:", get_new_energy_0(lam))
-        print_verb("lambda (plus) resulting energy:", get_new_energy_0(lam_pl))
-        print_verb("lambda (minus) resulting energy:", get_new_energy_0(lam_min))
-
-        lam = lam_min
+        lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         return (
-            (
-                lam * u_hat_0.get_data()
-                # + (-1.0 * v_hat_0.get_data() + beta * old_grad) / self.gain
-                + (-1.0 * v_hat_0.get_data() + beta * old_grad)
-            ),
-            # i < max_iter,
+            (lam * u_hat_0.get_data() + (-1.0 * v_hat_0.get_data() + beta * old_grad)),
             True,
         )
 

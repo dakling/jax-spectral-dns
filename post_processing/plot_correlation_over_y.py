@@ -89,8 +89,8 @@ class CaseGroup:
 
 
 def get_correlation_quality(case_groups, y, ax):
-    # grad = True
-    grad = False
+    grad = True
+    # grad = False
     cases_flat = CaseGroup.flatten(case_groups)
     if not grad:
         y_s = np.array([case.get_base_velocity_at_pm_y(y) for case in cases_flat])
@@ -124,7 +124,9 @@ def get_correlation_quality(case_groups, y, ax):
         ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
     else:
         ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
-    ax.set_title("y = " + str(y))
+    ax.set_title("$y = " + str(y) + "$")
+    ax.set_xlabel("$U(y=" + str(y) + ")$")
+    ax.set_ylabel("$G$")
     fname = "plots/plot_corr_y" + ("_grad_y" if grad else "") + str(y)
     fname = fname.replace(".", "_dot_")
     fname = fname.replace("-", "_minus_")
@@ -170,8 +172,13 @@ def plot(groups):
     fig_corr, ax_corr = plt.subplots(len(ys), 1, figsize=(6, len(ys) * 4))
     for i, y in enumerate(ys):
         print_verb("Doing y =", y)
-        residuals.append(get_correlation_quality(cases, y, ax_corr[i]))
+        fig_, ax_ = plt.subplots(1, 1)
+        # residuals.append(get_correlation_quality(cases, y, ax_corr[i]))
+        residuals.append(get_correlation_quality(cases, y, ax_))
         print_verb("res =", residuals[-1])
+        fig_.tight_layout()
+        # fig_.savefig("plots/plot_corrs_" + str(i) + ".png")
+        fig_.savefig("plots/plot_corrs_grad" + str(i) + ".png")
     print(ys)
     print(residuals)
     ax.set_xlabel("$y$")
