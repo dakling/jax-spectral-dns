@@ -203,7 +203,7 @@ def plot(groups):
 colors = ["b", "k", "r", "c", "m", "y"]
 base_paths = [
     CaseGroup("cess_three_time_units", colors.pop(), "Cess"),
-    CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
+    # CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
     CaseGroup("random_mean_snapshot/", colors.pop(), "None"),
     CaseGroup("hist_18_study_three_time_units/", colors.pop(), "None"),
     CaseGroup("hist_9_study_three_time_units/", colors.pop(), "None"),
