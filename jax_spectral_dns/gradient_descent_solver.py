@@ -516,9 +516,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
+        self.step_size = min(self.step_size, self.get_max_step_size_ls())
         step_size = self.step_size
-
-        step_size = max(self.step_size, self.get_max_step_size_ls())
         print_verb("performing line search, step size", step_size)
         print_verb("max step size:", self.get_max_step_size_ls())
 
