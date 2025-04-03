@@ -1077,7 +1077,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         gain = self.get_gain()
         e_0 = u_hat_0.no_hat().energy()
 
-        return (gain * u_hat_0.get_data() - v_hat_0.get_data()) / e_0
+        return (u_hat_0.get_data() - v_hat_0.get_data()) / e_0
 
     def get_projected_grad_from_u_and_v(
         self,
