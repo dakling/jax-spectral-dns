@@ -27,8 +27,8 @@ plt.rcParams.update(
     }
 )
 
-# grad = True
-grad = False
+grad = True
+# grad = False
 
 
 class CaseGroup:
@@ -208,7 +208,10 @@ def plot(groups):
     ax.plot(ys, residuals)
 
     fig.tight_layout()
-    fig.savefig("plots/plot_y_correlation.png")
+    if grad:
+        fig.savefig("plots/plot_y_correlation_grad.png")
+    else:
+        fig.savefig("plots/plot_y_correlation.png")
     try:
         fig_corr.legend(
             loc="upper left",

@@ -750,18 +750,16 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("")
 
         if self.old_grad is not None:
-            print("hello2")
             self.grad, _ = self.dual_problem.get_projected_cg_grad(
                 self.step_size, self.beta, self.old_grad
             )
             self.steepest_grad, _ = self.dual_problem.get_projected_grad(self.step_size)
         else:
-            print("hello")
-            print(self.max_step_size_initial_factor)
             self.grad, _ = self.dual_problem.get_projected_grad(
                 self.step_size, step_size_factor=self.max_step_size_initial_factor
             )
             self.steepest_grad = self.grad
+            self.step_size *= self.max_step_size_initial_factor
 
         if DEBUG_LINESEARCH:
             print_verb("performing fwd run for testing purposes")
