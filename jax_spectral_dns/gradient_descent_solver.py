@@ -761,7 +761,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             self.steepest_grad = self.grad
             self.step_size = min(
                 self.step_size,
-                self.get_max_step_size_ls() * self.max_step_size_initial_factor(),
+                self.get_max_step_size_ls() * self.max_step_size_initial_factor,
             )
 
         if DEBUG_LINESEARCH:
