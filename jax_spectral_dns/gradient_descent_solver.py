@@ -512,7 +512,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         if type(self.old_grad) is type(None):
             v_0 = v_hat_0.no_hat()
         else:
-            v_0 = v_hat_0.no_hat() - self.beta * self.old_grad
+            v_0 = (v_hat_0 - self.beta * self.old_grad).no_hat()
         e_0_adj = v_0.energy()
         c_0 = 2 * v_0.energy_with_other(u_0)
         return (e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)) ** (-1 / 2)
