@@ -1147,7 +1147,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             v_hat_0 = self.get_latest_field("velocity_hat")
         e_0 = u_hat_0.no_hat().energy()
         u_0 = u_hat_0.no_hat()
-        v_0 = v_hat_0.no_hat() - beta * old_grad
+        v_0 = (v_hat_0 - beta * old_grad).no_hat()
         e_0 = u_0.energy()
         e_0_adj = v_0.energy()
         c_0 = 2 * v_0.energy_with_other(u_0)

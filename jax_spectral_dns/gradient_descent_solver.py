@@ -553,7 +553,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         ].flatten()
         tau = 0.5
         tau_inv = 1.5
-        c = 0.1
+        c = 0.0
         j = 1
         m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
             # self.e_0 / old_value**2
@@ -564,6 +564,11 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         print_verb("m", m, verbosity_level=2)
         print_verb("t", t, verbosity_level=2)
         print_verb("step_size * t", step_size * t, verbosity_level=2)
+        print_verb(
+            "grad misalignment",
+            jnp.linalg.norm(local_grad - self.grad.flatten()),
+            verbosity_level=2,
+        )
         if cond:
             if self.i % self.linesearch_increase_interval == 0:
                 print_verb(
