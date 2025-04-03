@@ -27,8 +27,8 @@ plt.rcParams.update(
     }
 )
 
-grad = True
-# grad = False
+# grad = True
+grad = False
 
 
 class CaseGroup:

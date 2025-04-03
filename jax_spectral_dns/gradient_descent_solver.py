@@ -519,7 +519,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
-        self.step_size = min(self.step_size, self.get_max_step_size_ls())
+        # self.step_size = min(self.step_size, self.get_max_step_size_ls())
         step_size = self.step_size
         print_verb("performing line search, step size", step_size)
         print_verb("max step size:", self.get_max_step_size_ls())
@@ -556,7 +556,8 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
         c = 0.1
         j = 1
         m = jnp.abs(jnp.dot(local_grad, self.grad.flatten())) * (
-            self.e_0 / old_value**2
+            # self.e_0 / old_value**2
+            self.e_0
         )
         t = c * m
         cond = new_value - old_value > step_size * t
