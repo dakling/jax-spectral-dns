@@ -515,7 +515,7 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
             v_0 = v_hat_0.no_hat() - self.beta * self.old_grad
         e_0_adj = v_0.energy()
         c_0 = 2 * v_0.energy_with_other(u_0)
-        return 0.9 * (e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)) ** (-1 / 2)
+        return (e_0_adj / self.e_0 - c_0**2 / (4 * self.e_0**2)) ** (-1 / 2)
 
     def get_step_size_ls(self, old_value: "float") -> Tuple["float", "float"]:
 
@@ -759,7 +759,10 @@ class ConjugateGradientDescentSolver(GradientDescentSolver):
                 self.step_size, step_size_factor=self.max_step_size_initial_factor
             )
             self.steepest_grad = self.grad
-            self.step_size *= self.max_step_size_initial_factor
+            self.step_size = min(
+                self.step_size,
+                self.get_max_step_size_ls() * self.max_step_size_initial_factor(),
+            )
 
         if DEBUG_LINESEARCH:
             print_verb("performing fwd run for testing purposes")

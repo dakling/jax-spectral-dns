@@ -126,7 +126,10 @@ def get_correlation_quality(case_groups, y, ax):
     else:
         ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
     ax.set_title("$y = " + str(y) + "$")
-    ax.set_xlabel("$U(y=" + str(y) + ")$")
+    if grad:
+        ax.set_xlabel("$\\partial U / \\partial y (y=" + str(y) + ")$")
+    else:
+        ax.set_xlabel("$U(y=" + str(y) + ")$")
     ax.set_ylabel("$G$")
     fname = "plots/plot_corr_y" + ("_grad_y" if grad else "") + str(y)
     fname = fname.replace(".", "_dot_")
@@ -180,23 +183,23 @@ def plot(groups):
         fig_.tight_layout()
         # fig_.savefig("plots/plot_corrs_" + str(i) + ".png")
 
-        try:
-            fig_.legend(
-                loc="upper left",
-                handles=[
-                    Line2D(
-                        [0],
-                        [0],
-                        color=cases[i].color,
-                        marker=cases[i].get_marker(),
-                        linestyle="",
-                        label=base_paths[i],
-                    )
-                    for i in range(len(base_paths))
-                ],
-            )
-        except Exception as e:
-            print(e)
+        # try:
+        #     fig_.legend(
+        #         loc="upper left",
+        #         handles=[
+        #             Line2D(
+        #                 [0],
+        #                 [0],
+        #                 color=cases[i].color,
+        #                 marker=cases[i].get_marker(),
+        #                 linestyle="",
+        #                 label=base_paths[i],
+        #             )
+        #             for i in range(len(base_paths))
+        #         ],
+        #     )
+        # except Exception as e:
+        #     print(e)
         if grad:
             fig_.savefig("plots/plot_corrs_grad_" + str(i) + ".png")
         else:
