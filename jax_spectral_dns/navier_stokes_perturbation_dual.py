@@ -1102,7 +1102,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         ) ** (-1 / 2)
         step_size = min(step_size, max_step_size)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
-        lam = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
+        lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
 
         return (
             (lam * u_hat_0.get_data() - v_hat_0.get_data()),
@@ -1154,7 +1154,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         ) ** (-1 / 2)
         step_size = min(step_size, max_step_size)
         A = (step_size * c_0 - 2 * e_0) / (2 * step_size * e_0)
-        lam = A + jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
+        lam = A - jnp.sqrt(A**2 - (step_size * e_0_adj - c_0) / (step_size * e_0))
         return (
             (lam * u_hat_0.get_data() + (-1.0 * v_hat_0.get_data() + beta * old_grad)),
             True,

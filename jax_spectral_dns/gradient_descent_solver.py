@@ -97,12 +97,12 @@ class GradientDescentSolver(ABC):
     def is_done(self, i: int) -> bool:
         done: bool = (
             (i >= self.number_of_steps)
-            or (self.step_size < self.step_size_threshold)
+            # or (self.step_size < self.step_size_threshold)
             or (
                 ((self.value is not None) and (self.old_value is not None))
                 and (
                     abs((self.value - self.old_value) / self.value)
-                    < self.value_change_threshold  # TODO take into account the step size
+                    < self.value_change_threshold
                 )
             )
         )
