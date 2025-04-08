@@ -333,10 +333,10 @@ def post_process(
         # )
         # np.savetxt("plots/lambdas.txt", lambda_arr.T)
 
-        # try:
-        #     vel_base = get_vel_field_minimal_channel(domain)
-        # except FileNotFoundError:
-        #     vel_base = vel_ * 0.0
+        try:
+            vel_base = get_vel_field_minimal_channel(domain)
+        except FileNotFoundError:
+            vel_base = vel_ * 0.0
 
         print("main post-processing loop")
         for i in range(n_steps):
@@ -379,6 +379,22 @@ def post_process(
             vel[0].plot_3d(
                 0, x_max, rotate=True, name="$\\tilde{u}_x$", no_cb=True, flip_axis=1
             )
+
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            vel_0_base = vel_hat.field_2d(2).field_2d(0).no_hat()[0]
+            vel_0_base.set_name("vel_dist_base")
+            vel_0_base.set_time_step(time_step)
+            vel_0_base.plot_center(1)
+
+            vel_base_inst = vel_0_base + vel_base[0]
+            vel_base_inst.set_name("vel_base_inst")
+            vel_base_inst.set_time_step(time_step)
+            vel_base_inst.plot_center(1, vel_base[0])
             # vel[1].plot_3d(0, x_max, rotate=True)
             # vel[2].plot_3d(0, x_max, rotate=True)
             # vel.plot_streamlines(2)
