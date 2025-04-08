@@ -140,6 +140,7 @@ MP4=true
 
 # final calculation
 make_video cl_vel_base_inst_y vel_base_inst
+make_video cl_vel_dist_base_y vel_dist_base
 make_video isosurfaces_velocity_x __isosurfaces_velocity_x
 make_video isosurfaces_velocity_y __isosurfaces_velocity_y
 make_video isosurfaces_velocity_z __isosurfaces_velocity_z
@@ -170,7 +171,8 @@ combine_six final_run_x __3d_x_velocity_x __3d_x_velocity_y __3d_x_velocity_z __
 
 # combine_three final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x
 # combine_four final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x __energy
-combine_four final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x vel_base_inst
+# combine_four final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x vel_base_inst
+combine_six final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x vel_base_inst vel_dist_base __energy
 # combine_six final_run_vel_x __isosurfaces_velocity_x __3d_z_velocity_x __3d_x_velocity_x __energy __energy_spectrum_kx __energy_spectrum_kz
 
 ffmpeg -i img/final_run_vel_x.mp4 -vf "select=eq(n\,0)" -vframes 1 img/final_run_vel_x.png &> /dev/null

@@ -385,10 +385,27 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
 
         self.epsilon = params.get("epsilon", 1e-5)
 
+        self.optimisation_modes = Enum(  # type: ignore[misc]
+            "optimisation_modes", ["gain", "gain_3d", "dissipation", "gain_no_00"]
+        )
+        self.optimisation_mode = self.optimisation_modes[
+            params.get("optimisation_mode", "gain")
+        ]
+
         if velocity_field is None:
             velocity_field_ = forward_equation.get_latest_field("velocity_hat") * 0.0
         else:
             velocity_field_ = velocity_field
+
+        if self.optimisation_mode == self.optimisation_modes["gain_no_00"]:
+            velocity_field_ = VectorField(
+                [
+                    velocity_field_[i] - velocity_field_[i].field_2d(0).field_2d(2)
+                    for i in range(velocity_field_.number_of_dimensions())
+                ],
+                name=velocity_field_.get_name(),
+            )
+
         velocity_field_.set_name("velocity_hat")
         super().__init__(velocity_field_, **params)
         self.velocity_field_u_history: Optional["jnp_array"] = None
@@ -442,12 +459,6 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         else:
             self.coupling_term = lambda _: coupling_term
         self.set_linearise()
-        self.optimisation_modes = Enum(  # type: ignore[misc]
-            "optimisation_modes", ["gain", "gain_3d", "dissipation"]
-        )
-        self.optimisation_mode = self.optimisation_modes[
-            params.get("optimisation_mode", "gain")
-        ]
         print_verb("optimising for", self.get_objective_fun_name())
         self.write_trajectory = False
 
@@ -898,6 +909,15 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
                     - nse.get_latest_field("velocity_hat").field_2d(0)
                 ),
             )
+        elif self.optimisation_mode == self.optimisation_modes.gain_no_00:
+            self.set_initial_field(
+                "velocity_hat",
+                -1
+                * (
+                    nse.get_latest_field("velocity_hat")
+                    - nse.get_latest_field("velocity_hat").field_2d(0).field_2d(2)
+                ),
+            )
         elif self.optimisation_mode == self.optimisation_modes.dissipation:
             self.set_initial_field(
                 "velocity_hat", 0 * nse.get_latest_field("velocity_hat")
@@ -918,6 +938,8 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             return self.get_gain()
         elif self.optimisation_mode == self.optimisation_modes.gain_3d:
             return self.get_gain_3d()
+        elif self.optimisation_mode == self.optimisation_modes.gain_no_00:
+            return self.get_gain_no_00()
         elif self.optimisation_mode == self.optimisation_modes.dissipation:
             self.gain = self.get_gain()  # TODO is this needed for gradient calculation?
             return self.get_dissipation_average()
@@ -936,6 +958,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if (
             self.optimisation_mode == self.optimisation_modes.gain
             or self.optimisation_mode == self.optimisation_modes.gain_3d
+            or self.optimisation_mode == self.optimisation_modes.gain_no_00
         ):
             return None
         elif self.optimisation_mode == self.optimisation_modes.dissipation:
@@ -1041,6 +1064,18 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         # u_0_3d = u_0_hat.no_hat() - u_0_kx0
         u_T_hat = self.forward_equation.get_latest_field("velocity_hat")
         u_T_kx0 = u_T_hat.field_2d(0).no_hat()
+        u_T_3d = u_T_hat.no_hat() - u_T_kx0
+        # self.gain = u_T_3d.energy() / u_0_3d.energy()
+        self.gain = u_T_3d.energy() / u_0_hat.no_hat().energy()
+        return self.gain
+
+    def get_gain_no_00(self) -> float:
+        self.run_forward_calculation()
+        u_0_hat = self.forward_equation.get_initial_field("velocity_hat")
+        # u_0_kx0 = u_0_hat.field_2d(0).no_hat()
+        # u_0_3d = u_0_hat.no_hat() - u_0_kx0
+        u_T_hat = self.forward_equation.get_latest_field("velocity_hat")
+        u_T_kx0 = u_T_hat.field_2d(0).field_2d(2).no_hat()
         u_T_3d = u_T_hat.no_hat() - u_T_kx0
         # self.gain = u_T_3d.energy() / u_0_3d.energy()
         self.gain = u_T_3d.energy() / u_0_hat.no_hat().energy()
