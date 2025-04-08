@@ -400,7 +400,11 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
         if self.optimisation_mode == self.optimisation_modes["gain_no_00"]:
             velocity_field_ = VectorField(
                 [
-                    velocity_field_[i] - velocity_field_[i].field_2d(0).field_2d(2)
+                    (
+                        velocity_field_[i] - velocity_field_[i].field_2d(0).field_2d(2)
+                        if i == 0
+                        else velocity_field_[i]
+                    )
                     for i in range(velocity_field_[0].number_of_dimensions())
                 ],
                 name=velocity_field_.get_name(),
