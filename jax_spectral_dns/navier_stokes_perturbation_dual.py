@@ -401,7 +401,7 @@ class NavierStokesVelVortPerturbationDual(NavierStokesVelVortPerturbation):
             velocity_field_ = VectorField(
                 [
                     velocity_field_[i] - velocity_field_[i].field_2d(0).field_2d(2)
-                    for i in range(velocity_field_.number_of_dimensions())
+                    for i in range(velocity_field_[0].number_of_dimensions())
                 ],
                 name=velocity_field_.get_name(),
             )
