@@ -2000,7 +2000,12 @@ class PhysicalField(Field):
                 for dim in self.all_dimensions():
                     data_shape = self.data.shape
                     if coord is None:
-                        N_c = (data_shape[dim] - 1) // 2
+
+                        shape = self.get_data().shape
+                        max_inds = np.unravel_index(
+                            self.get_data().argmax(axis=None), shape
+                        )
+                        N_c = max_inds[dim]
                         coord = (
                             N_c
                             / data_shape[dim]
@@ -2131,7 +2136,10 @@ class PhysicalField(Field):
             ims = []
             data_shape = self.data.shape
             if coord is None:
-                N_c = (data_shape[dim] - 1) // 2
+
+                shape = self.get_data().shape
+                max_inds = np.unravel_index(self.get_data().argmax(axis=None), shape)
+                N_c = max_inds[dim]
                 coord = (
                     N_c
                     / data_shape[dim]

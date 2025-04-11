@@ -27,8 +27,8 @@ plt.rcParams.update(
     }
 )
 
-# grad = True
-grad = False
+grad = True
+# grad = False
 
 
 class CaseGroup:
@@ -91,7 +91,7 @@ class CaseGroup:
         return [x for xs in case_groups for x in xs.cases]
 
 
-def get_correlation_quality(case_groups, y, ax):
+def get_correlation_quality(case_groups, y, axs):
     cases_flat = CaseGroup.flatten(case_groups)
     if not grad:
         y_s = np.array([case.get_base_velocity_at_pm_y(y) for case in cases_flat])
@@ -117,20 +117,22 @@ def get_correlation_quality(case_groups, y, ax):
             y_s_ = y_s[start_index:end_index]
         gain_s_ = gain_s[start_index:end_index]
         start_index = end_index
+        for ax in axs:
+            if not grad:
+                ax.plot(y_s_, gain_s_, css.color + css.get_marker())
+            else:
+                ax.plot(y_s_, gain_s_, css.color + css.get_marker())
+    for ax in axs:
         if not grad:
-            ax.plot(y_s_, gain_s_, css.color + css.get_marker())
+            ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
         else:
-            ax.plot(y_s_, gain_s_, css.color + css.get_marker())
-    if not grad:
-        ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
-    else:
-        ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
-    ax.set_title("$y = " + str(y) + "$")
-    if grad:
-        ax.set_xlabel("$\\partial U / \\partial y (y=" + str(y) + ")$")
-    else:
-        ax.set_xlabel("$U(y=" + str(y) + ")$")
-    ax.set_ylabel("$G$")
+            ax.plot(y_s, [vel * p[0] + p[1] for vel in y_s], "k-")
+        ax.set_title("$y = " + str(y) + "$")
+        if grad:
+            ax.set_xlabel("$\\partial U / \\partial y (y=" + str(y) + ")$")
+        else:
+            ax.set_xlabel("$U(y=" + str(y) + ")$")
+        ax.set_ylabel("$G$")
     fname = "plots/plot_corr_y" + ("_grad_y" if grad else "") + str(y)
     fname = fname.replace(".", "_dot_")
     fname = fname.replace("-", "_minus_")
@@ -178,7 +180,7 @@ def plot(groups):
         print_verb("Doing y =", y)
         fig_, ax_ = plt.subplots(1, 1)
         # residuals.append(get_correlation_quality(cases, y, ax_corr[i]))
-        residuals.append(get_correlation_quality(cases, y, ax_))
+        residuals.append(get_correlation_quality(cases, y, [ax_, ax_corr[i]]))
         print_verb("res =", residuals[-1])
         fig_.tight_layout()
         # fig_.savefig("plots/plot_corrs_" + str(i) + ".png")
@@ -240,9 +242,9 @@ def plot(groups):
 colors = ["y", "b", "r", "c", "m", "k"]
 base_paths = [
     # CaseGroup("cess_three_time_units", colors.pop(), "Cess"),
-    # CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
+    CaseGroup("base_variation_three_time_units", colors.pop(), "Pert"),
     CaseGroup("random_mean_snapshot/", colors.pop(0), "None"),
     CaseGroup("hist_18_study_three_time_units/", colors.pop(0), "None"),
-    CaseGroup("hist_9_study_three_time_units/", colors.pop(0), "None"),
+    # CaseGroup("hist_9_study_three_time_units/", colors.pop(0), "None"),
 ]
 plot(base_paths)

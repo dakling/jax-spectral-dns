@@ -45,12 +45,14 @@ class Case:
     STORE_DIR_BASE = (
         "/store/DAMTP/dsk34/"
         if "cam.ac.uk" in socket.gethostname()
-        else "/home/klingenberg/mnt/maths_store/"
+        # else "/home/klingenberg/mnt/maths_store/"
+        else "/home/klingenberg/mnt/swirles_store/"
     )
     HOME_DIR_BASE = (
         "/home/dsk34/jax-optim/run/"
         if "cam.ac.uk" in socket.gethostname()
-        else "/home/klingenberg/mnt/maths/jax-optim/run/"
+        # else "/home/klingenberg/mnt/maths/jax-optim/run/"
+        else "/home/klingenberg/mnt/swirles/jax-optim/run/"
     )
     Vel_0_types = Enum(
         "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
