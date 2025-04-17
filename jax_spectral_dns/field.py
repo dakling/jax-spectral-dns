@@ -2207,6 +2207,10 @@ class PhysicalField(Field):
                 cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
                 cbar.ax.yaxis.label.set_color(name_color)
                 ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
+            else:
+                # fig.delaxes(fig.axes[1])
+                ax.axis("off")
+                ax.set_title("")
 
             def save() -> None:
                 if params.get("ax") is None:
@@ -2421,7 +2425,6 @@ class PhysicalField(Field):
             values = grid.point_data[name]
             other_values = params.get("other_values", [])
             if plot_min_and_max:
-                # mesh = grid.contour([iso_val * min_val, iso_val * max_val], values)
                 mesh = grid.contour(
                     [iso_val * max_val, iso_val * min_val]
                     + [val * max_val for val in other_values]

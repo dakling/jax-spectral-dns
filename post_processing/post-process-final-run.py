@@ -14,6 +14,10 @@ import jax
 
 jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
 
+import socket
+import yaml
+from enum import Enum
+from typing import Any, Tuple, Optional, List, Self, cast, Callable
 import pyvista as pv
 import numpy as np
 import h5py
@@ -28,6 +32,7 @@ from jax_spectral_dns.navier_stokes_perturbation import (
     NavierStokesVelVortPerturbation,
     update_nonlinear_terms_high_performance_perturbation_skew_symmetric,
 )
+
 
 matplotlib.set_loglevel("error")
 
@@ -47,45 +52,803 @@ pv.global_theme.font.title_size = font_size
 pv.global_theme.font.label_size = font_size
 
 
-STORE_PREFIX = "/store/DAMTP/dsk34"
-HOME_PREFIX = "/home/dsk34/jax-optim/run"
+# STORE_PREFIX = "/store/DAMTP/dsk34"
+# HOME_PREFIX = "/home/dsk34/jax-optim/run"
+STORE_PREFIX = "/home/klingenberg/mnt/swirles_store/"
+HOME_PREFIX = "/home/klingenberg/mnt/swirles/jax-optim/run/"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
 
+args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
 
-def get_domain(shape, Lx_over_pi: float, Lz_over_pi: float):
-    return PhysicalDomain.create(
-        shape,
-        (True, False, True),
-        scale_factors=(Lx_over_pi * np.pi, 1.0, Lz_over_pi * np.pi),
+
+class Case:
+    STORE_DIR_BASE = (
+        "/store/DAMTP/dsk34/"
+        if "cam.ac.uk" in socket.gethostname()
+        # else "/home/klingenberg/mnt/maths_store/"
+        else "/home/klingenberg/mnt/swirles_store/"
+    )
+    HOME_DIR_BASE = (
+        "/home/dsk34/jax-optim/run/"
+        if "cam.ac.uk" in socket.gethostname()
+        # else "/home/klingenberg/mnt/maths/jax-optim/run/"
+        else "/home/klingenberg/mnt/swirles/jax-optim/run/"
+    )
+    Vel_0_types = Enum(
+        "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
     )
 
+    def __init__(self, directory: str):
+        self.directory = directory
+        self.T = self.get_T()
+        self.e_0 = self.get_e0()
+        self.gain = self.get_gain()
+        self.Re_tau = self.get_Re_tau()
+        self.vel_0 = None
+        self.vel_base = None
+        self.vel_base_diff_y = None
+        self.vel_base_max = None
+        self.vel_base_cl = None
+        self.vel_base_wall = None
+        self.inf_norm = None
+        self.dominant_lambda_z = None
+        self.dominant_streak_amplitude = None
+        self.successfully_read = (
+            self.T is not None and self.e_0 is not None and self.gain is not None
+        )
+        self.vel_0_type = None
 
-def get_vel_field_minimal_channel(domain: PhysicalDomain):
+    def __repr__(self) -> str:
+        return (
+            "T: " + str(self.T) + ", e_0: " + str(self.e_0) + ", dir: " + self.directory
+        )
 
-    cheb_coeffs = np.loadtxt(
-        HOME_DIR_BASE + "/profiles/Re_tau_180_90_small_channel.csv", dtype=np.float64
-    )
+    def get_property_from_settings(
+        self, property: str, default: Any = None
+    ) -> Optional[float]:
+        base_path = self.HOME_DIR_BASE
+        fname = base_path + "/" + self.directory + "/simulation_settings.yml"
+        try:
+            with open(fname, "r") as file:
+                args = yaml.safe_load(file)
+            return args[property]
+        except Exception as e:
+            return default
 
-    Ny = domain.number_of_cells(1)
-    U_mat = np.zeros((Ny, len(cheb_coeffs)))
-    for i in range(Ny):
-        for j in range(len(cheb_coeffs)):
-            U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
-    U_y_slice = U_mat @ cheb_coeffs
-    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
-    u_data = np.moveaxis(
-        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
-    )
-    vel_base = VectorField(
-        [
-            PhysicalField(domain, jnp.asarray(u_data)),
-            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-        ]
-    )
-    vel_base.set_name("velocity_base")
-    return vel_base
+    def get_e0(self) -> Optional[float]:
+        return self.get_property_from_settings("e_0")
+
+    def get_T(self) -> Optional[float]:
+        return self.get_property_from_settings("end_time")
+
+    def get_Re_tau(self) -> Optional[float]:
+        return self.get_property_from_settings("Re_tau")
+
+    def get_vel_field_minimal_channel(self):
+
+        domain = self.get_domain()
+
+        cheb_coeffs = np.loadtxt(
+            self.HOME_DIR_BASE
+            + "/"
+            + self.directory
+            + "/profiles/Re_tau_180_90_small_channel.csv",
+            dtype=np.float64,
+        )
+
+        Ny = domain.number_of_cells(1)
+        U_mat = np.zeros((Ny, len(cheb_coeffs)))
+        for i in range(Ny):
+            for j in range(len(cheb_coeffs)):
+                U_mat[i, j] = cheby(j, 0)(domain.grid[1][i])
+        U_y_slice = U_mat @ cheb_coeffs
+        nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+        u_data = np.moveaxis(
+            np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+        )
+        vel_base = VectorField(
+            [
+                PhysicalField(domain, jnp.asarray(u_data)),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+            ]
+        )
+        vel_base.set_name("velocity_base")
+        return vel_base
+
+    def get_base_velocity_minimal_channel_slice(self) -> "PhysicalField":
+        domain = self.get_domain()
+        slice_domain = PhysicalDomain.create(
+            (domain.get_shape_aliasing()[1],),
+            (False,),
+            scale_factors=(1.0,),
+            aliasing=1,
+        )
+        vel_base_turb = self.get_vel_field_minimal_channel()
+        vel_base_turb_slice = PhysicalField(slice_domain, vel_base_turb[0][0, :, 0])
+        vel_base_turb_slice.set_name("vel_base_minimal_channel")
+        return vel_base_turb_slice
+
+    def get_gain(self) -> Optional[float]:
+        base_path = self.STORE_DIR_BASE
+        phase_space_data_name = (
+            base_path + "/" + self.directory + "/plots/phase_space_data.txt"
+        )
+        try:
+            phase_space_data = np.atleast_2d(
+                np.genfromtxt(
+                    phase_space_data_name,
+                    delimiter=",",
+                )
+            ).T
+            return max(phase_space_data[1])
+        except Exception:
+            return None
+
+    def get_base_velocity(self) -> "PhysicalField":
+        if self.vel_base is None:
+            base_path = self.STORE_DIR_BASE
+            domain = self.get_domain()
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            try:
+                hist_bin = self.directory.split("/")[-1]
+                base_velocity_file_path = (
+                    base_path
+                    + "/"
+                    + self.directory
+                    + "/fields/vel_hist_bin_"
+                    + hist_bin
+                )
+                vel_base_turb_slice = PhysicalField.FromFile(
+                    slice_domain,
+                    base_velocity_file_path,
+                    "hist_bin_" + hist_bin + "_x",
+                    time_step=0,
+                )
+                self.vel_base = vel_base_turb_slice
+            except Exception as e:
+                try:
+                    base_velocity_file_name = glob(
+                        "vel_00_*",
+                        root_dir=base_path + "/" + self.directory + "/fields/",
+                    )[0]
+
+                    base_velocity_file_path = (
+                        base_path
+                        + "/"
+                        + self.directory
+                        + "/fields/"
+                        + base_velocity_file_name
+                    )
+                    vel_base_turb_slice = VectorField.FromFile(
+                        slice_domain,
+                        base_velocity_file_path,
+                        "velocity_spatial_average",
+                    )[0]
+                    self.vel_base = vel_base_turb_slice
+                except Exception as e:
+                    raise e
+        return self.vel_base
+
+    def get_base_velocity_diff_y(self) -> "PhysicalField":
+        if self.vel_base_diff_y is None:
+            u_base = self.get_base_velocity()
+            self.vel_base_diff_y = u_base.diff(0)
+        return self.vel_base_diff_y
+
+    def get_base_velocity_max(self) -> "float":
+        if self.vel_base_max is None:
+            self.vel_base_max = self.get_base_velocity().max()
+        return self.vel_base_max
+
+    def get_base_velocity_at_y(
+        self, y: "float"
+    ) -> "float":  # TODO take into account on which side the perturbation is located
+        grd = self.get_domain().grid
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return self.get_base_velocity()[n_y]
+
+    def get_base_velocity_at_pm_y(
+        self, y: "float"
+    ) -> "float":  # TODO take into account on which side the perturbation is located
+        grd = self.get_domain().grid
+        u_0 = self.get_vel_0()
+        u_0_shape = u_0[0].get_data().shape
+        max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
+        if max_inds[1] > u_0_shape[1] // 2:
+            y = -y
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return self.get_base_velocity()[n_y]
+
+    def get_base_velocity_cl(self) -> "float":
+        if self.vel_base_cl is None:
+            self.vel_base_cl = self.get_base_velocity_at_y(0)
+        return self.vel_base_cl
+
+    def get_base_velocity_wall(
+        self,
+    ) -> "float":  # TODO take into account on which side the perturbation is located
+        if self.vel_base_wall is None:
+            Re_tau = self.Re_tau
+            y_wall = 1 - 10.0 / Re_tau
+            self.vel_base_wall = self.get_base_velocity_at_pm_y(y_wall)
+        return self.vel_base_wall
+
+    def get_base_velocity_diff_y_at_y(self, y: "float") -> "float":
+        grd = self.get_domain().grid
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return self.get_base_velocity_diff_y()[n_y]
+
+    def get_base_velocity_diff_y_at_pm_y(self, y: "float") -> "float":
+        grd = self.get_domain().grid
+        u_0 = self.get_vel_0()
+        u_0_shape = u_0[0].get_data().shape
+        max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
+        out_factor = 1.0
+        if max_inds[1] > u_0_shape[1] // 2:
+            y = -y
+            out_factor = -1.0
+        n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
+        return out_factor * self.get_base_velocity_diff_y()[n_y]
+
+    @classmethod
+    def sort_by_e_0(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.e_0)
+        return cases
+
+    @classmethod
+    def sort_by_u_base_max(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.get_base_velocity_max())
+        return cases
+
+    @classmethod
+    def sort_by_u_base_cl(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.get_base_velocity_cl())
+        return cases
+
+    @classmethod
+    def sort_by_u_wall(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.get_base_velocity_wall())
+        return cases
+
+    @classmethod
+    def sort_by_dir_name(cls, cases: "List[Self]") -> "List[Self]":
+        cases.sort(key=lambda x: x.directory)
+        return cases
+
+    def get_lambdas_over_t(self) -> Optional[Tuple["np_float_array", "np_float_array"]]:
+        lambda_file = self.STORE_DIR_BASE + self.directory + "/plots/lambdas.txt"
+        lambdas = np.loadtxt(lambda_file).T
+        ts = lambdas[0, :]
+        lambda_z = lambdas[2, :]
+        return (ts, lambda_z)
+
+    def get_domain(self) -> "PhysicalDomain":
+        Nx = cast(int, self.get_property_from_settings("Nx", 48))
+        Ny = cast(int, self.get_property_from_settings("Ny", 129))
+        Nz = cast(int, self.get_property_from_settings("Nz", 80))
+        sc_x = cast(float, self.get_property_from_settings("Lx_over_pi", 2.0))
+        sc_z = cast(float, self.get_property_from_settings("Lz_over_pi", 1.0))
+        domain = PhysicalDomain.create(
+            (Nx, Ny, Nz), (True, False, True), (sc_x * np.pi, 1.0, sc_z * np.pi)
+        )
+        return domain
+
+    def get_vel_0(self) -> "VectorField[PhysicalField]":
+        if type(self.vel_0) is NoneType:
+            path = self.STORE_DIR_BASE + "/" + self.directory + "/" + "fields/"
+            file = "velocity_latest"
+            domain = self.get_domain()
+            success = False
+            retries = 0
+            vel_0 = None
+            while not success:
+                try:
+                    vel_0 = VectorField.FromFile(
+                        domain, path + file, name="vel_0", allow_projection=True
+                    )
+                    success = True
+                except Exception:
+                    try:
+                        vel_0 = VectorField.FromFile(
+                            domain,
+                            path + file,
+                            name="velocity_pert",
+                            allow_projection=True,
+                        )
+                        success = True
+                    except Exception:
+                        try:
+                            bak_file = glob("velocity_latest_bak_*", root_dir=path)[0]
+                            vel_0 = VectorField.FromFile(
+                                domain,
+                                path + bak_file,
+                                name="vel_0",
+                                allow_projection=True,
+                            )
+                            success = True
+                        except Exception:
+                            try:
+                                bak_file = glob("velocity_latest_bak_*", root_dir=path)[
+                                    0
+                                ]
+                                vel_0 = VectorField.FromFile(
+                                    domain,
+                                    path + bak_file,
+                                    name="velocity_pert",
+                                    allow_projection=True,
+                                )
+                                success = True
+                            except Exception as e:
+                                if retries < 10:
+                                    print_verb(
+                                        "issues with opening velocity file for case",
+                                        self,
+                                        "; trying again in 20 seconds.",
+                                    )
+                                    time.sleep(20)
+                                    retries += 1
+                                else:
+                                    raise e
+            assert vel_0 is not None
+            self.vel_0 = vel_0
+        return self.vel_0
+
+    def get_velocity_snapshot(
+        self, target_time: float
+    ) -> Optional["VectorField[FourierField]"]:
+        base_path = self.STORE_DIR_BASE
+        velocity_trajectory_file_name = (
+            base_path + "/" + self.directory + "/fields/trajectory"
+        )
+
+        retries = 0
+        while retries < 10:
+            try:
+                with h5py.File(velocity_trajectory_file_name, "r") as f:
+                    velocity_trajectory = f["trajectory"]
+                    domain = self.get_domain()
+                    n_steps = velocity_trajectory.shape[0]
+                    end_time = self.T
+                    index = int(n_steps * target_time / end_time)
+                    vel_hat = VectorField.FromData(
+                        FourierField,
+                        domain,
+                        velocity_trajectory[index],
+                        name="velocity_hat",
+                        allow_projection=True,
+                    )
+                    vel_hat.set_time_step(index)
+                    return vel_hat
+            except Exception:
+                print_verb("unable to open trajectory file for", self.directory)
+                retries += 1
+                time.sleep(20)
+
+    def get_inf_norm(self) -> "float":
+        if self.inf_norm is None:
+            vel_field = self.get_vel_0()
+            # self.inf_norm = max(abs(vel_field[0].get_data().flatten()))
+            self.inf_norm = vel_field[0].inf_norm()
+        return self.inf_norm
+
+    def get_inf_norm_over_local_base(self) -> "float":
+        if self.inf_norm is None:
+            self.inf_norm = self.get_inf_norm()
+        u_base = self.get_vel_field_minimal_channel()
+        u_0 = self.get_vel_0()
+
+        u_0_shape = u_0[0].get_data().shape
+        max_inds = np.unravel_index(u_0[0].get_data().argmax(axis=None), u_0_shape)
+        u_base_max_loc = u_base[0][*max_inds]
+        return self.inf_norm / u_base_max_loc
+
+    def get_dominant_lambda_z(self) -> "float":
+        if self.dominant_lambda_z is None:
+            target_time = 0.3
+            vel_hat = self.get_velocity_snapshot(target_time)
+            if vel_hat is not None:
+                _, lambda_z = vel_hat[0].get_streak_scales()
+                self.dominant_lambda_z = lambda_z * self.Re_tau
+            else:
+                self.dominant_lambda_z = np.nan
+        return self.dominant_lambda_z
+
+    def get_dominant_streak_amplitude(self) -> "float":
+        if self.dominant_streak_amplitude is None:
+            # target_time = -0.2 # should take from the end
+            target_time = 0.8 * self.T
+            vel_hat = self.get_velocity_snapshot(target_time)
+            if vel_hat is not None:
+                self.dominant_streak_amplitude = max(
+                    abs(vel_hat[0].field_2d(0).no_hat().get_data().flatten())
+                )
+            else:
+                self.dominant_streak_amplitude = np.nan
+        return self.dominant_streak_amplitude
+
+    def classify_vel_0(self) -> "Vel_0_types":
+        if self.vel_0_type is not None:
+            return self.vel_0_type
+        else:
+            vel_0_hat = self.get_vel_0().hat()
+            vel_0_energy = vel_0_hat.no_hat().energy()
+            amplitudes_2d_kx = []
+            domain = vel_0_hat[0].get_domain()
+            Nx, Ny, Nz = domain.get_shape()
+            for kx in range((Nx - 1) // 2 + 1):
+                vel_2d_kx = vel_0_hat[0].field_2d(0, kx).no_hat()
+                amplitudes_2d_kx.append(vel_2d_kx.max() - vel_2d_kx.min())
+            amplitudes_2d_kz = []
+            for kz in range((Nz - 1) // 2 + 1):
+                vel_2d_kz = vel_0_hat[0].field_2d(2, kz).no_hat()
+                amplitudes_2d_kz.append(vel_2d_kz.max() - vel_2d_kz.min())
+            kx_max = cast(int, np.argmax(amplitudes_2d_kx))
+            kz_max = cast(int, np.argmax(amplitudes_2d_kz))
+            vel_0_hat_2d = vel_0_hat.field_2d(0, kx_max).field_2d(2, kz_max)
+            if Equation.verbosity_level >= 3:
+                coarse_domain = PhysicalDomain.create(
+                    (Nx // 4, Ny, Nz // 4),
+                    domain.periodic_directions,
+                    domain.scale_factors,
+                )
+                vel_0_filtered_hat = vel_0_hat.filter(coarse_domain)
+                print_verb("total energy:", vel_0_energy, verbosity_level=3)
+                print_verb("kx, kz:", kx_max, kz_max, verbosity_level=3)
+                print_verb(
+                    "energy (linear test):",
+                    vel_0_hat_2d.no_hat().energy(),
+                    verbosity_level=3,
+                )
+                print_verb(
+                    "linear test:",
+                    abs((vel_0_hat_2d.no_hat().energy() - vel_0_energy) / vel_0_energy),
+                    verbosity_level=3,
+                )
+                print_verb(
+                    "energy (nonlinear test):",
+                    vel_0_filtered_hat.no_hat().energy(),
+                    verbosity_level=3,
+                )
+                print_verb(
+                    "nonlinear test:",
+                    abs(
+                        (vel_0_filtered_hat.no_hat().energy() - vel_0_energy)
+                        / vel_0_energy
+                    ),
+                    verbosity_level=3,
+                )
+            if (
+                abs((vel_0_hat_2d.no_hat().energy() - vel_0_energy) / vel_0_energy)
+                < 1e-1
+            ):
+                self.vel_0_type = Case.Vel_0_types["quasilinear"]
+                return self.vel_0_type
+            else:
+                coarse_domain = PhysicalDomain.create(
+                    (Nx // 4, Ny, Nz // 4),
+                    domain.periodic_directions,
+                    domain.scale_factors,
+                )
+                vel_0_filtered_hat = vel_0_hat.filter(coarse_domain)
+                if (
+                    abs(
+                        (vel_0_filtered_hat.no_hat().energy() - vel_0_energy)
+                        / vel_0_energy
+                    )
+                    < 1e-5
+                ):
+                    self.vel_0_type = Case.Vel_0_types["nonlinear_global"]
+                    return self.vel_0_type
+                else:
+                    self.vel_0_type = Case.Vel_0_types["nonlinear_localised"]
+                    return self.vel_0_type
+
+    def get_marker(self) -> str:
+        vel_0_type = self.classify_vel_0()
+        if vel_0_type is Case.Vel_0_types["quasilinear"]:
+            print_verb("lin", verbosity_level=3)
+            return "x"
+        elif vel_0_type is Case.Vel_0_types["nonlinear_global"]:
+            print_verb("nl glob", verbosity_level=3)
+            return "s"
+        elif vel_0_type is Case.Vel_0_types["nonlinear_localised"]:
+            print_verb("nl loc", verbosity_level=3)
+            return "o"
+        else:
+            print(self)
+            print(self.vel_0_type)
+            raise Exception("unknown velocity classification.")
+
+    def get_color(self) -> Tuple[str, Any]:
+        e_0_min = 1.0e-6
+        e_0_max = 1.0e-3
+        alpha_min = 0.0
+        alpha_max = 1.0
+        if self.e_0 < e_0_min:
+            out = alpha_min
+        else:
+            out = (np.log(self.e_0) - np.log(e_0_min)) / (
+                np.log(e_0_max) - np.log(e_0_min)
+            ) * (alpha_max - alpha_min) + alpha_min
+        cmap = matplotlib.colormaps["magma"]
+        rgba = cmap(out)
+        return rgba, cmap
+
+    def get_alpha(self) -> float:
+        return 1.0
+        # e_0_min = 1.0e-6
+        # e_0_max = 1.0e-3
+        # alpha_min = 0.1
+        # alpha_max = 1.0
+        # if self.e_0 < e_0_min:
+        #     return alpha_min
+        # else:
+        #     return (np.log(self.e_0) - np.log(e_0_min)) / (
+        #         np.log(e_0_max) - np.log(e_0_min)
+        #     ) * (alpha_max - alpha_min) + alpha_min
+
+    def get_classification_name(self) -> str:
+        vel_0_type = self.classify_vel_0()
+        if vel_0_type is Case.Vel_0_types["quasilinear"]:
+            print_verb("lin", verbosity_level=3)
+            return "quasi-linear regime"
+        elif vel_0_type is Case.Vel_0_types["nonlinear_global"]:
+            print_verb("nl glob", verbosity_level=3)
+            return "nonlinear global regime"
+        elif vel_0_type is Case.Vel_0_types["nonlinear_localised"]:
+            print_verb("nl loc", verbosity_level=3)
+            return "nonlinear localised regime"
+        else:
+            print(self)
+            print(self.vel_0_type)
+            raise Exception("unknown velocity classification.")
+
+    def append_to(
+        self, cases: "List[Self]", prune_duplicates: bool = True
+    ) -> "List[Self]":
+        if self.successfully_read:
+            assert self.gain is not None
+            Ts = [case.T for case in cases]
+            e_0s = [case.e_0 for case in cases]
+            gains = [case.gain for case in cases]
+            if prune_duplicates and (self.T in Ts) and (self.e_0 in e_0s):
+                ind = e_0s.index(self.e_0)
+                other_gain = gains[ind]
+                assert other_gain is not None
+                if self.gain > other_gain:
+                    cases[ind] = self
+            else:
+                cases.append(self)
+        return cases
+
+    @classmethod
+    def prune_times(cls, cases: "List[Case]") -> "List[Case]":
+        Ts = [case.T for case in cases]
+        dominant_time = max(set(Ts), key=Ts.count)
+        return [case for case in cases if abs(case.T - dominant_time) < 1.0e-10]
+
+    @classmethod
+    def collect(
+        cls,
+        base_path: str,
+        prune_duplicates: bool = True,
+        with_linear: bool = True,
+        legal_names: List[str] = [
+            "[0-9]eminus[0-9]",
+            "[0-9]eminus[0-9]_sweep_*",
+            "[0-9]eminus[0-9]_from_*",
+        ],
+    ) -> "List[Self]":
+        home_path = Case.HOME_DIR_BASE + "/" + base_path
+        dirs = glob(legal_names[0], root_dir=home_path)
+        for legal_name in legal_names[1:]:
+            dirs += glob(legal_name, root_dir=home_path)
+        cases = []
+        for dir in dirs:
+            case = cls(base_path + "/" + dir)
+            cases = case.append_to(cases, prune_duplicates)
+        if with_linear:
+            case = cls(base_path + "/" + "linear")
+            case.e_0 = 0.0
+            cases = case.append_to(cases)
+        return cases
+
+    @classmethod
+    def get_e_0_lam_lower_boundary(cls, cases: "List[Case]") -> "float":
+        return [0.0 for _ in cases]
+
+    @classmethod
+    def get_e_0_lam_upper_boundary(cls, cases: "List[Case]") -> "float":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(len(cases_sorted) - 1):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["quasilinear"]
+                and cases[i + 1].classify_vel_0() != Case.Vel_0_types["quasilinear"]
+            ):
+                return cast(float, cases[i].e_0)
+        return cast(float, cases[-1].e_0)
+
+    @classmethod
+    def get_e_0_nl_glob_lower_boundary(cls, cases: "List[Case]") -> "Optional[float]":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(1, len(cases_sorted)):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["nonlinear_global"]
+                and cases[i - 1].classify_vel_0()
+                != Case.Vel_0_types["nonlinear_global"]
+            ):
+                return cases[i].e_0
+        return None
+
+    @classmethod
+    def get_e_0_nl_glob_upper_boundary(cls, cases: "List[Case]") -> "Optional[float]":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(len(cases_sorted) - 1):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["nonlinear_global"]
+                and cases[i + 1].classify_vel_0()
+                != Case.Vel_0_types["nonlinear_global"]
+            ):
+                return cases[i].e_0
+        if cases[-1].classify_vel_0() == Case.Vel_0_types["nonlinear_global"]:
+            return cases[-1].e_0
+        return None
+
+    @classmethod
+    def get_e_0_nl_loc_lower_boundary(cls, cases: "List[Case]") -> "Optional[float]":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(1, len(cases_sorted)):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]
+                and cases[i - 1].classify_vel_0()
+                != Case.Vel_0_types["nonlinear_localised"]
+            ):
+                return cases[i].e_0
+        return None
+
+    @classmethod
+    def get_e_0_nl_loc_upper_boundary(cls, cases: "List[Case]") -> "Optional[float]":
+        cases_sorted = Case.sort_by_e_0(cases)
+        for i in range(len(cases_sorted) - 1):
+            if (
+                cases[i].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]
+                and cases[i + 1].classify_vel_0()
+                != Case.Vel_0_types["nonlinear_localised"]
+            ):
+                return cases[i].e_0
+        if cases[-1].classify_vel_0() == Case.Vel_0_types["nonlinear_localised"]:
+            return cases[-1].e_0
+        return None
+
+
+def collect(dirs_and_names: Any) -> List["Case"]:
+    all_cases = []
+    for base_path, _, _ in dirs_and_names:
+        print_verb("collecting cases in", base_path)
+        cases = Case.collect(base_path, with_linear=False)
+        cases = Case.prune_times(cases)  # TODO why is this necessary?
+        all_cases += cases
+        print_verb(
+            "collected cases:",
+            "; ".join([case.directory.split("/")[-1] for case in cases]),
+        )
+    return all_cases
+
+
+class CessCase(Case):
+    def __init__(self, directory: str, A=None, K=None):
+        super().__init__(directory)
+        if A is None:
+            self.A = self.get_property_from_settings("cess_mean_a", 53.516)
+        else:
+            self.A = A
+        if K is None:
+            self.K = self.get_property_from_settings("cess_mean_k", 0.677)
+        else:
+            self.K = K
+
+    def get_base_velocity(self) -> "PhysicalField":
+        if self.vel_base is None:
+            Re_tau = self.get_Re_tau()
+            assert Re_tau is not None
+
+            def get_vel_field_cess(
+                A: float = 25.4,
+                K: float = 0.426,
+            ) -> PhysicalField:
+
+                u_sc: float = 1.0
+                domain = self.get_domain()
+                slice_domain = PhysicalDomain.create(
+                    (domain.get_shape_aliasing()[1],),
+                    (False,),
+                    scale_factors=(1.0,),
+                    aliasing=1,
+                )
+
+                def nu_t_fn(X: "np_jnp_array") -> "jsd_float":
+                    def get_y(y_in: "float") -> "float":
+                        return min((1 - y_in), (1 + y_in))
+
+                    y = np.vectorize(get_y)(X[0])
+                    B = 1.0  # pressure gradient
+                    Re = Re_tau
+                    return (
+                        1
+                        / 2
+                        * (
+                            (
+                                1
+                                + K**2
+                                * Re**2
+                                * B**2
+                                / 9
+                                * (2 * y - y**2) ** 2
+                                * (3 - 4 * y + 2 * y**2) ** 2
+                                * (1 - np.exp(-y * Re * B**0.5 / A)) ** 2
+                            )
+                            ** 0.5
+                        )
+                        + 0.5
+                    )
+
+                def shear_fn(X: "np_jnp_array") -> "jsd_float":
+                    def get_y(y_in: "float") -> Tuple["float", "float"]:
+                        return min((1 - y_in), (1 + y_in)), np.sign(y_in)
+
+                    y, sign = np.vectorize(get_y)(X[0])
+                    return -sign * Re_tau * (1 - y) / nu_t_fn(X)
+
+                shear = PhysicalField.FromFunc(
+                    slice_domain, cast("Vel_fn_type", shear_fn), name="shear"
+                )
+                vel_base = shear.integrate(0, bc_left=0.0) * u_sc
+                vel_base.set_name("velocity_base")
+                return vel_base
+
+            vel_base_turb = get_vel_field_cess(self.A, self.K)
+            self.vel_base = vel_base_turb
+        return self.vel_base
+
+
+class PertCase(Case):
+    def __init__(self, directory: str, mean_perturbation_=None):
+        super().__init__(directory)
+        if mean_perturbation_ is None:
+            self.pert = self.get_property_from_settings("mean_perturbation", 0.0)
+        else:
+            self.pert = mean_perturbation_
+
+    def get_base_velocity(self) -> "PhysicalField":
+
+        if self.vel_base is None:
+            domain = self.get_domain()
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            vel_base_perturbation = PhysicalField.FromFunc(
+                slice_domain,
+                lambda X: self.pert
+                * (jnp.cos(jnp.pi * X[0]) + jnp.cos(2 * jnp.pi * X[0])),
+            )
+
+            vel_base_turb_slice = self.get_base_velocity_minimal_channel_slice()
+            vel_base = (
+                vel_base_turb_slice + vel_base_perturbation
+            )  # continuously blend from turbulent to laminar mean profile
+
+            self.vel_base = vel_base
+        return self.vel_base
 
 
 def post_process(
@@ -96,10 +859,19 @@ def post_process(
     Re_tau: float,
     time_step_0: int = 0,
 ) -> None:
+
+    dir = HOME_DIR_BASE.replace(HOME_PREFIX, "")
+    if args.get("mean_perturbation") is not None:
+        case = PertCase(dir)
+    elif args.get("cess_mean_a") is not None or args.get("cess_mean_k") is not None:
+        case = CessCase(dir)
+    else:
+        case = Case(dir)
+
+    domain = case.get_domain()
     with h5py.File(file, "r") as f:
         velocity_trajectory = f["trajectory"]
         n_steps = velocity_trajectory.shape[0]
-        domain = get_domain(velocity_trajectory.shape[2:], Lx_over_pi, Lz_over_pi)
         # fourier_domain = domain.hat()
 
         ts = []
@@ -122,7 +894,7 @@ def post_process(
         lambda_y_s = []
         lambda_z_s = []
         try:
-            E_0 = get_vel_field_minimal_channel(domain).energy()
+            E_0 = case.get_vel_field_minimal_channel().energy()
         except FileNotFoundError:
             E_0 = 1.0
         # prod = []
@@ -334,7 +1106,7 @@ def post_process(
         # np.savetxt("plots/lambdas.txt", lambda_arr.T)
 
         try:
-            vel_base = get_vel_field_minimal_channel(domain)
+            vel_base = case.get_base_velocity()
         except FileNotFoundError:
             vel_base = vel_ * 0.0
 
@@ -386,15 +1158,17 @@ def post_process(
                 scale_factors=(1.0,),
                 aliasing=1,
             )
-            vel_0_base = vel_hat.field_2d(2).field_2d(0).no_hat()[0]
+            vel_0_base_no_slice = vel_hat.field_2d(2).field_2d(0).no_hat()[0]
+
+            vel_0_base = PhysicalField(slice_domain, vel_0_base_no_slice[0, :, 0])
             vel_0_base.set_name("vel_dist_base")
             vel_0_base.set_time_step(time_step)
             vel_0_base.plot_center(1)
 
-            vel_base_inst = vel_0_base + vel_base[0]
+            vel_base_inst = vel_0_base + vel_base
             vel_base_inst.set_name("vel_base_inst")
             vel_base_inst.set_time_step(time_step)
-            vel_base_inst.plot_center(1, vel_base[0])
+            vel_base_inst.plot_center(0, vel_base)
             # vel[1].plot_3d(0, x_max, rotate=True)
             # vel[2].plot_3d(0, x_max, rotate=True)
             # vel.plot_streamlines(2)
@@ -813,18 +1587,17 @@ def post_process_pub(
     )
 
 
-args = get_args_from_yaml_file(HOME_DIR_BASE + "/simulation_settings.yml")
 # args = {}
 assert len(sys.argv) > 1, "please provide a trajectory file to analyse"
 assert (
     len(sys.argv) <= 2
 ), "there is no need to provide further arguments as these are inferred automatically from simulation_settings.yml"
 
-post_process_pub(
-    sys.argv[1],
-    args.get("Lx_over_pi", 1.0),
-    args.get("Lz_over_pi", 1.0),
-)
+# post_process_pub(
+#     sys.argv[1],
+#     args.get("Lx_over_pi", 1.0),
+#     args.get("Lz_over_pi", 1.0),
+# )
 
 post_process(
     sys.argv[1],

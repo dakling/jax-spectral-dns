@@ -313,7 +313,7 @@ class Case:
         Ny = cast(int, self.get_property_from_settings("Ny", 129))
         Nz = cast(int, self.get_property_from_settings("Nz", 80))
         sc_x = cast(float, self.get_property_from_settings("Lx_over_pi", 2.0))
-        sc_z = cast(float, self.get_property_from_settings("Lx_over_pi", 2.0))
+        sc_z = cast(float, self.get_property_from_settings("Lz_over_pi", 1.0))
         domain = PhysicalDomain.create(
             (Nx, Ny, Nz), (True, False, True), (sc_x * np.pi, 1.0, sc_z * np.pi)
         )
