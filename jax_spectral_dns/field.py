@@ -862,13 +862,13 @@ class VectorField(Generic[T]):
             print(e)
             print("ignoring this and carrying on.")
 
-    def plot_isosurfaces(self, iso_val: float = 0.4) -> None:
+    def plot_isosurfaces(self, iso_val: float = 0.4, **params: Any) -> None:
         try:
             for f in self:
                 assert (
                     type(f) is PhysicalField
                 ), "plot_isosurfaces only implemented for PhysicalField."
-                f.plot_isosurfaces(iso_val)
+                f.plot_isosurfaces(iso_val, **params)
         except Exception as e:
             print(
                 "VectorField[PhysicalField].plot_isosurfaces failed with the following exception:"
@@ -2409,7 +2409,7 @@ class PhysicalField(Field):
             max_val = self.max()
             domain = self.get_physical_domain()
             name = params.get("name", self.name)
-            grid = pv.RectilinearGrid(*domain.grid)
+            grid = pv.RectilinearGrid(*domain.grid)  # TODO supersampling?
             wall_grid = pv.RectilinearGrid(*domain.grid)
 
             flip_axis = params.get("flip_axis", None)
@@ -2495,26 +2495,40 @@ class PhysicalField(Field):
                 )
 
             def save() -> None:
-                out_name = (
-                    self.plotting_dir
-                    + "plot_isosurfaces_"
-                    + self.name
-                    + "_t_"
-                    + "{:06}".format(self.time_step)
-                    + self.plotting_format
-                )
-                if interactive:
-                    p.show()
-                else:
-                    p.screenshot(out_name)
-                    copyfile(
-                        out_name,
+                out_format = params.get("out_format", "png")
+                if out_format == "png":
+                    out_name = (
                         self.plotting_dir
                         + "plot_isosurfaces_"
                         + self.name
-                        + "_latest"
-                        + self.plotting_format,
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + self.plotting_format
                     )
+                    if interactive:
+                        p.show()
+                    else:
+                        p.screenshot(out_name)
+                        copyfile(
+                            out_name,
+                            self.plotting_dir
+                            + "plot_isosurfaces_"
+                            + self.name
+                            + "_latest"
+                            + self.plotting_format,
+                        )
+                elif out_format == "stl":
+                    out_name = (
+                        self.plotting_dir
+                        + "plot_isosurfaces_"
+                        + self.name
+                        + "_t_"
+                        + "{:06}".format(self.time_step)
+                        + ".stl"
+                    )
+                    mesh.save(out_name)
+                else:
+                    raise Exception("Unknown output format.")
 
             try:
                 save()
