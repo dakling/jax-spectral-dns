@@ -75,8 +75,9 @@ ax.vlines(
     0.7, ymin=0, ymax=160, linestyle="--", color="k", label="$t = T = 0.7 h / u_\\tau$"
 )
 ax.vlines(
-    0.7, ymin=0, ymax=160, linestyle="--", color="b", label="$t = T = 2.4 h / u_\\tau$"
+    2.4, ymin=0, ymax=160, linestyle="--", color="b", label="$t = T = 2.4 h / u_\\tau$"
 )
 
-fig.legend(loc="center right")
+# fig.legend(loc="center right")
+# fig.legend()
 fig.savefig("energy_over_time.png", bbox_inches="tight")

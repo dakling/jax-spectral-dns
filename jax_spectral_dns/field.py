@@ -71,7 +71,10 @@ NoneType = type(None)
 
 T = TypeVar("T", bound="Field")
 
-pv.global_theme.transparent_background = True
+try:
+    pv.global_theme.transparent_background = True
+except Exception:
+    pass
 
 
 class Field(ABC):
