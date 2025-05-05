@@ -112,7 +112,7 @@ for t, xy_box in snapshots:
         format="png",
     )
 
-    imagebox = OffsetImage(arr_img, zoom=0.30)
+    imagebox = OffsetImage(arr_img, zoom=0.35)
     imagebox.image.axes = ax
 
     xy = (t, e)

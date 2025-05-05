@@ -2216,7 +2216,6 @@ class PhysicalField(Field):
                 ax.axis("off")
                 ax.set_title("")
             if no_title:
-                ax.axis("off")
                 ax.set_title("")
 
             def save() -> None:
