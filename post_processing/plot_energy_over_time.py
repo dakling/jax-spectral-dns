@@ -21,7 +21,7 @@ plt.rcParams.update(
     {
         "text.usetex": True,
         "text.latex.preamble": "\\usepackage{amsmath}" "\\usepackage{xcolor}",
-        "font.size": 18,
+        "font.size": 24,
     }
 )
 
@@ -39,7 +39,7 @@ nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long")
 nlinear_t2, nlinear_e2 = get_data("smaller_channel_eight_t_e_0_study/1eminus4_long")
 # nlinear_turb_t, nlinear_turb_e = get_data("1eminus4_long")
 
-fig = matplotlib.pyplot.figure()
+fig = matplotlib.pyplot.figure(figsize=(16, 9))
 ax = fig.subplots(1, 1)
 ax.set_xlabel("$t u_\\tau / h$")
 ax.set_ylabel("$G$")
@@ -74,10 +74,63 @@ ax.plot(
 ax.vlines(
     0.7, ymin=0, ymax=160, linestyle="--", color="k", label="$t = T = 0.7 h / u_\\tau$"
 )
-ax.vlines(
-    2.4, ymin=0, ymax=160, linestyle="--", color="b", label="$t = T = 2.4 h / u_\\tau$"
-)
+# ax.vlines(
+#     2.4, ymin=0, ymax=160, linestyle="--", color="b", label="$t = T = 2.4 h / u_\\tau$"
+# )
 
 # fig.legend(loc="center right")
-# fig.legend()
+
+
+def interpolate(x, xs, ys):
+    x_sign_change_index = np.argmax((np.diff(np.sign(xs - x)) != 0) * 1)
+    x_0 = xs[x_sign_change_index]
+    x_1 = xs[x_sign_change_index + 1]
+    y_0 = ys[x_sign_change_index]
+    y_1 = ys[x_sign_change_index + 1]
+    return (y_0 + (y_1 - y_0) * (x - x_0) / (x_1 - x_0), x_sign_change_index)
+
+
+snapshots = [
+    (0, (5, -60)),
+    (0.7, (10, 42)),
+    (1.6, (11, 220)),
+    (13, (25, 110)),
+    (40, (50, 160)),
+]
+for t, xy_box in snapshots:
+    e, index = interpolate(t, nlinear_t, nlinear_e)
+    e = e / nlinear_e[0]
+    # base_path = "/home/klingenberg/mnt/swirles_store/"
+    base_path = "/home/klingenberg/mnt/maths_store/"
+    arr_img = plt.imread(
+        base_path +
+        # "/smaller_channel_two_t_e_0_study/7eminus5_long/plots" + "/plot_3d_x_no_cb_velocity_x_t_" + "{:06}".format(index) + ".png", format="png"
+        "/smaller_channel_two_t_e_0_study/7eminus5_long/plots"
+        + "/plot_3d_x_velocity_x_t_"
+        + "{:06}".format(index)
+        + ".png",
+        format="png",
+    )
+
+    imagebox = OffsetImage(arr_img, zoom=0.30)
+    imagebox.image.axes = ax
+
+    xy = (t, e)
+    ab = AnnotationBbox(
+        imagebox,
+        xy,
+        xybox=xy_box,
+        xycoords="data",
+        # boxcoords="offset points",
+        pad=0.02,
+        arrowprops=dict(
+            arrowstyle="->",
+            # connectionstyle="angle,angleA=0,angleB=90,rad=3"
+            # connectionstyle="angle,rad=3"
+        ),
+    )
+
+    ax.add_artist(ab)
+
+fig.legend()
 fig.savefig("energy_over_time.png", bbox_inches="tight")

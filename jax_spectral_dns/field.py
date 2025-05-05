@@ -2203,6 +2203,7 @@ class PhysicalField(Field):
                 im.set_norm(norm)
             name = params.get("name", self.name)
             no_cb = params.get("no_cb", False)
+            no_title = params.get("no_title", False)
             if no_cb is False:
                 name_color = params.get("name_color", "black")
                 divider = make_axes_locatable(ax)
@@ -2212,6 +2213,9 @@ class PhysicalField(Field):
                 ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
             else:
                 # fig.delaxes(fig.axes[1])
+                ax.axis("off")
+                ax.set_title("")
+            if no_title:
                 ax.axis("off")
                 ax.set_title("")
 

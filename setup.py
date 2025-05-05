@@ -12,7 +12,7 @@ setup(
     packages=["jax_spectral_dns"],
     install_requires=[
         "jax>=0.4.31",
-        "numpy<2",  # TODO change this at some point
+        "numpy",
         "scipy",
         "orthax",
         "matplotlib",
