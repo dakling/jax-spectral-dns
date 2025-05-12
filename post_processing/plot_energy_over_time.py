@@ -35,7 +35,8 @@ def get_data(path: str) -> "Tuple(np_array, np_array)":
 
 
 linear_t, linear_e = get_data("smaller_channel_two_t_e_0_study/1eminus6_long")
-nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long")
+# nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long")
+nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long_dns")
 nlinear_t2, nlinear_e2 = get_data("smaller_channel_eight_t_e_0_study/1eminus4_long")
 # nlinear_turb_t, nlinear_turb_e = get_data("1eminus4_long")
 
@@ -91,11 +92,11 @@ def interpolate(x, xs, ys):
 
 
 snapshots = [
-    (0, (5, -60)),
-    (0.7, (10, 42)),
-    (1.6, (11, 220)),
-    (13, (25, 110)),
-    (40, (50, 160)),
+    (0, (5, -90)),
+    (0.7, (30, -90)),
+    (1.6, (13.5, 240)),
+    (13, (53, 155)),
+    (40, (59, -90)),
 ]
 for t, xy_box in snapshots:
     e, index = interpolate(t, nlinear_t, nlinear_e)
@@ -107,8 +108,8 @@ for t, xy_box in snapshots:
         # "/smaller_channel_two_t_e_0_study/7eminus5_long/plots" + "/plot_3d_x_no_cb_velocity_x_t_" + "{:06}".format(index) + ".png", format="png"
         "/smaller_channel_two_t_e_0_study/7eminus5_long/plots"
         + "/plot_3d_x_velocity_x_t_"
-        + "{:06}".format(index)
-        + ".png",
+        # + "/plot_3d_z_velocity_x_t_"
+        + "{:06}".format(index) + ".png",
         format="png",
     )
 

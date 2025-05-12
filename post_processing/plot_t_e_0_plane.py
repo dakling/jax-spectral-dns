@@ -45,14 +45,14 @@ class Case:
     STORE_DIR_BASE = (
         "/store/DAMTP/dsk34/"
         if "cam.ac.uk" in socket.gethostname()
-        # else "/home/klingenberg/mnt/maths_store/"
-        else "/home/klingenberg/mnt/swirles_store/"
+        else "/home/klingenberg/mnt/maths_store/"
+        # else "/home/klingenberg/mnt/swirles_store/"
     )
     HOME_DIR_BASE = (
         "/home/dsk34/jax-optim/run/"
         if "cam.ac.uk" in socket.gethostname()
-        # else "/home/klingenberg/mnt/maths/jax-optim/run/"
-        else "/home/klingenberg/mnt/swirles/jax-optim/run/"
+        else "/home/klingenberg/mnt/maths/jax-optim/run/"
+        # else "/home/klingenberg/mnt/swirles/jax-optim/run/"
     )
     Vel_0_types = Enum(
         "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
@@ -984,6 +984,12 @@ e_base_turb = 1.0
 e_base_lam = 2160.0 / 122.756
 
 dirs_and_names = [
+    (
+        "rev_1_test",
+        # "minimal channel mean (short channel)",
+        "$T=0.1 h / u_\\tau$",
+        e_base_turb,
+    ),
     (
         "smaller_channel_one_t_e_0_study",
         # "minimal channel mean (short channel)",

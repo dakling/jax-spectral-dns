@@ -2120,68 +2120,61 @@ def run_ld_2021_get_mean(**params: Any) -> None:
             # vel_2d_yz.set_name("vel_2d_yz")
             # vel_2d_yz_trajectory.append(vel_2d_yz.get_data())
 
-            # if i == 0:
-            #     energy_t = []
-            #     ts = []
-            #     slice_domain = PhysicalDomain.create(
-            #         (domain.get_shape_aliasing()[1],),
-            #         (False,),
-            #         scale_factors=(1.0,),
-            #         aliasing=1,
-            #     )
+            energy_t = []
+            ts = []
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
 
-            #     try:
-            #         avg_vel_coeffs = np.loadtxt(
-            #             "./profiles/Re_tau_180_90_small_channel.csv",
-            #             dtype=np.float64,
-            #         )
+            try:
+                avg_vel_coeffs = np.loadtxt(
+                    "./profiles/Re_tau_180_90_small_channel.csv",
+                    dtype=np.float64,
+                )
 
-            #         def get_vel_field(
-            #             domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
-            #         ) -> Tuple[
-            #             VectorField[PhysicalField], "np_jnp_array", "jsd_float"
-            #         ]:
-            #             Ny = domain.number_of_cells(1)
-            #             U_mat = np.zeros((Ny, len(cheb_coeffs)))
-            #             for k in range(Ny):
-            #                 for j in range(len(cheb_coeffs)):
-            #                     U_mat[k, j] = cheby(j, 0)(domain.grid[1][k])
-            #             U_y_slice = U_mat @ cheb_coeffs
-            #             nx, nz = domain.number_of_cells(0), domain.number_of_cells(
-            #                 2
-            #             )
-            #             u_data = np.moveaxis(
-            #                 np.tile(
-            #                     np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)
-            #                 ),
-            #                 1,
-            #                 2,
-            #             )
-            #             max = np.max(u_data)
-            #             vel_base = VectorField(
-            #                 [
-            #                     PhysicalField(domain, jnp.asarray(u_data)),
-            #                     PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-            #                     PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
-            #                 ]
-            #             )
-            #             return vel_base, U_y_slice, max
+                def get_vel_field(
+                    domain: PhysicalDomain, cheb_coeffs: "np_jnp_array"
+                ) -> Tuple[VectorField[PhysicalField], "np_jnp_array", "jsd_float"]:
+                    Ny = domain.number_of_cells(1)
+                    U_mat = np.zeros((Ny, len(cheb_coeffs)))
+                    for k in range(Ny):
+                        for j in range(len(cheb_coeffs)):
+                            U_mat[k, j] = cheby(j, 0)(domain.grid[1][k])
+                    U_y_slice = U_mat @ cheb_coeffs
+                    nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+                    u_data = np.moveaxis(
+                        np.tile(np.tile(U_y_slice, reps=(nz, 1)), reps=(nx, 1, 1)),
+                        1,
+                        2,
+                    )
+                    max = np.max(u_data)
+                    vel_base = VectorField(
+                        [
+                            PhysicalField(domain, jnp.asarray(u_data)),
+                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                            PhysicalField.FromFunc(domain, lambda X: 0 * X[2]),
+                        ]
+                    )
+                    return vel_base, U_y_slice, max
 
-            #         vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
-            #         vel_base_turb_slice = PhysicalField(
-            #             slice_domain, vel_base_turb[0][0, :, 0]
-            #         )
-            #         vel_base_turb_slice.set_name("velocity_base_x")
-            #     except Exception:
-            #         print_verb("plotting of reference profile failed.")
-            #         vel_base_turb = None
-            #         vel_base_turb_slice = None
-            #     avg_vel = VectorField(
-            #         [PhysicalField.Zeros(slice_domain) for _ in range(3)]
-            #     )
+                vel_base_turb, _, _ = get_vel_field(domain, avg_vel_coeffs)
+                vel_base_turb_slice = PhysicalField(
+                    slice_domain, vel_base_turb[0][0, :, 0]
+                )
+                vel_base_turb_slice.set_name("velocity_base_x")
+            except Exception:
+                print_verb("plotting of reference profile failed.")
+                vel_base_turb = None
+                vel_base_turb_slice = None
+            # avg_vel = VectorField(
+            #     [PhysicalField.Zeros(slice_domain) for _ in range(3)]
+            # )
             vel_spatial_means = []
             for j in range(n_steps):
-                # time = (j / (n_steps - 1)) * end_time + last_end_time
+                time = (j / (n_steps - 1)) * end_time + last_end_time
                 vel_hat = VectorField.FromData(
                     FourierField,
                     domain,
@@ -2205,10 +2198,13 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 #     vel_spatial_mean[0].plot_center(1)
                 vel_spatial_means.append(vel_spatial_mean.get_data()[:, 0, :, 0])
                 with open(Field.plotting_dir + "/energy_pert.csv", "a") as f:
-                    f.write(str(energy_pert) + "\n")
+                    f.write(str(time) + ", " + str(energy_pert) + "\n")
                 # avg_vel += (
                 #     vel_spatial_mean_ysymm.get_data()[:, 0, :, 0] / n_steps
                 # )
+                energy_vel_tilde = (vel - vel_base_turb).energy()
+                with open(Field.plotting_dir + "/energy.txt", "a") as f:
+                    f.write(str(time) + ", " + str(energy_vel_tilde) + "\n")
                 if j >= n_steps - 1:
                     vel.set_time_step(j + time_step)
                     vel.set_name("velocity")
