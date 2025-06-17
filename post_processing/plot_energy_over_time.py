@@ -35,8 +35,9 @@ def get_data(path: str) -> "Tuple(np_array, np_array)":
 
 
 linear_t, linear_e = get_data("smaller_channel_two_t_e_0_study/1eminus6_long")
-# nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long")
-nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long_dns")
+# linear_t, linear_e = get_data("smaller_channel_two_t_e_0_study/1eminus6_long_dns")
+nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long")
+# nlinear_t, nlinear_e = get_data("smaller_channel_two_t_e_0_study/7eminus5_long_dns")
 nlinear_t2, nlinear_e2 = get_data("smaller_channel_eight_t_e_0_study/1eminus4_long")
 # nlinear_turb_t, nlinear_turb_e = get_data("1eminus4_long")
 
@@ -67,17 +68,26 @@ ax.plot(
     # label="nonlinear optimal (not sustained)"
     # label="nonlinear optimal",
 )
+
 # ax.plot(nlinear_turb_t, nlinear_turb_e / nlinear_turb_e[0], "-",
 #         # label="nonlinear optimal ($e_0/E_0 = 7 \\times 10^{-5}$)"
 #         # label="nonlinear optimal (sustained turbulence)"
 #         label="nonlinear optimal"
 #         )
 ax.vlines(
-    0.7, ymin=0, ymax=160, linestyle="--", color="k", label="$t = T = 0.7 h / u_\\tau$"
+    0.7,
+    ymin=0,
+    ymax=250,
+    linestyle="--",
+    color="k",  # , label="$t = T = 0.7 h / u_\\tau$"
 )
-# ax.vlines(
-#     2.4, ymin=0, ymax=160, linestyle="--", color="b", label="$t = T = 2.4 h / u_\\tau$"
-# )
+ax.vlines(
+    2.4,
+    ymin=0,
+    ymax=250,
+    linestyle="--",
+    color="k",  # , label="$t = T = 2.4 h / u_\\tau$"
+)
 
 # fig.legend(loc="center right")
 
@@ -98,7 +108,9 @@ snapshots = [
     (13, (53, 155)),
     (40, (59, -90)),
 ]
+
 for t, xy_box in snapshots:
+    # for t, xy_box in []:
     e, index = interpolate(t, nlinear_t, nlinear_e)
     e = e / nlinear_e[0]
     # base_path = "/home/klingenberg/mnt/swirles_store/"

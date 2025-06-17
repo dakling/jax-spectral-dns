@@ -134,4 +134,4 @@ def plot(dirs_and_names):
 
 e_base_turb = 1.0
 e_base_lam = 2160.0 / 122.756
-plot(dirs_and_names[2:3])
+plot(dirs_and_names[3:4])

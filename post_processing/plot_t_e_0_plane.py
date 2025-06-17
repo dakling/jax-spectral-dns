@@ -541,8 +541,6 @@ class Case:
             print_verb("nl loc", verbosity_level=3)
             return "o"
         else:
-            print(self)
-            print(self.vel_0_type)
             raise Exception("unknown velocity classification.")
 
     def get_color(self) -> Tuple[str, Any]:
@@ -585,8 +583,6 @@ class Case:
             print_verb("nl loc", verbosity_level=3)
             return "nonlinear localised regime"
         else:
-            print(self)
-            print(self.vel_0_type)
             raise Exception("unknown velocity classification.")
 
     def append_to(

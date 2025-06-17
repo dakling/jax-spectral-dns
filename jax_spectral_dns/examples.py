@@ -2204,7 +2204,7 @@ def run_ld_2021_get_mean(**params: Any) -> None:
                 # )
                 energy_vel_tilde = (vel - vel_base_turb).energy()
                 with open(Field.plotting_dir + "/energy.txt", "a") as f:
-                    f.write(str(time) + ", " + str(energy_vel_tilde) + "\n")
+                    f.write(str(time) + " " + str(energy_vel_tilde) + "\n")
                 if j >= n_steps - 1:
                     vel.set_time_step(j + time_step)
                     vel.set_name("velocity")
