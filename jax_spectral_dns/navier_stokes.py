@@ -1496,11 +1496,11 @@ class NavierStokesVelVort(Equation):
                         + (self.get_dt() * gamma[step]) * N_00_new
                         + (self.get_dt() * xi[step]) * N_00_old
                     )
-                    if self.enforce_base:
-                        return (
-                            jnp.zeros_like(v_hat_new[:n]),
-                            jnp.zeros_like(v_hat_new[n:]),
-                        )
+                    # if self.enforce_base:
+                    #     return (
+                    #         jnp.zeros_like(v_hat_new[:n]),
+                    #         jnp.zeros_like(v_hat_new[n:]),
+                    #     )
                     return (v_hat_new[:n], v_hat_new[n:])
 
                 def rk_not_00(kx: int, kz: int) -> Tuple["jnp_array", "jnp_array"]:
@@ -1578,10 +1578,16 @@ class NavierStokesVelVort(Equation):
         ) -> "jnp_array":
             number_of_input_arguments = 6
 
-            conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
-            conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
-            conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
-            conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
+            if self.enforce_base:
+                conv_ns_hat_0_00 = jnp.zeros_like(conv_ns_hat_0[0, :, 0])
+                conv_ns_hat_2_00 = jnp.zeros_like(conv_ns_hat_2[0, :, 0])
+                conv_ns_hat_0_00_old = jnp.zeros_like(conv_ns_hat_old_0[0, :, 0])
+                conv_ns_hat_2_00_old = jnp.zeros_like(conv_ns_hat_old_2[0, :, 0])
+            else:
+                conv_ns_hat_0_00 = conv_ns_hat_0[0, :, 0]
+                conv_ns_hat_2_00 = conv_ns_hat_2[0, :, 0]
+                conv_ns_hat_0_00_old = conv_ns_hat_old_0[0, :, 0]
+                conv_ns_hat_2_00_old = conv_ns_hat_old_2[0, :, 0]
             v_0_hat_00 = vel_hat_data[0][0, :, 0]
             v_2_hat_00 = vel_hat_data[2][0, :, 0]
 

@@ -1952,11 +1952,11 @@ def run_optimisation_transient_growth_dual(**params: Any) -> GradientDescentSolv
 
 def run_ld_2021_get_mean(**params: Any) -> None:
     Re_tau = params.get("Re_tau", 180.0)
-    Nx = params.get("Nx", 337.0 / (Re_tau * np.pi))
-    Ny = params.get("Ny", 1)
-    Nz = params.get("Nz", 168.0 / (Re_tau * np.pi))
-    Lx_over_pi = params.get("Lx_over_pi", 2.0)
-    Lz_over_pi = params.get("Lz_over_pi", 1.0)
+    Nx = params.get("Nx", 48)
+    Ny = params.get("Ny", 129)
+    Nz = params.get("Nz", 60)
+    Lx_over_pi = params.get("Lx_over_pi", 337.0 / (Re_tau * np.pi))
+    Lz_over_pi = params.get("Lz_over_pi", 168.0 / (Re_tau * np.pi))
     max_cfl = params.get("max_cfl", 0.7)
     end_time = params.get("end_time", 1.0e-1)
     init_file = params.get("init_file")
@@ -3197,26 +3197,35 @@ def run_ld_2021_dual(**params: Any) -> None:
             # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile  # continuously blend from turbulent to laminar mean profile
         )
         if params.get("linear_study_only", False):
-            for alpha in range(10):
-                for beta in range(20):
-                    lsc_xz = LinearStabilityCalculation(
-                        Re=Re__,
-                        alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
-                        beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
-                        n=n,
-                        U_base=cast("np_float_array", vel_base_y_slice),
-                    )
+            for lz in [0.3, 0.2, 0.18, 0.17, 0.16, 0.15, 0.14, 0.12, 0.1]:
+                domain_ = PhysicalDomain.create(
+                    (Nx, Ny, Nz),
+                    (True, False, True),
+                    scale_factors=(Lx_over_pi * np.pi, 1.0, lz * np.pi),
+                    aliasing=aliasing,
+                    dealias_nonperiodic=False,
+                )
+                for alpha in range(2):
+                    for beta in range(1, 3):
+                        print(lz, alpha, beta)
+                        lsc_xz = LinearStabilityCalculation(
+                            Re=Re__,
+                            alpha=alpha * (2 * jnp.pi / domain_.scale_factors[0]),
+                            beta=beta * (2 * jnp.pi / domain_.scale_factors[2]),
+                            n=n,
+                            U_base=cast("np_float_array", vel_base_y_slice),
+                        )
 
-                    T = end_time__
-                    Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
-                    v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
-                        domain,
-                        end_time__,
-                        number_of_modes,
-                        recompute_full=True,
-                        save_final=False,
-                        Ts=Ts,
-                    )
+                        T = end_time__
+                        Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
+                        v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
+                            domain_,
+                            end_time__,
+                            number_of_modes,
+                            recompute_full=True,
+                            save_final=False,
+                            Ts=Ts,
+                        )
             raise Exception("break")
         else:
             lsc_xz = LinearStabilityCalculation(

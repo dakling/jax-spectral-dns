@@ -12,7 +12,7 @@ import matplotlib
 from matplotlib.offsetbox import TextArea, DrawingArea, OffsetImage, AnnotationBbox
 
 from jax_spectral_dns.equation import print_verb
-from plot_t_e_0_plane import Case, dirs_and_names
+from plot_t_e_0_plane import Case
 
 matplotlib.set_loglevel("error")
 matplotlib.use("ps")
@@ -25,12 +25,15 @@ plt.rcParams.update(
     }
 )
 
+direction = "z"
+
 
 def get_data(path: str) -> "Tuple(np_array, np_array)":
-    base_path = "/home/klingenberg/mnt/maths_store/"
-    data_x = np.genfromtxt(base_path + path + "/plots/amplitudes_x.txt")
-    # highest_kx = 8
-    highest_kx = 6
+    # base_path = "/home/klingenberg/mnt/maths_store/"
+    base_path = "/home/klingenberg/mnt/swirles_store/"
+    data_x = np.genfromtxt(base_path + path + "/plots/amplitudes_" + direction + ".txt")
+    highest_kx = 12
+    # highest_kx = 6
     ts = data_x[:, 0]
     amp_xs = data_x[:, 1 : (highest_kx // 2 + 2)].T
     return (ts, amp_xs)
@@ -46,7 +49,12 @@ def plot_single(fig, ax, dir, name, mark):
             amp_x,
             # mark,
             "-",
-            label="$k_x = " + str(k) + "$" + (" (streaks)" if k == 0 else ""),
+            label="$k_ "
+            + direction
+            + " = "
+            + str(k)
+            + "$"
+            + (" (streaks)" if k == 0 else ""),
             color=color,
         )
         k += 2
@@ -85,7 +93,9 @@ def plot(dirs_and_names):
     if len(dirs_and_names) == 1:
         fig.legend(loc="upper left")
         # fig.legend(loc="lower center")
-    fig.savefig("amp_x_over_time.png", bbox_inches="tight")
+    else:
+        fig.legend(loc="upper left")
+    fig.savefig("amp_" + direction + "_over_time.png", bbox_inches="tight")
 
 
 # dirs_and_names = [
@@ -107,16 +117,13 @@ def plot(dirs_and_names):
 #     ),
 # ]
 dirs_and_names = [
+    ("subminimal_channel/lz_015", "$L_z/\\pi=0.15$", "-"),
+    ("subminimal_channel/lz_018", "$L_z/\\pi=0.18$", "--"),
     # (
-    #     "smaller_channel_two_t_e_0_study/3eminus5",
+    #     "smaller_channel_two_t_e_0_study/1eminus4_sweep_down",
     #     "$T=0.7 h / u_\\tau$ (localised)",
-    #     ":"
+    #     "--",
     # ),
-    (
-        "smaller_channel_two_t_e_0_study/1eminus4_sweep_down",
-        "$T=0.7 h / u_\\tau$ (localised)",
-        "--",
-    ),
     # (
     #     "smaller_channel_two_t_e_0_study/1eminus4",
     #     "$T=0.7 h / u_\\tau$ (localised)",
