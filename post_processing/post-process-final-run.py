@@ -231,7 +231,7 @@ class Case:
                     )[0]
                     self.vel_base = vel_base_turb_slice
                 except Exception as e:
-                    raise e
+                    self.vel_base = self.get_base_velocity_minimal_channel_slice()
         return self.vel_base
 
     def get_base_velocity_diff_y(self) -> "PhysicalField":
@@ -1103,11 +1103,7 @@ def post_process(
         # )
         # np.savetxt("plots/lambdas.txt", lambda_arr.T)
 
-        # try:
-        #     vel_base = case.get_base_velocity()
-        # except FileNotFoundError:
-        #     pass
-        # vel_base = vel_ * 0.0
+        vel_base = case.get_base_velocity()
 
         print("main post-processing loop")
         for i in range(n_steps):
@@ -1176,25 +1172,25 @@ def post_process(
             #     0, x_max, rotate=True, name="$\\tilde{u}_x$", no_cb=True, flip_axis=1
             # )
 
-            #             slice_domain = PhysicalDomain.create(
-            #                 (domain.get_shape_aliasing()[1],),
-            #                 (False,),
-            #                 scale_factors=(1.0,),
-            #                 aliasing=1,
-            #             )
-            #             vel_0_base_no_slice = vel_hat.field_2d(2).field_2d(0).no_hat()[0]
+            slice_domain = PhysicalDomain.create(
+                (domain.get_shape_aliasing()[1],),
+                (False,),
+                scale_factors=(1.0,),
+                aliasing=1,
+            )
+            vel_0_base_no_slice = vel_hat.field_2d(2).field_2d(0).no_hat()[0]
 
-            #             vel_0_base = PhysicalField(slice_domain, vel_0_base_no_slice[0, :, 0])
-            #             vel_0_base.set_name("vel_dist_base")
-            #             vel_0_base.set_time_step(time_step)
-            #             vel_0_base.plot_center(1)
+            vel_0_base = PhysicalField(slice_domain, vel_0_base_no_slice[0, :, 0])
+            vel_0_base.set_name("vel_dist_00")
+            vel_0_base.set_time_step(time_step)
+            vel_0_base.plot_center(1)
 
-            #             vel_base_inst = vel_0_base + vel_base
-            #             vel_base_inst.set_name("vel_base_inst")
-            #             vel_base_inst.set_time_step(time_step)
-            #             vel_base_inst.plot_center(0, vel_base)
-            #             # vel[1].plot_3d(0, x_max, rotate=True)
-            #             # vel[2].plot_3d(0, x_max, rotate=True)
+            vel_base_inst = vel_0_base + vel_base
+            vel_base_inst.set_name("vel_00")
+            vel_base_inst.set_time_step(time_step)
+            vel_base_inst.plot_center(0, vel_base)
+            # vel[1].plot_3d(0, x_max, rotate=True)
+            # vel[2].plot_3d(0, x_max, rotate=True)
             #             # vel.plot_streamlines(2)
             #             # vel[1].plot_isolines(2)
             # vel[0].plot_isosurfaces(name="$u_x$", name_color="red")

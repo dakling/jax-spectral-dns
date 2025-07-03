@@ -3320,6 +3320,9 @@ def run_ld_2021_dual(**params: Any) -> None:
             two_d=False,
         )
         v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
+        if params.get("remove_00_from_initial_condition", False):
+            vel_pert_00_hat = v0_hat.field_2d(0).field_2d(2)
+            v0_hat -= vel_pert_00_hat
     v0_hat.set_name("velocity_hat")
 
     v_total = v0_hat.no_hat() + vel_base

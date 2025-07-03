@@ -1578,7 +1578,9 @@ class NavierStokesVelVort(Equation):
         ) -> "jnp_array":
             number_of_input_arguments = 6
 
-            if self.enforce_base:
+            if (
+                self.enforce_base
+            ):  # TODO this is only implemented for simple testing purposes. If this feature is to be used seriously, it must be checked if this implemeation is also correct for the adjoint equation.
                 conv_ns_hat_0_00 = jnp.zeros_like(conv_ns_hat_0[0, :, 0])
                 conv_ns_hat_2_00 = jnp.zeros_like(conv_ns_hat_2[0, :, 0])
                 conv_ns_hat_0_00_old = jnp.zeros_like(conv_ns_hat_old_0[0, :, 0])
