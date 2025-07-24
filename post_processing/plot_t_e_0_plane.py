@@ -62,6 +62,7 @@ class Case:
         self.directory = directory
         self.T = self.get_T()
         self.e_0 = self.get_e0()
+        self.lz_over_pi = self.get_lz_over_pi()
         self.gain = self.get_gain()
         self.Re_tau = self.get_Re_tau()
         self.vel_0 = None
@@ -97,6 +98,9 @@ class Case:
 
     def get_e0(self) -> Optional[float]:
         return self.get_property_from_settings("e_0")
+
+    def get_lz_over_pi(self) -> Optional[float]:
+        return self.get_property_from_settings("Lz_over_pi")
 
     def get_T(self) -> Optional[float]:
         return self.get_property_from_settings("end_time")
@@ -233,9 +237,7 @@ class Case:
         n_y = jnp.argmin((grd[1] - y)[:-1] * (jnp.roll(grd[1], -1) - y)[:-1])
         return self.get_base_velocity()[n_y]
 
-    def get_base_velocity_at_pm_y(
-        self, y: "float"
-    ) -> "float":  # TODO take into account on which side the perturbation is located
+    def get_base_velocity_at_pm_y(self, y: "float") -> "float":
         grd = self.get_domain().grid
         u_0 = self.get_vel_0()
         u_0_shape = u_0[0].get_data().shape
@@ -252,7 +254,7 @@ class Case:
 
     def get_base_velocity_wall(
         self,
-    ) -> "float":  # TODO take into account on which side the perturbation is located
+    ) -> "float":
         if self.vel_base_wall is None:
             Re_tau = self.Re_tau
             y_wall = 1 - 10.0 / Re_tau
@@ -592,8 +594,14 @@ class Case:
             assert self.gain is not None
             Ts = [case.T for case in cases]
             e_0s = [case.e_0 for case in cases]
+            lz_s = [case.lz_over_pi for case in cases]
             gains = [case.gain for case in cases]
-            if prune_duplicates and (self.T in Ts) and (self.e_0 in e_0s):
+            if (
+                prune_duplicates
+                and (self.T in Ts)
+                and (self.e_0 in e_0s)
+                and (self.lz_over_pi in lz_s)
+            ):
                 ind = e_0s.index(self.e_0)
                 other_gain = gains[ind]
                 assert other_gain is not None
@@ -849,14 +857,14 @@ def plot(
         #     ax.plot(x, y, 'k.')
         # fig.savefig("test.png")
 
-    # handles, labels = ax.get_legend_handles_labels()
-    # unique_ = [
-    #     (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
-    # ]
-    # unique = deepcopy(unique_)
-    # for h, l in unique:
-    #     h.set(color="black")
-    # ax.legend(*zip(*unique), loc=target_property[3])
+    handles, labels = ax.get_legend_handles_labels()
+    unique_ = [
+        (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
+    ]
+    unique = deepcopy(unique_)
+    for h, l in unique:
+        h.set(color="black")
+    ax.legend(*zip(*unique), loc=target_property[3])
     fig.savefig("plots/T_" + target_property[0] + "_space.png", bbox_inches="tight")
     # plot isosurfaces of gain
     if include_gain_isoplot:

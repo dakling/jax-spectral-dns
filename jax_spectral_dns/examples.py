@@ -3283,7 +3283,8 @@ def run_ld_2021_dual(**params: Any) -> None:
         max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
         x_max = max_inds[0] / Nx * domain.grid[0][-1]
         z_max = max_inds[2] / Nz * domain.grid[2][-1]
-        v0_0.plot_3d(0, x_max)
+        v0_0.plot_3d(0, rotate=True, name="$\\tilde{u}$")
+        v0_0.plot_3d(0, x_max, rotate=True, name="$\\tilde{u}$")
         v0_0.plot_3d(1, 0)
         v0_0.plot_isosurfaces()
         v0_0.plot_3d(2, z_max, rotate=True)

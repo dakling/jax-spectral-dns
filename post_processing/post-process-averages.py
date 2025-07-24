@@ -45,9 +45,11 @@ pv.global_theme.font.title_size = font_size
 pv.global_theme.font.label_size = font_size
 
 
+STORE_PREFIX = "/cephfs/store/fluids-rrk26/dsk34"
+HOME_PREFIX = "/cephfs/home/dsk34/jax-optim/run"
 # STORE_PREFIX = "/store/DAMTP/dsk34"
-STORE_PREFIX = "/data/septal/dsk34"
-HOME_PREFIX = "/home/dsk34/jax-optim/run"
+# STORE_PREFIX = "/data/septal/dsk34"
+# HOME_PREFIX = "/home/dsk34/jax-optim/run"
 STORE_DIR_BASE = os.path.dirname(os.path.realpath(__file__))
 HOME_DIR_BASE = STORE_DIR_BASE.replace(STORE_PREFIX, HOME_PREFIX)
 
@@ -169,13 +171,21 @@ def post_process_averages() -> None:
                 vel_00 = vel_00_s[-1]
                 vel_00.set_time_step(time_step)
                 vel_00.set_name("velocity_spatial_average")
-                # vel_00[0].plot_center(
-                #     0,
-                #     PhysicalField(
-                #         slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
-                #     ),
-                # )
+                vel_00[0].plot_center(
+                    0,
+                    PhysicalField(
+                        slice_domain, vel_base_turb[0][0, :, 0], name="vilda"
+                    ),
+                )
                 vel_00.save_to_file("vel_00_" + str(time_step))
+                # nx, nz = domain.number_of_cells(0), domain.number_of_cells(2)
+                # u_data = np.moveaxis(
+                #     np.tile(np.tile(vel_00.get_data(), reps=(nz, 1)), reps=(nx, 1, 1)), 1, 2
+                # )
+                # u = VectorField([PhysicalField(domain, jnp.asarray(u_data)), PhysicalField.Zeros(domain), PhysicalField.Zeros(domain)])
+                # u.set_name("velocity")
+                # u.save_to_file("vel_latest")
+                # raise Exception("done")
                 vel_00_symm = average_y_symm(vel_00_s[-1])
                 vel_00_symm.set_time_step(time_step)
                 # vel_00_symm[0].plot_center(

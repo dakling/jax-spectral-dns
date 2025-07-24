@@ -25,15 +25,15 @@ plt.rcParams.update(
     }
 )
 
-direction = "z"
+direction = "x"
 
 
 def get_data(path: str) -> "Tuple(np_array, np_array)":
-    # base_path = "/home/klingenberg/mnt/maths_store/"
-    base_path = "/home/klingenberg/mnt/swirles_store/"
+    base_path = "/home/klingenberg/mnt/maths_store/"
+    # base_path = "/home/klingenberg/mnt/swirles_store/"
     data_x = np.genfromtxt(base_path + path + "/plots/amplitudes_" + direction + ".txt")
-    highest_kx = 12
-    # highest_kx = 6
+    # highest_kx = 12
+    highest_kx = 6
     ts = data_x[:, 0]
     amp_xs = data_x[:, 1 : (highest_kx // 2 + 2)].T
     return (ts, amp_xs)
@@ -61,7 +61,6 @@ def plot_single(fig, ax, dir, name, mark):
 
 
 def plot(dirs_and_names):
-    # TODO try subplots
 
     # fig = matplotlib.pyplot.figure(figsize=(12, 12))
     fig = matplotlib.pyplot.figure(figsize=(9, 6 * 9 / 8))
@@ -117,13 +116,13 @@ def plot(dirs_and_names):
 #     ),
 # ]
 dirs_and_names = [
-    ("subminimal_channel/lz_015", "$L_z/\\pi=0.15$", "-"),
-    ("subminimal_channel/lz_018", "$L_z/\\pi=0.18$", "--"),
-    # (
-    #     "smaller_channel_two_t_e_0_study/1eminus4_sweep_down",
-    #     "$T=0.7 h / u_\\tau$ (localised)",
-    #     "--",
-    # ),
+    # ("subminimal_channel/lz_015", "$L_z/\\pi=0.15$", "-"),
+    # ("subminimal_channel/lz_018", "$L_z/\\pi=0.18$", "--"),
+    (
+        "smaller_channel_two_t_e_0_study/1eminus4_sweep_down",
+        "$T=0.7 h / u_\\tau$",
+        "--",
+    ),
     # (
     #     "smaller_channel_two_t_e_0_study/1eminus4",
     #     "$T=0.7 h / u_\\tau$ (localised)",

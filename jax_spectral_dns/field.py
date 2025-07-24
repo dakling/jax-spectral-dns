@@ -2533,6 +2533,7 @@ class PhysicalField(Field):
                         + ".stl"
                     )
                     mesh.save(out_name)
+                    wall_mesh.save(self.plotting_dir + "walls.stl")
                 else:
                     raise Exception("Unknown output format.")
 
