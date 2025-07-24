@@ -37,9 +37,6 @@ if TYPE_CHECKING:
         jsd_float,
     )
 
-from jax.experimental import mesh_utils
-from jax.sharding import PositionalSharding
-
 NoneType = type(None)
 
 # use_rfftn = jax.default_backend() == "cpu"
