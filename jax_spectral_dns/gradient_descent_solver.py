@@ -112,7 +112,7 @@ class GradientDescentSolver(ABC):
         if self.is_done(i):
             self.done = True
 
-    def optimise(self) -> None:
+    def optimise(self, **params: Any) -> None:
         self.initialise(self.number_of_steps >= 0)
         self.update_done(self.i)
         while not self.done:
@@ -123,7 +123,7 @@ class GradientDescentSolver(ABC):
             self.update_done(self.i)
             assert self.value is not None
             assert math.isfinite(self.value), "calculation failure detected."
-        self.perform_final_run()
+        self.perform_final_run(**params)
 
     def post_process_iteration(self) -> None:
 
@@ -275,14 +275,16 @@ class GradientDescentSolver(ABC):
             pass
         v0.save_to_file("velocity_latest")
 
-    def perform_final_run(self) -> None:
+    def perform_final_run(self, **params: Any) -> None:
         print_verb("performing final run with optimised initial condition")
         v0_hat = self.current_guess
         v0_hat.set_name("velocity_hat")
 
         self.dual_problem.forward_equation.set_initial_field("velocity_hat", v0_hat)
         self.dual_problem.forward_equation.write_intermediate_output = True
-        self.dual_problem.forward_equation.write_entire_output = False
+        self.dual_problem.forward_equation.write_entire_output = params.get(
+            "write_entire_output", False
+        )
         self.dual_problem.forward_equation.end_time = -self.dual_problem.end_time
         self.dual_problem.forward_equation.activate_jit()
         self.dual_problem.forward_equation.set_post_process_fn(self.post_process_fn)

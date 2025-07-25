@@ -3358,7 +3358,7 @@ def run_ld_2021_dual(**params: Any) -> None:
         use_linesearch=use_linesearch,
         linesearch_increase_interval=linesearch_increase_interval,
     )
-    optimiser.optimise()
+    optimiser.optimise(**params)
 
 
 def run_ld_2021_random_snapshots(**params: Any) -> None:
