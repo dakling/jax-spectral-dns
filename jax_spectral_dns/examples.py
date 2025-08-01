@@ -3562,7 +3562,9 @@ def run_secondary_growth(**params: Any) -> None:
     #     two_d=False,
     # )
     # v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
+    print(v0_0.get_data)
     v0_0.normalize_by_max_value()
+    print(v0_0.get_data)
     v0_0 *= streak_amplitude
     v0_0[0].shift(streak_offset)
     v0_0.set_time_step(-1)
@@ -3571,15 +3573,6 @@ def run_secondary_growth(**params: Any) -> None:
     max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
     x_max = max_inds[0] / Nx * domain.grid[0][-1]
     z_max = max_inds[2] / Nz * domain.grid[2][-1]
-    v0_0.plot_3d(0, rotate=True, name="$\\tilde{u}$")
-    v0_0.plot_3d(0, x_max, rotate=True, name="$\\tilde{u}$")
-    v0_0.plot_3d(1, 0)
-    v0_0.plot_isosurfaces()
-    v0_0.plot_3d(2, z_max, rotate=True)
-    v1_0.plot_3d(0, x_max)
-    v1_0.plot_3d(2, z_max, rotate=True)
-    vort_0.plot_3d(0, x_max)
-    vort_0.plot_3d(2, z_max, rotate=True)
     vel_hat: VectorField[FourierField] = v0_0.hat()
     vel_hat.set_name("velocity_hat")
     vel_base_hat = vel_base_no_streaks.hat() + vel_hat
