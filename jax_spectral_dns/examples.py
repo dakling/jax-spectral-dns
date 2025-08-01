@@ -3534,35 +3534,35 @@ def run_secondary_growth(**params: Any) -> None:
         recompute_full=True,
         save_final=False,
     )
-    gaussian_filter_field = PhysicalField.FromFunc(
-        domain,
-        lambda X: jnp.exp(
-            -initial_condition_localisation
-            * (
-                (X[0] / domain.scale_factors[0] - 0.5) ** 2
-                + (X[2] / domain.scale_factors[2] - 0.5) ** 2
-            )
-        )
-        + 0.0 * X[2],
-    )
-    vort_0_hat = (v0_0.curl()[1] * gaussian_filter_field).hat()
-    v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
-    v0_00 = (v0_0[0] * gaussian_filter_field).hat()[0, :, 0]
-    v2_00 = (v0_0[2] * gaussian_filter_field).hat()[0, :, 0]
-    v1_0 = v1_0_hat.no_hat()
-    v1_0.set_name("initial_guess_pre")
-    vort_0 = vort_0_hat.no_hat()
-    vort_0.set_name("initial_guess_pre_vort")
-    v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
-        domain,
-        vort_0_hat.get_data(),
-        v1_0_hat.get_data(),
-        v0_00,
-        v2_00,
-        two_d=False,
-    )
-    v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
-    v0_0.normalize_by_energy()
+    # gaussian_filter_field = PhysicalField.FromFunc(
+    #     domain,
+    #     lambda X: jnp.exp(
+    #         -initial_condition_localisation
+    #         * (
+    #             (X[0] / domain.scale_factors[0] - 0.5) ** 2
+    #             + (X[2] / domain.scale_factors[2] - 0.5) ** 2
+    #         )
+    #     )
+    #     + 0.0 * X[2],
+    # )
+    # vort_0_hat = (v0_0.curl()[1] * gaussian_filter_field).hat()
+    # v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
+    # v0_00 = (v0_0[0] * gaussian_filter_field).hat()[0, :, 0]
+    # v2_00 = (v0_0[2] * gaussian_filter_field).hat()[0, :, 0]
+    # v1_0 = v1_0_hat.no_hat()
+    # v1_0.set_name("initial_guess_pre")
+    # vort_0 = vort_0_hat.no_hat()
+    # vort_0.set_name("initial_guess_pre_vort")
+    # v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
+    #     domain,
+    #     vort_0_hat.get_data(),
+    #     v1_0_hat.get_data(),
+    #     v0_00,
+    #     v2_00,
+    #     two_d=False,
+    # )
+    # v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
+    v0_0.normalize_by_max_value()
     v0_0 *= streak_amplitude
     v0_0[0].shift(streak_offset)
     v0_0.set_time_step(-1)
