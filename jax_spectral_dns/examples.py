@@ -3562,9 +3562,7 @@ def run_secondary_growth(**params: Any) -> None:
     #     two_d=False,
     # )
     # v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
-    print(v0_0.get_data())
     v0_0.normalize_by_max_value()
-    print(v0_0.get_data())
     v0_0 *= streak_amplitude
     v0_0[0].shift(streak_offset)
     v0_0.set_time_step(-1)
@@ -3601,11 +3599,9 @@ def run_secondary_growth(**params: Any) -> None:
         vel_pert_00_hat = v0_hat.field_2d(0).field_2d(2)
         v0_hat -= vel_pert_00_hat
     v0_hat.set_name("velocity_hat")
-    print(end_time__)
 
     v_total = v0_hat.no_hat() + vel_base_hat.no_hat()
     print(v0_hat.no_hat().get_data())
-    print(vel_base_hat.no_hat().get_data())
     dt = Equation.find_suitable_dt(
         domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time__
     )
