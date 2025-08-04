@@ -3601,6 +3601,8 @@ def run_secondary_growth(**params: Any) -> None:
     v0_hat.set_name("velocity_hat")
 
     v_total = v0_hat.no_hat() + vel_base_hat.no_hat()
+    print("vtotal")
+    print([v_total[i].max() for i in range(3)])
     dt = Equation.find_suitable_dt(
         domain, max_cfl, tuple([v_total[i].max() for i in range(3)]), end_time__
     )
