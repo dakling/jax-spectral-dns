@@ -125,13 +125,7 @@ class Equation:
         for a favourable partition into inner and outer steps (relevant for
         solving with solve_scan) is desired, and this is taken into account."""
         dT = [
-            max_cfl
-            * (
-                domain.get_extent(i) / domain.number_of_cells(i)
-                if domain.is_periodic(i)
-                else 1.0
-            )
-            / U_max[i]
+            max_cfl * (domain.get_extent(i) / domain.number_of_cells(i)) / U_max[i]
             for i in domain.all_dimensions()
         ]
         dt = safety_factor * min(dT)
