@@ -128,8 +128,6 @@ class Equation:
             abs(max_cfl * (domain.get_extent(i) / domain.number_of_cells(i)) / U_max[i])
             for i in domain.all_dimensions()
         ]
-        print("dT")
-        print(dT)
         dt = safety_factor * min(dT)
         if end_time is None:
             return dt
