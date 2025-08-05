@@ -3573,6 +3573,9 @@ def run_secondary_growth(**params: Any) -> None:
     z_max = max_inds[2] / Nz * domain.grid[2][-1]
     vel_hat: VectorField[FourierField] = v0_0.hat()
     vel_base_hat = vel_base_no_streaks.hat() + vel_hat
+    vel_base = vel_base_hat.no_hat()
+    vel_base.set_name("velocity_base")
+    vel_base.save_to_file("vel_base")
 
     possible_names = ["vel_0", "velocity", "velocity_pert"]
     v0 = None
@@ -3600,7 +3603,7 @@ def run_secondary_growth(**params: Any) -> None:
         v0_hat -= vel_pert_00_hat
     v0_hat.set_name("velocity_hat")
 
-    v_total = v0_hat.no_hat() + vel_base_hat.no_hat()
+    v_total = v0_hat.no_hat() + vel_base
     dt = Equation.find_suitable_dt(
         domain, max_cfl, tuple([v_total[i].absmax() for i in range(3)]), end_time__
     )
