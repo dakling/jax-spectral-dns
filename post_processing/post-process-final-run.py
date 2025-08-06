@@ -1393,96 +1393,96 @@ def post_process(
             #             #     bbox_inches="tight",
             #             # )
 
-            #             # fig_kx = figure.Figure()
-            #             # ax_kx = fig_kx.subplots(1, 1)
-            #             # fig_kz = figure.Figure()
-            #             # ax_kz = fig_kz.subplots(1, 1)
-            #             # ax_kx.set_xlabel("$t u_\\tau / h$")
-            #             # ax_kx.set_ylabel(
-            #             #     # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
-            #             #     # "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
-            #             #     # "$\\tilde{u}_{x_\\text{maax}} - \\tilde{u}_{x_\\text{min}}$"
-            #             #     "$|\\tilde{u}_{x}|_\\text{inf}$",
-            #             # )
-            #             # # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
-            #             # # ax_kx.yaxis.label.set_color("red")
-            #             # ax_kz.set_xlabel("$t u_\\tau / h$")
-            #             # # ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
-            #             # ax_kz.set_ylabel(
-            #             #     # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
-            #             #     # "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
-            #             #     "$|\\tilde{u}_{x}|_\\text{inf}$",
-            #             # )
-            #             # # ax_kz.set_ylabel("${\\tilde{u}_x}$ amplitude")
-            #             # # ax_kz.yaxis.label.set_color("red")
-            #             # ax_kx.plot(ts, amplitude_t, "k.")
-            #             # ax_kx.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
-            #             # ax_kz.plot(ts, amplitude_t, "k.")
-            #             # ax_kz.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
-            #             # # for kx in range((Nx - 1) // 2 + 1)[0:14:2]:
-            #             # for kx in range((Nx - 1) // 2 + 1)[0:10]:
-            #             #     dots = ax_kx.plot(ts, amplitudes_2d_kxs_arr[:, kx], ".")
-            #             #     ax_kx.plot(
-            #             #         ts[: i + 1],
-            #             #         amplitudes_2d_kxs_arr[: i + 1, kx],
-            #             #         "o",
-            #             #         color=dots[0].get_color(),
-            #             #         label="$k_x = " + str(kx) + "$",
-            #             #     )
-            #             # for kz in range((Nz - 1) // 2 + 1)[0:10]:
-            #             #     dots = ax_kz.plot(ts, amplitudes_2d_kzs_arr[:, kz], ".")
-            #             #     ax_kz.plot(
-            #             #         ts[: i + 1],
-            #             #         amplitudes_2d_kzs_arr[: i + 1, kz],
-            #             #         "o",
-            #             #         color=dots[0].get_color(),
-            #             #         label="$k_z = " + str(kz) + "$",
-            #             #     )
-            #             # ax_kx.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
-            #             # ax_kx.set_box_aspect(1)
-            #             # fname_kx = "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step)
-            #             # # try:
-            #             # #     fig_kx.savefig(
-            #             # #         fname_kx + ".ps",
-            #             # #         # fname_kx + ".png",
-            #             # #         bbox_inches="tight",
-            #             # #     )
-            #             # #     psimage = Image.open(fname_kx + ".ps")
-            #             # #     psimage.load(scale=10, transparency=True)
-            #             # #     psimage.save(fname_kx + ".png", optimize=True)
-            #             # #     image = Image.open(fname_kx + ".png")
-            #             # #     imageBox = image.getbbox()
-            #             # #     cropped = image.crop(imageBox)
-            #             # #     cropped.save(fname_kx + ".png")
-            #             # # except Exception:
-            #             # fig_kx.savefig(
-            #             #     # fname_kx + ".ps",
-            #             #     fname_kx + ".png",
-            #             #     bbox_inches="tight",
-            #             # )
+            fig_kx = figure.Figure()
+            ax_kx = fig_kx.subplots(1, 1)
+            fig_kz = figure.Figure()
+            ax_kz = fig_kz.subplots(1, 1)
+            ax_kx.set_xlabel("$t u_\\tau / h$")
+            ax_kx.set_ylabel(
+                # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+                # "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
+                # "$\\tilde{u}_{x_\\text{maax}} - \\tilde{u}_{x_\\text{min}}$"
+                "$|\\tilde{u}_{x}|_\\text{inf}$",
+            )
+            # ax_kx.set_ylabel("${\\tilde{u}_x}$ amplitude")
+            # ax_kx.yaxis.label.set_color("red")
+            ax_kz.set_xlabel("$t u_\\tau / h$")
+            # ax_kz.set_ylabel("$\\textcolor{red}{\\tilde{u}_x}$ amplitude")
+            ax_kz.set_ylabel(
+                # "$\\textcolor{red}{\\tilde{u}_{x_\\text{max}}} - \\textcolor{red}{\\tilde{u}_{x_\\text{min}}}$"
+                # "$\\tilde{u}_{x_\\text{max}} - \\tilde{u}_{x_\\text{min}}$"
+                "$|\\tilde{u}_{x}|_\\text{inf}$",
+            )
+            # ax_kz.set_ylabel("${\\tilde{u}_x}$ amplitude")
+            # ax_kz.yaxis.label.set_color("red")
+            ax_kx.plot(ts, amplitude_t, "k.")
+            ax_kx.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
+            ax_kz.plot(ts, amplitude_t, "k.")
+            ax_kz.plot(ts[: i + 1], amplitude_t[: i + 1], "ko", label="full")
+            # for kx in range((Nx - 1) // 2 + 1)[0:14:2]:
+            for kx in range((Nx - 1) // 2 + 1)[0:10]:
+                dots = ax_kx.plot(ts, amplitudes_2d_kxs_arr[:, kx], ".")
+                ax_kx.plot(
+                    ts[: i + 1],
+                    amplitudes_2d_kxs_arr[: i + 1, kx],
+                    "o",
+                    color=dots[0].get_color(),
+                    label="$k_x = " + str(kx) + "$",
+                )
+            for kz in range((Nz - 1) // 2 + 1)[0:10]:
+                dots = ax_kz.plot(ts, amplitudes_2d_kzs_arr[:, kz], ".")
+                ax_kz.plot(
+                    ts[: i + 1],
+                    amplitudes_2d_kzs_arr[: i + 1, kz],
+                    "o",
+                    color=dots[0].get_color(),
+                    label="$k_z = " + str(kz) + "$",
+                )
+                ax_kx.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
+                ax_kx.set_box_aspect(1)
+                fname_kx = "plots/plot_amplitudes_kx_t_" + "{:06}".format(time_step)
+                # try:
+                #     fig_kx.savefig(
+                #         fname_kx + ".ps",
+                #         # fname_kx + ".png",
+                #         bbox_inches="tight",
+                #     )
+                #     psimage = Image.open(fname_kx + ".ps")
+                #     psimage.load(scale=10, transparency=True)
+                #     psimage.save(fname_kx + ".png", optimize=True)
+                #     image = Image.open(fname_kx + ".png")
+                #     imageBox = image.getbbox()
+                #     cropped = image.crop(imageBox)
+                #     cropped.save(fname_kx + ".png")
+                # except Exception:
+            fig_kx.savefig(
+                # fname_kx + ".ps",
+                fname_kx + ".png",
+                bbox_inches="tight",
+            )
 
-            #             # ax_kz.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
-            #             # ax_kz.set_box_aspect(1)
-            #             # fname_kz = "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step)
-            #             # # try:
-            #             # #     fig_kz.savefig(
-            #             # #         fname_kz + ".ps",
-            #             # #         # fname_kz + ".png",
-            #             # #         bbox_inches="tight",
-            #             # #     )
-            #             # #     psimage = Image.open(fname_kz + ".ps")
-            #             # #     psimage.load(scale=10, transparency=True)
-            #             # #     psimage.save(fname_kz + ".png", optimize=True)
-            #             # #     image = Image.open(fname_kz + ".png")
-            #             # #     imageBox = image.getbbox()
-            #             # #     cropped = image.crop(imageBox)
-            #             # #     cropped.save(fname_kz + ".png")
-            #             # # except Exception:
-            #             # fig_kz.savefig(
-            #             #     # fname_kz + ".ps",
-            #             #     fname_kz + ".png",
-            #             #     bbox_inches="tight",
-            #             # )
+            ax_kz.legend(loc="center left", bbox_to_anchor=(1.04, 0.5))
+            ax_kz.set_box_aspect(1)
+            fname_kz = "plots/plot_amplitudes_kz_t_" + "{:06}".format(time_step)
+            # try:
+            #     fig_kz.savefig(
+            #         fname_kz + ".ps",
+            #         # fname_kz + ".png",
+            #         bbox_inches="tight",
+            #     )
+            #     psimage = Image.open(fname_kz + ".ps")
+            #     psimage.load(scale=10, transparency=True)
+            #     psimage.save(fname_kz + ".png", optimize=True)
+            #     image = Image.open(fname_kz + ".png")
+            #     imageBox = image.getbbox()
+            #     cropped = image.crop(imageBox)
+            #     cropped.save(fname_kz + ".png")
+            # except Exception:
+            fig_kz.savefig(
+                # fname_kz + ".ps",
+                fname_kz + ".png",
+                bbox_inches="tight",
+            )
 
             #             # ax_pd.plot(prod_arr, -diss_arr, "k.")
             #             # ax_pd.plot(

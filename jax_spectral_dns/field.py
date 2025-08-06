@@ -822,6 +822,16 @@ class VectorField(Generic[T]):
         out.set_time_step(self.get_time_step())
         return out
 
+    def tile(
+        self: "VectorField[PhysicalField]",
+        direction: int,
+        repetitions: int,
+        new_domain: Optional[PhysicalDomain] = None,
+    ) -> "VectorField[PhysicalField]":
+        out_fields = [f.tile(direction, repetitions, new_domain) for f in self]
+        out = VectorField(out_fields, name=self.name)
+        return out
+
     def plot(self, *other_fields: VectorField[PhysicalField]) -> None:
         try:
             for i in jnp.arange(len(self)):
@@ -2674,6 +2684,55 @@ class PhysicalField(Field):
                     * reduce_add_along_axis(self.data, direction)
                 )
                 return PhysicalField(reduced_domain, data)
+
+    def tile(
+        self,
+        direction: int,
+        repetitions: int,
+        new_domain: Optional[PhysicalDomain] = None,
+    ) -> "PhysicalField":
+        assert self.is_periodic(
+            direction
+        ), "Tiling only makes sense along periodic directions"
+        old_domain = self.get_physical_domain()
+        new_shape = tuple(
+            [
+                (
+                    old_domain.get_shape()[i]
+                    if i != direction
+                    else old_domain.get_shape()[i] * repetitions
+                )
+                for i in self.all_dimensions()
+            ]
+        )
+        new_scale_factors = tuple(
+            [
+                (
+                    old_domain.scale_factors[i]
+                    if i != direction
+                    else old_domain.scale_factors[i] * repetitions
+                )
+                for i in self.all_dimensions()
+            ]
+        )
+        new_domain = PhysicalDomain.create(
+            new_shape,
+            old_domain.periodic_directions,
+            new_scale_factors,
+            aliasing=old_domain.aliasing,
+            dealias_nonperiodic=old_domain.dealias_nonperiodic,
+            physical_shape_passed=True,
+        )
+        old_data = self.get_data()
+        new_data = jnp.concatenate(
+            [old_data for _ in range(repetitions)], axis=direction
+        )
+        out_unprojected = PhysicalField(new_domain, new_data, name=self.name)
+        if new_domain is not None:
+            out = out_unprojected.hat().project_onto_domain(new_domain).no_hat()
+        else:
+            out = out_unprojected
+        return out
 
 
 # @register_pytree_node_class
