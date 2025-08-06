@@ -3114,23 +3114,40 @@ def run_ld_2021_dual(**params: Any) -> None:
         vel_base[0].plot_center(1, vel_base_turb[0])
 
     u_max_over_u_tau = turb * max_turb + (1 - turb) * Re_tau / 2.0
-    h_over_delta: float = 1.0
+    h_over_delta: float = (
+        1.0  # confusingly, LD2021 use channel half-height but call it channel height
+    )
 
     Re = Re_tau * u_max_over_u_tau / h_over_delta
     end_time_ = end_time * h_over_delta * u_max_over_u_tau
 
-    if laminar_correction_mode == laminar_correction_modes.NoCorrection:
-        correction_factor = 1.0
-    elif laminar_correction_mode == laminar_correction_modes.MaxValue:
-        correction_factor = max_turb / u_max_over_u_tau
-    elif laminar_correction_mode == laminar_correction_modes.FlowRate:
-        correction_factor = flow_rate_turb / flow_rate
-    elif laminar_correction_mode == laminar_correction_modes.Energy:
-        correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
+    if cess_mean:
+        if laminar_correction_mode == laminar_correction_modes.NoCorrection:
+            correction_factor = 1.0
+        elif laminar_correction_mode == laminar_correction_modes.MaxValue:
+            correction_factor = max_turb / max_val_reference
+        elif laminar_correction_mode == laminar_correction_modes.FlowRate:
+            correction_factor = flow_rate_turb / flow_rate_reference
+        elif laminar_correction_mode == laminar_correction_modes.Energy:
+            correction_factor = np.sqrt(
+                vel_base_turb.energy() / reference_profile.energy()
+            )
+        end_time__ = end_time / correction_factor
+        # Re__ = Re_tau * correction_factor
+        Re__ = Re_tau
+    else:
+        if laminar_correction_mode == laminar_correction_modes.NoCorrection:
+            correction_factor = 1.0
+        elif laminar_correction_mode == laminar_correction_modes.MaxValue:
+            correction_factor = max_turb / u_max_over_u_tau
+        elif laminar_correction_mode == laminar_correction_modes.FlowRate:
+            correction_factor = flow_rate_turb / flow_rate
+        elif laminar_correction_mode == laminar_correction_modes.Energy:
+            correction_factor = np.sqrt(vel_base_turb.energy() / vel_base.energy())
 
-    end_time__ = end_time * correction_factor
-    # Re__ = Re_tau * correction_factor
-    Re__ = Re_tau
+        end_time__ = end_time * correction_factor
+        # Re__ = Re_tau * correction_factor
+        Re__ = Re_tau
 
     print_verb("Re:", Re)
     print_verb("end time in dimensional units:", end_time_)
@@ -3150,117 +3167,161 @@ def run_ld_2021_dual(**params: Any) -> None:
 
     E_0 = vel_base_turb.energy()
 
-    number_of_modes = params.get("number_of_modes", 60)
-    n = Ny
-    lsc_domain = PhysicalDomain.create(
-        (2, n, 2),
-        (True, False, True),
-        scale_factors=domain.scale_factors,
-        aliasing=1,
-    )
-    if full_channel_mean:
-        data = np.loadtxt("./profiles/kmm/re_tau_180/statistics.prof", comments="%").T
-        _, U_base, _, _, _ = get_vel_field_full_channel(lsc_domain, data)
-    else:
-        _, U_base, _, _ = get_vel_field_minimal_channel(lsc_domain, avg_vel_coeffs)
-    vel_base_y_slice = (
-        turb * U_base
-        + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
-        + mean_perturbation
-        * (
-            (1 - b)
-            + jnp.cos(jnp.pi * lsc_domain.grid[1])
-            + b * jnp.cos(2 * jnp.pi * lsc_domain.grid[1])
+    if init_file is None:
+        number_of_modes = params.get("number_of_modes", 60)
+        n = Ny
+        lsc_domain = PhysicalDomain.create(
+            (2, n, 2),
+            (True, False, True),
+            scale_factors=domain.scale_factors,
+            aliasing=1,
         )
-        # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile  # continuously blend from turbulent to laminar mean profile
-    )
-    lsc_xz = LinearStabilityCalculation(
-        Re=Re__,
-        alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
-        beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
-        n=n,
-        U_base=cast("np_float_array", vel_base_y_slice),
-    )
-
-    v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
-        domain,
-        end_time__,
-        number_of_modes,
-        recompute_full=True,
-        save_final=False,
-    )
-    gaussian_filter_field = PhysicalField.FromFunc(
-        domain,
-        lambda X: jnp.exp(
-            -initial_condition_localisation
+        if full_channel_mean:
+            data = np.loadtxt(
+                "./profiles/kmm/re_tau_180/statistics.prof", comments="%"
+            ).T
+            _, U_base, _, _, _ = get_vel_field_full_channel(lsc_domain, data)
+        else:
+            _, U_base, _, _ = get_vel_field_minimal_channel(lsc_domain, avg_vel_coeffs)
+        vel_base_y_slice = (
+            turb * U_base
+            + (1 - turb) * (Re_tau / 2) * (1 - lsc_domain.grid[1] ** 2)
+            + mean_perturbation
             * (
-                (X[0] / domain.scale_factors[0] - 0.5) ** 2
-                + (X[2] / domain.scale_factors[2] - 0.5) ** 2
+                (1 - b)
+                + jnp.cos(jnp.pi * lsc_domain.grid[1])
+                + b * jnp.cos(2 * jnp.pi * lsc_domain.grid[1])
             )
+            # ) / u_max_over_u_tau  # continuously blend from turbulent to laminar mean profile  # continuously blend from turbulent to laminar mean profile
         )
-        + 0.0 * X[2],
-    )
-    vort_0_hat = (v0_0.curl()[1] * gaussian_filter_field).hat()
-    v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
-    v0_00 = (v0_0[0] * gaussian_filter_field).hat()[0, :, 0]
-    v2_00 = (v0_0[2] * gaussian_filter_field).hat()[0, :, 0]
-    v1_0 = v1_0_hat.no_hat()
-    v1_0.set_name("initial_guess_pre")
-    vort_0 = vort_0_hat.no_hat()
-    vort_0.set_name("initial_guess_pre_vort")
-    v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
-        domain,
-        vort_0_hat.get_data(),
-        v1_0_hat.get_data(),
-        v0_00,
-        v2_00,
-        two_d=False,
-    )
-    v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
-    v0_0.normalize_by_max_value()
-    v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
-    v0_0.set_time_step(-1)
-    v0_0.set_name("vel_0_initial_guess")
-    vel_shape = v0_0[0].get_data().shape
-    max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
-    x_max = max_inds[0] / Nx * domain.grid[0][-1]
-    z_max = max_inds[2] / Nz * domain.grid[2][-1]
-    v0_0.plot_3d(0, rotate=True, name="$\\tilde{u}$")
-    v0_0.plot_3d(0, x_max, rotate=True, name="$\\tilde{u}$")
-    v0_0.plot_3d(1, 0)
-    v0_0.plot_isosurfaces()
-    v0_0.plot_3d(2, z_max, rotate=True)
-    v1_0.plot_3d(0, x_max)
-    v1_0.plot_3d(2, z_max, rotate=True)
-    vort_0.plot_3d(0, x_max)
-    vort_0.plot_3d(2, z_max, rotate=True)
-    vel_hat: VectorField[FourierField] = v0_0.hat()
-    vel_hat.set_name("velocity_hat")
+        if params.get("linear_study_only", False):
+            for lz in [0.3, 0.2, 0.18, 0.17, 0.16, 0.15, 0.14, 0.12, 0.1]:
+                domain_ = PhysicalDomain.create(
+                    (Nx, Ny, Nz),
+                    (True, False, True),
+                    scale_factors=(Lx_over_pi * np.pi, 1.0, lz * np.pi),
+                    aliasing=aliasing,
+                    dealias_nonperiodic=False,
+                )
+                for alpha in range(2):
+                    for beta in range(1, 3):
+                        print(lz, alpha, beta)
+                        lsc_xz = LinearStabilityCalculation(
+                            Re=Re__,
+                            alpha=alpha * (2 * jnp.pi / domain_.scale_factors[0]),
+                            beta=beta * (2 * jnp.pi / domain_.scale_factors[2]),
+                            n=n,
+                            U_base=cast("np_float_array", vel_base_y_slice),
+                        )
 
-    possible_names = ["vel_0", "velocity", "velocity_pert"]
-    v0 = None
-    for name in possible_names:
-        try:
-            v0 = VectorField.FromFile(domain, init_file, name, allow_projection=True)
-        except Exception as e:
-            pass
-            # print(e)
-    assert v0 is not None
-    v0 = v0.normalize_by_energy()
-    v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
-    vort = v0.curl()
-    v0_data = NavierStokesVelVort.vort_yvel_to_vel(
-        domain,
-        vort[1].hat().get_data(),
-        v0[1].hat().get_data(),
-        v0[0].hat()[0, :, 0],
-        v0[2].hat()[0, :, 0],
-        two_d=False,
-    )
-    v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
-    if params.get("remove_00_from_initial_condition", False):
-        vel_pert_00_hat = v0_hat.field_2d(0).field_2d(2)
-        v0_hat -= vel_pert_00_hat
+                        T = end_time__
+                        Ts = [T, 2 * T, 3 * T, 4 * T, 6 * T, 8 * T]
+                        v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
+                            domain_,
+                            end_time__,
+                            number_of_modes,
+                            recompute_full=True,
+                            save_final=False,
+                            Ts=Ts,
+                        )
+            raise Exception("break")
+        else:
+            lsc_xz = LinearStabilityCalculation(
+                Re=Re__,
+                alpha=alpha * (2 * jnp.pi / domain.scale_factors[0]),
+                beta=beta * (2 * jnp.pi / domain.scale_factors[2]),
+                n=n,
+                U_base=cast("np_float_array", vel_base_y_slice),
+            )
+
+            v0_0 = lsc_xz.calculate_transient_growth_initial_condition(
+                domain,
+                end_time__,
+                number_of_modes,
+                recompute_full=True,
+                save_final=False,
+            )
+        print_verb(
+            "expected gain:",
+            lsc_xz.calculate_transient_growth_max_energy(end_time__, number_of_modes),
+        )
+        gaussian_filter_field = PhysicalField.FromFunc(
+            domain,
+            lambda X: jnp.exp(
+                -initial_condition_localisation
+                * (
+                    (X[0] / domain.scale_factors[0] - 0.5) ** 2
+                    + (X[2] / domain.scale_factors[2] - 0.5) ** 2
+                )
+            )
+            + 0.0 * X[2],
+        )
+        vort_0_hat = (v0_0.curl()[1] * gaussian_filter_field).hat()
+        v1_0_hat = (v0_0[1] * gaussian_filter_field).hat()
+        v0_00 = (v0_0[0] * gaussian_filter_field).hat()[0, :, 0]
+        v2_00 = (v0_0[2] * gaussian_filter_field).hat()[0, :, 0]
+        v1_0 = v1_0_hat.no_hat()
+        v1_0.set_name("initial_guess_pre")
+        vort_0 = vort_0_hat.no_hat()
+        vort_0.set_name("initial_guess_pre_vort")
+        v0_0_data = NavierStokesVelVort.vort_yvel_to_vel(
+            domain,
+            vort_0_hat.get_data(),
+            v1_0_hat.get_data(),
+            v0_00,
+            v2_00,
+            two_d=False,
+        )
+        v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
+        v0_0.normalize_by_energy()
+        v0_0 *= jnp.sqrt(e_0_over_E_0 * E_0)
+        v0_0.set_time_step(-1)
+        v0_0.set_name("vel_0_initial_guess")
+        vel_shape = v0_0[0].get_data().shape
+        max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
+        x_max = max_inds[0] / Nx * domain.grid[0][-1]
+        z_max = max_inds[2] / Nz * domain.grid[2][-1]
+        v0_0.plot_3d(0, rotate=True, name="$\\tilde{u}$")
+        v0_0.plot_3d(0, x_max, rotate=True, name="$\\tilde{u}$")
+        v0_0.plot_3d(1, 0)
+        v0_0.plot_isosurfaces()
+        v0_0.plot_3d(2, z_max, rotate=True)
+        v1_0.plot_3d(0, x_max)
+        v1_0.plot_3d(2, z_max, rotate=True)
+        vort_0.plot_3d(0, x_max)
+        vort_0.plot_3d(2, z_max, rotate=True)
+        vel_hat: VectorField[FourierField] = v0_0.hat()
+        vel_hat.set_name("velocity_hat")
+
+    if init_file is None:
+        v0_hat = vel_hat
+    else:
+        possible_names = ["vel_0", "velocity", "velocity_pert"]
+        v0 = None
+        for name in possible_names:
+            try:
+                v0 = VectorField.FromFile(
+                    domain, init_file, name, allow_projection=True
+                )
+            except Exception as e:
+                pass
+                # print(e)
+        assert v0 is not None
+        v0 = v0.normalize_by_energy()
+        v0 *= jnp.sqrt(e_0_over_E_0 * E_0)
+        vort = v0.curl()
+        v0_data = NavierStokesVelVort.vort_yvel_to_vel(
+            domain,
+            vort[1].hat().get_data(),
+            v0[1].hat().get_data(),
+            v0[0].hat()[0, :, 0],
+            v0[2].hat()[0, :, 0],
+            two_d=False,
+        )
+        v0_hat = VectorField.FromData(FourierField, domain, v0_data, v0.get_name())
+        if params.get("remove_00_from_initial_condition", False):
+            vel_pert_00_hat = v0_hat.field_2d(0).field_2d(2)
+            v0_hat -= vel_pert_00_hat
     v0_hat.set_name("velocity_hat")
 
     v_total = v0_hat.no_hat() + vel_base
