@@ -1174,7 +1174,6 @@ class PhysicalField(Field):
             other, FourierField
         ), "Attempted to add a Field and a Fourier Field."
         if isinstance(other, PhysicalField):
-            # if True: # TODO
             if self.activate_jit_:
                 new_name = ""
             else:
