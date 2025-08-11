@@ -2414,7 +2414,11 @@ class PhysicalField(Field):
             print("ignoring this and carrying on.")
 
     def plot_isosurfaces(
-        self, iso_val: float = 0.6, plot_min_and_max: bool = True, **params: Any
+        self,
+        iso_val: float = 0.6,
+        plot_min: bool = False,
+        plot_min_and_max: bool = True,
+        **params: Any,
     ) -> None:
         """Create three-dimensional isosurface plot. Optionally, isosurface levels can be given. The option plot_min_and_max determines whether only the a factor of the maximum value or also a factor of the minimum value is plotted."""
         try:
@@ -2439,18 +2443,18 @@ class PhysicalField(Field):
             )
             values = grid.point_data[name]
             other_values = params.get("other_values", [])
-            if plot_min_and_max:
-                mesh = grid.contour(
-                    [iso_val * max_val, iso_val * min_val]
-                    + [val * max_val for val in other_values]
-                    + [val * min_val for val in other_values],
-                    values,
-                )
+            iso_vals_min = [iso_val * min_val] + [val * min_val for val in other_values]
+            iso_vals_max = [iso_val * max_val] + [val * max_val for val in other_values]
+            if not plot_min:
+                iso_vals = iso_vals_min
             else:
-                mesh = grid.contour(
-                    [iso_val * max_val] + [val * max_val for val in other_values],
-                    values,
-                )
+                iso_vals = iso_vals_max
+            if plot_min_and_max:
+                iso_vals = iso_vals_min + iso_vals_max
+            mesh = grid.contour(
+                iso_vals,
+                values,
+            )
 
             interactive = params.get("interactive", False)
             try:
