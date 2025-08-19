@@ -2226,7 +2226,20 @@ class PhysicalField(Field):
                 name_color = params.get("name_color", "black")
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size="5%", pad=0.05)
-                cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
+                cbar_num_format = params.get("colorbar_number_format")
+                if cbar_num_format:
+                    fmt = lambda x, pos: cbar_num_format.format(x)
+                    print("hello")
+                else:
+                    fmt = None
+                cbar = fig.colorbar(
+                    ims[0],
+                    cax=cax,
+                    label=name,
+                    format=FuncFormatter(cbar_num_format),
+                    orientation="vertical",
+                )
+                # cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
                 cbar.ax.yaxis.label.set_color(name_color)
                 ax.set_title("$" + "xyz"[dim] + " = " + "{:.2f}".format(coord) + "$")
             else:
