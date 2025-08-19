@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 import matplotlib
 import matplotlib.figure as figure
+from matplotlib.ticker import FuncFormatter
 from matplotlib.axes import Axes
 import pyvista as pv
 
@@ -2088,9 +2089,12 @@ class PhysicalField(Field):
                 cbar_num_format = params.get("colorbar_number_format")
                 if cbar_num_format:
                     fmt = lambda x, pos: cbar_num_format.format(x)
+                    print("hello")
                 else:
                     fmt = None
-                cbar = fig.colorbar(ims[0], cax=cax, label=name, format=cbar_num_format)
+                cbar = fig.colorbar(
+                    ims[0], cax=cax, label=name, format=FuncFormatter(cbar_num_format)
+                )
                 cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
                 ax[dim].set_title(

@@ -550,7 +550,7 @@ class Case:
             raise Exception("unknown velocity classification.")
 
     def get_color(self) -> Tuple[str, Any]:
-        return 'k', None
+        return "k", None
         e_0_min = 1.0e-6
         e_0_max = 1.0e-3
         alpha_min = 0.0
