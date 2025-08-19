@@ -2085,7 +2085,8 @@ class PhysicalField(Field):
                 name_color = params.get("name_color", "black")
                 divider = make_axes_locatable(ax)
                 cax = divider.append_axes("right", size="5%", pad=0.05)
-                cbar = fig.colorbar(ims[0], cax=cax, label=name)
+                cbar_num_format = params.get("colorbar_number_format")
+                cbar = fig.colorbar(ims[0], cax=cax, label=name, format=cbar_num_format)
                 cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
                 ax[dim].set_title(

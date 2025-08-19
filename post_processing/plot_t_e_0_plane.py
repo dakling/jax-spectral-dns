@@ -45,15 +45,16 @@ class Case:
     STORE_DIR_BASE = (
         "/store/DAMTP/dsk34/"
         if "cam.ac.uk" in socket.gethostname()
-        # else "/home/klingenberg/mnt/maths_store/"
-        else "/home/klingenberg/mnt/swirles_store/"
+        else "/home/klingenberg/mnt/maths_store/"
+        # else "/home/klingenberg/mnt/swirles_store/"
     )
     HOME_DIR_BASE = (
         "/home/dsk34/jax-optim/run/"
         if "cam.ac.uk" in socket.gethostname()
-        # else "/home/klingenberg/mnt/maths/jax-optim/run/"
-        else "/home/klingenberg/mnt/swirles/jax-optim/run/"
+        else "/home/klingenberg/mnt/maths/jax-optim/run/"
+        # else "/home/klingenberg/mnt/swirles/jax-optim/run/"
     )
+    LATEST_GAIN = False
     Vel_0_types = Enum(
         "vel_0_types", ["quasilinear", "nonlinear_global", "nonlinear_localised"]
     )
@@ -165,7 +166,10 @@ class Case:
                     delimiter=",",
                 )
             ).T
-            return max(phase_space_data[1])
+            if self.LATEST_GAIN:
+                return phase_space_data[1][-1]
+            else:
+                return max(phase_space_data[1])
         except Exception:
             return None
 
@@ -546,6 +550,7 @@ class Case:
             raise Exception("unknown velocity classification.")
 
     def get_color(self) -> Tuple[str, Any]:
+        return 'k', None
         e_0_min = 1.0e-6
         e_0_max = 1.0e-3
         alpha_min = 0.0
@@ -857,14 +862,14 @@ def plot(
         #     ax.plot(x, y, 'k.')
         # fig.savefig("test.png")
 
-    handles, labels = ax.get_legend_handles_labels()
-    unique_ = [
-        (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
-    ]
-    unique = deepcopy(unique_)
-    for h, l in unique:
-        h.set(color="black")
-    ax.legend(*zip(*unique), loc=target_property[3])
+    # handles, labels = ax.get_legend_handles_labels()
+    # unique_ = [
+    #     (h, l) for i, (h, l) in enumerate(zip(handles, labels)) if l not in labels[:i]
+    # ]
+    # unique = deepcopy(unique_)
+    # for h, l in unique:
+    #     h.set(color="black")
+    # ax.legend(*zip(*unique), loc=target_property[3])
     fig.savefig("plots/T_" + target_property[0] + "_space.png", bbox_inches="tight")
     # plot isosurfaces of gain
     if include_gain_isoplot:
@@ -988,12 +993,12 @@ e_base_turb = 1.0
 e_base_lam = 2160.0 / 122.756
 
 dirs_and_names = [
-    (
-        "rev_1_test",
-        # "minimal channel mean (short channel)",
-        "$T=0.1 h / u_\\tau$",
-        e_base_turb,
-    ),
+    # (
+    #     "rev_1_test",
+    #     # "minimal channel mean (short channel)",
+    #     "$T=0.1 h / u_\\tau$",
+    #     e_base_turb,
+    # ),
     (
         "smaller_channel_one_t_e_0_study",
         # "minimal channel mean (short channel)",
