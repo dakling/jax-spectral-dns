@@ -2089,11 +2089,10 @@ class PhysicalField(Field):
                 cbar_num_format = params.get("colorbar_number_format")
                 if cbar_num_format:
                     fmt = lambda x, pos: cbar_num_format.format(x)
-                    print("hello")
                 else:
                     fmt = None
                 cbar = fig.colorbar(
-                    ims[0], cax=cax, label=name, format=FuncFormatter(cbar_num_format)
+                    ims[0], cax=cax, label=name, format=FuncFormatter(fmt)
                 )
                 cbar.ax.yaxis.label.set_color(name_color)
                 assert coord is not None
@@ -2229,14 +2228,13 @@ class PhysicalField(Field):
                 cbar_num_format = params.get("colorbar_number_format")
                 if cbar_num_format:
                     fmt = lambda x, pos: cbar_num_format.format(x)
-                    print("hello")
                 else:
                     fmt = None
                 cbar = fig.colorbar(
                     ims[0],
                     cax=cax,
                     label=name,
-                    format=FuncFormatter(cbar_num_format),
+                    format=FuncFormatter(fmt),
                     orientation="vertical",
                 )
                 # cbar = fig.colorbar(ims[0], cax=cax, label=name, orientation="vertical")
