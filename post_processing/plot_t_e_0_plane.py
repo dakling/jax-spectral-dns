@@ -45,14 +45,14 @@ class Case:
     STORE_DIR_BASE = (
         "/store/DAMTP/dsk34/"
         if "cam.ac.uk" in socket.gethostname()
-        else "/home/klingenberg/mnt/maths_store/"
-        # else "/home/klingenberg/mnt/swirles_store/"
+        # else "/home/klingenberg/mnt/maths_store/"
+        else "/home/klingenberg/mnt/swirles_store/"
     )
     HOME_DIR_BASE = (
         "/home/dsk34/jax-optim/run/"
         if "cam.ac.uk" in socket.gethostname()
-        else "/home/klingenberg/mnt/maths/jax-optim/run/"
-        # else "/home/klingenberg/mnt/swirles/jax-optim/run/"
+        # else "/home/klingenberg/mnt/maths/jax-optim/run/"
+        else "/home/klingenberg/mnt/swirles/jax-optim/run/"
     )
     LATEST_GAIN = False
     Vel_0_types = Enum(
@@ -170,6 +170,23 @@ class Case:
                 return phase_space_data[1][-1]
             else:
                 return max(phase_space_data[1])
+        except Exception:
+            return None
+
+    def get_gain_at_time(self, t: float) -> Optional[float]:
+        base_path = self.STORE_DIR_BASE
+        energy_data_name = base_path + "/" + self.directory + "/plots/energy.txt"
+        try:
+            energy_data = np.atleast_2d(
+                np.genfromtxt(
+                    energy_data_name,
+                    delimiter=" ",
+                )
+            ).T
+            ts = energy_data[0, :]
+            es = energy_data[1, :]
+            n_t = jnp.argmin((ts - t)[:-1] * (jnp.roll(ts, -1) - t)[:-1])
+            return es[n_t] / es[0]
         except Exception:
             return None
 

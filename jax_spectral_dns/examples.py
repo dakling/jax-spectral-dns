@@ -3625,11 +3625,12 @@ def run_secondary_growth(**params: Any) -> None:
     #     two_d=False,
     # )
     # v0_0 = VectorField.FromData(FourierField, domain, v0_0_data).no_hat()
-    v0_0.normalize_by_max_value()
-    v0_0 *= streak_amplitude
+    # v0_0.normalize_by_max_value()
+    # v0_0 *= streak_amplitude
+
+    v0_0.normalize_by_energy()
+    v0_0 *= streak_amplitude * vel_base.energy()
     v0_0[0].shift(streak_offset)
-    v0_0.set_time_step(-1)
-    v0_0.set_name("vel_0_initial_guess")
     vel_shape = v0_0[0].get_data().shape
     max_inds = np.unravel_index(v0_0[0].get_data().argmax(axis=None), vel_shape)
     x_max = max_inds[0] / Nx * domain.grid[0][-1]
